@@ -1,0 +1,9 @@
+.git
+.gitignore
+.env
+*.md
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/dist
+**/build
