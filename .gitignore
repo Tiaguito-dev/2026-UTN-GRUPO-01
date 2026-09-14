@@ -1,0 +1,37 @@
+# SO
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/
+.idea/
+*.swp
+
+# Entorno
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# Dependencias (descomentar/extender una vez elegido el stack)
+node_modules/
+vendor/
+__pycache__/
+*.pyc
+
+# Build
+dist/
+build/
+out/
+target/
+
+# Docker
+docker-compose.override.yml
+
+# Estado local de herramientas
+.atl/
+
+# Sub-agentes de Claude Code — personales, no se comparten vía git (ver agents/OVERVIEW.md)
+.claude/agents/
