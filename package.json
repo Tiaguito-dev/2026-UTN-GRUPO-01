@@ -1,0 +1,25 @@
+{
+  "name": "2026-utn-grupo-01",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "back",
+    "front"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "dev:back": "npm run start:dev --workspace=back",
+    "dev:front": "npm run dev --workspace=front",
+    "db:generate": "npm run db:generate --workspace=back",
+    "db:migrate": "npm run db:migrate --workspace=back",
+    "db:studio": "npm run db:studio --workspace=back"
+  },
+  "engines": {
+    "node": ">=22.22.3 <23"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.2"
+  },
+  "packageManager": "npm@10.9.2"
+}
