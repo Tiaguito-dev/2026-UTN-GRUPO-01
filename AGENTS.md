@@ -233,7 +233,8 @@ Además:
 - `CHANGELOG.md` registra lo realizado al finalizar cada tarea.
 
 No se crean otros archivos `README.md` o `index.md` fuera de la raíz; las carpetas usan
-`OVERVIEW.md`.
+`OVERVIEW.md`. Se exceptúan los paquetes autocontenidos de skills bajo `.agents/skills/`, que
+pueden incluir su propio `README.md` como documentación del paquete.
 
 ## 11. Infraestructura y rendimiento
 
