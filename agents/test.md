@@ -21,7 +21,7 @@ Escribe y mantiene los tests automatizados de las dos aplicaciones de este repos
 
 ## Workflow
 
-Sigue [skills/conventional-commit-flow.md](../skills/conventional-commit-flow.md) para branching,
+Sigue [.agents/skills/conventional-commit-flow.md](../.agents/skills/conventional-commit-flow.md) para branching,
 commit, push y limpieza post-merge.
 
 ## Estándares

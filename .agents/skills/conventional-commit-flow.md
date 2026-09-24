@@ -3,7 +3,7 @@
 ## Por qué
 
 Mantiene todo cambio en este repo pasando por el mismo git workflow (definido en
-[docs/standards/git-workflow.md](../docs/standards/git-workflow.md)) sin importar qué agente o
+[docs/standards/git-workflow.md](../../docs/standards/git-workflow.md)) sin importar qué agente o
 persona lo haga, y evita que queden ramas viejas dando vueltas después de un merge.
 
 ## Usada por

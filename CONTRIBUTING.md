@@ -9,7 +9,7 @@
 5. Una vez mergeado, borrar la rama de la feature.
 
 Detalle completo (modelo de branching, formato de commit): [docs/standards/git-workflow.md](docs/standards/git-workflow.md).
-El mismo flujo como skill ejecutable por agentes: [skills/conventional-commit-flow.md](skills/conventional-commit-flow.md).
+El mismo flujo como skill ejecutable por agentes: [.agents/skills/conventional-commit-flow.md](.agents/skills/conventional-commit-flow.md).
 
 ## Estándares
 

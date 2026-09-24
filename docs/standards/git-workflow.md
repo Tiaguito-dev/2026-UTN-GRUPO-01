@@ -26,5 +26,5 @@ Tipos comunes: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `style`, `per
 4. Abrir un pull request contra `desarrollo` (paso manual, no automatizado por agentes).
 5. Una vez aprobado y mergeado, borrar la rama de la feature para mantener el repo limpio.
 
-Ver [skills/conventional-commit-flow.md](../../skills/conventional-commit-flow.md) para la
+Ver [.agents/skills/conventional-commit-flow.md](../../.agents/skills/conventional-commit-flow.md) para la
 versión de este flujo ejecutable por agentes.
