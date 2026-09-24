@@ -26,6 +26,11 @@ dist/
 build/
 out/
 target/
+.next/
+back/src/generated/prisma/
+
+# TypeScript
+*.tsbuildinfo
 
 # Docker
 docker-compose.override.yml
