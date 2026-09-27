@@ -20,8 +20,8 @@ No se incorpora tecnología o dependencia nueva sin una tarea que la justifique.
 
 1. Metodología, roles (`back`/`front`/`test`) y el gate de tarea + TDD antes de implementar:
    ver [agents/OVERVIEW.md](./agents/OVERVIEW.md).
-2. Commits, branching y push: seguir la skill
-   [.agents/skills/conventional-commit-flow.md](./.agents/skills/conventional-commit-flow.md).
+2. Commits, branching, push, PR y merge: seguir la skill
+   [.agents/skills/commit-work/SKILL.md](./.agents/skills/commit-work/SKILL.md).
 3. Nunca push directo a rama protegida ni PR sin instrucción explícita del desarrollador.
 4. Registrar en `CHANGELOG.md` al cerrar una tarea.
 

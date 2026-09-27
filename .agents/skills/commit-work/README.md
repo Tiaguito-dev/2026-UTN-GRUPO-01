@@ -29,8 +29,9 @@ Use this skill when you need to:
 
 ## How It Works
 
-The skill follows a rigorous 8-step workflow:
+The skill follows a rigorous workflow, from branch to merge:
 
+0. **Branch** - Create a `tipo/descripcion-corta` branch from `desarrollo` if there isn't one yet
 1. **Inspect** - Review working tree with `git status` and `git diff`
 2. **Decide boundaries** - Determine if changes should be split into multiple commits
 3. **Stage selectively** - Use patch staging (`git add -p`) for granular control
@@ -39,6 +40,9 @@ The skill follows a rigorous 8-step workflow:
 6. **Write message** - Craft Conventional Commits format message
 7. **Verify** - Run relevant tests/checks before committing
 8. **Repeat** - Continue until working tree is clean
+9. **Push** - Push the branch (shared state — confirm with the person first)
+10. **PR** - Open the pull request against `desarrollo` (always manual, never done by an agent)
+11. **Merge** - Once approved, squash-merge and delete the branch (shared state — confirm first)
 
 ## Key Features
 
