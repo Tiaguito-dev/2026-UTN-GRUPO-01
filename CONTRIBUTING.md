@@ -33,7 +33,7 @@ Este repositorio soporta desarrollo multiagente:
 
 - **Los agentes** se definen como perfiles `.md` bajo `agents/`, un archivo por agente,
   describiendo su rol, alcance y responsabilidades.
-- **Las skills** viven bajo `skills/`. Una skill solo puede agregarse si cumple las tres
+- **Las skills** viven bajo `.agents/skills/`. Una skill solo puede agregarse si cumple las tres
   condiciones:
   1. **Justificada** — el archivo de la skill indica por qué hace falta (qué problema resuelve
      que no esté ya cubierto).

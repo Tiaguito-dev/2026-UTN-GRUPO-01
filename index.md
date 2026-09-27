@@ -33,8 +33,7 @@ se enfoque en presentar el proyecto.
 | `back/` | API TypeScript con NestJS, Prisma ORM y PostgreSQL. |
 | `back/tests/` | Tests de backend, a cargo del agente de Testing. |
 | `agents/` | Perfiles de agentes de IA (`.md`): `back`, `front`, `test`. Ver [agents/OVERVIEW.md](agents/OVERVIEW.md) para la metodología de delegación. |
-| `skills/` | Definiciones de skills usables por los agentes, compatibles con Claude, Codex y Gemini. |
-| `rules/` | Reglas del proyecto que los agentes deben seguir al operar en este repo. |
+| `.agents/skills/` | Definiciones de skills usables por los agentes, compatibles con Claude, Codex y Gemini. |
 
 ## Documentación a nivel de carpeta
 
