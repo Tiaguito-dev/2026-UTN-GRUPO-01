@@ -9,6 +9,10 @@ esta carpeta:
 | Frontend | [front.md](./front.md) | `front/` |
 | Testing | [test.md](./test.md) | `front/tests/`, `back/tests/` |
 
+Además existe un agente `po` de uso personal (Product Owner + Scrum Master + organizador del
+tablero Trello) definido solo en `.claude/agents/po.md`, no versionado y sin perfil público en
+esta carpeta — de uso individual, no para el resto del equipo.
+
 ## Metodología
 
 Para quien use agentes en este repositorio:
