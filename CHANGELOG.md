@@ -9,6 +9,9 @@
 - Frontend Next.js con App Router y pantalla inicial.
 - PostgreSQL local mediante Docker Compose con volumen y healthcheck.
 - Flujo SDD, tareas documentadas y reglas operativas en `AGENTS.md`.
+- Arquitectura de despliegue en la nube en `docs/tdd/TDD-INFRA-CLOUD-H1.md` (Vercel, Render y Neon).
+- Tarea de investigación para autenticación institucional en `docs/tasks/pendient/TASK-004-investigar-autenticacion-institucional.md`.
+- Variables de entorno para producción en `.env.example` y sección de infraestructura en `README.md`.
 
 ### Seguridad
 

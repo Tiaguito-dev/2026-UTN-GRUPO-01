@@ -9,10 +9,20 @@ Etapa temprana con el stack tecnológico inicializado y sin módulos funcionales
 ## Tecnologías
 
 - Lenguaje: TypeScript.
-- Backend: NestJS sobre Node.js.
-- Frontend: Next.js con App Router y React.
-- Persistencia: PostgreSQL con Prisma ORM.
+- Backend: NestJS sobre Node.js (despliegue en Render).
+- Frontend: Next.js con App Router y React (despliegue en Vercel).
+- Persistencia: PostgreSQL con Prisma ORM (local con Docker Compose, nube con Neon).
 - Gestión de paquetes: npm workspaces.
+
+## Infraestructura y Despliegue en la Nube
+
+Para publicar el MVP en Internet con costo cero se adoptó una arquitectura desacoplada:
+- **Frontend:** Vercel (Next.js con CDN global).
+- **Backend:** Render (Web Service Node.js para proceso continuo de NestJS).
+- **Base de Datos:** Neon (PostgreSQL Serverless administrado).
+- **Desarrollo local:** Docker Compose para persistencia aislada sin conexión a Internet.
+
+Ver detalles y justificación en [TDD-INFRA-CLOUD-H1.md](./docs/tdd/TDD-INFRA-CLOUD-H1.md).
 
 ## Estructura del Repositorio
 
