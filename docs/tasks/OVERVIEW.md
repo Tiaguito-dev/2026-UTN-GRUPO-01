@@ -28,5 +28,5 @@ Antes de implementar, la tarea se mueve a `in-progress/`. Cuando el desarrollado
 validación manual, se actualizan una sola vez la documentación de entrega, sus resultados y
 `CHANGELOG.md`; recién entonces la tarea se mueve a `finished/` y se aplica `commit-work`.
 
-Las tareas deben respetar `rules/task-intake.md`, los estándares bajo `docs/standards/` y las
-decisiones bajo `docs/tdd/`.
+Las tareas deben respetar el ["Gate de tarea" en `agents/OVERVIEW.md`](../../agents/OVERVIEW.md#gate-de-tarea-exigible),
+los estándares bajo `docs/standards/` y las decisiones bajo `docs/tdd/`.

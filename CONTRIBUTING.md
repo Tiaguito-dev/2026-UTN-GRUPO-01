@@ -9,7 +9,7 @@
 5. Una vez mergeado, borrar la rama de la feature.
 
 Detalle completo (modelo de branching, formato de commit): [docs/standards/git-workflow.md](docs/standards/git-workflow.md).
-El mismo flujo como skill ejecutable por agentes: [.agents/skills/conventional-commit-flow.md](.agents/skills/conventional-commit-flow.md).
+El mismo flujo como skill ejecutable por agentes: [.agents/skills/commit-work/SKILL.md](.agents/skills/commit-work/SKILL.md).
 
 ## Estándares
 
@@ -33,7 +33,7 @@ Este repositorio soporta desarrollo multiagente:
 
 - **Los agentes** se definen como perfiles `.md` bajo `agents/`, un archivo por agente,
   describiendo su rol, alcance y responsabilidades.
-- **Las skills** viven bajo `skills/`. Una skill solo puede agregarse si cumple las tres
+- **Las skills** viven bajo `.agents/skills/`. Una skill solo puede agregarse si cumple las tres
   condiciones:
   1. **Justificada** — el archivo de la skill indica por qué hace falta (qué problema resuelve
      que no esté ya cubierto).
