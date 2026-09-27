@@ -23,7 +23,31 @@ Para quien use agentes en este repositorio:
    Documentation* (documentación de diseño técnico) — no test-driven development. Registra por
    qué se tomó una decisión, no solo qué se implementó. Ver [docs/tdd/](../docs/tdd/).
 
-La versión exigible de esto es [rules/task-intake.md](../rules/task-intake.md).
+## Gate de tarea (exigible)
+
+Un agente (`back`, `front` o `test`) no puede empezar a implementar una tarea a menos que:
+
+1. **Exista una tarea bajo `docs/tasks/`**, con alcance, exclusiones, restricciones, criterios de
+   aceptación y validaciones. Una tarea ambigua se aclara antes de escribir código, no mientras se
+   escribe.
+2. **Las decisiones no triviales estén respaldadas por un TDD** bajo `docs/tdd/` — arquitectura,
+   dependencia nueva, contrato o cambio a una decisión existente. Si todavía no existe, se escribe
+   primero.
+
+Restricciones operativas:
+
+- No se descargan archivos ni se generan ejecutables que la tarea no requiera expresamente.
+- Instalar dependencias forma parte de la tarea solo cuando el alcance lo autoriza.
+- No se realizan cambios fuera del alcance ni se modifican zonas sensibles sin autorización.
+- Antes de una acción destructiva o con efectos externos, el agente explica qué necesita hacer y
+  espera la aprobación del desarrollador.
+- Los cambios se integran mediante pull request; nunca directo a una rama protegida.
+- Al finalizar, el agente registra el resultado en `CHANGELOG.md`, completa la evidencia de
+  validación y mueve la tarea a `docs/tasks/finished/`.
+
+Las tareas bien definidas dan mejores resultados que las ambiguas, y las decisiones que viven
+solo en un historial de chat se pierden. Registrarlas como TDD mantiene el razonamiento
+disponible para la próxima persona (o agente) que toque esa área.
 
 ## Estos perfiles vs. los sub-agentes de Claude Code
 

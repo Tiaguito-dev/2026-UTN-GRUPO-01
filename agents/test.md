@@ -15,7 +15,7 @@ Escribe y mantiene los tests automatizados de las dos aplicaciones de este repos
 
 ## Inputs Requeridos
 
-- Una tarea bien definida (ver [rules/task-intake.md](../rules/task-intake.md))
+- Una tarea bien definida (ver ["Gate de tarea" en OVERVIEW.md](./OVERVIEW.md#gate-de-tarea-exigible))
 - Un TDD linkeado bajo `docs/tdd/` cuando hay una decisión de estrategia de testing de por medio
   (ej. adoptar un framework de testing)
 
