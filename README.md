@@ -4,15 +4,28 @@
 
 ## Estado
 
-🚧 Etapa temprana — todavía no se definió el stack tecnológico.
+Etapa temprana con el stack tecnológico inicializado y sin módulos funcionales todavía.
+
+## Tecnologías
+
+- Lenguaje: TypeScript.
+- Backend: NestJS sobre Node.js.
+- Frontend: Next.js con App Router y React.
+- Persistencia: PostgreSQL con Prisma ORM.
+- Gestión de paquetes: npm workspaces.
 
 ## Estructura del Repositorio
 
 Ver [index.md](./index.md) para un mapa completo de las carpetas y archivos de este repositorio.
 
-## Primeros Pasos
+## Primeros pasos
 
-_Se define una vez que se elija el stack tecnológico._
+1. Usar Node.js 22.22.3 y npm 10.
+2. Ejecutar `npm install` desde la raíz.
+3. Copiar `.env.example` como `.env` y adaptar sus valores al entorno local.
+4. Iniciar PostgreSQL con `docker compose up -d postgres` cuando no se use otra instalación.
+5. Ejecutar `npm run db:generate`.
+6. Iniciar backend con `npm run dev:back` y frontend con `npm run dev:front`.
 
 ## Documentación
 

@@ -20,7 +20,7 @@ Implementa y mantiene la aplicación frontend bajo `front/`.
 
 ## Workflow
 
-Sigue [skills/conventional-commit-flow.md](../skills/conventional-commit-flow.md) para branching,
+Sigue [.agents/skills/conventional-commit-flow.md](../.agents/skills/conventional-commit-flow.md) para branching,
 commit, push y limpieza post-merge.
 
 ## Estándares

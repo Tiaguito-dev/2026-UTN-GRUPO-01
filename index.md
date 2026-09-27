@@ -9,8 +9,13 @@ se enfoque en presentar el proyecto.
 |---|---|
 | `README.md` | Presentación del proyecto y punto de entrada. |
 | `index.md` | Este archivo — mapa de navegación del repositorio. |
+| `AGENTS.md` | Reglas operativas obligatorias para agentes. |
 | `CONTRIBUTING.md` | Workflow de contribución y estándares. |
 | `TEAM_CHARTER.md` | Roles del equipo y acuerdos de trabajo. |
+| `CHANGELOG.md` | Historial de tareas finalizadas. |
+| `package.json` / `package-lock.json` | Workspaces, scripts y dependencias reproducibles. |
+| `docker-compose.yml` | PostgreSQL local para desarrollo. |
+| `.nvmrc` | Versión de Node.js acordada. |
 | `.gitignore` | Rutas ignoradas por Git. |
 | `.dockerignore` | Exclusiones del contexto de build de Docker. |
 | `.env` / `.env.example` | Variables de entorno locales y su plantilla. |
@@ -22,9 +27,10 @@ se enfoque en presentar el proyecto.
 | `docs/` | Documentación del proyecto (lean documentation — ver README). |
 | `docs/standards/` | Estándares y convenciones de código, referenciados desde `CONTRIBUTING.md` (ej. `git-workflow.md`). |
 | `docs/tdd/` | Documentación de diseño técnico (*Technical Design Documentation*, no test-driven development). Ver [docs/tdd/OVERVIEW.md](docs/tdd/OVERVIEW.md). |
-| `front/` | Aplicación frontend (tecnología a definir). |
+| `docs/tasks/` | Tareas autocontenidas organizadas por estado. |
+| `front/` | Aplicación frontend TypeScript con Next.js y React. |
 | `front/tests/` | Tests de frontend, a cargo del agente de Testing. |
-| `back/` | Aplicación backend (tecnología a definir). |
+| `back/` | API TypeScript con NestJS, Prisma ORM y PostgreSQL. |
 | `back/tests/` | Tests de backend, a cargo del agente de Testing. |
 | `agents/` | Perfiles de agentes de IA (`.md`): `back`, `front`, `test`. Ver [agents/OVERVIEW.md](agents/OVERVIEW.md) para la metodología de delegación. |
 | `skills/` | Definiciones de skills usables por los agentes, compatibles con Claude, Codex y Gemini. |
