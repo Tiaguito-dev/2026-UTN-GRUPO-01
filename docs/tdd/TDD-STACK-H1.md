@@ -26,6 +26,8 @@ tipado estático, persistencia relacional y una estructura preparada para modula
 - Dado un entorno con Node.js 22.22.3, cuando se compilan ambos workspaces, entonces los builds
   terminan correctamente.
 - Dado PostgreSQL disponible, cuando se inicia la API, entonces `GET /health` responde HTTP 200.
+- Dado que falta `DATABASE_URL`, cuando se inicia la API, entonces el arranque falla con un
+  mensaje explícito.
 
 ### 1.4. Qué no vamos a hacer en esta fase
 
@@ -85,11 +87,11 @@ del backend a servicios independientes cuando exista una necesidad comprobada.
 
 Precondiciones: Node.js 22.22.3, npm 10 y una conexión PostgreSQL válida.
 
-| Escenario de Error | Validación / Regla | Resultado |
+| Escenario de Error | Validación / Regla de Negocio | Código HTTP |
 |---|---|---|
-| Falta `DATABASE_URL` | El backend valida la variable al crear `PrismaService`. | El inicio falla con un mensaje explícito. |
-| PostgreSQL no está disponible | Prisma no puede completar `$connect()`. | NestJS no queda disponible como servicio saludable. |
-| Versión de Node incompatible | `engines` y `.nvmrc` fijan Node.js 22.22.3. | npm informa la incompatibilidad antes de ejecutar. |
+| Falta `DATABASE_URL` | El backend valida la variable al crear `PrismaService`; el inicio falla con un mensaje explícito. | N/A — falla antes de exponer HTTP |
+| PostgreSQL no está disponible | Prisma no puede completar `$connect()`; NestJS no queda disponible como servicio saludable. | N/A — falla antes de exponer HTTP |
+| Versión de Node incompatible | `engines` y `.nvmrc` fijan Node.js 22.22.3; npm informa la incompatibilidad antes de ejecutar. | N/A — falla antes de ejecutar la app |
 
 ## 5. Observaciones Adicionales
 
