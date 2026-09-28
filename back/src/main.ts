@@ -9,7 +9,7 @@ config({
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
-  const port = Number(process.env["BACKEND_PORT"] ?? 3001);
+  const port = Number(process.env["PORT"] ?? process.env["BACKEND_PORT"] ?? 3001);
 
   await app.listen(port);
 }
