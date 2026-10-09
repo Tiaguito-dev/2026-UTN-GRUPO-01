@@ -10,6 +10,9 @@ Thumbs.db
 # Entorno
 .env
 .env.local
+.env.*
+!.env.example
+.tmp/
 
 # Logs
 *.log
@@ -27,6 +30,8 @@ build/
 out/
 target/
 .next/
+playwright-report/
+test-results/
 back/src/generated/prisma/
 
 # TypeScript
