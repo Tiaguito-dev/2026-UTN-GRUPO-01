@@ -22,6 +22,21 @@ model User {
   role         UserRole @default(USER)
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
   sessions     Session[]
+  passwordResetCredentials PasswordResetCredential[]
+}
+
+model PasswordResetCredential {
+  id            String    @id @db.Uuid
+  userId        String    @db.Uuid
+  tokenHash     String    @unique @db.Char(64)
+  createdAt     DateTime  @db.Timestamptz(3)
+  expiresAt     DateTime  @db.Timestamptz(3)
+  consumedAt    DateTime? @db.Timestamptz(3)
+  invalidatedAt DateTime? @db.Timestamptz(3)
+  deliveredAt   DateTime? @db.Timestamptz(3)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
 }
 
 model Session {
