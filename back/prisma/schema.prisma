@@ -21,4 +21,16 @@ model User {
   passwordHash String
   role         UserRole @default(USER)
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  sessions     Session[]
+}
+
+model Session {
+  id        String   @id @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
 }
