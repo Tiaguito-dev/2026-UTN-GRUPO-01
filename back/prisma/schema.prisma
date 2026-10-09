@@ -31,6 +31,20 @@ model Session {
   expiresAt DateTime @db.Timestamptz(3)
   revokedAt DateTime? @db.Timestamptz(3)
   user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  refreshCredentials RefreshCredential[]
 
   @@index([userId, createdAt])
+}
+
+model RefreshCredential {
+  id            String    @id @db.Uuid
+  sessionId     String    @db.Uuid
+  tokenHash     String    @unique @db.Char(64)
+  createdAt     DateTime  @db.Timestamptz(3)
+  expiresAt     DateTime  @db.Timestamptz(3)
+  consumedAt    DateTime? @db.Timestamptz(3)
+  invalidatedAt DateTime? @db.Timestamptz(3)
+  session       Session   @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+
+  @@index([sessionId])
 }
