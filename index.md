@@ -14,7 +14,8 @@ se enfoque en presentar el proyecto.
 | `TEAM_CHARTER.md` | Roles del equipo y acuerdos de trabajo. |
 | `CHANGELOG.md` | Historial de tareas finalizadas. |
 | `package.json` / `package-lock.json` | Workspaces, scripts y dependencias reproducibles. |
-| `docker-compose.yml` | PostgreSQL local para desarrollo. |
+| `docker-compose.yml` | Stack productivo: PostgreSQL interno, migraciones, backend, frontend y proxy HTTPS. |
+| `docker-compose.dev.yml` | Stack de desarrollo: HTTP local, puertos en loopback y Mailpit opcional. |
 | `.nvmrc` | Versión de Node.js acordada. |
 | `.gitignore` | Rutas ignoradas por Git. |
 | `.dockerignore` | Exclusiones del contexto de build de Docker. |
@@ -32,6 +33,8 @@ se enfoque en presentar el proyecto.
 | `front/tests/` | Tests de frontend, a cargo del agente de Testing. |
 | `back/` | API TypeScript con NestJS, Prisma ORM y PostgreSQL. |
 | `back/tests/` | Tests de backend, a cargo del agente de Testing. |
+| `infra/` | Proxy Nginx y [comandos Docker](infra/OVERVIEW.md) por entorno. |
+| `docs/tasks/finished/` | Autenticación, Docker y UX aceptados por el desarrollador; evidencia y límites de cada etapa. |
 | `agents/` | Perfiles de agentes de IA (`.md`): `back`, `front`, `test`. Ver [agents/OVERVIEW.md](agents/OVERVIEW.md) para la metodología de delegación. |
 | `.agents/skills/` | Definiciones de skills usables por los agentes, compatibles con Claude, Codex y Gemini. |
 

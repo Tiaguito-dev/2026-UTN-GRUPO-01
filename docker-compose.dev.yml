@@ -1,0 +1,175 @@
+name: profesor-butchery-dev
+
+x-common: &common
+  init: true
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: ["ALL"]
+  pids_limit: 128
+  mem_limit: 512m
+  cpus: 1.0
+  stop_grace_period: 30s
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+x-database: &database
+  DATABASE_URL: postgresql://${POSTGRES_USER:-utn}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD privado}@postgres:5432/${POSTGRES_DB:-utn_grupo_01}?schema=public
+
+services:
+  postgres:
+    <<: *common
+    image: postgres:17-alpine
+    user: postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-utn_grupo_01}
+      POSTGRES_USER: ${POSTGRES_USER:-utn}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD privado}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    ports: ["127.0.0.1:${POSTGRES_PORT:-55449}:5432"]
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m", "/var/run/postgresql:rw,nosuid,size=16m,uid=70,gid=70"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    pids_limit: 256
+    shm_size: 128m
+    stop_grace_period: 60s
+    restart: unless-stopped
+    networks: [data, database-local]
+
+  migrate:
+    <<: *common
+    image: profesor-butchery-migration:dev
+    build: { context: ., dockerfile: back/Dockerfile, target: migration }
+    environment: *database
+    depends_on: { postgres: { condition: service_healthy } }
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m", "/home/node/.npm:rw,nosuid,size=32m,uid=1000,gid=1000"]
+    restart: "no"
+    networks: [data]
+
+  backend:
+    <<: *common
+    image: profesor-butchery-backend:dev
+    build: { context: ., dockerfile: back/Dockerfile, target: runtime }
+    environment:
+      <<: *database
+      NODE_ENV: development
+      PORT: "3001"
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-}
+      AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER:-profesor-butchery}
+      AUTH_JWT_AUDIENCE: ${AUTH_JWT_AUDIENCE:-profesor-butchery-web}
+      AUTH_PUBLIC_URL: ${DOCKER_PUBLIC_URL:-http://localhost:8080}
+      AUTH_ALLOWED_ORIGINS: ${DOCKER_PUBLIC_URL:-http://localhost:8080}
+      AUTH_PASSWORD_RESET_URL: ${DOCKER_PUBLIC_URL:-http://localhost:8080}/reset-password
+      AUTH_ALLOW_LOCAL_HTTP: "true"
+      AUTH_COOKIE_SAME_SITE: lax
+      AUTH_TRUSTED_PROXIES: ${DOCKER_PROXY_IP:-192.168.240.10}
+      AUTH_ACCESS_TTL_SECONDS: ${AUTH_ACCESS_TTL_SECONDS:-900}
+      AUTH_SESSION_TTL_SECONDS: ${AUTH_SESSION_TTL_SECONDS:-604800}
+      AUTH_PASSWORD_RESET_TTL_SECONDS: ${AUTH_PASSWORD_RESET_TTL_SECONDS:-1800}
+      AUTH_PASSWORD_RESET_MIN_RESPONSE_MS: ${AUTH_PASSWORD_RESET_MIN_RESPONSE_MS:-2000}
+      AUTH_LOGIN_MAX_ATTEMPTS: ${AUTH_LOGIN_MAX_ATTEMPTS:-10}
+      AUTH_LOGIN_WINDOW_SECONDS: ${AUTH_LOGIN_WINDOW_SECONDS:-900}
+      AUTH_REFRESH_MAX_ATTEMPTS: ${AUTH_REFRESH_MAX_ATTEMPTS:-30}
+      AUTH_REFRESH_WINDOW_SECONDS: ${AUTH_REFRESH_WINDOW_SECONDS:-900}
+      AUTH_FORGOT_PASSWORD_MAX_ATTEMPTS: ${AUTH_FORGOT_PASSWORD_MAX_ATTEMPTS:-5}
+      AUTH_FORGOT_PASSWORD_WINDOW_SECONDS: ${AUTH_FORGOT_PASSWORD_WINDOW_SECONDS:-900}
+      AUTH_RESET_PASSWORD_MAX_ATTEMPTS: ${AUTH_RESET_PASSWORD_MAX_ATTEMPTS:-10}
+      AUTH_RESET_PASSWORD_WINDOW_SECONDS: ${AUTH_RESET_PASSWORD_WINDOW_SECONDS:-900}
+      AUTH_CHANGE_PASSWORD_MAX_ATTEMPTS: ${AUTH_CHANGE_PASSWORD_MAX_ATTEMPTS:-10}
+      AUTH_CHANGE_PASSWORD_WINDOW_SECONDS: ${AUTH_CHANGE_PASSWORD_WINDOW_SECONDS:-900}
+      SMTP_HOST: ${DOCKER_SMTP_HOST:-mailpit}
+      SMTP_PORT: ${DOCKER_SMTP_PORT:-1025}
+      SMTP_FROM: ${SMTP_FROM:-no-reply@example.test}
+      SMTP_SECURE: ${DOCKER_SMTP_SECURE:-false}
+      SMTP_ALLOW_LOCAL_PLAINTEXT: ${DOCKER_SMTP_ALLOW_LOCAL_PLAINTEXT:-true}
+      SMTP_LOCAL_PLAINTEXT_HOSTS: ${DOCKER_SMTP_LOCAL_PLAINTEXT_HOSTS:-mailpit}
+      SMTP_TIMEOUT_MS: ${SMTP_TIMEOUT_MS:-1500}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
+    restart: unless-stopped
+    networks: [app, data, mail]
+
+  frontend:
+    <<: *common
+    image: profesor-butchery-frontend:dev
+    build:
+      context: .
+      dockerfile: front/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${DOCKER_PUBLIC_URL:-http://localhost:8080}
+        NEXT_PUBLIC_ALLOW_LOCAL_HTTP: "true"
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m", "/app/front/.next/cache:rw,nosuid,size=64m,uid=1000,gid=1000"]
+    mem_limit: 384m
+    restart: unless-stopped
+    networks: [app]
+
+  proxy:
+    <<: *common
+    image: profesor-butchery-proxy:dev
+    build:
+      context: infra/proxy
+      args: { NGINX_CONFIG: nginx.dev.conf }
+    ports: ["127.0.0.1:${DOCKER_HTTP_PORT:-8080}:8080"]
+    depends_on:
+      backend: { condition: service_healthy }
+      frontend: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/proxy-health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m,uid=101,gid=101"]
+    pids_limit: 64
+    mem_limit: 128m
+    stop_grace_period: 30s
+    restart: unless-stopped
+    networks:
+      app:
+        ipv4_address: ${DOCKER_PROXY_IP:-192.168.240.10}
+
+  mailpit:
+    <<: *common
+    image: axllent/mailpit:v1.29.2
+    user: "1000:1000"
+    profiles: [mail]
+    environment: { MP_DATABASE: /tmp/mailpit.db, MP_MAX_MESSAGES: "100", MP_DISABLE_VERSION_CHECK: "true" }
+    ports: ["127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025", "127.0.0.1:${MAILPIT_HTTP_PORT:-8025}:8025"]
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m,uid=1000,gid=1000"]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8025/livez"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    pids_limit: 64
+    mem_limit: 128m
+    cpus: 0.5
+    stop_grace_period: 15s
+    restart: unless-stopped
+    networks: [mail]
+
+networks:
+  app:
+    ipam:
+      config: [{ subnet: "${DOCKER_APP_SUBNET:-192.168.240.0/24}" }]
+  data:
+    internal: true
+  database-local: {}
+  mail: {}
+
+volumes:
+  postgres_data: {}
