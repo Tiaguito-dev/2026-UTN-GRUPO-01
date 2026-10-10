@@ -56,5 +56,5 @@ segundo `APP_FILTER` que pueda matchear el mismo tipo de excepción que otro ya 
 
 Implementación de referencia: `back/src/academic/` (primer módulo construido con este patrón
 desde el día uno) y `back/src/auth/` (migrado después, ver
-`docs/tasks/pendient/TASK-014-academic-etapa-1-jerarquia.md` sección 4 para el detalle de la
+`docs/tasks/in-progress/TASK-014-academic-etapa-1-jerarquia.md` sección 4 para el detalle de la
 migración y los dos bugs reales que aparecieron al hacerla).

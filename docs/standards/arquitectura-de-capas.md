@@ -46,5 +46,5 @@ moverlo a `application/`.
 ## Referencia
 
 `back/src/academic/` completo. Ver
-`docs/tasks/pendient/TASK-014-academic-etapa-1-jerarquia.md` sección 3 para el detalle de cómo
+`docs/tasks/in-progress/TASK-014-academic-etapa-1-jerarquia.md` sección 3 para el detalle de cómo
 se migraron los puertos desde `domain/` hacia `application/ports/` en este mismo módulo.

@@ -6,7 +6,7 @@ en `01-arquitectura-y-tecnologias.md`.
 
 Los nombres de entidad de este módulo están **en español**, por decisión puntual de Tiago para
 `academic`. Es una excepción deliberada a la convención del proyecto (inglés), no una convención
-nueva — ver `docs/tasks/pendient/TASK-014-academic-etapa-1-jerarquia.md` sección 8.
+nueva — ver `docs/tasks/in-progress/TASK-014-academic-etapa-1-jerarquia.md` sección 8.
 
 ## Entidades
 

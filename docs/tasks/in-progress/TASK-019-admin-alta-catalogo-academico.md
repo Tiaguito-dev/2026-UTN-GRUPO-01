@@ -1,6 +1,7 @@
 # TASK-019: Administración del catálogo académico — alta y listado (HU-11, etapa 1)
 
-Estado: En progreso.
+Estado: Implementado y verificado contra la base de desarrollo real (backend de alta y listado;
+el frontend lo cubrió TASK-020); validación manual del equipo pendiente.
 Fecha: 2026-10-10
 
 ## 1. Contexto y objetivo

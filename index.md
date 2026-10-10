@@ -34,6 +34,7 @@ se enfoque en presentar el proyecto.
 | `back/tests/` | Tests de backend, a cargo del agente de Testing. |
 | `infra/` | Proxy Nginx y [comandos Docker](infra/OVERVIEW.md) por entorno. |
 | `docs/tasks/finished/` | Autenticación, Docker y UX aceptados por el desarrollador; evidencia y límites de cada etapa. |
+| `docs/tasks/in-progress/` | Jerarquía académica y administración del catálogo: implementadas y verificadas, con validación manual del equipo pendiente. |
 | `.agents/` | Perfiles de agentes de IA (`.md`): `back`, `front`, `test`. Ver [.agents/OVERVIEW.md](.agents/OVERVIEW.md) para la metodología de delegación. |
 | `.agents/skills/` | Definiciones de skills usables por los agentes, compatibles con Claude, Codex y Gemini. |
 
