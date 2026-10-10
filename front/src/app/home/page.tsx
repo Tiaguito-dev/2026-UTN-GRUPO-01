@@ -1,6 +1,8 @@
-import { RequireAuth } from "@/components/auth/RequireAuth";
-import { SystemHome } from "@/components/home/SystemHome";
+import type { Metadata } from "next";
+import { InicioSection } from "@/components/home/InicioSection";
+
+export const metadata: Metadata = { title: "Inicio | Profesor Butchery" };
 
 export default function SystemHomePage() {
-  return <main id="main-content" className="system-main"><RequireAuth><SystemHome /></RequireAuth></main>;
+  return <InicioSection />;
 }

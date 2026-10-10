@@ -33,9 +33,9 @@ nav .nav-account { color: var(--primary); }
 .sidebar-title { padding-inline: .75rem; margin: 0 0 1rem; color: var(--muted); font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 .system-sidebar nav, .system-sidebar ul { display: block; width: 100%; margin: 0; padding: 0; list-style: none; }
 .system-sidebar li { margin-bottom: .5rem; }
-.system-sidebar button { width: 100%; justify-content: flex-start; padding: .8rem .75rem; background: transparent; color: var(--muted); font-size: .9rem; }
-.system-sidebar button:hover { background: var(--background); color: var(--primary); }
-.system-sidebar button[aria-current="page"] { background: var(--soft-blue); color: var(--primary); box-shadow: inset 3px 0 var(--primary); }
+.system-sidebar button, .system-sidebar .button { width: 100%; justify-content: flex-start; padding: .8rem .75rem; background: transparent; color: var(--muted); font-size: .9rem; }
+.system-sidebar button:hover, .system-sidebar .button:hover { background: var(--background); color: var(--primary); }
+.system-sidebar button[aria-current="page"], .system-sidebar .button[aria-current="page"] { background: var(--soft-blue); color: var(--primary); box-shadow: inset 3px 0 var(--primary); }
 .sidebar-symbol { display: grid; place-items: center; width: 1.6rem; height: 1.6rem; font-weight: 750; }
 .sidebar-note { padding: 1.5rem .75rem 0; margin-top: 2rem; border-top: 1px solid var(--border); color: var(--muted); font-size: .8rem; }
 .system-content { margin-left: 15rem; padding: clamp(2rem, 5vw, 4rem); max-width: 83rem; }
@@ -52,11 +52,31 @@ nav .nav-account { color: var(--primary); }
   .system-sidebar { position: static; width: 100%; padding: 1rem 1.5rem; border-right: 0; border-bottom: 1px solid var(--border); }
   .system-sidebar ul { display: flex; gap: .35rem; flex-wrap: wrap; }
   .system-sidebar li { margin: 0; }
-  .system-sidebar button { width: auto; padding: .6rem .75rem; gap: .4rem; font-size: .8rem; }
+  .system-sidebar button, .system-sidebar .button { width: auto; padding: .6rem .75rem; gap: .4rem; font-size: .8rem; }
   .sidebar-title { padding: 0; margin-bottom: .6rem; }
   .sidebar-note { display: none; }
   .system-content { margin-left: 0; padding: 2rem 1.5rem; }
 }
+.breadcrumb ol { display: flex; flex-wrap: wrap; gap: .4rem; list-style: none; padding: 0; margin: 0 0 1.5rem; font-size: .9rem; color: var(--muted); }
+.breadcrumb li:not(:last-child)::after { content: "›"; margin-left: .4rem; }
+.breadcrumb a { display: inline-flex; align-items: center; min-height: 1.5rem; padding-block: .3rem; }
+.breadcrumb span[aria-current] { color: var(--text); font-weight: 650; }
+/* El <h1> de cada sección recibe foco por código para que un lector de pantalla anuncie el
+   cambio de pantalla. No es alcanzable con Tab (tabindex="-1"), así que ocultar su contorno no
+   le quita nada a la navegación por teclado. */
+h1[tabindex="-1"]:focus, h1[tabindex="-1"]:focus-visible { outline: none; }
+.academic-panel { padding: clamp(1.25rem, 3vw, 2rem); background: var(--surface); border: 1px solid var(--border); border-radius: 1.5rem; max-width: 50rem; }
+.academic-list { list-style: none; padding: 0; margin: 0 0 1.5rem; display: grid; gap: .75rem; }
+.academic-list li { padding: 1rem 1.25rem; border: 1px solid var(--border); border-radius: .8rem; background: var(--surface); }
+/* Dentro del panel blanco las tarjetas usan el fondo de página para seguir distinguiéndose. */
+.academic-panel .academic-list { margin: 0; }
+.academic-panel .academic-list li { background: var(--background); }
+.academic-panel > p { color: var(--muted); margin: 0; }
+.academic-list-detail { color: var(--muted); }
+.academic-list li p { margin: .35rem 0 0; font-size: .9rem; }
+/* Resumen o aviso arriba de la lista dentro del panel (ej. cuántas cuentas hay). */
+.academic-panel > .academic-list-detail { margin: 0 0 1rem; font-size: .9rem; }
+.pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 1rem; margin-top: 1rem; }
 .account-container { max-width: 42rem; margin-inline: auto; }
 .account-intro { text-align: center; color: var(--muted); margin: -.5rem 0 2rem; }
 .profile-card { padding: clamp(1.5rem, 4vw, 2.5rem); border: 1px solid var(--border); border-radius: 1.5rem; background: var(--surface); box-shadow: 0 18px 55px rgb(23 35 61 / 6%); }
@@ -84,9 +104,9 @@ h2 { font-size: 1.5rem; margin-top: 2rem; }
 .intro, .hint { color: var(--muted); }
 .field { margin-block: 1.35rem; }
 label { display: block; font-size: .9rem; font-weight: 650; margin-bottom: .45rem; }
-input { font: inherit; width: 100%; min-height: 3.2rem; padding: .75rem 1rem; border: 1px solid var(--input-border); border-radius: .7rem; background: var(--surface); color: var(--text); }
-input:hover { border-color: var(--primary); }
-input[aria-invalid="true"] { border: 2px solid var(--error); }
+input, select { font: inherit; width: 100%; min-height: 3.2rem; padding: .75rem 1rem; border: 1px solid var(--input-border); border-radius: .7rem; background: var(--surface); color: var(--text); }
+input:hover, select:hover { border-color: var(--primary); }
+input[aria-invalid="true"], select[aria-invalid="true"] { border: 2px solid var(--error); }
 .hint, .field-error { font-size: .85rem; margin: .45rem 0; line-height: 1.5; }
 .field-error { color: var(--error); }
 button, .button { font: inherit; font-weight: 650; display: inline-flex; align-items: center; justify-content: center; gap: .85rem; min-height: 3rem; padding: .8rem 1.4rem; border: 1px solid transparent; border-radius: .75rem; background: var(--primary); color: var(--surface); cursor: pointer; text-decoration: none; text-align: center; }

@@ -64,6 +64,18 @@ export class AuthService {
       return requestJson<T>(path);
     }
   }
+  /** Alta administrativa: un 401 lo genera el guard de sesión antes del handler, así que la
+   *  escritura no se ejecutó y reintentarla una vez tras el refresh no puede duplicar el alta.
+   *  Cualquier otro fallo (409, 404, 400, red) se devuelve sin reintentar. */
+  async protectedPost<T>(path: string, body: unknown): Promise<T> {
+    const observed = this.coordinator.read();
+    try { return await requestJson<T>(path, { method: "POST", body }); }
+    catch (error) {
+      if (!(error instanceof HttpError) || error.status !== 401) throw error;
+      await this.renew(observed);
+      return requestJson<T>(path, { method: "POST", body });
+    }
+  }
   async me(): Promise<PublicAccount> { return publicAccount(await this.protectedGet("/auth/me")); }
   probe(): Promise<PublicAccount> { return this.rawMe(); }
   login(input: LoginInput, onSuccess?: (account: PublicAccount) => void): Promise<PublicAccount> {
