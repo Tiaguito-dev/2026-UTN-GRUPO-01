@@ -31,13 +31,13 @@ escribe.
 
 Este repositorio soporta desarrollo multiagente:
 
-- **Los agentes** se definen como perfiles `.md` bajo `agents/`, un archivo por agente,
+- **Los agentes** se definen como perfiles `.md` bajo `.agents/`, un archivo por agente,
   describiendo su rol, alcance y responsabilidades.
 - **Las skills** viven bajo `.agents/skills/`. Una skill solo puede agregarse si cumple las tres
   condiciones:
   1. **Justificada** — el archivo de la skill indica por qué hace falta (qué problema resuelve
      que no esté ya cubierto).
-  2. **Usada** — al menos un perfil de agente bajo `agents/` la referencia.
+  2. **Usada** — al menos un perfil de agente bajo `.agents/` la referencia.
   3. **Portable** — está escrita para poder usarse con agentes de Claude, Codex y Gemini (sin
      sintaxis específica de una herramienta, salvo que sea explícita e inevitable).
 - **Las reglas** bajo `rules/` definen restricciones que los agentes deben seguir al operar en

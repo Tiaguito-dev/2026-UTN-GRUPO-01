@@ -1,0 +1,26 @@
+{
+  "revisados": {
+    "respuesta-simulada-sin-tipo": {
+      "huella": "back/tests/auth-jwt-config.spec.ts|async function sign(overrides: Record<string, unknown> = {}, header = { alg: \"HS256\", typ: \"JWT\" }) {\nfront/tests/academic-components.spec.ts|const { state } = vi.hoisted(() => ({ state: { value: {} as Record<string, unknown> } }));\nfront/tests/auth-client.spec.ts|expect(Object.keys(real.body as Record<string, unknown>).sort()).toEqual([\"error\", \"message\", \"statusCode\"]);\nfront/tests/auth-navigation.spec.ts|const { state } = vi.hoisted(() => ({ state: { value: {} as Record<string, unknown> } }));#4",
+      "nota": "4 coincidencias: academic-components.spec.ts:10 y auth-navigation.spec.ts:6 son mocks de hooks de React (estado de cliente), no respuestas de servidor. auth-client.spec.ts:202 es el PROPIO test de contrato (chequea Object.keys contra la forma real), coincidencia falsa del regex sobre codigo que valida, no que simula. auth-jwt-config.spec.ts:52 ya revisado antes (helper de claims JWT deliberadamente arbitrarios). Todos falsos positivos.",
+      "at": "2026-10-10T07:34:09.026Z"
+    },
+    "imitador-fetch-sin-contrato": {
+      "huella": "front/tests/academic-service.spec.ts|vi.stubGlobal(\"fetch\", fetchMock);\nfront/tests/auth-client.spec.ts|fetchMock = vi.fn(); vi.stubGlobal(\"fetch\", fetchMock);#2",
+      "nota": "academic-service.spec.ts:12 testea construccion de URL con cuerpos sinteticos triviales, no asume forma de error — la forma real de DomainError ya esta cubierta por el test de contrato de auth-client.spec.ts, porque ambos modulos pasan por el mismo UnhandledErrorFilter unico. auth-client.spec.ts:40 ya resuelto (F1, tiene su contrato al lado). No se requiere duplicar el contrato por modulo.",
+      "at": "2026-10-10T07:34:09.154Z"
+    }
+  },
+  "reglas": [
+    {
+      "id": "imitador-fetch-sin-contrato",
+      "regex": "vi\\.stubGlobal\\(.fetch",
+      "porque": "Un mock de fetch sin test de contrato contra el backend real no detecta regresiones de forma de respuesta (ej. el bug del campo error perdido)",
+      "titulo": "Mock de fetch sin validar contrato real",
+      "archivos": [
+        "ts",
+        "tsx"
+      ]
+    }
+  ]
+}

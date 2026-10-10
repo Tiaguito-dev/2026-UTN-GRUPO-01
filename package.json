@@ -13,13 +13,17 @@
     "dev:front": "npm run dev --workspace=front",
     "db:generate": "npm run db:generate --workspace=back",
     "db:migrate": "npm run db:migrate --workspace=back",
-    "db:studio": "npm run db:studio --workspace=back"
+    "db:studio": "npm run db:studio --workspace=back",
+    "sync:agents": "node scripts/sync-claude-agents.mjs"
   },
   "engines": {
     "node": ">=22.22.3 <23"
   },
   "overrides": {
-    "deepmerge-ts": "8.0.2"
+    "deepmerge-ts": "8.0.2",
+    "express": {
+      "cookie": "2.0.1"
+    }
   },
   "packageManager": "npm@10.9.2"
 }

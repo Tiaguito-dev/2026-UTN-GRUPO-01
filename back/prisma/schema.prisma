@@ -8,3 +8,108 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique @db.VarChar(254)
+  displayName  String   @db.VarChar(100)
+  passwordHash String
+  role         UserRole @default(USER)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  sessions     Session[]
+  passwordResetCredentials PasswordResetCredential[]
+}
+
+model PasswordResetCredential {
+  id            String    @id @db.Uuid
+  userId        String    @db.Uuid
+  tokenHash     String    @unique @db.Char(64)
+  createdAt     DateTime  @db.Timestamptz(3)
+  expiresAt     DateTime  @db.Timestamptz(3)
+  consumedAt    DateTime? @db.Timestamptz(3)
+  invalidatedAt DateTime? @db.Timestamptz(3)
+  deliveredAt   DateTime? @db.Timestamptz(3)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+}
+
+model Session {
+  id        String   @id @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  refreshCredentials RefreshCredential[]
+
+  @@index([userId, createdAt])
+}
+
+model RefreshCredential {
+  id            String    @id @db.Uuid
+  sessionId     String    @db.Uuid
+  tokenHash     String    @unique @db.Char(64)
+  createdAt     DateTime  @db.Timestamptz(3)
+  expiresAt     DateTime  @db.Timestamptz(3)
+  consumedAt    DateTime? @db.Timestamptz(3)
+  invalidatedAt DateTime? @db.Timestamptz(3)
+  session       Session   @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+
+  @@index([sessionId])
+}
+
+enum Cuatrimestre {
+  PRIMERO
+  SEGUNDO
+}
+
+model Materia {
+  id        String    @id @default(uuid()) @db.Uuid
+  nombre    String    @unique @db.VarChar(150)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
+  cursadas  Cursada[]
+}
+
+model Profesor {
+  id             String    @id @default(uuid()) @db.Uuid
+  nombreCompleto String    @db.VarChar(150)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  deletedAt      DateTime? @db.Timestamptz(3)
+  cursadas       Cursada[]
+}
+
+model Cursada {
+  id           String       @id @default(uuid()) @db.Uuid
+  materiaId    String       @db.Uuid
+  profesorId   String       @db.Uuid
+  anio         Int
+  cuatrimestre Cuatrimestre
+  createdAt    DateTime     @default(now()) @db.Timestamptz(3)
+  deletedAt    DateTime?    @db.Timestamptz(3)
+  materia      Materia      @relation(fields: [materiaId], references: [id], onDelete: Restrict)
+  profesor     Profesor     @relation(fields: [profesorId], references: [id], onDelete: Restrict)
+  comisiones   Comision[]
+
+  @@unique([materiaId, anio, cuatrimestre])
+  @@index([profesorId])
+}
+
+model Comision {
+  id        String    @id @default(uuid()) @db.Uuid
+  cursadaId String    @db.Uuid
+  nombre    String    @db.VarChar(100)
+  activa    Boolean   @default(true)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
+  cursada   Cursada   @relation(fields: [cursadaId], references: [id], onDelete: Restrict)
+
+  @@unique([cursadaId, nombre])
+  @@index([cursadaId])
+}

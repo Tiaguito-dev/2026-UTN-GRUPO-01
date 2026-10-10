@@ -10,6 +10,9 @@ Thumbs.db
 # Entorno
 .env
 .env.local
+.env.*
+!.env.example
+.tmp/
 
 # Logs
 *.log
@@ -27,6 +30,8 @@ build/
 out/
 target/
 .next/
+playwright-report/
+test-results/
 back/src/generated/prisma/
 
 # TypeScript
@@ -38,5 +43,5 @@ docker-compose.override.yml
 # Estado local de herramientas
 .atl/
 
-# Sub-agentes de Claude Code — personales, no se comparten vía git (ver agents/OVERVIEW.md)
+# Sub-agentes de Claude Code — personales, no se comparten vía git (ver .agents/OVERVIEW.md)
 .claude/agents/
