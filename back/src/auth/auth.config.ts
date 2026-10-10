@@ -30,6 +30,7 @@ export interface AuthConfig {
   changePasswordMaxAttempts: number;
   changePasswordWindowSeconds: number;
   trustedProxies: string[];
+  trustedProxyHops: number;
 }
 
 export function readAuthConfig(env: NodeJS.ProcessEnv): AuthConfig {
@@ -77,6 +78,11 @@ export function readAuthConfig(env: NodeJS.ProcessEnv): AuthConfig {
     if (!ipVersion || segments.length > 2 || (segments.length === 2 &&
       (!/^(0|[1-9][0-9]*)$/.test(segments[1]!) || Number(segments[1]) > (ipVersion === 4 ? 32 : 128) || Number(segments[1]) === 0))) fail("AUTH_TRUSTED_PROXIES");
   }
+  // Managed platforms (Render, Fly, Cloud Run) terminate TLS at an edge whose internal address
+  // is neither stable nor documented, so no IP list can describe it. A hop count still rejects
+  // client-supplied forwarded entries: Express keeps only the hops its own edge appended.
+  const trustedProxyHops = env.AUTH_TRUSTED_PROXY_HOPS === undefined ? 0 : integer("AUTH_TRUSTED_PROXY_HOPS", 1, 1, 10);
+  if (trustedProxyHops && trustedProxies.length) fail("AUTH_TRUSTED_PROXY_HOPS");
   const accessTtlSeconds = integer("AUTH_ACCESS_TTL_SECONDS", 900, 60, 3600);
   const sessionTtlSeconds = integer("AUTH_SESSION_TTL_SECONDS", 604800, 60, 2592000);
   if (sessionTtlSeconds < accessTtlSeconds) fail("AUTH_SESSION_TTL_SECONDS");
@@ -97,7 +103,7 @@ export function readAuthConfig(env: NodeJS.ProcessEnv): AuthConfig {
     refreshCookieName: cookieSecure ? "__Secure-butchery_refresh" : "butchery_refresh",
     refreshCookiePath: "/auth",
     loginMaxAttempts: integer("AUTH_LOGIN_MAX_ATTEMPTS", 10, 1, 1000),
-    loginWindowSeconds: integer("AUTH_LOGIN_WINDOW_SECONDS", 900, 1, 86400), trustedProxies,
+    loginWindowSeconds: integer("AUTH_LOGIN_WINDOW_SECONDS", 900, 1, 86400), trustedProxies, trustedProxyHops,
     refreshMaxAttempts: integer("AUTH_REFRESH_MAX_ATTEMPTS", 30, 1, 1000),
     refreshWindowSeconds: integer("AUTH_REFRESH_WINDOW_SECONDS", 900, 1, 86400),
     passwordResetTtlSeconds: integer("AUTH_PASSWORD_RESET_TTL_SECONDS", 1800, 60, 86400),

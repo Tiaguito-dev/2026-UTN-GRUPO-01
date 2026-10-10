@@ -1,0 +1,68 @@
+# Render Blueprint — backend NestJS como Web Service persistente.
+# Arquitectura: docs/architecture/DEFINICION-ARQUITECTURA.md (Vercel + Render + Neon).
+# Ningun secreto vive en este archivo: `sync: false` obliga a cargarlo en el dashboard.
+services:
+  - type: web
+    name: utn-grupo-01-back
+    runtime: node
+    plan: free
+    # Misma region que el proyecto Neon (aws-us-east-2) para no cruzar continentes por query.
+    region: ohio
+    # Node 22.22.3 se toma de .nvmrc en la raiz del repositorio.
+    buildCommand: npm ci && npm run build --workspace=back
+    startCommand: npm run start --workspace=back
+    healthCheckPath: /health/ready
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render termina TLS en su edge y reenvia HTTP al proceso. Sin esto, request.secure
+      # es false y toda ruta /auth responde 403. La direccion del edge no es declarable,
+      # por eso se cuenta un salto en lugar de listar IPs.
+      - key: AUTH_TRUSTED_PROXY_HOPS
+        value: "1"
+      - key: AUTH_ALLOW_LOCAL_HTTP
+        value: "false"
+      # Front en vercel.app y API en onrender.com son sitios distintos: Lax no envia la
+      # cookie en las peticiones del front y el login queda roto. None exige Secure, que
+      # ya se deriva de AUTH_PUBLIC_URL https.
+      - key: AUTH_COOKIE_SAME_SITE
+        value: none
+      - key: AUTH_JWT_ISSUER
+        value: profesor-butchery
+      - key: AUTH_JWT_AUDIENCE
+        value: profesor-butchery-web
+      # El handshake SMTPS hacia un proveedor remoto no entra en los 1500 ms que alcanzan
+      # para Mailpit en loopback. La respuesta minima debe superar el timeout en 250 ms.
+      - key: SMTP_TIMEOUT_MS
+        value: "8000"
+      - key: AUTH_PASSWORD_RESET_MIN_RESPONSE_MS
+        value: "8500"
+      - key: SMTP_SECURE
+        value: "true"
+      - key: SMTP_ALLOW_LOCAL_PLAINTEXT
+        value: "false"
+      # Cadena de conexion directa de Neon, con sslmode=require.
+      - key: DATABASE_URL
+        sync: false
+      # node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
+      - key: AUTH_JWT_SECRET
+        sync: false
+      # Origen https de este mismo servicio; se conoce despues de crearlo.
+      - key: AUTH_PUBLIC_URL
+        sync: false
+      # Origen https del front en Vercel.
+      - key: AUTH_ALLOWED_ORIGINS
+        sync: false
+      # Mismo origen del front + /reset-password.
+      - key: AUTH_PASSWORD_RESET_URL
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false

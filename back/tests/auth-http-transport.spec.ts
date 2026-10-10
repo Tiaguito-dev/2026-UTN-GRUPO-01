@@ -4,16 +4,22 @@ import { hasAllowedAuthTransport } from "../src/auth/presentation/http-security.
 import { testAuthConfig } from "./auth-test.config.js";
 
 const proxyIp = "192.168.240.10";
-function request(remoteAddress: string, trustedProxies: string[], forwardedProto = "http"): Request {
+function request(remoteAddress: string, trust: string[] | number, forwardedProto = "http", forwardedFor = "127.0.0.1"): Request {
   const app = express();
-  app.set("trust proxy", trustedProxies.length ? trustedProxies : false);
+  app.set("trust proxy", typeof trust === "number" ? trust : (trust.length ? trust : false));
   // Use Express' own secure/protocol getters and compiled proxy matching function.
   return Object.assign(Object.create(express.request) as Request, {
     app,
     socket: { remoteAddress, encrypted: false },
-    headers: { "x-forwarded-proto": forwardedProto, "x-forwarded-for": "127.0.0.1", forwarded: "for=127.0.0.1;proto=https" },
+    headers: { "x-forwarded-proto": forwardedProto, "x-forwarded-for": forwardedFor, forwarded: "for=127.0.0.1;proto=https" },
   });
 }
+// Managed platforms are addressed by hop count, never by IP: the edge address is not knowable.
+const managedEnvironment = {
+  NODE_ENV: "production", AUTH_ALLOW_LOCAL_HTTP: "false",
+  AUTH_PUBLIC_URL: "https://api.example.test", AUTH_ALLOWED_ORIGINS: "https://app.example.test",
+  AUTH_PASSWORD_RESET_URL: "https://app.example.test/reset-password",
+};
 
 describe("Transporte de autenticación y proxy HTTP de desarrollo", () => {
   it("permite HTTP del proxy exacto configurado únicamente con excepción local explícita", () => {
@@ -42,5 +48,29 @@ describe("Transporte de autenticación y proxy HTTP de desarrollo", () => {
   it("la configuración impide usar la excepción HTTP en producción o con URL pública remota", () => {
     expect(() => testAuthConfig({ NODE_ENV: "production", AUTH_TRUSTED_PROXIES: proxyIp })).toThrow();
     expect(() => testAuthConfig({ AUTH_PUBLIC_URL: "http://public.example.test", AUTH_TRUSTED_PROXIES: proxyIp })).toThrow();
+  });
+});
+
+describe("Transporte de autenticación detrás de un proxy administrado", () => {
+  it("acepta HTTPS reportado por el edge aunque su dirección sea desconocida", () => {
+    const config = testAuthConfig({ ...managedEnvironment, AUTH_TRUSTED_PROXY_HOPS: "1" });
+    const edge = "10.223.17.4";
+    expect(hasAllowedAuthTransport(request(edge, config.trustedProxyHops, "https"), config)).toBe(true);
+    expect(hasAllowedAuthTransport(request(edge, config.trustedProxyHops), config)).toBe(false);
+  });
+  it("mantiene la IP real del cliente e ignora la cadena que el cliente falsifica", () => {
+    const config = testAuthConfig({ ...managedEnvironment, AUTH_TRUSTED_PROXY_HOPS: "1" });
+    // The client sent the first entry; only the last one was appended by the trusted edge.
+    const incoming = request("10.223.17.4", config.trustedProxyHops, "https", "203.0.113.9, 198.51.100.7");
+    expect(incoming.ip).toBe("198.51.100.7");
+  });
+  it("sin saltos declarados no confía en el proto reportado por un edge desconocido", () => {
+    const config = testAuthConfig(managedEnvironment);
+    expect(config.trustedProxyHops).toBe(0);
+    expect(hasAllowedAuthTransport(request("10.223.17.4", config.trustedProxyHops, "https"), config)).toBe(false);
+  });
+  it.each([{ AUTH_TRUSTED_PROXY_HOPS: "0" }, { AUTH_TRUSTED_PROXY_HOPS: "11" }, { AUTH_TRUSTED_PROXY_HOPS: "true" },
+    { AUTH_TRUSTED_PROXY_HOPS: "1", AUTH_TRUSTED_PROXIES: proxyIp }])("rechaza saltos inválidos o ambiguos %#", (overrides) => {
+    expect(() => testAuthConfig({ ...managedEnvironment, ...overrides })).toThrow(/Configuración/);
   });
 });

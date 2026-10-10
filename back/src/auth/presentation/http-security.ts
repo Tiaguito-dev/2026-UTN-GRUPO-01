@@ -18,7 +18,7 @@ export function hasAllowedAuthTransport(request: Request, config: AuthConfig): b
   if (!config.allowLocalHttp) return false;
   const remoteAddress = request.socket.remoteAddress;
   if (isLoopback(remoteAddress)) return true;
-  if (!remoteAddress || !config.trustedProxies.length) return false;
+  if (!remoteAddress || !(config.trustedProxies.length || config.trustedProxyHops)) return false;
   // Only the configured proxy's socket is trusted. Client headers cannot opt into HTTP.
   const trustProxy = request.app.get("trust proxy fn") as unknown;
   return typeof trustProxy === "function" && trustProxy(remoteAddress, 0) === true;
@@ -27,7 +27,7 @@ export function hasAllowedAuthTransport(request: Request, config: AuthConfig): b
 /** Install before app.init/listen, so even parser and middleware failures are protected. */
 export function configureAuthHttp(app: INestApplication, config: AuthConfig): void {
   const expressApp = app.getHttpAdapter().getInstance() as Express;
-  expressApp.set("trust proxy", config.trustedProxies.length ? config.trustedProxies : false);
+  expressApp.set("trust proxy", config.trustedProxyHops || (config.trustedProxies.length ? config.trustedProxies : false));
   app.use((request: Request, response: Response, next: NextFunction) => {
     if (/^\/auth(?:\/|$)/i.test(request.path)) response.setHeader("Cache-Control", "no-store");
     next();
