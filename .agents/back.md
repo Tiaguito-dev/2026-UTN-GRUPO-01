@@ -17,11 +17,11 @@ Implementa y mantiene la aplicación backend bajo `back/`.
 ## Inputs Requeridos
 
 - Una tarea bien definida (ver ["Gate de tarea" en OVERVIEW.md](./OVERVIEW.md#gate-de-tarea-exigible))
-- Un TDD linkeado bajo `docs/tdd/` cuando la tarea involucra una decisión de diseño o arquitectura
+- La decisión de diseño o arquitectura documentada dentro de la propia tarea, cuando aplica
 
 ## Workflow
 
-Sigue [.agents/skills/commit-work/SKILL.md](../.agents/skills/commit-work/SKILL.md) para branching,
+Sigue [.agents/skills/commit-work/SKILL.md](./skills/commit-work/SKILL.md) para branching,
 commit, push y limpieza post-merge.
 
 ## Estándares

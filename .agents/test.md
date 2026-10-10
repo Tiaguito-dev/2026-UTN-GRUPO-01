@@ -16,15 +16,22 @@ Escribe y mantiene los tests automatizados de las dos aplicaciones de este repos
 ## Inputs Requeridos
 
 - Una tarea bien definida (ver ["Gate de tarea" en OVERVIEW.md](./OVERVIEW.md#gate-de-tarea-exigible))
-- Un TDD linkeado bajo `docs/tdd/` cuando hay una decisión de estrategia de testing de por medio
-  (ej. adoptar un framework de testing)
+- La decisión de estrategia de testing documentada dentro de la propia tarea, cuando hay una de
+  por medio (ej. adoptar un framework de testing)
 
 ## Workflow
 
-Sigue [.agents/skills/commit-work/SKILL.md](../.agents/skills/commit-work/SKILL.md) para branching,
+Sigue [.agents/skills/commit-work/SKILL.md](./skills/commit-work/SKILL.md) para branching,
 commit, push y limpieza post-merge.
 
 ## Estándares
 
 `docs/standards/` (un estándar de testing dedicado se agrega ahí una vez que se elijan el stack y
 los frameworks de test).
+
+## Skills (solo Claude Code)
+
+Específica de la herramienta Claude Code (no aplica si usás Codex o Gemini). Instalada para este
+stack (Vitest + Playwright), invocable con `/<skill>`:
+
+- `testing@szum-tech` — Storybook interaction tests, Playwright E2E, accessibility audits

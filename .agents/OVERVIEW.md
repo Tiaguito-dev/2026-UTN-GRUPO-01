@@ -23,9 +23,9 @@ Para quien use agentes en este repositorio:
    quemando un ciclo de revisión.
 2. **Delegar al agente correcto.** Enrutar la tarea a `back`, `front` o `test` según qué parte
    del codebase toca.
-3. **Respaldar toda tarea no trivial con un TDD.** Acá "TDD" significa *Technical Design
-   Documentation* (documentación de diseño técnico) — no test-driven development. Registra por
-   qué se tomó una decisión, no solo qué se implementó. Ver [docs/tdd/](../docs/tdd/).
+3. **Documentar toda decisión no trivial dentro de la propia tarea.** No existe un documento de
+   diseño aparte — el porqué de una decisión de arquitectura, dependencia nueva o contrato va en
+   la sección correspondiente de la tarea bajo `docs/tasks/`, junto a qué se implementó.
 
 ## Gate de tarea (exigible)
 
@@ -34,9 +34,9 @@ Un agente (`back`, `front` o `test`) no puede empezar a implementar una tarea a 
 1. **Exista una tarea bajo `docs/tasks/`**, con alcance, exclusiones, restricciones, criterios de
    aceptación y validaciones. Una tarea ambigua se aclara antes de escribir código, no mientras se
    escribe.
-2. **Las decisiones no triviales estén respaldadas por un TDD** bajo `docs/tdd/` — arquitectura,
-   dependencia nueva, contrato o cambio a una decisión existente. Si todavía no existe, se escribe
-   primero.
+2. **Las decisiones no triviales estén documentadas en la tarea misma** — arquitectura,
+   dependencia nueva, contrato o cambio a una decisión existente. Si la tarea no las tiene
+   todavía, se completan ahí antes de implementar.
 
 Restricciones operativas:
 
@@ -50,7 +50,7 @@ Restricciones operativas:
   validación y mueve la tarea a `docs/tasks/finished/`.
 
 Las tareas bien definidas dan mejores resultados que las ambiguas, y las decisiones que viven
-solo en un historial de chat se pierden. Registrarlas como TDD mantiene el razonamiento
+solo en un historial de chat se pierden. Registrarlas en la propia tarea mantiene el razonamiento
 disponible para la próxima persona (o agente) que toque esa área.
 
 ## Estos perfiles vs. los sub-agentes de Claude Code
@@ -59,7 +59,16 @@ Los archivos de esta carpeta son perfiles agnósticos — documentación, pensad
 Claude, Codex o Gemini por igual. Además existen `.claude/agents/back.md`, `front.md` y
 `test.md`: son las definiciones reales de sub-agente de Claude Code (frontmatter `name`,
 `description`, `tools` + system prompt), atadas a esa herramienta puntual. No se versionan (están
-en `.gitignore`, son personales) y cada una apunta al perfil correspondiente acá como fuente de
-verdad, en vez de duplicar el rol/alcance — así no hay riesgo de que las dos formas queden
-desincronizadas. Si en algún momento se arma el equivalente para Codex o Gemini, sigue el mismo
-principio: wiring propio de la herramienta, contenido de fondo acá.
+en `.gitignore`, son personales).
+
+Esos tres archivos **no se editan a mano** — se generan con `npm run sync:agents`
+(`scripts/sync-claude-agents.mjs`), que lee el Rol/Alcance/Fuera de Alcance de cada perfil de
+esta carpeta y arma el wiring de Claude Code a partir de eso. Así no hay riesgo de que las dos
+formas queden desincronizadas: cambiás `.agents/back.md`, corrés el script, listo. Si editaste
+`.agents/*.md` y usás Claude Code, correlo antes de la próxima sesión.
+
+`po.md` es la excepción: no tiene perfil público acá (es de uso individual) y no se genera, se
+mantiene a mano directamente en `.claude/agents/po.md`.
+
+Si en algún momento se arma el equivalente para Codex o Gemini, sigue el mismo principio: wiring
+propio de la herramienta, contenido de fondo acá.
