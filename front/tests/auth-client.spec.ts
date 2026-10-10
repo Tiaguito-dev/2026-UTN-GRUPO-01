@@ -1,8 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ArgumentsHost } from "@nestjs/common";
+import type { HttpAdapterHost } from "@nestjs/core";
 import { AuthService } from "../src/services/auth";
 import { HttpError, requestJson } from "../src/services/http";
 import { safeReturnPath, validateDisplayName, validateEmail, validateNewPassword } from "../src/validations/auth";
 import { validateRegistrationInput } from "../../back/src/auth/domain/registration-input.js";
+import { UnhandledErrorFilter } from "../../back/src/shared/presentation/unhandled-error.filter.js";
+import { InvalidRegistrationInputError } from "../../back/src/auth/domain/errors.js";
+import { InvalidCredentialsError } from "../../back/src/auth/domain/auth-errors.js";
+import { EmailAlreadyRegisteredError } from "../../back/src/users/domain/errors.js";
+import { toPublicUser } from "../../back/src/users/domain/user.js";
+
+// Ejecuta el filtro HTTP real del backend (sin servidor ni DB) para obtener el cuerpo de error
+// que produciría de verdad, y así validar el contrato que el mock de fetch está simulando.
+function realErrorBody(exception: unknown): { status: number; body: unknown } {
+  let captured: { status: number; body: unknown } | undefined;
+  const httpAdapter = { isHeadersSent: () => false, reply: (_response: unknown, body: unknown, status: number) => { captured = { status, body }; } };
+  const adapterHost = { httpAdapter } as unknown as HttpAdapterHost;
+  const host = { getArgByIndex: () => ({}) } as unknown as ArgumentsHost;
+  new UnhandledErrorFilter(adapterHost).catch(exception, host);
+  if (!captured) throw new Error("El filtro no produjo una respuesta.");
+  return captured;
+}
 
 const account = { id: "public-account", email: "account@example.test", displayName: "Cuenta", role: "USER" };
 const goodPassword = " contraseña sin recortar ";
@@ -169,5 +188,25 @@ describe("Validaciones coherentes con el registro del backend", () => {
   });
   it.each(["/", "https://evil.example", "//evil.example", "/\\evil", "/account?next=https://evil.example", "/account\n", "/home?next=https://evil.example", "/home/../login", "/account/change-password?next=https://evil.example", "/account/change-password/../login", null, undefined, "javascript:alert(1)"])("destino público, ausente o inseguro lleva al home interno", (value) => {
     expect(safeReturnPath(value)).toBe("/home");
+  });
+});
+
+describe("Contrato del mock de fetch contra las respuestas reales del backend", () => {
+  it.each([
+    [400, () => new InvalidRegistrationInputError("Entrada inválida.")],
+    [401, () => new InvalidCredentialsError()],
+    [409, () => new EmailAlreadyRegisteredError()],
+  ])("el error %i real tiene statusCode, error y message, y el mock que lo imita se comporta igual", async (status, buildException) => {
+    const real = realErrorBody(buildException());
+    expect(real.status).toBe(status);
+    expect(Object.keys(real.body as Record<string, unknown>).sort()).toEqual(["error", "message", "statusCode"]);
+    expect(real.body).toMatchObject({ statusCode: status, error: expect.any(String), message: expect.any(String) });
+    fetchMock.mockResolvedValue(reply(status, real.body));
+    await expect(requestJson("/auth/login")).rejects.toMatchObject({ status, message: (real.body as { message: string }).message });
+  });
+  it("el account que usa el mock de éxito es un subconjunto válido de PublicUser y nunca expone passwordHash", () => {
+    const realUser = toPublicUser({ id: "x", email: "x@example.test", displayName: "X", passwordHash: "secret-hash", role: "USER", createdAt: new Date() });
+    expect(Object.keys(account).every((key) => key in realUser)).toBe(true);
+    expect(realUser).not.toHaveProperty("passwordHash");
   });
 });

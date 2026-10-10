@@ -29,7 +29,7 @@ describe.skipIf(!testDatabaseUrl)("Autenticación HTTP y persistencia PostgreSQL
   const password = " contraseña real verificable ";
   const hasher = new Argon2PasswordHasher();
 
-  const uniqueEmail = () => `auth-test-${randomUUID()}@example.com`;
+  const uniqueEmail = () => `auth-test-${randomUUID()}@alu.frlp.utn.edu.ar`;
   const post = (body: unknown) => fetch(`${baseUrl}/auth/register`, { method: "POST", headers: csrfHeaders, body: JSON.stringify(body) });
 
   beforeAll(async () => {
@@ -92,6 +92,7 @@ describe.skipIf(!testDatabaseUrl)("Autenticación HTTP y persistencia PostgreSQL
     { email: "valid@example.com", displayName: "Persona", password, role: "ADMIN" },
     { email: "valid@example.com", displayName: "Persona", password, role: "USER" },
     { email: "valid@example.com", displayName: "Persona", password, extra: true },
+    { email: "estudiante@gmail.com", displayName: "Persona", password },
   ])("devuelve 400 seguro ante entrada inválida: %#", async (input) => {
     const response = await post(input);
     const body = await response.json();

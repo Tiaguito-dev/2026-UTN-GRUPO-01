@@ -38,7 +38,7 @@ describe.skipIf(!testDatabaseUrl)("Sesiones, cookies y guards con PostgreSQL rea
   const post = (path: string, body: unknown, headers: Record<string, string> = csrfHeaders) => fetch(`${baseUrl}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
   const get = (path: string, cookie?: string) => fetch(`${baseUrl}${path}`, { headers: cookie ? { Cookie: cookie } : {} });
   async function account() {
-    const email = `session-test-${randomUUID()}@example.com`;
+    const email = `session-test-${randomUUID()}@alu.frlp.utn.edu.ar`;
     const response = await post("/auth/register", { email, displayName: "Persona", password });
     const user = await response.json();
     if (typeof user.id === "string") ids.add(user.id);

@@ -20,7 +20,7 @@ describe.skipIf(!databaseUrl || !mailbox)("Recuperación completa vía SMTP real
     const app = module.createNestApplication(); app.useLogger(false); configureAuthHttp(app, config); await app.listen(0, "127.0.0.1");
     let id: string | undefined;
     const post = (path: string, body: unknown) => fetch(`${base}${path}`, { method: "POST", headers: csrfHeaders, body: JSON.stringify(body) });
-    const base = await app.getUrl(); const email = `smtp-${randomUUID()}@example.test`; const original = " original smtp password "; const replacement = " replacement smtp password ";
+    const base = await app.getUrl(); const email = `smtp-${randomUUID()}@alu.frlp.utn.edu.ar`; const original = " original smtp password "; const replacement = " replacement smtp password ";
     try {
       const registration = await post("/auth/register", { email, displayName: "SMTP", password: original }); expect(registration.status).toBe(201); id = (await registration.json()).id;
       const request = await post("/auth/forgot-password", { email }); expect(request.status).toBe(202); const publicBody = JSON.stringify(await request.json());

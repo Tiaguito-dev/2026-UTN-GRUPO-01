@@ -10,7 +10,7 @@ function fixture() {
   const user = { id: randomUUID(), email: "person@example.test", passwordHash: "private-old-hash", displayName: "Persona", role: "USER" as const, createdAt: now };
   const credential = { id: randomUUID(), userId: user.id, tokenHash: "a".repeat(64), createdAt: now, expiresAt: new Date(now.getTime() + 1800000), consumedAt: null as Date | null, invalidatedAt: null as Date | null, deliveredAt: now as Date | null };
   const recovery = { issue: vi.fn(), invalidate: vi.fn(), markDelivered: vi.fn(async () => undefined), findByHash: vi.fn(async () => credential), reset: vi.fn(async () => true), findPasswordByUserId: vi.fn(async () => ({ id: user.id, passwordHash: user.passwordHash })), change: vi.fn(async () => true) };
-  const users = { create: vi.fn(), findById: vi.fn(), findByEmail: vi.fn(async () => user as typeof user | null) };
+  const users = { findAll: vi.fn(), create: vi.fn(), findById: vi.fn(), findByEmail: vi.fn(async () => user as typeof user | null) };
   const tokens = { generate: vi.fn(() => ({ value: "private-reset-token", hash: credential.tokenHash })), hash: vi.fn(() => credential.tokenHash as string | null) };
   const email = { send: vi.fn() }; const report = vi.fn(); const delay = vi.fn();
   const passwords = { hash: vi.fn(async () => "private-new-hash"), verify: vi.fn(async () => true) };

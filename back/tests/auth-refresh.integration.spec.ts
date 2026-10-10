@@ -32,7 +32,7 @@ describe.skipIf(!databaseUrl)("Refresh y logout HTTP con atomicidad PostgreSQL",
   const post = (path: string, cookies = "", body: unknown = {}, headers = csrfHeaders, base = url) => fetch(`${base}${path}`, { method: "POST", headers: { ...headers, Cookie: cookies }, body: JSON.stringify(body) });
   const me = (cookies: string) => fetch(`${url}/auth/me`, { headers: { Cookie: cookies } });
   async function login() {
-    const email = `refresh-${randomUUID()}@example.com`;
+    const email = `refresh-${randomUUID()}@alu.frlp.utn.edu.ar`;
     const register = await post("/auth/register", "", { email, displayName: "Refresh", password });
     const user = await register.json(); ids.add(user.id); expect(register.status).toBe(201);
     const response = await post("/auth/login", "", { email, password }); expect(response.status).toBe(200);

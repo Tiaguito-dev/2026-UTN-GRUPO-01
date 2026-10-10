@@ -31,7 +31,7 @@ async function api(page, path, method = "GET", body, csrf = true) {
 }
 async function fixture(page, role = "USER") {
   await page.goto("/login");
-  const email = `browser-${randomUUID()}@example.test`;
+  const email = `browser-${randomUUID()}@alu.frlp.utn.edu.ar`;
   const registered = await api(page, "/auth/register", "POST", { email, displayName: "Cuenta de prueba", password });
   expect(registered.status).toBe(201); userIds.push(registered.body.id);
   if (role === "ADMIN") await prisma.user.update({ where: { id: registered.body.id }, data: { role } });
@@ -89,7 +89,7 @@ test("entrada pública separada del home interno, perfil protegido y logo según
 });
 
 test("registro por formulario, login, recarga, cookies HttpOnly y ningún secreto en storage/JSON", async ({ page, context }) => {
-  const email = `browser-${randomUUID()}@example.test`;
+  const email = `browser-${randomUUID()}@alu.frlp.utn.edu.ar`;
   await page.goto("/register");
   await page.getByLabel(/nombre/i).fill("Cuenta registrada");
   await page.getByLabel(/^Email$/i).fill(email);

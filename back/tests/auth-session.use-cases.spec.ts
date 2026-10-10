@@ -8,7 +8,7 @@ import type { User } from "../src/users/domain/user.js";
 const now = new Date("2026-10-08T12:00:00.567Z");
 function fixture() {
   const user: User = { id: randomUUID(), email: "person@example.com", displayName: "Persona", passwordHash: "real-private-hash", role: "USER", createdAt: now };
-  const users = { findByEmail: vi.fn(async () => user as User | null), findById: vi.fn(async () => user as User | null), create: vi.fn() };
+  const users = { findAll: vi.fn(), findByEmail: vi.fn(async () => user as User | null), findById: vi.fn(async () => user as User | null), create: vi.fn() };
   const passwords = { hash: vi.fn(), verify: vi.fn(async () => true) };
   const sessions = { create: vi.fn(async () => undefined), findById: vi.fn(), findValidById: vi.fn() };
   const refreshRepo = { createSession: vi.fn(async () => true), findByHash: vi.fn(), rotate: vi.fn(), revokeSession: vi.fn() };

@@ -36,7 +36,7 @@ describe.skipIf(!databaseUrl)("Recuperación y cambio HTTP con persistencia Post
   const jar = (response: Response) => response.headers.getSetCookie().map((v) => v.split(";")[0]).join("; ");
   const me = (cookies: string) => fetch(`${url}/auth/me`, { headers: { Cookie: cookies } });
   async function fixture() {
-    const email = `password-${randomUUID()}@example.test`;
+    const email = `password-${randomUUID()}@alu.frlp.utn.edu.ar`;
     const registered = await post("/auth/register", { email, displayName: "Recovery", password: oldPassword });
     expect(registered.status).toBe(201); const user = await registered.json(); ids.push(user.id);
     const login = await post("/auth/login", { email, password: oldPassword }); expect(login.status).toBe(200);
