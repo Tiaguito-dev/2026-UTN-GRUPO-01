@@ -27,7 +27,6 @@ se enfoque en presentar el proyecto.
 |---|---|
 | `docs/` | Documentación del proyecto (lean documentation — ver README). |
 | `docs/standards/` | Estándares y convenciones de código, referenciados desde `CONTRIBUTING.md` (ej. `git-workflow.md`). |
-| `docs/tdd/` | Documentación de diseño técnico (*Technical Design Documentation*, no test-driven development). Ver [docs/tdd/OVERVIEW.md](docs/tdd/OVERVIEW.md). |
 | `docs/tasks/` | Tareas autocontenidas organizadas por estado. |
 | `front/` | Aplicación frontend TypeScript con Next.js y React. |
 | `front/tests/` | Tests de frontend, a cargo del agente de Testing. |
@@ -35,7 +34,7 @@ se enfoque en presentar el proyecto.
 | `back/tests/` | Tests de backend, a cargo del agente de Testing. |
 | `infra/` | Proxy Nginx y [comandos Docker](infra/OVERVIEW.md) por entorno. |
 | `docs/tasks/finished/` | Autenticación, Docker y UX aceptados por el desarrollador; evidencia y límites de cada etapa. |
-| `agents/` | Perfiles de agentes de IA (`.md`): `back`, `front`, `test`. Ver [agents/OVERVIEW.md](agents/OVERVIEW.md) para la metodología de delegación. |
+| `.agents/` | Perfiles de agentes de IA (`.md`): `back`, `front`, `test`. Ver [.agents/OVERVIEW.md](.agents/OVERVIEW.md) para la metodología de delegación. |
 | `.agents/skills/` | Definiciones de skills usables por los agentes, compatibles con Claude, Codex y Gemini. |
 
 ## Documentación a nivel de carpeta

@@ -1,4 +1,4 @@
-# TASK-014: Entrega documentada y commits locales
+# TASK-017: Entrega documentada y commits locales
 
 Estado: Terminada. Fecha: 2026-10-09.
 

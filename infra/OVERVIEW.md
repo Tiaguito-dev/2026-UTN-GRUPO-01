@@ -92,6 +92,15 @@ y admiten solamente loopback. Producción conserva Secure y rechaza esta excepci
 
 ## Producción
 
+Esta sección documenta una capacidad local del stack Docker (ejecutarlo con configuración
+productiva: HTTPS, SMTP TLS, sin Mailpit), no un despliegue real. El despliegue real del
+proyecto es cloud (Vercel + Render + Neon), ver
+[docs/architecture/DEFINICION-ARQUITECTURA.md](../docs/architecture/DEFINICION-ARQUITECTURA.md),
+que fija explícitamente "sin Docker en producción en esta fase" por presupuesto. Esta
+configuración sirve para validar el stack en condiciones productivas localmente, no para
+exponerlo en un servidor. El procedimiento paso a paso de ese despliegue está en
+[DESPLIEGUE-CLOUD.md](DESPLIEGUE-CLOUD.md).
+
 `docker-compose.yml` fija `NODE_ENV=production`, SMTP TLS implícito y plaintext deshabilitado.
 No contiene Mailpit, generación de certificados ni publicación de PostgreSQL. Proporcionar
 configuración privada mediante `--env-file .env.production` (ignorado por Git y Docker):
@@ -123,45 +132,6 @@ según la plataforma de destino. La entrega real de email debe validarse con el 
 El volumen PostgreSQL requiere ownership del usuario `postgres`; no cambiar permisos de un
 volumen existente sin una revisión y respaldo previos.
 
-## Estado vigente y aceptación
-
-El desarrollador confirmó la validación manual de los cambios el 2026-10-09. Desarrollo
-utiliza HTTP local sin certificados, home autenticado y secciones informativas vacías.
-Las tareas 005–013 están cerradas en `docs/tasks/finished/`. No hay despliegue productivo
-ni entrega con proveedor SMTP real comprobados. La suite automatizada completa de navegador
-no se declara ejecutada; los recorridos realizados y límites constan en las tareas.
-
-Antes de los commits se repitieron migraciones en PostgreSQL efímero y 277/277 pruebas backend
-con SMTP/Mailpit aislado, 47/47 frontend, tipos de ambos paquetes y validación Compose dev.
-El stack del equipo y sus datos no se utilizaron para las pruebas de integración.
-
-## Evidencia anterior: UX y HTTP local
-
-Stack HTTP levantado en `http://localhost:8080` con todos los servicios saludables y migraciones
-exit 0. Chromium comprobó formularios de registro/login/cambio/reset con contraseñas de ocho
-caracteres, renovación, logout, correo en Mailpit, cookies HttpOnly y CSRF. Contraste, teclado,
-movimiento reducido y landing en móvil/escritorio verificados. Backend 277 y frontend 38 pruebas
-aprobadas, más tipos y builds. Detalle en [TASK-011](../docs/tasks/finished/TASK-011-ux-landing-http-local.md).
-
-## Evidencia anterior: etapa Docker con TLS local
-
-Estos resultados corresponden al stack anterior. La configuración vigente de desarrollo
-utiliza HTTP y se valida como parte de [TASK-011](../docs/tasks/finished/TASK-011-ux-landing-http-local.md).
-
-Ambos Compose validados, imágenes compiladas y stack de desarrollo levantado con base aislada.
-Verificados healthchecks, límites y usuarios efectivos, HTTPS con CA local, gzip de JS, CSRF,
-cookies, registro/login/refresh/logout y revocación inmediata. Probados readiness ante caída de
-PostgreSQL y apagado dentro de la gracia sin SIGKILL. Backend 250/250 y frontend 32/32 pruebas;
-tipos aprobados. No hay lint configurado. Evidencia y límites en
-[TASK-010](../docs/tasks/finished/TASK-010-containerizar-stack.md).
-Esta evidencia histórica no equivale a la matriz automatizada completa de navegador.
-SMTP comprobado con buzón local, sin afirmar entrega mediante proveedor real.
-
-Verificación adicional sobre el proyecto de desarrollo real `profesor-butchery-dev`: comandos
-TLS y arranque ejecutados; todos los servicios saludables y migraciones con exit 0. El puerto
-5432 del host fue rechazado por Windows y se cambió a 55449. Un recorrido de navegador pasó
-registro/login, recarga/me, refresh, logout, CSRF, cookies Secure/HttpOnly, ausencia de credenciales
-en storage, correo recibido en Mailpit, restablecimiento con token retirado de URL, rechazo de
-contraseña anterior y aceptación de la nueva. Pantalla de login móvil sin desbordamiento.
-Este recorrido comprueba disponibilidad para las pruebas manuales; no reemplaza la matriz
-completa de etapa 5 ni su validación de UX. El stack quedó ejecutándose.
+Evidencia histórica de validación por etapa (conteos de tests, fechas de aceptación) en
+[CHANGELOG.md](../CHANGELOG.md) y en cada `TASK-NNN` correspondiente bajo
+[docs/tasks/finished/](../docs/tasks/finished/).

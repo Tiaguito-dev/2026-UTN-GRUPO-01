@@ -49,10 +49,16 @@ raíz; no necesita archivos de entorno en `back/` y `front/`. Desarrollo funcion
 - `npm run db:generate`: regenera Prisma Client.
 - `npm run db:migrate`: crea y aplica una migración de desarrollo.
 - `npm run db:studio`: abre Prisma Studio.
+- `npm run academic:seed --workspace=back`: carga el contenido académico de demostración
+  (3 materias con sus cursadas y comisiones; profesores ficticios a propósito). Requiere
+  `DATABASE_URL` y migraciones aplicadas, y `npm run build --workspace=back` previo porque es un
+  comando compilado, igual que `auth:provision-admin`. Es aditivo e idempotente: puede correrse
+  más de una vez y nunca borra ni modifica datos existentes. Detalle y decisiones:
+  [docs/temporal/05-consulta-de-contenido.md](../docs/temporal/05-consulta-de-contenido.md).
 
 ## Autenticación de Profesor Butchery: etapa 1
 
-Diseño: [TDD-AUTH-H1](../docs/tdd/TDD-AUTH-H1.md). Esta etapa implementa cuentas locales con
+Esta etapa implementa cuentas locales con
 roles ADMIN y USER. La investigación institucional TASK-004 queda separada de este contrato.
 
 ### Responsabilidades
@@ -180,7 +186,7 @@ La etapa 2 implementa login, JWT, sesiones y autorización según la sección si
 
 ## Autenticación: etapa 2
 
-Diseño: [TDD-AUTH-H2](../docs/tdd/TDD-AUTH-H2.md). Se conservan registro, usuarios, Argon2id,
+Se conservan registro, usuarios, Argon2id,
 provisión ADMIN, PostgreSQL, Prisma y Vitest. El frontend se integró posteriormente;
 su estado actual está documentado en [front/OVERVIEW.md](../front/OVERVIEW.md).
 
@@ -226,6 +232,7 @@ independiente de exp del access token (ver etapa 3). Sin credenciales válidas n
 | AUTH_REFRESH_MAX_ATTEMPTS | Entero 1–1000; inicial 30 |
 | AUTH_REFRESH_WINDOW_SECONDS | Entero 1–86400; inicial 900 |
 | AUTH_TRUSTED_PROXIES | Opcional, IP/CIDR exactos de proxies controlados, sin /0 ni trust=true |
+| AUTH_TRUSTED_PROXY_HOPS | Opcional y excluyente con la anterior, entero 1–10; para plataformas administradas (Render) cuya IP de edge no es declarable |
 
 DATABASE_URL sigue siendo necesaria. Configuración incompleta/incorrecta impide que el servidor
 escuche. Obtener secretos del gestor privado del entorno; `.env.example` no contiene claves.
@@ -329,7 +336,7 @@ La etapa 3 agrega renovación y logout según la sección siguiente.
 
 ## Autenticación: etapa 3
 
-Diseño: [TDD-AUTH-H3](../docs/tdd/TDD-AUTH-H3.md). Se reutilizan todos los mecanismos de etapas
+Se reutilizan todos los mecanismos de etapas
 anteriores, sin cambiar ORM ni incorporar dependencias. Login entrega access y refresh en cookies;
 la respuesta JSON conserva únicamente la cuenta pública. El frontend se integró después;
 no existe una operación de logout global.
@@ -609,14 +616,6 @@ Sin TEST_DATABASE_URL se omiten suites de persistencia; sin TEST_MAILPIT_API_URL
 prueba SMTP real. No considerar esa ejecución equivalente a la validación completa. Las suites
 borran únicamente sus propias cuentas y credenciales; el buzón es exclusivamente de pruebas.
 
-Evidencia histórica H4: 233/233 pruebas sin omisiones, build del monorepo, tipos backend y
-Prisma validate aprobados; recorrido adicional contra servidor compilado y SMTP. Esa ejecución
-usó Node 22.17.0. El 2026-10-09, TASK-011 aprobó 277/277 pruebas backend en 14 archivos con
-PostgreSQL y SMTP/Mailpit reales; los builds Docker posteriores usaron Node 22.22.3.
-No se reejecutaron controles al actualizar esta documentación.
-
-El desarrollador confirmó que los cambios realizados están comprobados. Los recorridos
-automatizados acotados y la aceptación manual no equivalen a haber ejecutado la matriz
-completa de navegador H5 como un único control. La entrega SMTP comprobada es al buzón
-local, no a un proveedor real. No hay lint configurado. Los hallazgos de npm audit registrados
-en H4 son históricos: esta actualización no ejecutó una auditoría nueva ni afirma que esté aprobada.
+Evidencia histórica de validación por etapa (conteos de tests, versiones de Node, fechas de
+aceptación) en [CHANGELOG.md](../CHANGELOG.md) y en cada `TASK-NNN` bajo
+[docs/tasks/finished/](../docs/tasks/finished/). No hay lint configurado.

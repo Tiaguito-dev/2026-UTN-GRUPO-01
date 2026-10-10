@@ -96,8 +96,9 @@ perfil y cambio; los guards del backend siguen siendo la autoridad de autenticac
 - `npm run start --workspace=front`: sirve el build de producción.
 - `npm run typecheck --workspace=front`: comprueba tipos TypeScript.
 - `npm run test --workspace=front`: ejecuta las pruebas unitarias de Vitest.
-- `npm run test:e2e --workspace=front`: ejecuta el harness Playwright; requiere la
-  configuración y los servicios de prueba indicados en [TDD-AUTH-H5](../docs/tdd/TDD-AUTH-H5.md).
+- `npm run test:e2e --workspace=front`: ejecuta el harness Playwright; requiere la configuración
+  y los servicios de prueba que documentó en su momento la tarea de integración de cuenta
+  (`docs/tasks/finished/`).
 
 Para levantar el stack completo, preparar el `.env` privado de la raíz según el
 [README](../README.md) y ejecutar:
@@ -141,7 +142,7 @@ y error temporal. Las pantallas permiten reintentar sin perder esas diferencias.
 El rol de navegación proviene de la cuenta del backend; sus guards conservan la autoridad.
 No existen módulos administrativos públicos de demostración.
 
-## Recorrido de recuperación y estado comprobado
+## Recorrido de recuperación
 
 Desde `/login`, abrir la recuperación e ingresar el email de una cuenta de prueba.
 La respuesta siempre muestra el mensaje genérico del backend. Abrir Mailpit, seleccionar
@@ -154,16 +155,7 @@ Una recarga puede requerir abrir otra vez el enlace. No hay analítica, fuentes 
 ni recursos de terceros en la pantalla. Mailpit demuestra recepción local del email;
 no acredita entrega mediante un proveedor real.
 
-Evidencia registrada el 2026-10-09: 47/47 pruebas frontend, tipos y build Docker con Node
-22.22.3 aprobados. Se ejecutaron recorridos Chromium contra backend y PostgreSQL reales:
-registro/login, recarga, perfil, refresh, recuperación por buzón, cambio y logout;
-las tareas UX verificaron navegación pública/interna y escritorio/móvil a 320/390 px.
-El desarrollador confirmó los cambios y probó registro, login y cambio de contraseña.
-Ver [TASK-013](../docs/tasks/finished/TASK-013-home-interno.md) y
-[TASK-011](../docs/tasks/finished/TASK-011-ux-landing-http-local.md).
-
-Esta actualización documental no reejecutó esos controles. Los recorridos acotados no
-equivalen a ejecutar como suite única toda la matriz de navegador H5, especialmente
-concurrencia entre pestañas y navegadores, roles y todos los fallos combinados.
-No hay lint configurado. Diseño y alcance de esa matriz:
-[TDD-AUTH-H5](../docs/tdd/TDD-AUTH-H5.md).
+Evidencia histórica de validación (conteos de tests, recorridos Chromium, fechas de
+aceptación) en [CHANGELOG.md](../CHANGELOG.md) y en
+[TASK-013](../docs/tasks/finished/TASK-013-home-interno.md) /
+[TASK-011](../docs/tasks/finished/TASK-011-ux-landing-http-local.md). No hay lint configurado.

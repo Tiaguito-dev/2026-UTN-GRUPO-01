@@ -4,7 +4,6 @@ Estado: Aprobado
 
   
 Fecha: 2026-09-27
-Referencia técnica completa: [TDD-INFRA-CLOUD-H1](../tdd/TDD-INFRA-CLOUD-H1.md)
 
 ## 1. Diagrama Cloud Detallado
 
@@ -52,8 +51,6 @@ ejecución y complica el pool de conexiones a PostgreSQL.
 días; Neon ofrece nivel gratuito permanente compatible con Prisma.
 - **Sin Docker en producción en esta fase:** alojar contenedores propios (EC2, Droplets, clusters)
 excede el presupuesto gratuito del proyecto académico.
-- Detalle completo de casos de borde (cold start, CORS, fallo SSL) en
-[TDD-INFRA-CLOUD-H1 §4](../tdd/TDD-INFRA-CLOUD-H1.md#4-casos-de-borde-y-manejo-de-errores).
 
 ## 3. Repositorio Inicial con Actividad
 
@@ -64,7 +61,7 @@ excede el presupuesto gratuito del proyecto académico.
 mergeados (#1 a #9), 4 colaboradores activos
 - Estructura: npm workspaces (`front/`, `back/`), Docker Compose para PostgreSQL local, Node.js
 22.22.3 + TypeScript, NestJS + Next.js + Prisma (ver
-[TDD-STACK-H1](../tdd/TDD-STACK-H1.md) y [TASK-001](../tasks/finished/TASK-001-formalizar-stack-inicial.md))
+[TASK-001](../tasks/finished/TASK-001-formalizar-stack-inicial.md))
 
 ## 4. Variable Pendiente: IA de Moderación de Comentarios
 
