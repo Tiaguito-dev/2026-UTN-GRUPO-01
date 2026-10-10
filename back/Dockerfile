@@ -28,8 +28,12 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 COPY back/package.json ./back/package.json
 COPY front/package.json ./front/package.json
+# npm hoista las dependencias del workspace a /app/node_modules; back/node_modules solo aparece
+# cuando hay un conflicto de versiones. Se crea vacío para que el COPY del runtime no falle
+# cuando no hay conflictos, y siga copiando el contenido real cuando sí los haya.
 RUN npm ci --omit=dev --workspace=back --no-audit --no-fund \
-    && npm cache clean --force
+    && npm cache clean --force \
+    && mkdir -p /app/back/node_modules
 
 FROM base AS runtime
 ENV NODE_ENV=production
