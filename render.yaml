@@ -9,7 +9,10 @@ services:
     # Misma region que el proyecto Neon (aws-us-east-2) para no cruzar continentes por query.
     region: ohio
     # Node 22.22.3 se toma de .nvmrc en la raiz del repositorio.
-    buildCommand: npm ci && npm run build --workspace=back
+    # --include=dev es obligatorio: NODE_ENV=production hace que npm omita las devDependencies,
+    # y el compilador (@nestjs/cli, typescript, prisma) vive ahi. Sin esto el build muere con
+    # "sh: 1: nest: not found".
+    buildCommand: npm ci --include=dev && npm run build --workspace=back
     startCommand: npm run start --workspace=back
     healthCheckPath: /health/ready
     envVars:
