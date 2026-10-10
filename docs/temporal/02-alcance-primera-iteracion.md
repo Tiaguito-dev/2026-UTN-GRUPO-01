@@ -37,6 +37,6 @@ Guion sugerido: (1) un usuario se registra con su email de alumno y confirma que
 
 1. ~~Estrategia de autenticación institucional (TASK-004)~~ **Resuelta (2026-10-10)**: se
    mantiene contraseña propia + filtro de dominio para alumnos; sin SSO. Ver
-   `docs/tasks/pendient/TASK-004-investigar-autenticacion-institucional.md`.
+   `docs/tasks/finished/TASK-004-investigar-autenticacion-institucional.md`.
 2. ~~¿Se confirma Comisión como entidad de esta iteración?~~ **Resuelta (2026-10-10): sí.**
 3. Disponibilidad de la API real de la facultad para HU-05 (Spike 1) — determina si el Escenario 1 se resuelve con mock o con integración real.
