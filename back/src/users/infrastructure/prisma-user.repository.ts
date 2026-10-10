@@ -4,14 +4,31 @@ import { normalizeEmail } from "../domain/email.js";
 import { EmailAlreadyRegisteredError } from "../domain/errors.js";
 import type { CreateUserInput, UserRepository } from "../domain/user.repository.js";
 import type { PublicUser, User } from "../domain/user.js";
+import type { Pagination, PaginatedResult } from "../../shared/domain/pagination.js";
+
+// Proyección explícita: passwordHash nunca sale del repositorio en lecturas públicas.
+const PUBLIC_FIELDS = { id: true, email: true, displayName: true, role: true, createdAt: true } as const;
 
 export class PrismaUserRepository implements UserRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  async findAll(pagination: Pagination): Promise<PaginatedResult<PublicUser>> {
+    const [items, total] = await Promise.all([
+      this.prisma.user.findMany({
+        select: PUBLIC_FIELDS,
+        orderBy: { createdAt: "asc" },
+        skip: (pagination.page - 1) * pagination.pageSize,
+        take: pagination.pageSize,
+      }),
+      this.prisma.user.count(),
+    ]);
+    return { items, total, page: pagination.page, pageSize: pagination.pageSize };
+  }
+
   async findById(id: string): Promise<PublicUser | null> {
     return this.prisma.user.findUnique({
       where: { id },
-      select: { id: true, email: true, displayName: true, role: true, createdAt: true },
+      select: PUBLIC_FIELDS,
     });
   }
 

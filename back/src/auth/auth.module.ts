@@ -1,8 +1,9 @@
 import { Logger, Module } from "@nestjs/common";
-import { APP_FILTER, HttpAdapterHost, Reflector } from "@nestjs/core";
+import { Reflector } from "@nestjs/core";
 import { randomBytes } from "node:crypto";
 import { USER_REPOSITORY, type UserRepository } from "../users/domain/user.repository.js";
 import { UsersModule } from "../users/users.module.js";
+import { SharedModule } from "../shared/shared.module.js";
 import { RegisterUser } from "./application/register-user.js";
 import { Login } from "./application/login.js";
 import { RefreshSession } from "./application/refresh-session.js";
@@ -19,7 +20,6 @@ import { PrismaSessionRepository } from "./infrastructure/prisma-session.reposit
 import { PrismaService } from "../infrastructure/prisma/prisma.service.js";
 import { AuthenticationGuard } from "./presentation/authentication.guard.js";
 import { RolesGuard } from "./presentation/roles.guard.js";
-import { RegistrationBadRequestFilter } from "./registration-bad-request.filter.js";
 import { REFRESH_CREDENTIAL_REPOSITORY, type RefreshCredentialRepository } from "./domain/refresh-credential.repository.js";
 import { REFRESH_TOKEN_SERVICE, type RefreshTokenService } from "./domain/refresh-token.service.js";
 import { PrismaRefreshCredentialRepository } from "./infrastructure/prisma-refresh-credential.repository.js";
@@ -34,14 +34,9 @@ import { SMTP_CONFIG, readSmtpConfig, type SmtpConfig } from "./smtp.config.js";
 import { SmtpPasswordResetEmail } from "./infrastructure/smtp-password-reset-email.js";
 
 @Module({
-  imports: [UsersModule, PasswordHashingModule],
+  imports: [UsersModule, PasswordHashingModule, SharedModule],
   controllers: [AuthController],
   providers: [
-    {
-      provide: APP_FILTER,
-      useFactory: (adapter: HttpAdapterHost) => new RegistrationBadRequestFilter(adapter),
-      inject: [HttpAdapterHost],
-    },
     { provide: AUTH_CONFIG, useFactory: () => readAuthConfig(process.env) },
     { provide: SMTP_CONFIG, useFactory: () => readSmtpConfig(process.env) },
     {

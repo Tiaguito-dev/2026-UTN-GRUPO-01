@@ -63,3 +63,53 @@ model RefreshCredential {
 
   @@index([sessionId])
 }
+
+enum Cuatrimestre {
+  PRIMERO
+  SEGUNDO
+}
+
+model Materia {
+  id        String    @id @default(uuid()) @db.Uuid
+  nombre    String    @unique @db.VarChar(150)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
+  cursadas  Cursada[]
+}
+
+model Profesor {
+  id             String    @id @default(uuid()) @db.Uuid
+  nombreCompleto String    @db.VarChar(150)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  deletedAt      DateTime? @db.Timestamptz(3)
+  cursadas       Cursada[]
+}
+
+model Cursada {
+  id           String       @id @default(uuid()) @db.Uuid
+  materiaId    String       @db.Uuid
+  profesorId   String       @db.Uuid
+  anio         Int
+  cuatrimestre Cuatrimestre
+  createdAt    DateTime     @default(now()) @db.Timestamptz(3)
+  deletedAt    DateTime?    @db.Timestamptz(3)
+  materia      Materia      @relation(fields: [materiaId], references: [id], onDelete: Restrict)
+  profesor     Profesor     @relation(fields: [profesorId], references: [id], onDelete: Restrict)
+  comisiones   Comision[]
+
+  @@unique([materiaId, anio, cuatrimestre])
+  @@index([profesorId])
+}
+
+model Comision {
+  id        String    @id @default(uuid()) @db.Uuid
+  cursadaId String    @db.Uuid
+  nombre    String    @db.VarChar(100)
+  activa    Boolean   @default(true)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
+  cursada   Cursada   @relation(fields: [cursadaId], references: [id], onDelete: Restrict)
+
+  @@unique([cursadaId, nombre])
+  @@index([cursadaId])
+}

@@ -2,6 +2,7 @@ import { EmailAlreadyRegisteredError } from "../../users/domain/errors.js";
 import type { UserRepository } from "../../users/domain/user.repository.js";
 import { toPublicUser, type PublicUser } from "../../users/domain/user.js";
 import type { PasswordHasher } from "../domain/password-hasher.js";
+import { validateInstitutionalEmailDomain } from "../domain/institutional-domain.js";
 import { validateRegistrationInput } from "../domain/registration-input.js";
 
 export class RegisterUser {
@@ -9,6 +10,7 @@ export class RegisterUser {
 
   async execute(input: unknown): Promise<PublicUser> {
     const values = validateRegistrationInput(input);
+    validateInstitutionalEmailDomain(values.email);
     if (await this.users.findByEmail(values.email)) {
       throw new EmailAlreadyRegisteredError();
     }

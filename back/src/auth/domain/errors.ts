@@ -1,4 +1,7 @@
-export class InvalidRegistrationInputError extends Error {
+import { DomainError } from "../../shared/domain/domain-error.js";
+
+export class InvalidRegistrationInputError extends DomainError {
+  readonly httpStatus = 400;
   constructor(message: string) {
     super(message);
     this.name = "InvalidRegistrationInputError";
