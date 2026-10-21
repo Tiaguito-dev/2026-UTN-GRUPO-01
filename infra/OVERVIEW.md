@@ -28,6 +28,18 @@ futura de logs deberá sanitizar URLs antes de registrarlas.
 
 ## Ejecución local
 
+### Verificación de correo institucional
+
+El registro de estudiantes queda pendiente hasta confirmar el enlace enviado por SMTP.
+En desarrollo, el mensaje se recibe en Mailpit (`http://localhost:8025`), no en la casilla
+institucional real. El enlace usa el mismo origen frontend que `AUTH_PASSWORD_RESET_URL`,
+con la ruta `/verify-email`. Configurar esa variable con el origen frontend correcto en
+cada entorno; en producción debe ser HTTPS y debe configurarse un proveedor SMTP real.
+Si el mensaje no llega o el enlace vence, usar `/resend-verification` desde el frontend.
+Ver [TASK-022](../docs/tasks/finished/TASK-022-verificacion-correo-institucional.md).
+
+### Arranque
+
 1. Copiar `.env.example` como `.env`. Configurar `POSTGRES_PASSWORD` privado y
    `AUTH_JWT_SECRET` con al menos 32 bytes aleatorios en base64url. No versionar `.env`.
    La contraseña de PostgreSQL debe ser apta para la URL de conexión (base64url sirve).
