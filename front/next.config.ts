@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   // Recovery links carry a one-time secret: never print request URLs in development.
   logging: { incomingRequests: false },
   async headers() {
-    return ["/login", "/register", "/forgot-password", "/reset-password", "/account"].map((source) => ({ source, headers: [
+    return ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email", "/resend-verification", "/account"].map((source) => ({ source, headers: [
       { key: "Referrer-Policy", value: "no-referrer" },
       { key: "Cache-Control", value: "no-store" },
     ] }));
