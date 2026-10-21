@@ -29,6 +29,23 @@ commit, push y limpieza post-merge.
 `docs/standards/` (un estándar de testing dedicado se agrega ahí una vez que se elijan el stack y
 los frameworks de test).
 
+## Estrategia de testing del frontend
+
+Decidida en `docs/tasks/` (TASK-023):
+
+- **Vitest, entorno `node`** para servicios y markup estático (`renderToStaticMarkup`). Es el
+  entorno por defecto de `front/tests/vitest.config.mjs`.
+- **Vitest + jsdom + Testing Library** para interacción: foco, clics, teclado y efectos. Cada spec
+  `.spec.tsx` declara `// @vitest-environment jsdom` en la primera línea; el entorno global no
+  cambia. Se mockean los servicios, `next/navigation` y `next/link`
+  (`front/tests/support/next-link.tsx`), y cada archivo llama a `afterEach(cleanup)`.
+- **Tests de caracterización** antes de refactorizar: describen lo que el código hace hoy. Un
+  comportamiento dudoso se fija tal como está, con un comentario, y se corrige en otra tarea.
+- **Playwright** (`*.browser.spec.mjs`) para recorridos reales contra el harness, con Postgres y
+  Mailpit. Corre solo en local. `visual.browser.spec.mjs` guarda capturas de referencia
+  versionadas, que se regeneran solo desde Linux + Chromium, y falla ante violaciones axe
+  `serious` o `critical` que no estén listadas como conocidas.
+
 ## Skills (solo Claude Code)
 
 Específica de la herramienta Claude Code (no aplica si usás Codex o Gemini). Instalada para este

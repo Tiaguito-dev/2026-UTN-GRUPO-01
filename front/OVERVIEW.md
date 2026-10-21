@@ -95,10 +95,18 @@ perfil y cambio; los guards del backend siguen siendo la autoridad de autenticac
 - `npm run build --workspace=front`: genera el build de producción.
 - `npm run start --workspace=front`: sirve el build de producción.
 - `npm run typecheck --workspace=front`: comprueba tipos TypeScript.
+- `npm run lint --workspace=front`: corre ESLint (`front/eslint.config.mjs`: Next
+  `core-web-vitals`, `react-hooks` y `jsx-a11y`). Por ahora las reglas avisan sin fallar,
+  salvo `react-hooks/rules-of-hooks`.
 - `npm run test --workspace=front`: ejecuta las pruebas unitarias de Vitest.
 - `npm run test:e2e --workspace=front`: ejecuta el harness Playwright; requiere la configuración
   y los servicios de prueba que documentó en su momento la tarea de integración de cuenta
-  (`docs/tasks/finished/`).
+  (`docs/tasks/finished/`). Incluye `visual.browser.spec.mjs`: capturas de referencia y análisis
+  axe de las pantallas principales. Las capturas se regeneran (`--update-snapshots`) solo desde
+  Linux.
+
+El workflow `.github/workflows/front.yml` corre `typecheck`, `lint`, `test` y `build` en cada PR
+hacia `desarrollo` o `main` que toque el front. Solo verifica; no despliega.
 
 Para levantar el stack completo, preparar el `.env` privado de la raíz según el
 [README](../README.md) y ejecutar:
@@ -158,4 +166,4 @@ no acredita entrega mediante un proveedor real.
 Evidencia histórica de validación (conteos de tests, recorridos Chromium, fechas de
 aceptación) en [CHANGELOG.md](../CHANGELOG.md) y en
 [TASK-013](../docs/tasks/finished/TASK-013-home-interno.md) /
-[TASK-011](../docs/tasks/finished/TASK-011-ux-landing-http-local.md). No hay lint configurado.
+[TASK-011](../docs/tasks/finished/TASK-011-ux-landing-http-local.md).
