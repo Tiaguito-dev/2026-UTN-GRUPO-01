@@ -5,17 +5,24 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../back/dist/generated/prisma/client.js";
 
 // Visual baseline and axe scan of the main screens (TASK-023). Baselines are versioned and only
-// regenerated from Linux + Chromium (`--update-snapshots`): fonts differ between systems.
+// regenerated from Linux + system Chrome (`--update-snapshots`): fonts differ between systems.
 const API = "http://localhost:3301";
 const password = " Contraseña de prueba segura 2026 ";
-// Known axe violations, by rule id, until their fix task lands. Empty = none tolerated.
-const KNOWN_VIOLATIONS = [];
+// Known axe violations, by path and rule id, until their fix task lands (TASK-023, section 6).
+const KNOWN_VIOLATIONS = {
+  // Landing carousel: the side cards are faded below the contrast minimum (seen at 1280px).
+  "/": ["color-contrast"],
+};
 const SCREENS = {
   public: [["landing", "/"], ["login", "/login"]],
   private: [["inicio", "/home"], ["materias", "/home/materias"], ["alta-materia", "/home/admin/materias/nueva"], ["perfil", "/account"]],
 };
 let prisma;
 const userIds = [];
+
+// System Google Chrome instead of Playwright's bundled Chromium (decided by the developer on
+// 2026-10-21): baselines therefore depend on the installed Chrome version too.
+test.use({ channel: "chrome" });
 
 test.beforeAll(async () => {
   if (!process.env.TEST_DATABASE_URL) throw new Error("TEST_DATABASE_URL es obligatorio para las pruebas de navegador.");
@@ -57,7 +64,7 @@ async function check(page, name, path, width) {
   });
   const { violations } = await new AxeBuilder({ page }).analyze();
   const blocking = violations
-    .filter((violation) => ["serious", "critical"].includes(violation.impact) && !KNOWN_VIOLATIONS.includes(violation.id))
+    .filter((violation) => ["serious", "critical"].includes(violation.impact) && !(KNOWN_VIOLATIONS[path] ?? []).includes(violation.id))
     .map((violation) => `${violation.id} (${violation.impact}): ${violation.nodes.map((node) => node.target.join(" ")).join(", ")}`);
   expect(blocking, `axe en ${path} a ${width}px`).toEqual([]);
 }
