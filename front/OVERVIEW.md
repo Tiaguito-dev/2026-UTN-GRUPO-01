@@ -103,7 +103,7 @@ perfil y cambio; los guards del backend siguen siendo la autoridad de autenticac
   y los servicios de prueba que documentó en su momento la tarea de integración de cuenta
   (`docs/tasks/finished/`). Incluye `visual.browser.spec.mjs`: capturas de referencia y análisis
   axe de las pantallas principales. Las capturas se regeneran (`--update-snapshots`) solo desde
-  Linux.
+  Linux, con el Google Chrome del sistema.
 
 El workflow `.github/workflows/front.yml` corre `typecheck`, `lint`, `test` y `build` en cada PR
 hacia `desarrollo` o `main` que toque el front. Solo verifica; no despliega.

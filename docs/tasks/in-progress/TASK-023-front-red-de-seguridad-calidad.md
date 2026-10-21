@@ -1,7 +1,7 @@
 # TASK-023: Red de seguridad de calidad del frontend (lint, CI y tests de caracterización)
 
-Estado: En curso. Lint, CI, tests de caracterización y documentación implementados y verificados en
-local; falta generar la línea base visual (necesita una base de pruebas) y ver el workflow en un PR.
+Estado: En curso. Lint, CI, tests de caracterización, línea base visual y documentación
+implementados y verificados en local. Falta ver el workflow en un PR.
 Decisiones 1 a 4 confirmadas por el desarrollador el 2026-10-21.
 Fecha: 2026-10-21
 
@@ -188,18 +188,28 @@ pantalla.
 `next/link` se reemplaza por un `<a>` (`tests/support/next-link.tsx`) para no depender del
 contexto del App Router.
 
+### Línea base visual y axe
+
+Corrida el 2026-10-21 con Google Chrome 155.0.8059.84 del sistema, contra una base exclusiva
+`butchery_test` creada en el Postgres de Docker de desarrollo y migrada con
+`prisma migrate deploy`. Para el harness, el back se compila con `npm run build --workspace=back`
+y el front con `NEXT_PUBLIC_API_URL=http://localhost:3301 NEXT_PUBLIC_ALLOW_LOCAL_HTTP=true`.
+
+- `--update-snapshots` generó las 12 capturas (6 pantallas × 390px y 1280px) en
+  `front/tests/visual.browser.spec.mjs-snapshots/`. Se revisaron: pantallas completas, sin
+  estados de carga. El email aleatorio y el listado del catálogo van enmascarados.
+- Una segunda corrida sin cambios pasó: 4 tests, sin diferencias.
+- axe: una violación `serious` conocida, `color-contrast` en la landing a 1280px. Las tarjetas
+  laterales del carrusel (`.feature-card-next`, `.feature-card-previous`) quedan atenuadas por
+  debajo del contraste mínimo. Queda en `KNOWN_VIOLATIONS` solo para `/` hasta su tarea de
+  corrección. Ninguna otra pantalla reporta `serious` ni `critical`.
+
+Cambio a la decisión 4, pedido por el desarrollador el 2026-10-21: el spec visual usa el Google
+Chrome del sistema (`channel: "chrome"`) y no el Chromium de Playwright, que no estaba instalado.
+Por eso la línea base depende también de la versión de Chrome: si cambia, puede hacer falta
+regenerar las capturas.
+
 ### Pendiente
 
-- Línea base visual y axe: `tests/visual.browser.spec.mjs` está escrito, pero no se ejecutó:
-  necesita `TEST_DATABASE_URL`, que no está configurada en esta máquina. Al correrlo por primera
-  vez hay que generar las capturas con `--update-snapshots`, correrlo de nuevo sin cambios y
-  listar en `KNOWN_VIOLATIONS` (y acá) lo que axe reporte como `serious` o `critical`.
 - Workflow de CI: se valida al abrir el PR (verde) y con una rama descartable con un test roto
   (rojo).
-
-### Pruebas manuales para el desarrollador
-
-- Correr `npm run dev:front` y recorrer landing, login, inicio, materias (drill-down hasta
-  comisiones), una alta y perfil. Nada tiene que verse ni comportarse distinto que antes.
-- Abrir el PR y confirmar que el check del workflow aparece y queda en verde.
-- Revisar las capturas generadas: deben mostrar las pantallas completas, sin estados de carga.

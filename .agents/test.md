@@ -43,7 +43,7 @@ Decidida en `docs/tasks/` (TASK-023):
   comportamiento dudoso se fija tal como está, con un comentario, y se corrige en otra tarea.
 - **Playwright** (`*.browser.spec.mjs`) para recorridos reales contra el harness, con Postgres y
   Mailpit. Corre solo en local. `visual.browser.spec.mjs` guarda capturas de referencia
-  versionadas, que se regeneran solo desde Linux + Chromium, y falla ante violaciones axe
+  versionadas, que se regeneran solo desde Linux con el Google Chrome del sistema, y falla ante violaciones axe
   `serious` o `critical` que no estén listadas como conocidas.
 
 ## Skills (solo Claude Code)
