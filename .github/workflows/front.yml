@@ -1,0 +1,39 @@
+name: front
+
+# Verification only: nothing here deploys (Render and Vercel keep their autodeploy, see TASK-021).
+on:
+  pull_request:
+    branches: [desarrollo, main]
+    paths:
+      - "front/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/front.yml"
+  push:
+    branches: [desarrollo]
+    paths:
+      - "front/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/front.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck --workspace=front
+      - run: npm run lint --workspace=front
+      - run: npm run test --workspace=front
+      - run: npm run build --workspace=front
+        env:
+          # services/http.ts validates this in the browser, not during the build.
+          NEXT_PUBLIC_API_URL: https://api.example.invalid
