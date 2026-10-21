@@ -22,22 +22,25 @@ function fixture() {
     findByEmail: vi.fn(async (email: string) => accounts.get(email) ?? null),
     create: vi.fn(async (input) => {
       if (accounts.has(input.email)) throw new EmailAlreadyRegisteredError();
-      const user: User = { ...input, id: randomUUID(), createdAt: new Date() };
+      const user: User = { ...input, id: randomUUID(), emailVerifiedAt: null, createdAt: new Date() };
       accounts.set(input.email, user);
       return user;
     }),
   };
   const hasher: PasswordHasher = { hash: vi.fn(async () => "private-hash"), verify: vi.fn(async () => true) };
-  return { accounts, repository, hasher, register: new RegisterUser(repository, hasher), provision: new ProvisionAdmin(repository, hasher) };
+  const verification = { requestForUser: vi.fn(async () => undefined) };
+  return { accounts, repository, hasher, verification, register: new RegisterUser(repository, hasher, verification), provision: new ProvisionAdmin(repository, hasher) };
 }
 
 describe("RegisterUser", () => {
   it("normaliza email y nombre, conserva la contraseña exacta y devuelve solo datos públicos", async () => {
-    const { register, accounts, hasher } = fixture();
+    const { register, accounts, hasher, verification } = fixture();
     const result = await register.execute(validInput);
     expect(hasher.hash).toHaveBeenCalledWith(validInput.password);
     expect(result).toEqual({ id: expect.any(String), email: "person+tag@alu.frlp.utn.edu.ar", displayName: "Persona", role: "USER", createdAt: expect.any(Date) });
     expect(accounts.get(result.email)?.passwordHash).toBe("private-hash");
+    expect(accounts.get(result.email)?.emailVerifiedAt).toBeNull();
+    expect(verification.requestForUser).toHaveBeenCalledWith(result.id, result.email);
     expect(Object.keys(result).sort()).toEqual(["createdAt", "displayName", "email", "id", "role"]);
   });
 

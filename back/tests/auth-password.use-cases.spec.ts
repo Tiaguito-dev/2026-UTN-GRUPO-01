@@ -7,7 +7,7 @@ import { InvalidPasswordChangeError, InvalidPasswordInputError, InvalidPasswordR
 
 const now = new Date("2026-10-08T12:00:00Z");
 function fixture() {
-  const user = { id: randomUUID(), email: "person@example.test", passwordHash: "private-old-hash", displayName: "Persona", role: "USER" as const, createdAt: now };
+  const user = { id: randomUUID(), email: "person@example.test", passwordHash: "private-old-hash", displayName: "Persona", role: "USER" as const, emailVerifiedAt: now, createdAt: now };
   const credential = { id: randomUUID(), userId: user.id, tokenHash: "a".repeat(64), createdAt: now, expiresAt: new Date(now.getTime() + 1800000), consumedAt: null as Date | null, invalidatedAt: null as Date | null, deliveredAt: now as Date | null };
   const recovery = { issue: vi.fn(), invalidate: vi.fn(), markDelivered: vi.fn(async () => undefined), findByHash: vi.fn(async () => credential), reset: vi.fn(async () => true), findPasswordByUserId: vi.fn(async () => ({ id: user.id, passwordHash: user.passwordHash })), change: vi.fn(async () => true) };
   const users = { findAll: vi.fn(), create: vi.fn(), findById: vi.fn(), findByEmail: vi.fn(async () => user as typeof user | null) };

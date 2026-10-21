@@ -1,5 +1,5 @@
 import type { Pagination, PaginatedResult } from "../../shared/domain/pagination.js";
-import type { PublicUser, User, UserRole } from "./user.js";
+import type { AuthenticationUser, PublicUser, User, UserRole } from "./user.js";
 
 export const USER_REPOSITORY = Symbol("USER_REPOSITORY");
 
@@ -12,7 +12,7 @@ export interface CreateUserInput {
 
 export interface UserRepository {
   findAll(pagination: Pagination): Promise<PaginatedResult<PublicUser>>;
-  findById(id: string): Promise<PublicUser | null>;
+  findById(id: string): Promise<AuthenticationUser | null>;
   findByEmail(email: string): Promise<User | null>;
   create(input: CreateUserInput): Promise<User>;
 }

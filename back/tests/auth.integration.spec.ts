@@ -50,7 +50,7 @@ describe.skipIf(!testDatabaseUrl)("Autenticación HTTP y persistencia PostgreSQL
 
   afterAll(async () => {
     // Solo elimina UUID obtenidos por esta suite; no trunca tablas ni toca cuentas existentes.
-    if (prisma && createdIds.size > 0) await prisma.user.deleteMany({ where: { id: { in: [...createdIds] } } });
+    if (prisma && createdIds.size > 0) await prisma.emailVerificationCredential.deleteMany({ where: { userId: { in: [...createdIds] } } }); await prisma.user.deleteMany({ where: { id: { in: [...createdIds] } } });
     if (app) await app.close();
     if (prisma) await prisma.$disconnect();
   });

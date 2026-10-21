@@ -16,6 +16,7 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => {
   if (prisma) {
+    await prisma.emailVerificationCredential.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.passwordResetCredential.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.refreshCredential.deleteMany({ where: { session: { userId: { in: userIds } } } });
     await prisma.session.deleteMany({ where: { userId: { in: userIds } } });
@@ -34,7 +35,7 @@ async function fixture(page, role = "USER") {
   const email = `browser-${randomUUID()}@alu.frlp.utn.edu.ar`;
   const registered = await api(page, "/auth/register", "POST", { email, displayName: "Cuenta de prueba", password });
   expect(registered.status).toBe(201); userIds.push(registered.body.id);
-  if (role === "ADMIN") await prisma.user.update({ where: { id: registered.body.id }, data: { role } });
+  await prisma.user.update({ where: { id: registered.body.id }, data: { role, emailVerifiedAt: new Date() } });
   return { email, id: registered.body.id };
 }
 async function login(page, email, pass = password) {
@@ -98,6 +99,15 @@ test("registro por formulario, login, recarga, cookies HttpOnly y ningún secret
   await page.getByRole("button", { name: /crear cuenta|registrar/i }).click();
   await expect(page).toHaveURL(/\/login/);
   const user = await prisma.user.findUniqueOrThrow({ where: { email } }); userIds.push(user.id);
+  expect(user.emailVerifiedAt).toBeNull();
+  const pending = await api(page, "/auth/login", "POST", { email, password }); expect(pending.status).toBe(403);
+  const inbox = await (await fetch(`${MAIL}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`)).json();
+  const verificationMail = await (await fetch(`${MAIL}/api/v1/message/${inbox.messages[0].ID}`)).json();
+  const verificationLink = verificationMail.Text.match(/http:\/\/localhost:3300\/verify-email\?token=([A-Za-z0-9_-]+)/)?.[0]; expect(verificationLink).toBeTruthy();
+  await page.goto(verificationLink);
+  await expect(page.getByText("Correo verificado. Tu cuenta está habilitada para iniciar sesión.")).toBeVisible();
+  expect(new URL(page.url()).searchParams.has("token")).toBe(false);
+  expect((await prisma.user.findUniqueOrThrow({ where: { email } })).emailVerifiedAt).toBeInstanceOf(Date);
   await login(page, email); await page.reload(); await expect(page.getByText(email, { exact: true })).toBeVisible();
   const current = await api(page, "/auth/me"); expect(current.status).toBe(200); expect(Object.keys(current.body).sort()).toEqual(["displayName", "email", "id", "role"]);
   const cookies = (await context.cookies()).filter((c) => /butchery_(access|refresh)$/.test(c.name)); expect(cookies).toHaveLength(2);
@@ -200,11 +210,12 @@ test("login 401, mutación 403 y límite 429 se muestran sin renovación o repet
   await page.getByRole("link", { name: /cambiar contraseña/i }).click();
   await expect(page).toHaveURL(/\/account\/change-password$/);
   await page.getByLabel(/contraseña actual/i).fill(password); await page.getByLabel(/^Nueva contraseña$/i).fill(replacement); await page.getByLabel(/confirmar contraseña/i).fill(replacement);
-  await page.getByRole("button", { name: /cambiar contraseña/i }).click(); await expect(page.getByRole("alert")).toBeVisible(); expect(refreshCalls).toBe(0);
+  const beforeMutation = refreshCalls;
+  await page.getByRole("button", { name: /cambiar contraseña/i }).click(); await expect(page.getByRole("alert")).toBeVisible(); expect(refreshCalls).toBe(beforeMutation);
   let attempts = 0;
   await page.route(`${API}/auth/forgot-password`, (route) => { attempts++; return route.fulfill({ status: 429, contentType: "application/json", body: JSON.stringify({ message: "Se alcanzó el límite de intentos. Espere e intente nuevamente." }) }); });
-  await page.goto("/forgot-password"); await page.getByLabel(/^Email$/i).fill(f.email); await page.getByRole("button", { name: /enviar instrucciones/i }).click();
-  await expect(page.getByRole("alert")).toContainText(/límite de intentos/); expect(attempts).toBe(1); expect(refreshCalls).toBe(0);
+  await page.goto("/forgot-password"); await page.getByLabel(/^Email$/i).fill(f.email); const beforeLimit = refreshCalls; await page.getByRole("button", { name: /enviar instrucciones/i }).click();
+  await expect(page.getByRole("alert").filter({ hasText: /límite de intentos/ })).toContainText(/límite de intentos/); expect(attempts).toBe(1); expect(refreshCalls).toBe(beforeLimit);
 });
 
 test("sesión absoluta vencida solicita login y navegador sin Locks muestra límite explícito", async ({ page, context }) => {
@@ -214,7 +225,7 @@ test("sesión absoluta vencida solicita login y navegador sin Locks muestra lím
   await context.addInitScript(() => Object.defineProperty(navigator, "locks", { value: undefined }));
   await login(page, f.email); await expect(page.getByText(/no permite coordinar la renovación entre pestañas/)).toBeVisible();
   await expire(page); let refreshCalls = 0; context.on("request", (request) => { if (request.url() === `${API}/auth/refresh`) refreshCalls++; });
-  await page.reload(); await expect(page.getByRole("alert")).toBeVisible(); await expect(page).toHaveURL(/\/account$/); expect(refreshCalls).toBe(0);
+  await page.reload(); await expect(page.getByRole("region", { name: "Problema temporal de sesión" }).getByRole("alert")).toBeVisible(); await expect(page).toHaveURL(/\/account$/); expect(refreshCalls).toBe(0);
 });
 
 test("formularios móviles y desktop utilizables por teclado sin overflow", async ({ page }) => {

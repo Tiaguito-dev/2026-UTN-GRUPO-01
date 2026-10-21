@@ -1,8 +1,9 @@
+import { canAuthenticate } from "../../users/domain/user.js";
 import type { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import type { RefreshCredentialRepository } from "../domain/refresh-credential.repository.js";
 import type { RefreshCredential } from "../domain/refresh-credential.js";
 import type { Session } from "../domain/session.js";
-import type { PublicUser } from "../../users/domain/user.js";
+import type { AuthenticationUser } from "../../users/domain/user.js";
 import { InvalidRefreshCredentialError } from "../domain/refresh-errors.js";
 
 export class PrismaRefreshCredentialRepository implements RefreshCredentialRepository {
@@ -12,8 +13,8 @@ export class PrismaRefreshCredentialRepository implements RefreshCredentialRepos
     this.validateReplacement(session, credential);
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${session.userId}::uuid FOR UPDATE`;
-      const user = await tx.user.findUnique({ where: { id: session.userId }, select: { passwordHash: true } });
-      if (!user || user.passwordHash !== expectedPasswordHash) return false;
+      const user = await tx.user.findUnique({ where: { id: session.userId }, select: { passwordHash: true, role: true, emailVerifiedAt: true } });
+      if (!user || user.passwordHash !== expectedPasswordHash || !canAuthenticate(user)) return false;
       await tx.session.create({ data: session });
       await tx.refreshCredential.create({ data: credential });
       return true;
@@ -24,7 +25,7 @@ export class PrismaRefreshCredentialRepository implements RefreshCredentialRepos
     return this.prisma.refreshCredential.findUnique({ where: { tokenHash: hash } });
   }
 
-  async rotate(hash: string, now: Date, prepareReplacement: (session: Session, user: PublicUser | null) => Promise<RefreshCredential>): Promise<"rotated" | "invalid" | "reused"> {
+  async rotate(hash: string, now: Date, prepareReplacement: (session: Session, user: AuthenticationUser | null) => Promise<RefreshCredential>): Promise<"rotated" | "invalid" | "reused"> {
     return this.prisma.$transaction(async (tx) => {
       const candidate = await tx.refreshCredential.findUnique({ where: { tokenHash: hash } });
       if (!candidate) return "invalid";
@@ -45,7 +46,7 @@ export class PrismaRefreshCredentialRepository implements RefreshCredentialRepos
       // Use the transaction's connection: an external user lookup while holding the
       // session lock could exhaust the pool when concurrent transactions wait for it.
       const user = await tx.user.findUnique({ where: { id: session.userId },
-        select: { id: true, email: true, displayName: true, role: true, createdAt: true } });
+        select: { id: true, email: true, displayName: true, role: true, createdAt: true, emailVerifiedAt: true } });
       const replacement = await prepareReplacement(session, user);
       this.validateReplacement(session, replacement);
       checkedAt = this.checkedAt(now);

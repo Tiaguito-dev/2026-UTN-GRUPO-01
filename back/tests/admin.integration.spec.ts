@@ -39,6 +39,8 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
     const user = await response.json();
     expect(response.status).toBe(201);
     userIds.add(user.id);
+    // Authenticated fixtures explicitly verify their accounts.
+    await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
     return user as { id: string; email: string };
   }
 
@@ -96,7 +98,7 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
       if (userIds.size) {
         await prisma.refreshCredential.deleteMany({ where: { session: { userId: { in: [...userIds] } } } });
         await prisma.session.deleteMany({ where: { userId: { in: [...userIds] } } });
-        await prisma.user.deleteMany({ where: { id: { in: [...userIds] } } });
+        await prisma.emailVerificationCredential.deleteMany({ where: { userId: { in: [...userIds] } } }); await prisma.user.deleteMany({ where: { id: { in: [...userIds] } } });
       }
     }
     if (app) await app.close();

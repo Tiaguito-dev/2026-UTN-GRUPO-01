@@ -43,6 +43,8 @@ describe.skipIf(!testDatabaseUrl)("Sesiones, cookies y guards con PostgreSQL rea
     const user = await response.json();
     if (typeof user.id === "string") ids.add(user.id);
     expect(response.status).toBe(201);
+    // Authenticated fixtures explicitly verify their accounts.
+    await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
     return user as { id: string; email: string };
   }
   async function login(email: string) {
@@ -63,7 +65,7 @@ describe.skipIf(!testDatabaseUrl)("Sesiones, cookies y guards con PostgreSQL rea
     if (prisma && ids.size) {
       await prisma.refreshCredential.deleteMany({ where: { session: { userId: { in: [...ids] } } } });
       await prisma.session.deleteMany({ where: { userId: { in: [...ids] } } });
-      await prisma.user.deleteMany({ where: { id: { in: [...ids] } } });
+      await prisma.emailVerificationCredential.deleteMany({ where: { userId: { in: [...ids] } } }); await prisma.user.deleteMany({ where: { id: { in: [...ids] } } });
     }
     if (app) await app.close(); if (prisma) await prisma.$disconnect();
   });

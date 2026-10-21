@@ -10,7 +10,7 @@ import { validateEmail, validateNewPassword, validateDisplayName, validateCurren
 type Mode = "login" | "register" | "forgot" | "reset" | "change";
 const titles: Record<Mode, string> = { login: "Iniciar sesión", register: "Crear cuenta", forgot: "Recuperar contraseña", reset: "Restablecer contraseña", change: "Cambiar contraseña" };
 const actions: Record<Mode, string> = { login: "Iniciar sesión", register: "Crear cuenta", forgot: "Enviar instrucciones", reset: "Restablecer contraseña", change: "Cambiar contraseña" };
-const messages: Record<string, string> = { registered: "Cuenta creada. Iniciá sesión para continuar.", reset: "Contraseña restablecida. Iniciá sesión con tu nueva contraseña.", changed: "Contraseña cambiada. Iniciá sesión nuevamente.", logout: "Sesión cerrada correctamente." };
+const messages: Record<string, string> = { registered: "Cuenta creada, pendiente de verificación. Enviamos un enlace a tu correo institucional. Revisá tu bandeja de entrada y spam y verificá tu correo antes de iniciar sesión.", reset: "Contraseña restablecida. Iniciá sesión con tu nueva contraseña.", changed: "Contraseña cambiada. Iniciá sesión nuevamente.", logout: "Sesión cerrada correctamente." };
 const passwordHint = "Usá entre 8 y 128 caracteres. Podés incluir espacios y caracteres Unicode. La contraseña no se recorta.";
 
 function Field({ name, label, type = "text", autoComplete, error, hint }: { name: string; label: string; type?: string; autoComplete?: string; error?: string; hint?: string }) {
@@ -125,7 +125,7 @@ export function AccountForm({ mode }: { mode: Mode }) {
   const hasEmail = ["register", "login", "forgot"].includes(mode);
   return <section aria-labelledby={`heading-${mode}`}><h1 ref={headingRef} tabIndex={-1} id={`heading-${mode}`}>{titles[mode]}</h1>
     {mode === "login" ? <p className="intro">Tu próximo paso empieza acá. Ingresá a tu cuenta.</p> : null}
-    {mode === "register" ? <p className="intro">Sumate a una comunidad que comparte su experiencia universitaria.</p> : null}
+    {mode === "register" ? <p className="intro">Registrate con tu correo @alu.frlp.utn.edu.ar. Te enviaremos un enlace para verificarlo antes de que puedas iniciar sesión.</p> : null}
     {mode === "forgot" ? <p className="intro">Ingresá tu email y te enviaremos instrucciones para recuperar el acceso.</p> : null}
     {mode === "reset" ? <p className="intro">Al restablecer tu contraseña se cerrarán todas tus sesiones. Si recargás esta página, volvé a abrir el enlace del email.</p> : null}
     {mode === "change" ? <p className="intro">El cambio cerrará todas tus sesiones, incluida esta.</p> : null}
@@ -142,5 +142,6 @@ export function AccountForm({ mode }: { mode: Mode }) {
     </form>
     {mode === "change" ? <div className="form-links"><Link href="/account">Volver a mi perfil</Link></div> : null}
     <div className="form-links">{mode === "login" ? <><Link href="/register">Crear una cuenta</Link><Link href="/forgot-password">¿Olvidaste tu contraseña?</Link></> : null}{["forgot", "register", "reset"].includes(mode) ? <Link href="/login">Volver al login</Link> : null}{mode === "reset" ? <Link href="/forgot-password">Solicitar un nuevo enlace de recuperación</Link> : null}</div>
+    {["login", "register"].includes(mode) ? <div className="form-links"><Link href="/resend-verification">¿No verificaste tu correo? Solicitar un nuevo enlace</Link></div> : null}
   </section>;
 }

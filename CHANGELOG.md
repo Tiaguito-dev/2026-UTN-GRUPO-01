@@ -2,6 +2,15 @@
 
 ## [Sin publicar]
 
+### Verificación institucional (TASK-022)
+
+- Registro de estudiantes pendiente hasta confirmar su correo `@alu.frlp.utn.edu.ar`.
+- Enlaces SMTP de verificación con vencimiento de 24 horas, confirmación y reenvío.
+- Bloqueo de login, sesiones y refresh de estudiantes sin verificar; ADMIN provisionados
+  explícitamente conservan acceso.
+- Pantallas de confirmación y reenvío, y protección de tokens y cabeceras de privacidad.
+- Validación automatizada y manual aprobada, incluido el envío SMTP real desde el entorno local.
+
 ### Validado
 
 - El desarrollador confirmó el 2026-10-09 los cambios de autenticación, Docker y UX de

@@ -11,7 +11,7 @@ import type { PublicUser, User } from "../src/users/domain/user.js";
 
 const now = new Date("2026-10-08T12:00:00Z");
 function fixture() {
-  const user: User = { id: randomUUID(), email: "person@example.com", displayName: "Persona", passwordHash: "private-password-hash", role: "USER", createdAt: now };
+  const user: User = { id: randomUUID(), email: "person@example.com", displayName: "Persona", passwordHash: "private-password-hash", role: "USER", emailVerifiedAt: now, createdAt: now };
   const session: Session = { id: randomUUID(), userId: user.id, createdAt: now, expiresAt: new Date(now.getTime() + 604800000), revokedAt: null };
   const users = { findById: vi.fn(async () => user as User | null), findByEmail: vi.fn(), create: vi.fn() };
   const sessions = { findById: vi.fn(async () => session), findValidById: vi.fn(), create: vi.fn() };

@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { UserRepository } from "../../users/domain/user.repository.js";
-import { toPublicUser, type PublicUser } from "../../users/domain/user.js";
+import { canAuthenticate, toPublicUser, type PublicUser } from "../../users/domain/user.js";
 import type { PasswordHasher } from "../domain/password-hasher.js";
 import type { RefreshCredentialRepository } from "../domain/refresh-credential.repository.js";
 import type { RefreshTokenService } from "../domain/refresh-token.service.js";
 import type { AccessTokenService } from "../domain/access-token.js";
+import { EmailNotVerifiedError } from "../domain/email-verification.js";
 import { InvalidCredentialsError } from "../domain/auth-errors.js";
 import { validateLoginInput } from "../domain/login-input.js";
 
@@ -35,6 +36,7 @@ export class Login {
     const user = await this.users.findByEmail(values.email);
     const valid = await this.passwords.verify(user?.passwordHash ?? this.dummyHash, values.password);
     if (!user || !valid) throw new InvalidCredentialsError();
+    if (!canAuthenticate(user)) throw new EmailNotVerifiedError();
     const issuedAt = Math.floor(this.now().getTime() / 1000);
     const sessionExpiry = new Date((issuedAt + this.sessionTtlSeconds) * 1000);
     const expiresAt = Math.min(issuedAt + this.accessTtlSeconds, Math.floor(sessionExpiry.getTime() / 1000));

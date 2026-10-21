@@ -35,6 +35,7 @@ describe.skipIf(!databaseUrl)("Refresh y logout HTTP con atomicidad PostgreSQL",
     const email = `refresh-${randomUUID()}@alu.frlp.utn.edu.ar`;
     const register = await post("/auth/register", "", { email, displayName: "Refresh", password });
     const user = await register.json(); ids.add(user.id); expect(register.status).toBe(201);
+    await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
     const response = await post("/auth/login", "", { email, password }); expect(response.status).toBe(200);
     const cookies = cookieJar(response);
     const access = value(cookies, config.cookieName);
@@ -57,9 +58,15 @@ describe.skipIf(!databaseUrl)("Refresh y logout HTTP con atomicidad PostgreSQL",
     if (prisma && ids.size) {
       await prisma.refreshCredential.deleteMany({ where: { session: { userId: { in: [...ids] } } } });
       await prisma.session.deleteMany({ where: { userId: { in: [...ids] } } });
-      await prisma.user.deleteMany({ where: { id: { in: [...ids] } } });
+      await prisma.emailVerificationCredential.deleteMany({ where: { userId: { in: [...ids] } } }); await prisma.user.deleteMany({ where: { id: { in: [...ids] } } });
     }
     if (app) await app.close(); if (prisma) await prisma.$disconnect();
+  });
+  it("legacy sessions of unverified accounts cannot access me or refresh", async () => {
+    const f = await login();
+    await prisma.user.update({ where: { id: f.user.id }, data: { emailVerifiedAt: null } });
+    expect((await me(f.cookies)).status).toBe(401);
+    const denied = await post("/auth/refresh", f.cookies); expect(denied.status).toBe(401);
   });
   it("login entrega ambas cookies y persiste solamente hash único con plazo absoluto independiente", async () => {
     const f = await login(); const body = await f.response.json();

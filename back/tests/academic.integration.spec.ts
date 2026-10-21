@@ -35,6 +35,10 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     const user = await response.json();
     if (typeof user.id === "string") userIds.add(user.id);
     expect(response.status).toBe(201);
+    // Fixture authenticated explicitly; registration itself remains pending.
+    await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
+    // Authenticated fixtures explicitly verify their accounts.
+    await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
     return user as { id: string; email: string };
   }
   async function sessionCookie() {
@@ -82,7 +86,7 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
       if (userIds.size) {
         await prisma.refreshCredential.deleteMany({ where: { session: { userId: { in: [...userIds] } } } });
         await prisma.session.deleteMany({ where: { userId: { in: [...userIds] } } });
-        await prisma.user.deleteMany({ where: { id: { in: [...userIds] } } });
+        await prisma.emailVerificationCredential.deleteMany({ where: { userId: { in: [...userIds] } } }); await prisma.user.deleteMany({ where: { id: { in: [...userIds] } } });
       }
     }
     if (app) await app.close();

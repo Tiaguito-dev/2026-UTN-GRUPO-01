@@ -1,3 +1,4 @@
+import { canAuthenticate } from "../../users/domain/user.js";
 import type { UserRepository } from "../../users/domain/user.repository.js";
 import type { UserRole } from "../../users/domain/user.js";
 import type { SessionRepository } from "../domain/session.repository.js";
@@ -21,7 +22,7 @@ export class AuthenticateRequest {
       throw new UnauthenticatedError();
     }
     const user = await this.users.findById(claims.userId);
-    if (!user) throw new UnauthenticatedError();
+    if (!user || !canAuthenticate(user)) throw new UnauthenticatedError();
     return { id: user.id, email: user.email, displayName: user.displayName, role: user.role };
   }
 }

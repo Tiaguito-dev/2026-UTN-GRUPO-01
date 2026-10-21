@@ -29,11 +29,17 @@ defecto y el runtime de Node.js.
 - `/`: landing previa al login, descripción del propósito y CTA de ingreso y registro.
 - `/register`, `/login`: flujos para visitantes; cuentas autenticadas vuelven al espacio interno.
 - `/forgot-password`, `/reset-password`: recuperación pública de cuenta.
+- `/verify-email`: confirma el enlace SMTP y retira el token de la URL; no inicia sesión.
+- `/resend-verification`: solicita un enlace para una cuenta pendiente, incluso anterior al cambio.
 - `/home`: inicio protegido con funcionalidades previstas y estados vacíos informativos.
 - `/account`, `/account/change-password`: perfil y cambio de contraseña protegidos.
 - `NEXT_PUBLIC_API_URL`: URL pública del backend.
 
 ## Landing y experiencia de cuenta
+
+El registro informa que la cuenta queda pendiente de verificación. El estudiante debe abrir el
+enlace recibido por correo antes de iniciar sesión; login y registro ofrecen acceso al reenvío.
+Las rutas de verificación y reenvío usan `no-store` y `no-referrer`.
 
 La landing presenta el propósito de compartir información entre estudiantes sobre materias
 y profesores. El título, descripción y acciones están centrados. La navegación presenta
