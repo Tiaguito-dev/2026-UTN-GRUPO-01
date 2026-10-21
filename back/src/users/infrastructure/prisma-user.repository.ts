@@ -3,7 +3,7 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import { normalizeEmail } from "../domain/email.js";
 import { EmailAlreadyRegisteredError } from "../domain/errors.js";
 import type { CreateUserInput, UserRepository } from "../domain/user.repository.js";
-import type { PublicUser, User } from "../domain/user.js";
+import type { AuthenticationUser, PublicUser, User } from "../domain/user.js";
 import type { Pagination, PaginatedResult } from "../../shared/domain/pagination.js";
 
 // Proyección explícita: passwordHash nunca sale del repositorio en lecturas públicas.
@@ -25,10 +25,10 @@ export class PrismaUserRepository implements UserRepository {
     return { items, total, page: pagination.page, pageSize: pagination.pageSize };
   }
 
-  async findById(id: string): Promise<PublicUser | null> {
+  async findById(id: string): Promise<AuthenticationUser | null> {
     return this.prisma.user.findUnique({
       where: { id },
-      select: PUBLIC_FIELDS,
+      select: { ...PUBLIC_FIELDS, emailVerifiedAt: true },
     });
   }
 

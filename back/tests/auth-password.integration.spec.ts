@@ -39,6 +39,7 @@ describe.skipIf(!databaseUrl)("Recuperación y cambio HTTP con persistencia Post
     const email = `password-${randomUUID()}@alu.frlp.utn.edu.ar`;
     const registered = await post("/auth/register", { email, displayName: "Recovery", password: oldPassword });
     expect(registered.status).toBe(201); const user = await registered.json(); ids.push(user.id);
+    await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
     const login = await post("/auth/login", { email, password: oldPassword }); expect(login.status).toBe(200);
     return { email, user, cookies: jar(login) };
   }
@@ -66,7 +67,7 @@ describe.skipIf(!databaseUrl)("Recuperación y cambio HTTP con persistencia Post
     if (prisma && ids.length) {
       await prisma.passwordResetCredential.deleteMany({ where: { userId: { in: ids } } });
       await prisma.refreshCredential.deleteMany({ where: { session: { userId: { in: ids } } } });
-      await prisma.session.deleteMany({ where: { userId: { in: ids } } }); await prisma.user.deleteMany({ where: { id: { in: ids } } });
+      await prisma.session.deleteMany({ where: { userId: { in: ids } } }); await prisma.emailVerificationCredential.deleteMany({ where: { userId: { in: ids } } }); await prisma.user.deleteMany({ where: { id: { in: ids } } });
     }
     if (app) await app.close(); if (prisma) await prisma.$disconnect();
   });

@@ -8,7 +8,7 @@ Object.assign(process.env, {
   SMTP_HOST: process.env["TEST_SMTP_HOST"] ?? "127.0.0.1",
   SMTP_PORT: process.env["TEST_SMTP_PORT"] ?? "1025",
   SMTP_FROM: "auth@example.test", SMTP_SECURE: "false", SMTP_ALLOW_LOCAL_PLAINTEXT: "true",
-  SMTP_TIMEOUT_MS: process.env["TEST_SMTP_TIMEOUT_MS"] ?? "250",
+  SMTP_TIMEOUT_MS: process.env["TEST_SMTP_TIMEOUT_MS"] ?? "1500",
 });
 export function testAuthEnvironment(overrides: Record<string, string | undefined> = {}) {
   return {
@@ -21,15 +21,16 @@ export function testAuthEnvironment(overrides: Record<string, string | undefined
     AUTH_ALLOW_LOCAL_HTTP: "true",
     AUTH_COOKIE_SAME_SITE: "lax",
     AUTH_LOGIN_MAX_ATTEMPTS: "100",
+    AUTH_FORGOT_PASSWORD_MAX_ATTEMPTS: "200",
     AUTH_LOGIN_WINDOW_SECONDS: "60",
     AUTH_PASSWORD_RESET_URL: `${testOrigin}/reset-password`,
-    AUTH_PASSWORD_RESET_MIN_RESPONSE_MS: "500",
     SMTP_HOST: "127.0.0.1",
     SMTP_PORT: "1025",
     SMTP_FROM: "auth@example.test",
     SMTP_SECURE: "false",
     SMTP_ALLOW_LOCAL_PLAINTEXT: "true",
     SMTP_TIMEOUT_MS: "250",
+    AUTH_PASSWORD_RESET_MIN_RESPONSE_MS: "500",
     ...overrides,
   };
 }

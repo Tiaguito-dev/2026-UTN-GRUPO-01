@@ -57,6 +57,9 @@ export function configureAuthHttp(app: INestApplication, config: AuthConfig): vo
     handler: (_request, response) => reject(response, 429, "Too Many Requests", "Se alcanzó el límite de renovaciones. Espere e intente nuevamente."),
   });
   const passwordLimits: [string, { limit: number; window: number }][] = [
+    ["register", { limit: config.forgotPasswordMaxAttempts, window: config.forgotPasswordWindowSeconds }],
+    ["verify-email", { limit: config.resetPasswordMaxAttempts, window: config.resetPasswordWindowSeconds }],
+    ["resend-verification", { limit: config.forgotPasswordMaxAttempts, window: config.forgotPasswordWindowSeconds }],
     ["forgot-password", { limit: config.forgotPasswordMaxAttempts, window: config.forgotPasswordWindowSeconds }],
     ["reset-password", { limit: config.resetPasswordMaxAttempts, window: config.resetPasswordWindowSeconds }],
     ["change-password", { limit: config.changePasswordMaxAttempts, window: config.changePasswordWindowSeconds }],
@@ -78,7 +81,7 @@ export function configureAuthHttp(app: INestApplication, config: AuthConfig): vo
       return;
     }
     if (request.method === "POST") {
-      const operation = /^\/auth\/(forgot-password|reset-password|change-password)\/?$/i.exec(request.path)?.[1]?.toLowerCase();
+      const operation = /^\/auth\/(register|verify-email|resend-verification|forgot-password|reset-password|change-password)\/?$/i.exec(request.path)?.[1]?.toLowerCase();
       const limiter = operation ? passwordLimiters.get(operation) : undefined;
       if (limiter) { limiter(request, response, next); return; }
     }
@@ -96,7 +99,7 @@ export function configureAuthHttp(app: INestApplication, config: AuthConfig): vo
         reject(response, 403, "Forbidden", "La solicitud no pudo validarse. Actualice la página e intente nuevamente.");
         return;
       }
-      if (request.method === "POST" && /^\/auth\/(?:login|register|forgot-password|reset-password|change-password)\/?$/i.test(request.path) && !request.is("application/json")) {
+      if (request.method === "POST" && /^\/auth\/(?:login|register|verify-email|resend-verification|forgot-password|reset-password|change-password)\/?$/i.test(request.path) && !request.is("application/json")) {
         reject(response, 400, "Bad Request", "La petición debe utilizar formato JSON.");
         return;
       }

@@ -1,3 +1,7 @@
+import { EmailVerification } from "./application/email-verification.js";
+import { EMAIL_VERIFICATION_REPOSITORY, VERIFICATION_EMAIL, type EmailVerificationRepository, type VerificationEmail } from "./domain/email-verification.js";
+import { PrismaEmailVerificationRepository } from "./infrastructure/prisma-email-verification.repository.js";
+import { SmtpVerificationEmail } from "./infrastructure/smtp-verification-email.js";
 import { Logger, Module } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { randomBytes } from "node:crypto";
@@ -37,6 +41,9 @@ import { SmtpPasswordResetEmail } from "./infrastructure/smtp-password-reset-ema
   imports: [UsersModule, PasswordHashingModule, SharedModule],
   controllers: [AuthController],
   providers: [
+    { provide: EMAIL_VERIFICATION_REPOSITORY, useFactory: (prisma: PrismaService) => new PrismaEmailVerificationRepository(prisma), inject: [PrismaService] },
+    { provide: VERIFICATION_EMAIL, useFactory: (smtp: SmtpConfig, config: AuthConfig) => new SmtpVerificationEmail(smtp, config.passwordResetUrl), inject: [SMTP_CONFIG, AUTH_CONFIG] },
+    { provide: EmailVerification, useFactory: (users: UserRepository, repository: EmailVerificationRepository, email: VerificationEmail, tokens: RefreshTokenService, config: AuthConfig) => new EmailVerification(users, repository, email, tokens, undefined, undefined, config.passwordResetMinResponseMs, (code) => new Logger("EmailVerification").error(code)), inject: [USER_REPOSITORY, EMAIL_VERIFICATION_REPOSITORY, VERIFICATION_EMAIL, REFRESH_TOKEN_SERVICE, AUTH_CONFIG] },
     { provide: AUTH_CONFIG, useFactory: () => readAuthConfig(process.env) },
     { provide: SMTP_CONFIG, useFactory: () => readSmtpConfig(process.env) },
     {
@@ -86,8 +93,8 @@ import { SmtpPasswordResetEmail } from "./infrastructure/smtp-password-reset-ema
     },
     {
       provide: RegisterUser,
-      useFactory: (users: UserRepository, passwords: PasswordHasher) => new RegisterUser(users, passwords),
-      inject: [USER_REPOSITORY, PASSWORD_HASHER],
+      useFactory: (users: UserRepository, passwords: PasswordHasher, verification: EmailVerification) => new RegisterUser(users, passwords, verification),
+      inject: [USER_REPOSITORY, PASSWORD_HASHER, EmailVerification],
     },
     {
       provide: Login,

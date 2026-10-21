@@ -21,9 +21,26 @@ model User {
   passwordHash String
   role         UserRole @default(USER)
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  emailVerifiedAt DateTime? @db.Timestamptz(3)
+  emailVerificationCredentials EmailVerificationCredential[]
   sessions     Session[]
   passwordResetCredentials PasswordResetCredential[]
 }
+
+model EmailVerificationCredential {
+  id            String    @id @db.Uuid
+  userId        String    @db.Uuid
+  tokenHash     String    @unique @db.Char(64)
+  createdAt     DateTime  @db.Timestamptz(3)
+  expiresAt     DateTime  @db.Timestamptz(3)
+  consumedAt    DateTime? @db.Timestamptz(3)
+  invalidatedAt DateTime? @db.Timestamptz(3)
+  deliveredAt   DateTime? @db.Timestamptz(3)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+}
+
 
 model PasswordResetCredential {
   id            String    @id @db.Uuid

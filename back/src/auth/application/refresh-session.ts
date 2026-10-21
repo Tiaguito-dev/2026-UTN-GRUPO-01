@@ -1,3 +1,4 @@
+import { canAuthenticate } from "../../users/domain/user.js";
 import { randomUUID } from "node:crypto";
 import type { AccessTokenService } from "../domain/access-token.js";
 import type { RefreshCredentialRepository } from "../domain/refresh-credential.repository.js";
@@ -20,7 +21,7 @@ export class RefreshSession {
     if (!hash) throw new InvalidRefreshCredentialError();
     let result: LoginResult | undefined;
     const status = await this.credentials.rotate(hash, this.now(), async (session, user) => {
-      if (!user || user.id !== session.userId) throw new InvalidRefreshCredentialError();
+      if (!user || user.id !== session.userId || !canAuthenticate(user)) throw new InvalidRefreshCredentialError();
       const issuedAt = Math.floor(this.now().getTime() / 1000);
       const expiresAt = Math.min(issuedAt + this.accessTtlSeconds, Math.floor(session.expiresAt.getTime() / 1000));
       if (expiresAt <= issuedAt) throw new InvalidRefreshCredentialError();

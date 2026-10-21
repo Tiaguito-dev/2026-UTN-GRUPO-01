@@ -23,9 +23,10 @@ describe.skipIf(!databaseUrl || !mailbox)("Recuperación completa vía SMTP real
     const base = await app.getUrl(); const email = `smtp-${randomUUID()}@alu.frlp.utn.edu.ar`; const original = " original smtp password "; const replacement = " replacement smtp password ";
     try {
       const registration = await post("/auth/register", { email, displayName: "SMTP", password: original }); expect(registration.status).toBe(201); id = (await registration.json()).id;
+      await prisma.user.update({ where: { id }, data: { emailVerifiedAt: new Date() } });
       const request = await post("/auth/forgot-password", { email }); expect(request.status).toBe(202); const publicBody = JSON.stringify(await request.json());
       const search = await fetch(`${mailbox}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`); expect(search.status).toBe(200);
-      const found = await search.json(); expect(found.messages).toHaveLength(1);
+      const found = await search.json(); expect(found.messages).toHaveLength(2);
       const detail = await (await fetch(`${mailbox}/api/v1/message/${found.messages[0].ID}`)).json();
       expect(detail.Text).toMatch(/vence|ignorar|solicitaste/u);
       const link = detail.Text.match(/https?:\/\/[^\s]+/u)?.[0]; expect(link).toBeTruthy(); const parsed = new URL(link); expect(`${parsed.origin}${parsed.pathname}`).toBe(config.passwordResetUrl);
@@ -35,7 +36,7 @@ describe.skipIf(!databaseUrl || !mailbox)("Recuperación completa vía SMTP real
       expect((await post("/auth/login", { email, password: original })).status).toBe(401); expect((await post("/auth/login", { email, password: replacement })).status).toBe(200);
       expect((await post("/auth/reset-password", { token, newPassword: replacement })).status).toBe(400);
     } finally {
-      if (id) { await prisma.passwordResetCredential.deleteMany({ where: { userId: id } }); await prisma.refreshCredential.deleteMany({ where: { session: { userId: id } } }); await prisma.session.deleteMany({ where: { userId: id } }); await prisma.user.delete({ where: { id } }); }
+      if (id) { await prisma.passwordResetCredential.deleteMany({ where: { userId: id } }); await prisma.refreshCredential.deleteMany({ where: { session: { userId: id } } }); await prisma.session.deleteMany({ where: { userId: id } }); await prisma.emailVerificationCredential.deleteMany({ where: { userId: id } }); await prisma.user.delete({ where: { id } }); }
       await app.close(); await prisma.$disconnect();
     }
   }, 20000);

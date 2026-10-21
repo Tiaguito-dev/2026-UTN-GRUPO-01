@@ -7,9 +7,10 @@ export interface User {
   passwordHash: string;
   role: UserRole;
   createdAt: Date;
+  emailVerifiedAt?: Date | null;
 }
 
-export type PublicUser = Omit<User, "passwordHash">;
+export type PublicUser = Omit<User, "passwordHash" | "emailVerifiedAt">;
 
 export function toPublicUser(user: User): PublicUser {
   return {
@@ -19,4 +20,10 @@ export function toPublicUser(user: User): PublicUser {
     role: user.role,
     createdAt: user.createdAt,
   };
+}
+
+export type AuthenticationUser = PublicUser & Pick<User, "emailVerifiedAt">;
+
+export function canAuthenticate(user: { role: UserRole; emailVerifiedAt?: Date | null }): boolean {
+  return user.role === "ADMIN" || user.emailVerifiedAt instanceof Date;
 }

@@ -16,6 +16,18 @@ ORM concentra el esquema, las migraciones y el acceso tipado a datos.
 
 ## Estado actual
 
+Desde TASK-022, el registro público de estudiantes queda pendiente hasta verificar el correo.
+`User.emailVerifiedAt = null` impide login, acceso autenticado y refresh; también aplica a
+estudiantes existentes. Los administradores provisionados explícitamente conservan acceso.
+`POST /auth/register` entrega el enlace por SMTP sin crear sesión; ante fallo de entrega
+responde 503 y conserva la cuenta pendiente. `POST /auth/verify-email` recibe `{ token }`
+y confirma con 204; `POST /auth/resend-verification` recibe `{ email }` y responde 202 genérico.
+Los tokens se persisten como SHA-256, vencen en 24 horas y se consumen atómicamente. Repetir
+una confirmación ya completada devuelve 204 sin nuevas mutaciones. La recuperación de contraseña
+no verifica el correo. Aplicar la migración `20261020000000_email_verification` antes de iniciar.
+El enlace usa `/verify-email` sobre el origen de `AUTH_PASSWORD_RESET_URL`.
+Detalle y evidencia: [TASK-022](../docs/tasks/finished/TASK-022-verificacion-correo-institucional.md).
+
 Las etapas 1–4 están implementadas y el frontend consume sus contratos: registro, login,
 cuenta, refresh con rotación, logout, recuperación y cambio de contraseña. Los roles son
 `ADMIN` y `USER`; todavía no hay funcionalidades académicas. Las secciones por etapa

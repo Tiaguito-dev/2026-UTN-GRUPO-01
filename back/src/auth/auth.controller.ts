@@ -1,3 +1,4 @@
+import { EmailVerification } from "./application/email-verification.js";
 import { Body, Controller, Get, HttpCode, Inject, Post, Req, Res, UnauthorizedException, UseGuards } from "@nestjs/common";
 import type { Request, Response } from "express";
 import type { PublicUser } from "../users/domain/user.js";
@@ -24,7 +25,21 @@ export class AuthController {
     @Inject(RequestPasswordReset) private readonly requestPasswordReset: RequestPasswordReset,
     @Inject(ResetPassword) private readonly resetPassword: ResetPassword,
     @Inject(ChangePassword) private readonly changePassword: ChangePassword,
+    @Inject(EmailVerification) private readonly emailVerification: EmailVerification,
   ) {}
+
+  @Post("verify-email")
+  @HttpCode(204)
+  async verifyEmail(@Body() input: unknown): Promise<void> {
+    await this.emailVerification.verify(input);
+  }
+
+  @Post("resend-verification")
+  @HttpCode(202)
+  async resendVerification(@Body() input: unknown): Promise<{ message: string }> {
+    await this.emailVerification.resend(input);
+    return { message: "Si existe una cuenta pendiente asociada al email, recibirás un enlace de verificación." };
+  }
 
   @Post("forgot-password")
   @HttpCode(202)

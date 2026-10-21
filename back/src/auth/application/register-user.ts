@@ -6,7 +6,8 @@ import { validateInstitutionalEmailDomain } from "../domain/institutional-domain
 import { validateRegistrationInput } from "../domain/registration-input.js";
 
 export class RegisterUser {
-  constructor(private readonly users: UserRepository, private readonly passwords: PasswordHasher) {}
+  constructor(private readonly users: UserRepository, private readonly passwords: PasswordHasher,
+    private readonly verification: { requestForUser(userId: string, email: string): Promise<void> }) {}
 
   async execute(input: unknown): Promise<PublicUser> {
     const values = validateRegistrationInput(input);
@@ -21,6 +22,7 @@ export class RegisterUser {
       passwordHash,
       role: "USER",
     });
+    await this.verification.requestForUser(user.id, user.email);
     return toPublicUser(user);
   }
 }

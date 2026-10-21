@@ -7,7 +7,7 @@ import type { User } from "../src/users/domain/user.js";
 
 const now = new Date("2026-10-08T12:00:00.567Z");
 function fixture() {
-  const user: User = { id: randomUUID(), email: "person@example.com", displayName: "Persona", passwordHash: "real-private-hash", role: "USER", createdAt: now };
+  const user: User = { id: randomUUID(), email: "person@example.com", displayName: "Persona", passwordHash: "real-private-hash", role: "USER", emailVerifiedAt: now, createdAt: now };
   const users = { findAll: vi.fn(), findByEmail: vi.fn(async () => user as User | null), findById: vi.fn(async () => user as User | null), create: vi.fn() };
   const passwords = { hash: vi.fn(), verify: vi.fn(async () => true) };
   const sessions = { create: vi.fn(async () => undefined), findById: vi.fn(), findValidById: vi.fn() };
@@ -20,6 +20,11 @@ function fixture() {
 }
 
 describe("Login", () => {
+  it("blocks an unverified account after password validation without issuing a session", async () => {
+    const f = fixture(); f.user.emailVerifiedAt = null;
+    await expect(f.login.execute({ email: f.user.email, password: "valid password" })).rejects.toMatchObject({ httpStatus: 403 });
+    expect(f.passwords.verify).toHaveBeenCalledTimes(1); expect(f.tokens.issue).not.toHaveBeenCalled(); expect(f.refreshRepo.createSession).not.toHaveBeenCalled();
+  });
   it("normaliza email, conserva contraseña y alinea sesión/token sin exponer hash", async () => {
     const f = fixture();
     const password = " exact password ";
