@@ -1,0 +1,79 @@
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { SiteHeader } from "@/components/SiteHeader";
+import { SidebarNav } from "@/components/home/SidebarNav";
+
+const { auth, location } = vi.hoisted(() => ({
+  auth: { value: { status: "authenticated", account: { role: "USER" }, logout: async () => {} } as Record<string, unknown> },
+  location: { pathname: "/home" },
+}));
+vi.mock("next/link", () => import("./support/next-link"));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }), usePathname: () => location.pathname }));
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => auth.value }));
+
+afterEach(cleanup);
+
+describe("SiteHeader", () => {
+  function setup() {
+    auth.value = { status: "authenticated", account: { role: "USER" }, logout: async () => {} };
+    render(<><SiteHeader /><p>Contenido</p></>);
+    return screen.getByRole("button", { name: "Opciones de cuenta" });
+  }
+
+  it("abre y cierra el menú con el botón", async () => {
+    const trigger = setup();
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    await userEvent.click(trigger);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("link", { name: "Mi perfil" })).toBeTruthy();
+    await userEvent.click(trigger);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("link", { name: "Mi perfil" })).toBeNull();
+  });
+
+  it("Escape cierra y devuelve el foco al botón", async () => {
+    const trigger = setup();
+    await userEvent.click(trigger);
+    await userEvent.tab();
+    expect(document.activeElement).toBe(screen.getByRole("link", { name: "Mi perfil" }));
+    await userEvent.keyboard("{Escape}");
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("un clic afuera cierra el menú", async () => {
+    const trigger = setup();
+    await userEvent.click(trigger);
+    await userEvent.click(screen.getByText("Contenido"));
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+});
+
+describe("SidebarNav", () => {
+  const current = () => screen.getAllByRole("link").filter((link) => link.getAttribute("aria-current") === "page").map((link) => link.textContent);
+
+  it.each([
+    ["/home", "⌂Inicio"],
+    ["/home/materias", "MMaterias"],
+    ["/home/materias/m1/cursadas/c1", "MMaterias"],
+    ["/home/profesores", "PProfesores"],
+  ])("en %s marca %s con aria-current", (pathname, expected) => {
+    location.pathname = pathname;
+    auth.value = { status: "authenticated", account: { role: "USER" } };
+    render(<SidebarNav />);
+    expect(current()).toEqual([expected]);
+  });
+
+  it.each([
+    ["authenticated", "ADMIN", true],
+    ["authenticated", "USER", false],
+    ["loading", "ADMIN", false],
+  ])("con sesión %s y rol %s, Administración visible: %s", (status, role, visible) => {
+    location.pathname = "/home";
+    auth.value = { status, account: { role } };
+    render(<SidebarNav />);
+    expect(Boolean(screen.queryByRole("link", { name: /Administración/ }))).toBe(visible);
+  });
+});

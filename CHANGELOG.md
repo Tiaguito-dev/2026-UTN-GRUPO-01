@@ -20,6 +20,9 @@
 
 ### Agregado
 
+- Red de seguridad de calidad del front: ESLint (Next `core-web-vitals`, `react-hooks`,
+  `jsx-a11y`, en advertencias), workflow de CI de verificación, tests de caracterización de
+  interacción con jsdom y Testing Library, y spec de línea base visual con axe. (TASK-023)
 - Panel de administración del catálogo académico: alta de materias, profesores, cursadas y
   comisiones y listado de cuentas registradas, bajo `/home/admin` y visible solo para cuentas
   ADMIN. (TASK-020)
