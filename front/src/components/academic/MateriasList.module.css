@@ -1,0 +1,141 @@
+.filters {
+  max-width: 50rem;
+  margin-bottom: 1.5rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid var(--border);
+  border-radius: 1.5rem;
+  background: var(--surface);
+}
+
+.heading {
+  margin-bottom: 1.25rem;
+}
+
+.title {
+  margin: 0 0 .25rem;
+  color: var(--text);
+  font-size: 1.1rem;
+  font-weight: 750;
+}
+
+.description {
+  margin: 0;
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+.search {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: .5rem 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.searchField {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.searchControls {
+  display: flex;
+  align-items: stretch;
+  gap: .65rem;
+}
+
+.searchControls input {
+  min-width: 0;
+}
+
+.searchButton {
+  flex-shrink: 0;
+}
+
+.filters .clearButton {
+  min-height: 2.75rem;
+  padding: .4rem .7rem;
+  border-color: var(--border);
+  border-radius: .65rem;
+  background: var(--surface);
+  color: var(--primary);
+  font-size: .85rem;
+}
+
+.filters .clearButton:hover {
+  border-color: var(--primary);
+  background: var(--soft-blue);
+  color: var(--primary);
+}
+
+.filterGroup {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.groupLabel {
+  margin: 0 0 .75rem;
+  font-size: .9rem;
+  font-weight: 650;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.filters .chip {
+  min-height: 2.75rem;
+  padding: .5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 2rem;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: .85rem;
+  line-height: 1.4;
+}
+
+.filters .chip:hover {
+  border-color: var(--primary);
+  background: var(--soft-blue);
+  color: var(--primary);
+}
+
+.filters .chip[aria-pressed="true"] {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--surface);
+  box-shadow: 0 2px 4px rgb(18 64 201 / 14%);
+}
+
+.filters .chip[aria-pressed="true"]:hover {
+  background: var(--primary-hover);
+}
+
+.filters button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.electiveGroup {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--background);
+}
+
+@media (max-width: 480px) {
+  .searchControls {
+    flex-wrap: wrap;
+  }
+
+  .searchControls input,
+  .searchButton {
+    flex-basis: 100%;
+  }
+
+  .filters .chip {
+    padding-inline: .85rem;
+  }
+}

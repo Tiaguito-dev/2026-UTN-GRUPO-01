@@ -34,12 +34,14 @@ describe("Filtro de materias y contexto de navegación", () => {
     navigation.query = "anioCarrera=ELECTIVA&nivelElectiva=4&page=2&q=Plan";
     vi.mocked(listarMaterias).mockResolvedValue({ items: [], total: 0, page: 2, pageSize: 9 });
     const view = render(<MateriasList />);
-    await userEvent.selectOptions(screen.getByLabelText("Nivel de electiva"), "5");
+    expect(screen.getByRole("button", { name: "Electivas" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "4.º Nivel" }).getAttribute("aria-pressed")).toBe("true");
+    await userEvent.click(screen.getByRole("button", { name: "5.º Nivel" }));
     expect(Object.fromEntries(new URL(navigation.replace.mock.calls.at(-1)![0], "http://local").searchParams)).toEqual({ anioCarrera: "ELECTIVA", nivelElectiva: "5", q: "Plan" });
-    await userEvent.selectOptions(screen.getByLabelText("Año de la carrera"), "2");
+    await userEvent.click(screen.getByRole("button", { name: "2.º año" }));
     navigation.query = new URL(navigation.replace.mock.calls.at(-1)![0], "http://local").search;
     view.rerender(<MateriasList />);
-    expect(screen.queryByLabelText("Nivel de electiva")).toBeNull();
+    expect(screen.queryByRole("group", { name: "Nivel de electiva" })).toBeNull();
     expect(Object.fromEntries(new URLSearchParams(navigation.query))).toEqual({ anioCarrera: "2", q: "Plan" });
   });
   it("conserva texto, nivel y página al abrir el detalle y paginar", async () => {
@@ -63,7 +65,8 @@ describe("Filtro de materias y contexto de navegación", () => {
     navigation.query = "anioCarrera=2&page=2";
     vi.mocked(listarMaterias).mockResolvedValue({ items: [materia], total: 12, page: 2, pageSize: 9 });
     render(<MateriasList />);
-    expect(screen.getByLabelText("Año de la carrera")).toHaveProperty("value", "2");
+    expect(screen.getByRole("button", { name: "2.º año" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "Todos los años" }).getAttribute("aria-pressed")).toBe("false");
     expect((await screen.findByRole("link", { name: "Álgebra" })).getAttribute("href")).toBe("/home/materias/m1?anioCarrera=2&listadoPage=2");
     expect(listarMaterias).toHaveBeenCalledWith({ page: 2, anioCarrera: "2" });
     expect(materiaListHref("2", 2)).toBe("/home/materias?anioCarrera=2&page=2");
@@ -72,9 +75,9 @@ describe("Filtro de materias y contexto de navegación", () => {
     navigation.query = "anioCarrera=2&page=3";
     vi.mocked(listarMaterias).mockResolvedValue({ items: [], total: 0, page: 3, pageSize: 9 });
     render(<MateriasList />);
-    await userEvent.selectOptions(screen.getByLabelText("Año de la carrera"), "ELECTIVA");
+    await userEvent.click(screen.getByRole("button", { name: "Electivas" }));
     expect(navigation.replace).toHaveBeenLastCalledWith("/home/materias?anioCarrera=ELECTIVA", { scroll: false });
-    await userEvent.selectOptions(screen.getByLabelText("Año de la carrera"), "");
+    await userEvent.click(screen.getByRole("button", { name: "Todos los años" }));
     expect(navigation.replace).toHaveBeenLastCalledWith("/home/materias", { scroll: false });
   });
   it("pagina sin perder el año elegido", async () => {

@@ -5,9 +5,10 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { listarMaterias } from "@/services/materias";
 import type { AnioCarrera } from "@/types/materias";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
-import { ANIOS_CARRERA, anioCarreraLabel, isAnioCarrera, materiaListHref, materiaDetailHref, parseMateriaPage, parseMateriaContext, validateMateriaSearch, NIVELES_ELECTIVA, isNivelElectiva, nivelElectivaLabel, type MateriaContext } from "@/validations/materias";
+import { ANIOS_CARRERA, anioCarreraLabel, isAnioCarrera, materiaListHref, materiaDetailHref, parseMateriaPage, parseMateriaContext, validateMateriaSearch, NIVELES_ELECTIVA, nivelElectivaLabel, type MateriaContext } from "@/validations/materias";
 import { Breadcrumb } from "./Breadcrumb";
 import { Pagination } from "./Pagination";
+import styles from "./MateriasList.module.css";
 
 export function MateriasList() {
   const params = useSearchParams();
@@ -20,14 +21,27 @@ export function MateriasList() {
     <Breadcrumb items={[{ label: "Materias" }]} />
     <h1 id="materias-heading">Materias</h1>
     {params.get("successMessage") ? <p role="status" className="notice success">{params.get("successMessage")}</p> : null}
-    <MateriaSearch key={context.q ?? ""} query={context.q ?? ""} onSearch={(q) => router.replace(materiaListHref(anio, 1, { ...context, q }), { scroll: false })} />
-    <div className="field"><label htmlFor="anio-carrera">Año de la carrera</label>
-      <select id="anio-carrera" value={anio ?? ""} onChange={(event) => router.replace(materiaListHref(isAnioCarrera(event.target.value) ? event.target.value : undefined, 1, context), { scroll: false })}>
-        <option value="">Todos los años</option>
-        {ANIOS_CARRERA.map((value) => <option key={value} value={value}>{value === "ELECTIVA" ? "Electivas" : anioCarreraLabel(value)}</option>)}
-      </select>
+    <div className={styles.filters}>
+      <div className={styles.heading}>
+        <p className={styles.title}>Filtros</p>
+        <p className={styles.description}>Encontrá una materia por su nombre o explorá por año.</p>
+      </div>
+      <MateriaSearch key={context.q ?? ""} query={context.q ?? ""} onSearch={(q) => router.replace(materiaListHref(anio, 1, { ...context, q }), { scroll: false })} />
+      <div className={styles.filterGroup} role="group" aria-labelledby="anio-carrera-label">
+        <p id="anio-carrera-label" className={styles.groupLabel}>Año de la carrera</p>
+        <div className={styles.chips}>
+          <button type="button" className={styles.chip} aria-pressed={!anio} onClick={() => router.replace(materiaListHref(undefined, 1, context), { scroll: false })}>Todos los años</button>
+          {ANIOS_CARRERA.map((value) => <button key={value} type="button" className={styles.chip} aria-pressed={anio === value} onClick={() => router.replace(materiaListHref(value, 1, context), { scroll: false })}>{value === "ELECTIVA" ? "Electivas" : anioCarreraLabel(value)}</button>)}
+        </div>
+      </div>
+      {anio === "ELECTIVA" ? <div className={`${styles.filterGroup} ${styles.electiveGroup}`} role="group" aria-labelledby="nivel-electiva-label">
+        <p id="nivel-electiva-label" className={styles.groupLabel}>Nivel de electiva</p>
+        <div className={styles.chips}>
+          <button type="button" className={styles.chip} aria-pressed={!context.nivelElectiva} onClick={() => router.replace(materiaListHref(anio, 1, { ...context, nivelElectiva: undefined }), { scroll: false })}>Todos los niveles</button>
+          {NIVELES_ELECTIVA.map((nivel) => <button key={nivel} type="button" className={styles.chip} aria-pressed={context.nivelElectiva === nivel} onClick={() => router.replace(materiaListHref(anio, 1, { ...context, nivelElectiva: nivel }), { scroll: false })}>{nivelElectivaLabel(nivel)}</button>)}
+        </div>
+      </div> : null}
     </div>
-    {anio === "ELECTIVA" ? <div className="field"><label htmlFor="nivel-electiva">Nivel de electiva</label><select id="nivel-electiva" value={context.nivelElectiva ?? ""} onChange={(event) => router.replace(materiaListHref(anio, 1, { ...context, nivelElectiva: isNivelElectiva(event.target.value) ? event.target.value : undefined }), { scroll: false })}><option value="">Todos los niveles</option>{NIVELES_ELECTIVA.map((nivel) => <option key={nivel} value={nivel}>{nivelElectivaLabel(nivel)}</option>)}</select></div> : null}
     <MateriasResults key={`${anio ?? "todos"}:${page}:${context.q ?? ""}:${context.nivelElectiva ?? ""}`} anio={anio} initialPage={page} context={context} />
   </section>;
 }
@@ -60,8 +74,8 @@ function MateriaSearch({ query, onSearch }: { query: string; onSearch: (q: strin
     setError(issue ?? "");
     if (!issue) onSearch(value.trim());
   }
-  return <form onSubmit={submit} noValidate role="search">
-    <div className="field"><label htmlFor="materia-search">Buscar por nombre</label><input id="materia-search" name="q" type="search" value={value} onChange={(event) => setValue(event.target.value)} placeholder="Nombre de la materia" maxLength={150} aria-invalid={Boolean(error)} aria-describedby={error ? "materia-search-error" : undefined} />{error ? <p id="materia-search-error" role="alert" className="field-error">{error}</p> : null}</div>
-    <button type="submit">Buscar</button>{value || query ? <button type="button" onClick={() => { setValue(""); setError(""); onSearch(""); }}>Limpiar búsqueda</button> : null}
+  return <form className={styles.search} onSubmit={submit} noValidate role="search">
+    <div className={styles.searchField}><label htmlFor="materia-search">Buscar por nombre</label><div className={styles.searchControls}><input id="materia-search" name="q" type="search" value={value} onChange={(event) => setValue(event.target.value)} placeholder="Nombre de la materia" maxLength={150} aria-invalid={Boolean(error)} aria-describedby={error ? "materia-search-error" : undefined} /><button type="submit" className={styles.searchButton}>Buscar</button></div>{error ? <p id="materia-search-error" role="alert" className="field-error">{error}</p> : null}</div>
+    {value || query ? <button type="button" className={styles.clearButton} onClick={() => { setValue(""); setError(""); onSearch(""); }}>Limpiar búsqueda</button> : null}
   </form>;
 }

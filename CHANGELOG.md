@@ -2,6 +2,14 @@
 
 ## [Sin publicar]
 
+### Presentación de filtros de materias (TASK-026)
+
+- Etapa aprobada por el usuario el 2026-10-22; pruebas frontend completas aprobadas.
+- Buscador y filtros agrupados en un panel con estilos locales al módulo.
+- Chips para seleccionar año o Electivas, con chips de nivel 3, 4 y 5 al elegir Electivas.
+- Selección visible y accesible por teclado, controles adaptados a pantallas pequeñas.
+- Conservados búsqueda, contexto de navegación y paginación sin cambios al backend.
+
 ### Buscador de materias y niveles de electivas (TASK-025)
 
 - Cambios de materias (TASK-024 y TASK-025) validados manualmente por el usuario el 2026-10-22.

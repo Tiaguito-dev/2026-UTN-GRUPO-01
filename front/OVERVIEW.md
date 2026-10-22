@@ -211,7 +211,7 @@ Casos y resultados verificados en la
 El listado permite buscar por nombre con envío explícito mediante Buscar y limpiar
 el texto mediante Limpiar búsqueda. El criterio `q` se recorta, admite hasta 150
 caracteres y rechaza caracteres de control. Se combina con el año y, únicamente
-al elegir Electivas, con el selector Todos los niveles, 3.er Nivel, 4.º Nivel o
+al elegir Electivas, con los chips Todos los niveles, 3.er Nivel, 4.º Nivel o
 5.º Nivel. Los cambios reinician la página; cambiar a un año obligatorio elimina
 el nivel. El backend filtra todos los resultados antes de paginar.
 
@@ -227,6 +227,13 @@ valor anterior; el backend también normaliza la consistencia. La edición conse
 el envío de diferencias y evita solicitudes cuando no hay cambios. Listado y
 detalle muestran el nivel; el historial presenta los campos y sus valores con
 etiquetas legibles, incluido el nuevo valor null al limpiar el nivel.
+
+La sección de filtros usa un panel con buscador y chips de selección única para Todos
+los años, 1.º a 5.º año y Electivas. El grupo Nivel de electiva aparece únicamente al
+seleccionar Electivas. Los botones nativos exponen `aria-pressed`, admiten teclado y
+foco visible; se distribuyen en varias filas en pantallas pequeñas. Los estilos están
+aislados en `components/academic/MateriasList.module.css`, sin modificar estilos base.
+El contrato HTTP, permisos, validaciones y listado de resultados se conservan (TASK-026).
 
 Casos probados, correspondencia con criterios de aceptación, resultados y recorrido manual:
 [matriz de trazabilidad TASK-024](../docs/tasks/finished/TASK-024-filtros-materias-anio-carrera.md#trazabilidad-de-casos-probados).
