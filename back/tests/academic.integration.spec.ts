@@ -151,10 +151,16 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
       const row = await prisma.materia.create({ data: { nombre: `Z-${prefix}-${String(i).padStart(2, "0")}`, anioCarrera: "5" } });
       materiaIds.add(row.id); yearFive.push(row);
     }
-    const first = await (await get("/materias?anioCarrera=5", cookie)).json();
-    const second = await (await get("/materias?anioCarrera=5&page=2", cookie)).json();
+    const first = await (await get(`/materias?anioCarrera=5&q=${prefix}`, cookie)).json();
+    const second = await (await get(`/materias?anioCarrera=5&page=2&q=${prefix}`, cookie)).json();
     expect(first).toMatchObject({ page: 1, pageSize: 9, total: 13 });
     expect(second).toMatchObject({ page: 2, pageSize: 9, total: 13 });
+    const optionsResponse = await get(`/materias?anioCarrera=5&pageSize=100&q=${prefix}`, cookie);
+    expect(optionsResponse.status).toBe(200);
+    const options = await optionsResponse.json();
+    expect(options).toMatchObject({ page: 1, pageSize: 100, total: 13 });
+    expect(options.items).toHaveLength(13);
+    expect((await get("/materias?pageSize=101", cookie)).status).toBe(400);
     const filtered = [...first.items, ...second.items];
     expect(filtered.every(item => item.anioCarrera === "5")).toBe(true);
     expect(filtered.map(item => item.nombre)).toEqual([rows[2]!.nombre, ...yearFive.map(row => row.nombre).sort()]);

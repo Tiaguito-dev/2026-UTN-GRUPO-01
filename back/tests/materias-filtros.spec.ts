@@ -34,8 +34,17 @@ describe("Materias: contrato del año de carrera", () => {
     await f.listarMaterias.execute({ anioCarrera: "ELECTIVA", page: "2" });
     expect(f.materiaRepository.findAll).toHaveBeenCalledWith({ page: 2, pageSize: 9 }, { anioCarrera: "ELECTIVA", q: undefined });
   });
-  it("no permite más de nueve materias por página", async () => {
-    await expect(fixture().listarMaterias.execute({ pageSize: 10 })).rejects.toBeInstanceOf(InvalidPaginationError);
+  it("permite cien materias para selectores y conserva nueve por defecto", async () => {
+    const f = fixture();
+    await f.listarMaterias.execute({});
+    expect(f.materiaRepository.findAll).toHaveBeenLastCalledWith({ page: 1, pageSize: 9 }, { q: undefined });
+    await f.listarMaterias.execute({ pageSize: 100 });
+    expect(f.materiaRepository.findAll).toHaveBeenLastCalledWith({ page: 1, pageSize: 100 }, { q: undefined });
+  });
+  it("rechaza páginas mayores de cien antes de consultar", async () => {
+    const f = fixture();
+    await expect(f.listarMaterias.execute({ pageSize: 101 })).rejects.toBeInstanceOf(InvalidPaginationError);
+    expect(f.materiaRepository.findAll).not.toHaveBeenCalled();
   });
   it("recorta búsqueda y combina filtros sin perder el nivel", async () => {
     const f = fixture();

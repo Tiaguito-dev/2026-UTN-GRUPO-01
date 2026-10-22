@@ -186,7 +186,10 @@ services/materias.ts contiene el contrato HTTP dedicado; types/materias.ts defin
 los tipos, validations/materias.ts valida años y construye destinos internos,
 y hooks/useMateria.ts carga el detalle con descarte de respuestas obsoletas.
 academic.ts reexporta listarMaterias/crearMateria para consumidores existentes.
-El límite de 9 se aplica también al cargar opciones de los formularios relacionados.
+El tamaño predeterminado es 9; los formularios administrativos solicitan páginas de hasta
+100 para cargar sus opciones completas. `useAllPages` mantiene un tope de 20 páginas y
+devuelve error, sin opciones parciales, si no alcanza el total o recibe una página vacía
+antes de completarlo (TASK-027).
 
 MateriaDetail consume GET /materias/:id y GET /materias/:id/historial (3 entradas
 por página), muestra datos, auditoría y cambios por campo con actor y fecha.

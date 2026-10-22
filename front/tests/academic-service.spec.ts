@@ -27,12 +27,12 @@ describe("Cliente academic: construcción de URL y delegación en protectedGet",
     await listarMaterias({ page: 2, pageSize: 5 });
     expect(requestedPath(fetchMock.mock.calls[0][0])).toBe("/materias?page=2&pageSize=5");
   });
-  it("envía el año seleccionado y limita pageSize a nueve", async () => {
+  it("envía el año y permite páginas explícitas de cien para selectores", async () => {
     fetchMock.mockResolvedValue(reply(200, emptyPage));
     await listarMaterias({ page: 2, pageSize: 100, anioCarrera: "ELECTIVA", nivelElectiva: "4", q: "Plan %_" });
     const url = new URL(String(fetchMock.mock.calls[0][0]));
     expect(url.pathname).toBe("/materias");
-    expect(Object.fromEntries(url.searchParams)).toEqual({ page: "2", pageSize: "9", anioCarrera: "ELECTIVA", nivelElectiva: "4", q: "Plan %_" });
+    expect(Object.fromEntries(url.searchParams)).toEqual({ page: "2", pageSize: "100", anioCarrera: "ELECTIVA", nivelElectiva: "4", q: "Plan %_" });
   });
   it("listarCursadasPorMateria arma la ruta anidada con el materiaId escapado", async () => {
     fetchMock.mockResolvedValue(reply(200, emptyPage));

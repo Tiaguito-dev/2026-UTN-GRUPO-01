@@ -1,9 +1,9 @@
 import { getAuthService } from "./auth";
 import { requestJson } from "./http";
-import { toQuery, type PaginatedResult, type PaginationInput } from "./pagination";
+import { MAX_PAGE_SIZE, toQuery, type PaginatedResult, type PaginationInput } from "./pagination";
 import type { AnioCarrera, NivelElectiva, Materia, MateriaInput, MateriaHistorial } from "@/types/materias";
 export function listarMaterias(input: PaginationInput & { anioCarrera?: AnioCarrera; q?: string; nivelElectiva?: NivelElectiva } = {}): Promise<PaginatedResult<Materia>> {
-  const query = new URLSearchParams(toQuery({ page: input.page, pageSize: Math.min(9, input.pageSize ?? 9) }));
+  const query = new URLSearchParams(toQuery({ page: input.page, pageSize: Math.min(MAX_PAGE_SIZE, input.pageSize ?? 9) }));
   if (input.anioCarrera) query.set("anioCarrera", input.anioCarrera);
   if (input.q?.trim()) query.set("q", input.q.trim());
   if (input.anioCarrera === "ELECTIVA" && input.nivelElectiva) query.set("nivelElectiva", input.nivelElectiva);

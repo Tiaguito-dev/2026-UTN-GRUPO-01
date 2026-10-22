@@ -33,11 +33,26 @@ describe("useAllPages", () => {
     expect(fetchPage).toHaveBeenCalledTimes(3);
   });
 
-  it("se detiene en el tope de 20 páginas", async () => {
+  it("alcanza el tope de 20 páginas con error sin publicar opciones parciales", async () => {
     const fetchPage = vi.fn(async (page: number) => pageOf(page, 1000));
     const { result } = renderHook(() => useAllPages("materias", fetchPage));
-    await waitFor(() => expect(result.current.items).toHaveLength(20));
+    await waitFor(() => expect(result.current.error).not.toBe(""));
+    expect(result.current.items).toBeNull();
     expect(fetchPage).toHaveBeenCalledTimes(20);
+  });
+
+  it("una página vacía antes de completar el total produce error sin opciones parciales", async () => {
+    const fetchPage = vi.fn(async (page: number) => page === 1 ? pageOf(1, 3) : { items: [], total: 3, page, pageSize: 1 });
+    const { result } = renderHook(() => useAllPages("materias", fetchPage));
+    await waitFor(() => expect(result.current.error).not.toBe(""));
+    expect(result.current.items).toBeNull();
+    expect(fetchPage).toHaveBeenCalledTimes(2);
+  });
+  it("completar exactamente veinte páginas entrega todas las opciones sin error", async () => {
+    const fetchPage = vi.fn(async (page: number) => pageOf(page, 20));
+    const { result } = renderHook(() => useAllPages("materias", fetchPage));
+    await waitFor(() => expect(result.current.items).toHaveLength(20));
+    expect(result.current.error).toBe(""); expect(fetchPage).toHaveBeenCalledTimes(20);
   });
 
   it("sin key no pide nada y devuelve una lista vacía", () => {

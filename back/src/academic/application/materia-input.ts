@@ -20,9 +20,9 @@ export function validateActualizarMateriaInput(value: unknown): { nombre?: strin
     ? CAMPOS_NO_PERMITIDOS : "Indique un nombre válido, un año entre 1 y 5 o Electiva y, para electivas, nivel 3, 4 o 5.");
 }
 
-export function validateMateriaPagination(value: unknown, maximum: number): Pagination {
+export function validateMateriaPagination(value: unknown, maximum: number, defaultSize = maximum): Pagination {
   const result = z.object({ page: z.coerce.number().int().min(1).default(1),
-    pageSize: z.coerce.number().int().min(1).max(maximum).default(maximum) }).safeParse(value ?? {});
+    pageSize: z.coerce.number().int().min(1).max(maximum).default(defaultSize) }).safeParse(value ?? {});
   if (!result.success) throw new InvalidPaginationError();
   return result.data;
 }

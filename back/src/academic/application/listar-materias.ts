@@ -7,7 +7,7 @@ export class ListarMaterias {
   constructor(private readonly materias: MateriaRepository) {}
 
   async execute(paginationInput: unknown): Promise<PaginatedResult<Materia>> {
-    const pagination = validateMateriaPagination(paginationInput, 9);
+    const pagination = validateMateriaPagination(paginationInput, 100, 9);
     return this.materias.findAll(pagination, validateMateriaFilter(paginationInput));
   }
 }

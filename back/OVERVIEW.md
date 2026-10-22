@@ -15,7 +15,8 @@ indique su año según el plan de estudios; no infiere valores a partir del nomb
 Contrato HTTP (siempre requiere sesión; escrituras solo ADMIN):
 
 - `GET /materias?anioCarrera=2&page=1&pageSize=9`: filtro opcional por clasificación;
-  página por defecto 1, tamaño por defecto y máximo 9. Orden fijo por año, nombre e id
+  página por defecto 1, tamaño por defecto 9 y máximo 100 para cargar opciones administrativas.
+  El listado de estudiantes solicita páginas de nueve. Orden fijo por año, nombre e id
   antes de paginar; Electiva sigue al quinto año y los valores heredados nulos van al final.
 - `GET /materias/:materiaId`: detalle activo con `id`, `nombre`, `anioCarrera`,
   `nivelElectiva`, `createdAt`, `deletedAt`.
