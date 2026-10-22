@@ -1,7 +1,7 @@
 import { getAuthService } from "./auth";
 import { toQuery, type PaginatedResult, type PaginationInput } from "./pagination";
 
-export interface Materia { id: string; nombre: string; createdAt: string; deletedAt: string | null }
+export type { Materia } from "@/types/materias";
 export interface Profesor { id: string; nombreCompleto: string; createdAt: string; deletedAt: string | null }
 export type Cuatrimestre = "PRIMERO" | "SEGUNDO";
 export interface Cursada { id: string; materiaId: string; profesorId: string; anio: number; cuatrimestre: Cuatrimestre; createdAt: string; deletedAt: string | null }
@@ -10,9 +10,7 @@ export interface Comision { id: string; cursadaId: string; nombre: string; activ
 
 export type { PaginatedResult, PaginationInput };
 
-export function listarMaterias(pagination: PaginationInput = {}): Promise<PaginatedResult<Materia>> {
-  return getAuthService().protectedGet(`/materias${toQuery(pagination)}`);
-}
+export { listarMaterias, crearMateria } from "./materias";
 export function listarProfesores(pagination: PaginationInput = {}): Promise<PaginatedResult<Profesor>> {
   return getAuthService().protectedGet(`/profesores${toQuery(pagination)}`);
 }
@@ -25,9 +23,7 @@ export function listarComisionesPorCursada(cursadaId: string, pagination: Pagina
 
 // Altas administrativas (rol ADMIN). El backend valida de nuevo todo lo que el formulario ya
 // comprueba y devuelve 409 en duplicados, 404 si la materia/profesor/cursada no existe.
-export function crearMateria(input: { nombre: string }): Promise<Materia> {
-  return getAuthService().protectedPost("/materias", input);
-}
+
 export function crearProfesor(input: { nombreCompleto: string }): Promise<Profesor> {
   return getAuthService().protectedPost("/profesores", input);
 }

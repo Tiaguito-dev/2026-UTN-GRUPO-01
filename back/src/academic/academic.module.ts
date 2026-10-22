@@ -20,11 +20,19 @@ import { CrearMateria } from "./application/crear-materia.js";
 import { CrearProfesor } from "./application/crear-profesor.js";
 import { CrearCursada } from "./application/crear-cursada.js";
 import { CrearComision } from "./application/crear-comision.js";
+import { ObtenerMateria } from "./application/obtener-materia.js";
+import { ActualizarMateria } from "./application/actualizar-materia.js";
+import { ListarHistorialMateria } from "./application/listar-historial-materia.js";
 
 @Module({
   imports: [PrismaModule, AuthModule, SharedModule],
   controllers: [AcademicController],
   providers: [
+    ...[ObtenerMateria, ActualizarMateria, ListarHistorialMateria].map((provide) => ({
+      provide,
+      useFactory: (materias: MateriaRepository) => new provide(materias),
+      inject: [MATERIA_REPOSITORY],
+    })),
     {
       provide: MATERIA_REPOSITORY,
       useFactory: (prisma: PrismaService) => new PrismaMateriaRepository(prisma),

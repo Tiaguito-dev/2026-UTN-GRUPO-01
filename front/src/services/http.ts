@@ -18,7 +18,7 @@ function apiOrigin(): string {
 }
 
 /** No credentials are available to JavaScript: the browser owns both HttpOnly cookies. */
-export async function requestJson<T>(path: string, options: { method?: "GET" | "POST"; body?: unknown } = {}): Promise<T> {
+export async function requestJson<T>(path: string, options: { method?: "GET" | "POST" | "PATCH"; body?: unknown } = {}): Promise<T> {
   const method = options.method ?? "GET";
   let response: Response;
   try {

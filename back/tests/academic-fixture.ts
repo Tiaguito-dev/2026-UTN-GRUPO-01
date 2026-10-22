@@ -9,7 +9,7 @@ import { CrearProfesor } from "../src/academic/application/crear-profesor.js";
 import { CrearCursada } from "../src/academic/application/crear-cursada.js";
 import { CrearComision } from "../src/academic/application/crear-comision.js";
 import type { Pagination, PaginatedResult } from "../src/shared/domain/pagination.js";
-import type { Materia } from "../src/academic/domain/materia.js";
+import type { AnioCarrera, NivelElectiva, Materia } from "../src/academic/domain/materia.js";
 import type { Profesor } from "../src/academic/domain/profesor.js";
 import type { Cursada } from "../src/academic/domain/cursada.js";
 import type { Comision } from "../src/academic/domain/comision.js";
@@ -31,11 +31,13 @@ export function fixture() {
   const comisiones = new Map<string, Comision>();
 
   const materiaRepository: MateriaRepository = {
-    findAll: vi.fn(async (pagination) => paginate([...materias.values()], pagination)),
+    findAll: vi.fn(async (pagination, filters = {}) => paginate([...materias.values()].filter(m => !m.deletedAt && (!filters.anioCarrera || m.anioCarrera === filters.anioCarrera) && (!filters.nivelElectiva || m.nivelElectiva === filters.nivelElectiva) && (!filters.q || m.nombre.toLowerCase().includes(filters.q.toLowerCase()))).sort((a,b) => (a.anioCarrera ?? "Z").localeCompare(b.anioCarrera ?? "Z") || a.nombre.localeCompare(b.nombre) || a.id.localeCompare(b.id)), pagination)),
+    update: vi.fn(async (id, input) => { const materia = { ...materias.get(id)!, ...input }; materias.set(id, materia); return materia; }),
+    findHistorial: vi.fn(async (_id, pagination) => paginate([], pagination)),
     findById: vi.fn(async (id) => materias.get(id) ?? null),
     findByNombre: vi.fn(async (nombre) => [...materias.values()].find((m) => m.nombre === nombre) ?? null),
-    create: vi.fn(async ({ nombre }) => {
-      const materia: Materia = { id: randomUUID(), nombre, createdAt: new Date(), deletedAt: null };
+    create: vi.fn(async ({ nombre, anioCarrera, nivelElectiva }) => {
+      const materia: Materia = { id: randomUUID(), nombre, anioCarrera, nivelElectiva: nivelElectiva ?? null, createdAt: new Date(), deletedAt: null };
       materias.set(materia.id, materia);
       return materia;
     }),
@@ -71,8 +73,8 @@ export function fixture() {
     }),
   };
 
-  function addMateria(nombre: string): Materia {
-    const materia: Materia = { id: randomUUID(), nombre, createdAt: new Date(), deletedAt: null };
+  function addMateria(nombre: string, anioCarrera: AnioCarrera | null = null, nivelElectiva: NivelElectiva | null = null): Materia {
+    const materia: Materia = { id: randomUUID(), nombre, anioCarrera, nivelElectiva: nivelElectiva ?? null, createdAt: new Date(), deletedAt: null };
     materias.set(materia.id, materia);
     return materia;
   }

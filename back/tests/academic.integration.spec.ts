@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "../src/app.module.js";
 import { PrismaClient } from "../src/generated/prisma/client.js";
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
+import { VERIFICATION_EMAIL } from "../src/auth/domain/email-verification.js";
 import { AUTH_CONFIG } from "../src/auth/auth.config.js";
 import { configureAuthHttp } from "../src/auth/presentation/http-security.js";
 import { csrfHeaders, testAuthConfig } from "./auth-test.config.js";
@@ -69,7 +70,7 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: testDatabaseUrl! }) });
     await prisma.$connect();
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(PrismaService).useValue(prisma).overrideProvider(AUTH_CONFIG).useValue(config).compile();
+      .overrideProvider(PrismaService).useValue(prisma).overrideProvider(AUTH_CONFIG).useValue(config).overrideProvider(VERIFICATION_EMAIL).useValue({ send: async () => {} }).compile();
     app = moduleRef.createNestApplication();
     app.useLogger(false);
     configureAuthHttp(app, config);
@@ -103,17 +104,19 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     const nombreBase = randomUUID();
     const first = await createMateria(`A-${nombreBase}`);
     const second = await createMateria(`B-${nombreBase}`);
+    await prisma.materia.updateMany({ where: { id: { in: [first.id, second.id] } }, data: { anioCarrera: "5" } });
 
-    const page1 = await get(`/materias?page=1&pageSize=1`, cookie);
+    const page1 = await get(`/materias?anioCarrera=5&page=1&pageSize=1`, cookie);
     expect(page1.status).toBe(200);
     const body1 = await page1.json();
     expect(body1).toMatchObject({ page: 1, pageSize: 1 });
     expect(body1.items).toHaveLength(1);
     expect(body1.items[0].id).toBe(first.id);
 
-    const page2 = await get(`/materias?page=2&pageSize=1`, cookie);
+    const page2 = await get(`/materias?anioCarrera=5&page=2&pageSize=1`, cookie);
     const body2 = await page2.json();
     expect(body2.items[0].id).toBe(second.id);
+    await prisma.materia.updateMany({ where: { id: { in: [first.id, second.id] } }, data: { deletedAt: new Date() } });
   });
 
   it("una materia soft-deleted no aparece en los resultados", async () => {
@@ -122,11 +125,76 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     const deleted = await createMateria();
     await prisma.materia.update({ where: { id: deleted.id }, data: { deletedAt: new Date() } });
 
-    const response = await get(`/materias?pageSize=100`, cookie);
-    const body = await response.json();
-    const ids = body.items.map((item: { id: string }) => item.id);
+    const ids: string[] = [];
+    let page = 1;
+    while (true) {
+      const response = await get(`/materias?pageSize=9&page=${page}`, cookie);
+      const body = await response.json();
+      ids.push(...body.items.map((item: { id: string }) => item.id));
+      if (ids.length >= body.total) break;
+      page++;
+    }
     expect(ids).toContain(visible.id);
     expect(ids).not.toContain(deleted.id);
+  });
+
+  it("filtra y ordena en PostgreSQL antes de paginar, dejando Electiva y heredadas al final", async () => {
+    const cookie = await sessionCookie();
+    const prefix = randomUUID();
+    const rows = [];
+    for (const anioCarrera of [null, "ELECTIVA", "5", "2", "1"]) {
+      const row = await prisma.materia.create({ data: { nombre: `A-${prefix}-${anioCarrera}`, anioCarrera } });
+      materiaIds.add(row.id); rows.push(row);
+    }
+    const yearFive = [];
+    for (let i = 11; i >= 0; i--) {
+      const row = await prisma.materia.create({ data: { nombre: `Z-${prefix}-${String(i).padStart(2, "0")}`, anioCarrera: "5" } });
+      materiaIds.add(row.id); yearFive.push(row);
+    }
+    const first = await (await get("/materias?anioCarrera=5", cookie)).json();
+    const second = await (await get("/materias?anioCarrera=5&page=2", cookie)).json();
+    expect(first).toMatchObject({ page: 1, pageSize: 9, total: 13 });
+    expect(second).toMatchObject({ page: 2, pageSize: 9, total: 13 });
+    const filtered = [...first.items, ...second.items];
+    expect(filtered.every(item => item.anioCarrera === "5")).toBe(true);
+    expect(filtered.map(item => item.nombre)).toEqual([rows[2]!.nombre, ...yearFive.map(row => row.nombre).sort()]);
+    const ids: string[] = [];
+    let page = 1;
+    while (true) {
+      const body = await (await get(`/materias?page=${page}`, cookie)).json();
+      ids.push(...body.items.map((item: { id: string }) => item.id));
+      if (ids.length >= body.total) break;
+      page++;
+    }
+    const ordered = [...rows].reverse().map(row => ids.indexOf(row.id));
+    expect(ordered.every(index => index >= 0)).toBe(true);
+    expect(ordered).toEqual([...ordered].sort((a, b) => a - b));
+    expect((await get("/materias?anioCarrera=6", cookie)).status).toBe(400);
+    expect((await get("/materias?anioCarrera=1&anioCarrera=2", cookie)).status).toBe(400);
+  });
+
+  it("combina búsqueda literal sin distinguir mayúsculas, año y nivel antes de paginar", async () => {
+    const cookie = await sessionCookie();
+    const prefix = randomUUID();
+    const expected: string[] = [];
+    async function seed(nombre: string, nivelElectiva = "4", deletedAt: Date | null = null) {
+      const row = await prisma.materia.create({ data: { nombre, anioCarrera: "ELECTIVA", nivelElectiva, deletedAt } });
+      materiaIds.add(row.id); return row;
+    }
+    for (let i = 0; i < 12; i++) expected.push((await seed(`${prefix} Plan%_${String(i).padStart(2, "0")}`)).id);
+    await seed(`${prefix} PlanXY`);
+    await seed(`${prefix} Plan%X`);
+    await seed(`${prefix} PlanY_`);
+    await seed(`${prefix} Plan%_nivel3`, "3");
+    await seed(`${prefix} Plan%_deleted`, "4", new Date());
+    const query = new URLSearchParams({ q: `  ${prefix} PLAN%_  `, anioCarrera: "ELECTIVA", nivelElectiva: "4" });
+    const first = await (await get(`/materias?${query}`, cookie)).json();
+    const second = await (await get(`/materias?${query}&page=2`, cookie)).json();
+    expect(first).toMatchObject({ total: 12, pageSize: 9 });
+    expect(first.items).toHaveLength(9);
+    expect(second.items).toHaveLength(3);
+    expect([...first.items, ...second.items].map((item: { id: string }) => item.id)).toEqual(expected);
+    expect((await get("/materias?anioCarrera=2&nivelElectiva=4", cookie)).status).toBe(400);
   });
 
   it("GET /materias/:id/cursadas con UUID inexistente devuelve 404 con el mensaje de MateriaNotFoundError", async () => {

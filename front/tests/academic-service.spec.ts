@@ -16,16 +16,23 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe("Cliente academic: construcción de URL y delegación en protectedGet", () => {
-  it("listarMaterias sin paginación pide /materias sin query string", async () => {
+  it("listarMaterias sin paginación limita a nueve materias", async () => {
     fetchMock.mockResolvedValue(reply(200, emptyPage));
     await expect(listarMaterias()).resolves.toEqual(emptyPage);
-    expect(requestedPath(fetchMock.mock.calls[0][0])).toBe("/materias");
+    expect(requestedPath(fetchMock.mock.calls[0][0])).toBe("/materias?pageSize=9");
   });
   it("listarMaterias con page y pageSize los agrega como query", async () => {
     const page = { items: [], total: 0, page: 2, pageSize: 5 };
     fetchMock.mockResolvedValue(reply(200, page));
     await listarMaterias({ page: 2, pageSize: 5 });
     expect(requestedPath(fetchMock.mock.calls[0][0])).toBe("/materias?page=2&pageSize=5");
+  });
+  it("envía el año seleccionado y limita pageSize a nueve", async () => {
+    fetchMock.mockResolvedValue(reply(200, emptyPage));
+    await listarMaterias({ page: 2, pageSize: 100, anioCarrera: "ELECTIVA", nivelElectiva: "4", q: "Plan %_" });
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.pathname).toBe("/materias");
+    expect(Object.fromEntries(url.searchParams)).toEqual({ page: "2", pageSize: "9", anioCarrera: "ELECTIVA", nivelElectiva: "4", q: "Plan %_" });
   });
   it("listarCursadasPorMateria arma la ruta anidada con el materiaId escapado", async () => {
     fetchMock.mockResolvedValue(reply(200, emptyPage));
