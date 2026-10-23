@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "../src/app.module.js";
 import { PrismaClient } from "../src/generated/prisma/client.js";
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
+import { VERIFICATION_EMAIL } from "../src/auth/domain/email-verification.js";
 import { AUTH_CONFIG } from "../src/auth/auth.config.js";
 import { configureAuthHttp } from "../src/auth/presentation/http-security.js";
 import { csrfHeaders, testAuthConfig } from "./auth-test.config.js";
@@ -32,6 +33,9 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
   const post = (path: string, body: unknown, cookie?: string) =>
     fetch(`${baseUrl}${path}`, { method: "POST", headers: cookie ? { ...csrfHeaders, Cookie: cookie } : csrfHeaders, body: JSON.stringify(body) });
   const get = (path: string, cookie?: string) => fetch(`${baseUrl}${path}`, { headers: cookie ? { Cookie: cookie } : {} });
+  const patch = (path: string, body: unknown, cookie?: string) => fetch(`${baseUrl}${path}`, {
+    method: "PATCH", headers: { ...csrfHeaders, ...(cookie ? { Cookie: cookie } : {}) }, body: JSON.stringify(body),
+  });
 
   async function account() {
     const email = `admin-test-${randomUUID()}@alu.frlp.utn.edu.ar`;
@@ -62,7 +66,7 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
     ids.add(creado.id);
     return creado;
   }
-  const crearMateria = (nombre = `Materia ${randomUUID()}`) => crear("/materias", { nombre }, materiaIds);
+  const crearMateria = (nombre = `Materia ${randomUUID()}`) => crear("/materias", { nombre, anioCarrera: "1" }, materiaIds);
   const crearProfesor = (nombreCompleto = `Profesor ${randomUUID()}`) => crear("/profesores", { nombreCompleto }, profesorIds);
   const crearCursada = (materiaId: string, profesorId: string, anio = ANIO, cuatrimestre = "PRIMERO") =>
     crear("/cursadas", { materiaId, profesorId, anio, cuatrimestre }, cursadaIds);
@@ -79,7 +83,7 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
     prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: testDatabaseUrl! }) });
     await prisma.$connect();
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(PrismaService).useValue(prisma).overrideProvider(AUTH_CONFIG).useValue(config).compile();
+      .overrideProvider(PrismaService).useValue(prisma).overrideProvider(AUTH_CONFIG).useValue(config).overrideProvider(VERIFICATION_EMAIL).useValue({ send: async () => {} }).compile();
     app = moduleRef.createNestApplication();
     app.useLogger(false);
     configureAuthHttp(app, config);
@@ -91,6 +95,7 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
 
   afterAll(async () => {
     if (prisma) {
+      if (materiaIds.size) await prisma.materiaHistorial.deleteMany({ where: { materiaId: { in: [...materiaIds] } } });
       if (comisionIds.size) await prisma.comision.deleteMany({ where: { id: { in: [...comisionIds] } } });
       if (cursadaIds.size) await prisma.cursada.deleteMany({ where: { id: { in: [...cursadaIds] } } });
       if (materiaIds.size) await prisma.materia.deleteMany({ where: { id: { in: [...materiaIds] } } });
@@ -113,7 +118,7 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
       const comision = await crearComision(cursada.id, "Comisión 1 - Mañana");
       expect(comision).toMatchObject({ cursadaId: cursada.id, nombre: "Comisión 1 - Mañana", activa: true, deletedAt: null });
 
-      const materias = await (await get(`/materias?pageSize=100`, adminCookie)).json();
+      const materias = await (await get(`/materias?pageSize=9`, adminCookie)).json();
       expect(materias.items.map((item: { id: string }) => item.id)).toContain(materia.id);
 
       const cursadas = await (await get(`/materias/${materia.id}/cursadas`, adminCookie)).json();
@@ -134,7 +139,7 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
 
     it("recorta los espacios del nombre antes de persistir", async () => {
       const nombre = `Materia ${randomUUID()}`;
-      const materia = await crear("/materias", { nombre: `   ${nombre}   ` }, materiaIds);
+      const materia = await crear("/materias", { nombre: `   ${nombre}   `, anioCarrera: "1" }, materiaIds);
       expect(materia.nombre).toBe(nombre);
       await expect(prisma.materia.findUnique({ where: { id: materia.id } })).resolves.toMatchObject({ nombre });
     });
@@ -151,7 +156,7 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
   describe("duplicados", () => {
     it("materia con nombre repetido devuelve 409", async () => {
       const materia = await crearMateria();
-      const response = await post("/materias", { nombre: materia.nombre }, adminCookie);
+      const response = await post("/materias", { nombre: materia.nombre, anioCarrera: "1" }, adminCookie);
       expect(response.status).toBe(409);
       expect((await response.json()).message).toBe("Ya existe una materia con ese nombre.");
     });
@@ -258,6 +263,59 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
         expect(response.status, path).toBe(200);
         expect((await response.json()).items.length).toBeGreaterThan(0);
       }
+    });
+  });
+
+  describe("Año de carrera, edición y trazabilidad", () => {
+    it("exige nivel de electiva, permite clasificar heredadas y audita su limpieza al pasar a obligatoria", async () => {
+      for (const nivelElectiva of [undefined, "2", "6", 4]) {
+        expect((await post("/materias", { nombre: `Inválida ${randomUUID()}`, anioCarrera: "ELECTIVA", nivelElectiva }, adminCookie)).status).toBe(400);
+      }
+      const materia = await prisma.materia.create({ data: { nombre: `Electiva heredada ${randomUUID()}`, anioCarrera: "ELECTIVA" } });
+      materiaIds.add(materia.id);
+      const path = `/materias/${materia.id}`;
+      expect((await patch(path, { nombre: materia.nombre }, adminCookie)).status).toBe(400);
+      expect((await patch(path, { nivelElectiva: "4" }, adminCookie)).status).toBe(200);
+      expect((await patch(path, { nivelElectiva: "2" }, adminCookie)).status).toBe(400);
+      const response = await patch(path, { anioCarrera: "3" }, adminCookie);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ anioCarrera: "3", nivelElectiva: null });
+      const history = await (await get(`${path}/historial`, userCookie)).json();
+      expect(history.total).toBe(2);
+      expect(history.items[0].cambios).toContainEqual({ campo: "nivelElectiva", anterior: "4", nuevo: null });
+      await expect(prisma.materia.findUnique({ where: { id: materia.id } })).resolves.toMatchObject({ nivelElectiva: null });
+    });
+    it("solo ADMIN puede editar; requiere sesión y protección CSRF", async () => {
+      const materia = await crearMateria();
+      const path = `/materias/${materia.id}`;
+      expect((await patch(path, { anioCarrera: "2" })).status).toBe(401);
+      expect((await patch(path, { anioCarrera: "2" }, userCookie)).status).toBe(403);
+      expect((await fetch(`${baseUrl}${path}`, { method: "PATCH", headers: { Cookie: adminCookie, "Content-Type": "application/json" }, body: JSON.stringify({ anioCarrera: "2" }) })).status).toBe(403);
+      expect((await get(path, userCookie)).status).toBe(200);
+      await expect(prisma.materia.findUnique({ where: { id: materia.id } })).resolves.toMatchObject({ anioCarrera: "1" });
+    });
+    it("alta exige año y no admite valores fuera del contrato", async () => {
+      for (const anioCarrera of [undefined, null, "", "0", "6", 1, "Electiva"]) {
+        expect((await post("/materias", { nombre: `Inválida ${randomUUID()}`, anioCarrera }, adminCookie)).status).toBe(400);
+      }
+    });
+    it("historial solo registra diferencias reales, con actor y páginas de tres", async () => {
+      const materia = await crearMateria();
+      const path = `/materias/${materia.id}`;
+      for (const anioCarrera of ["2", "3", "4", "ELECTIVA"]) {
+        expect((await patch(path, { anioCarrera, ...(anioCarrera === "ELECTIVA" ? { nivelElectiva: "3" } : {}) }, adminCookie)).status).toBe(200);
+      }
+      expect((await patch(path, { anioCarrera: "ELECTIVA", nivelElectiva: "3" }, adminCookie)).status).toBe(200);
+      expect((await patch(path, {}, adminCookie)).status).toBe(200);
+      expect((await patch(path, { anioCarrera: null }, adminCookie)).status).toBe(400);
+      const history = await (await get(`${path}/historial`, userCookie)).json();
+      expect(history).toMatchObject({ page: 1, pageSize: 3, total: 4 });
+      expect(history.items).toHaveLength(3);
+      expect(history.items[0]).toMatchObject({ materiaId: materia.id, actorId: expect.any(String), createdAt: expect.any(String), cambios: [{ campo: "anioCarrera", anterior: "4", nuevo: "ELECTIVA" }, { campo: "nivelElectiva", anterior: null, nuevo: "3" }] });
+      const second = await (await get(`${path}/historial?page=2`, userCookie)).json();
+      expect(second.items).toHaveLength(1);
+      expect((await get(`${path}/historial?pageSize=4`, userCookie)).status).toBe(400);
+      expect((await get(`${path}/historial`)).status).toBe(401);
     });
   });
 

@@ -10,6 +10,7 @@ import { ComisionesList } from "../src/components/academic/ComisionesList";
 const { state } = vi.hoisted(() => ({ state: { value: {} as Record<string, unknown> } }));
 vi.mock("@/hooks/usePaginatedFetch", () => ({ usePaginatedFetch: () => state.value }));
 vi.mock("@/hooks/useUrlPageParam", () => ({ useUrlPageParam: () => [1, vi.fn()] }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
 
 function setFetchState(overrides: Partial<{ status: string; result: unknown; error: string; notFound: boolean; page: number; setPage: (page: number) => void; retry: () => void }>) {
   state.value = { status: "loading", result: null, error: "", notFound: false, page: 1, setPage: vi.fn(), retry: vi.fn(), ...overrides };
@@ -59,7 +60,7 @@ describe("MateriasList", () => {
   it("muestra el estado vacío cuando items: []", () => {
     setFetchState({ status: "ready", result: { items: [], total: 0, page: 1, pageSize: 10 } });
     const html = renderToStaticMarkup(createElement(MateriasList));
-    expect(html).toContain("Todavía no hay materias cargadas.");
+    expect(html).toContain("No hay materias que coincidan con la búsqueda y los filtros.");
   });
   it("muestra un mensaje claro en error, no un stack", () => {
     setFetchState({ status: "error", error: "Lo sentimos. No pudimos completar la solicitud, intentá nuevamente." });
@@ -76,7 +77,7 @@ describe("MateriasList", () => {
     });
     const html = renderToStaticMarkup(createElement(MateriasList));
     expect(html).toContain("Álgebra");
-    expect(html).toContain('href="/home/materias/m1?nombre=%C3%81lgebra"');
+    expect(html).toContain('href="/home/materias/m1"');
     expect(html).toContain("Página 1 de 3");
   });
 });

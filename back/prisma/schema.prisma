@@ -25,6 +25,7 @@ model User {
   emailVerificationCredentials EmailVerificationCredential[]
   sessions     Session[]
   passwordResetCredentials PasswordResetCredential[]
+  historialMaterias MateriaHistorial[]
 }
 
 model EmailVerificationCredential {
@@ -89,9 +90,27 @@ enum Cuatrimestre {
 model Materia {
   id        String    @id @default(uuid()) @db.Uuid
   nombre    String    @unique @db.VarChar(150)
+  anioCarrera String? @db.VarChar(8)
+  nivelElectiva String? @db.VarChar(1)
   createdAt DateTime  @default(now()) @db.Timestamptz(3)
   deletedAt DateTime? @db.Timestamptz(3)
   cursadas  Cursada[]
+  historial MateriaHistorial[]
+
+  @@index([deletedAt, anioCarrera, nombre, id])
+  @@index([deletedAt, anioCarrera, nivelElectiva, nombre, id])
+}
+
+model MateriaHistorial {
+  id String @id @default(uuid()) @db.Uuid
+  materiaId String @db.Uuid
+  actorId String @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  cambios Json
+  materia Materia @relation(fields: [materiaId], references: [id], onDelete: Restrict)
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([materiaId, createdAt, id])
 }
 
 model Profesor {

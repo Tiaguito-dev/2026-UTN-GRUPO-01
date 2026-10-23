@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { isAnioCarrera, parseMateriaPage, materiaListHref, materiaDetailHref, parseMateriaContext } from "@/validations/materias";
 import { useEffect, useRef } from "react";
 import { listarComisionesPorCursada, type Cuatrimestre } from "@/services/academic";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
@@ -17,17 +19,21 @@ export function ComisionesList({ materiaId, cursadaId, materiaNombre, anio, cuat
   cuatrimestre: Cuatrimestre | undefined;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const context = useSearchParams();
+  const rawYear = context.get("anioCarrera");
+  const careerYear = isAnioCarrera(rawYear) ? rawYear : undefined;
+  const listPage = parseMateriaPage(context.get("listadoPage"));
   const materiaLabel = materiaNombre ?? "Materia";
   const periodoActual = anio && cuatrimestre ? periodoLabel(anio, cuatrimestre) : "Período";
   const [initialPage, setUrlPage] = useUrlPageParam();
   const { status, result, error, notFound, page, setPage, retry } = usePaginatedFetch(cursadaId, (pageToFetch) => listarComisionesPorCursada(cursadaId, { page: pageToFetch }), initialPage);
   useEffect(() => { headingRef.current?.focus(); }, [cursadaId]);
   const handlePageChange = (next: number) => { setPage(next); setUrlPage(next); };
-  const backHref = `/home/materias/${materiaId}?nombre=${encodeURIComponent(materiaLabel)}`;
+  const backHref = materiaDetailHref(materiaId, careerYear, listPage, parseMateriaContext(context));
 
   return <section aria-labelledby="comisiones-heading">
     <Breadcrumb items={[
-      { label: "Materias", href: "/home/materias" },
+      { label: "Materias", href: materiaListHref(careerYear, listPage, parseMateriaContext(context)) },
       { label: materiaLabel, href: backHref },
       { label: periodoActual },
     ]} />

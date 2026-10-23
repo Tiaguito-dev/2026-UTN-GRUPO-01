@@ -11,7 +11,7 @@ describe("ListarMaterias", () => {
     const { listarMaterias, addMateria } = fixture();
     addMateria("Álgebra"); addMateria("Análisis");
     const result = await listarMaterias.execute(undefined);
-    expect(result).toMatchObject({ page: 1, pageSize: 20, total: 2 });
+    expect(result).toMatchObject({ page: 1, pageSize: 9, total: 2 });
     expect(result.items).toHaveLength(2);
   });
 

@@ -1,4 +1,8 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import type { AuthenticatedRequest } from "../auth/presentation/authentication.guard.js";
+import { ActualizarMateria } from "./application/actualizar-materia.js";
+import { ObtenerMateria } from "./application/obtener-materia.js";
+import { ListarHistorialMateria } from "./application/listar-historial-materia.js";
 import { AuthenticationGuard } from "../auth/presentation/authentication.guard.js";
 import { RolesGuard } from "../auth/presentation/roles.guard.js";
 import { Roles } from "../auth/presentation/roles.decorator.js";
@@ -30,11 +34,30 @@ export class AcademicController {
     private readonly crearProfesor: CrearProfesor,
     private readonly crearCursada: CrearCursada,
     private readonly crearComision: CrearComision,
+    private readonly obtenerMateria: ObtenerMateria,
+    private readonly actualizarMateria: ActualizarMateria,
+    private readonly listarHistorialMateria: ListarHistorialMateria,
   ) {}
 
   @Get("materias")
   materias(@Query() query: unknown): Promise<PaginatedResult<Materia>> {
     return this.listarMaterias.execute(query);
+  }
+
+  @Get("materias/:materiaId")
+  materia(@Param("materiaId") materiaId: string): Promise<Materia> {
+    return this.obtenerMateria.execute(materiaId);
+  }
+
+  @Get("materias/:materiaId/historial")
+  historial(@Param("materiaId") materiaId: string, @Query() query: unknown) {
+    return this.listarHistorialMateria.execute(materiaId, query);
+  }
+
+  @Patch("materias/:materiaId")
+  @Roles("ADMIN")
+  editarMateria(@Param("materiaId") materiaId: string, @Body() body: unknown, @Req() request: AuthenticatedRequest) {
+    return this.actualizarMateria.execute(materiaId, body, request.authUser?.id);
   }
 
   @Get("materias/:materiaId/cursadas")

@@ -1,5 +1,83 @@
 # Backend
 
+## Materias: clasificación, filtros e historial (TASK-024)
+
+Casos de contrato, permisos, consulta PostgreSQL e historial verificados:
+[matriz de trazabilidad TASK-024](../docs/tasks/finished/TASK-024-filtros-materias-anio-carrera.md#trazabilidad-de-casos-probados).
+
+`Materia.anioCarrera` admite las cadenas `1`, `2`, `3`, `4`, `5`, `ELECTIVA`.
+La migración `20261022000000_materia_anio_carrera` conserva `null` para datos heredados
+sin clasificación; el administrador debe asignar un valor válido al editarlos. No se
+confunde esta clasificación con `Cursada.anio`, que representa el año calendario.
+El seed de demostración conserva materias sin clasificación hasta que un administrador
+indique su año según el plan de estudios; no infiere valores a partir del nombre.
+
+Contrato HTTP (siempre requiere sesión; escrituras solo ADMIN):
+
+- `GET /materias?anioCarrera=2&page=1&pageSize=9`: filtro opcional por clasificación;
+  página por defecto 1, tamaño por defecto 9 y máximo 100 para cargar opciones administrativas.
+  El listado de estudiantes solicita páginas de nueve. Orden fijo por año, nombre e id
+  antes de paginar; Electiva sigue al quinto año y los valores heredados nulos van al final.
+- `GET /materias/:materiaId`: detalle activo con `id`, `nombre`, `anioCarrera`,
+  `nivelElectiva`, `createdAt`, `deletedAt`.
+- `POST /materias`: cuerpo estricto `{nombre, anioCarrera, nivelElectiva?}`; nombre
+  normalizado de 1 a 150 caracteres, año obligatorio y nivel obligatorio para electivas.
+  Retorna la materia creada.
+- `PATCH /materias/:materiaId`: cuerpo estricto con diferencias de `nombre` y/o
+  `anioCarrera` y/o `nivelElectiva`. Rechaza clasificación nula y años fuera de catálogo. Retorna el detalle
+  actualizado; los valores idénticos no generan escritura ni historial.
+- `GET /materias/:materiaId/historial?page=1&pageSize=3`: tamaño por defecto y máximo 3,
+  más reciente primero con desempate por id. Cada elemento contiene `id`, `materiaId`,
+  `actorId`, `createdAt` y `cambios: [{campo, anterior, nuevo}]`; `campo` es `nombre`,
+  `anioCarrera` o `nivelElectiva`. Los valores anterior y nuevo admiten null.
+  No se publican correos ni otros datos del actor.
+
+Ambos listados retornan `{items,total,page,pageSize}`. Validación inválida devuelve 400,
+sesión ausente 401, rol insuficiente 403, materia inexistente/inactiva 404 y nombre
+duplicado 409, con mensaje seguro. Las escrituras conservan protección Origin/CSRF.
+
+Los casos de uso `ListarMaterias`, `ObtenerMateria`, `CrearMateria`, `ActualizarMateria`
+y `ListarHistorialMateria` dependen del puerto `MateriaRepository`; Zod valida entradas
+y el adaptador Prisma filtra en PostgreSQL. La edición bloquea la fila y registra cambios
+y actor en una única transacción para mantener valores anteriores correctos ante concurrencia.
+La tabla `MateriaHistorial` referencia materia y usuario con borrado restringido; los índices
+cubren listado e historial y una restricción SQL limita las clasificaciones admitidas.
+Aplicar migraciones con `npm run db:deploy --workspace=back` antes de iniciar el backend;
+Docker y Compose utilizan el mismo esquema y la misma variable `DATABASE_URL`.
+
+### Búsqueda y niveles de electivas (TASK-025)
+
+Casos y resultados verificados en la
+[matriz de trazabilidad TASK-025](../docs/tasks/finished/TASK-025-busqueda-materias-niveles-electivas.md#matriz-de-trazabilidad-de-casos-probados).
+
+`GET /materias` acepta además `q` y `nivelElectiva`. La búsqueda recorta espacios de
+borde, admite hasta 150 caracteres Unicode, rechaza controles y considera texto vacío
+como búsqueda ausente. Busca una subcadena del nombre sin distinguir mayúsculas, con
+`%`, `_` y barra inversa literales; no interpreta comodines del usuario. Se combina con
+`anioCarrera` y `nivelElectiva` antes de paginar y contar. Arrays/parámetros repetidos
+no son válidos. Nivel solo admite las cadenas `3`, `4` y `5` junto con
+`anioCarrera=ELECTIVA`; usarlo para otro año devuelve 400.
+
+El orden es año de carrera, nivel de electiva, nombre e id; los niveles desconocidos
+se colocan después del quinto nivel y las materias sin año después de Electivas.
+Una obligatoria siempre guarda `nivelElectiva:null`, de modo que su orden por nombre
+se conserva. El detalle y los elementos del listado incluyen el campo nullable.
+
+`POST /materias` y `PATCH /materias/:materiaId` admiten `nivelElectiva` (`3`, `4`, `5`
+o null). Si la materia efectiva es electiva, exige nivel válido: en una edición puede
+reutilizar el existente si se omite el campo; una electiva heredada sin nivel debe
+completarlo incluso al cambiar solo su nombre. Un null explícito no borra el nivel de
+una electiva. Para obligatorias, un nivel válido recibido se normaliza a null; al
+cambiar de electiva a obligatoria se limpia aunque el cliente omita ese campo y se
+registra `nuevo:null` en el historial. Los valores fuera de catálogo siempre son 400.
+El backend recalcula esta regla después de bloquear la fila para evitar inconsistencias
+en ediciones simultáneas, y solo audita diferencias reales.
+
+La migración aditiva `20261022010000_materia_nivel_electiva` agrega columna nullable,
+restricción de catálogo y consistencia con Electiva, e índice de listado con nivel.
+Los registros existentes conservan null sin inferir el plan de estudios. No requiere
+nuevas variables ni dependencias y utiliza el proceso habitual de migración en Docker.
+
 ## Contenedor
 
 `back/Dockerfile` construye desde la raíz con Node 22.22.3 y npm workspaces.

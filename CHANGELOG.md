@@ -2,6 +2,36 @@
 
 ## [Sin publicar]
 
+### Presentación de filtros de materias (TASK-026)
+
+- Etapa aprobada por el usuario el 2026-10-22; pruebas frontend completas aprobadas.
+- Buscador y filtros agrupados en un panel con estilos locales al módulo.
+- Chips para seleccionar año o Electivas, con chips de nivel 3, 4 y 5 al elegir Electivas.
+- Selección visible y accesible por teclado, controles adaptados a pantallas pequeñas.
+- Conservados búsqueda, contexto de navegación y paginación sin cambios al backend.
+
+### Buscador de materias y niveles de electivas (TASK-025)
+
+- Cambios de materias (TASK-024 y TASK-025) validados manualmente por el usuario el 2026-10-22.
+- Búsqueda parcial por nombre combinable con año y nivel, aplicada antes de paginar.
+- Selector de nivel 3, 4 o 5 al filtrar Electivas; texto, año, nivel y página se conservan
+  al navegar al detalle y regresar.
+- Nivel obligatorio para crear o editar electivas, visible en sus datos y trazado en
+  historial. Al convertir una electiva en obligatoria se limpia su nivel.
+- Casos probados y resultados documentados en la
+  [matriz TASK-025](docs/tasks/finished/TASK-025-busqueda-materias-niveles-electivas.md#matriz-de-trazabilidad-de-casos-probados).
+
+### Filtros de materias por año de carrera (TASK-024)
+
+- Consulta de materias filtrada y ordenada por año de carrera y nombre, con páginas de
+  hasta 9 elementos y conservación del filtro al regresar desde el detalle.
+- Clasificación obligatoria de nuevas materias: primero a quinto año o Electiva;
+  las materias heredadas permanecen sin clasificación hasta su actualización administrativa.
+- Alta y edición administrativa con validación, auditoría e historial de cambios de
+  campos paginado de a 3 elementos. Controles funcionales sin rediseño general de la UI.
+- Matriz de trazabilidad de criterios, pruebas y recorrido en navegador en
+  [TASK-024](docs/tasks/finished/TASK-024-filtros-materias-anio-carrera.md#trazabilidad-de-casos-probados).
+
 ### Verificación institucional (TASK-022)
 
 - Registro de estudiantes pendiente hasta confirmar su correo `@alu.frlp.utn.edu.ar`.

@@ -173,3 +173,70 @@ Evidencia histórica de validación (conteos de tests, recorridos Chromium, fech
 aceptación) en [CHANGELOG.md](../CHANGELOG.md) y en
 [TASK-013](../docs/tasks/finished/TASK-013-home-interno.md) /
 [TASK-011](../docs/tasks/finished/TASK-011-ux-landing-http-local.md).
+
+## Materias: año de carrera y filtros (TASK-024)
+
+El listado `/home/materias` consulta `GET /materias` con `anioCarrera` opcional y páginas de
+9 elementos. El backend ordena antes de paginar; la vista agrupa por años 1 a 5,
+Electiva y Sin año asignado para registros heredados. La URL conserva `anioCarrera` y
+`page`; los enlaces al detalle trasladan la página como `listadoPage`, independiente
+de la paginación de cursadas. Volver y breadcrumb restauran el listado filtrado.
+
+services/materias.ts contiene el contrato HTTP dedicado; types/materias.ts define
+los tipos, validations/materias.ts valida años y construye destinos internos,
+y hooks/useMateria.ts carga el detalle con descarte de respuestas obsoletas.
+academic.ts reexporta listarMaterias/crearMateria para consumidores existentes.
+El tamaño predeterminado es 9; los formularios administrativos solicitan páginas de hasta
+100 para cargar sus opciones completas. `useAllPages` mantiene un tope de 20 páginas y
+devuelve error, sin opciones parciales, si no alcanza el total o recibe una página vacía
+antes de completarlo (TASK-027).
+
+MateriaDetail consume GET /materias/:id y GET /materias/:id/historial (3 entradas
+por página), muestra datos, auditoría y cambios por campo con actor y fecha.
+El enlace Editar requiere ADMIN y materia activa. La ruta administrativa
+/home/admin/materias/:materiaId/editar utiliza el guard ADMIN ya existente.
+El backend sigue siendo la autoridad de permisos y validación.
+
+MateriaForm se reutiliza únicamente en alta y edición de materias. Exige nombre
+recortado, sin controles y de hasta 150 caracteres, y un año de 1 a 5 o ELECTIVA.
+POST /materias recibe ambos campos y regresa al listado con successMessage.
+PATCH /materias/:id recibe solo diferencias reales; sin cambios no hay petición.
+Antes del PATCH se comprueba la sesión mediante el servicio existente; la mutación
+no se repite automáticamente. Al guardar edición se vuelve al detalle con
+successMessage y el contexto del filtro. Los errores se muestran con reintento
+en consultas y preservan los valores del formulario para corregir o reenviar.
+
+## Búsqueda y niveles de electivas (TASK-025)
+
+Casos y resultados verificados en la
+[matriz de trazabilidad TASK-025](../docs/tasks/finished/TASK-025-busqueda-materias-niveles-electivas.md#matriz-de-trazabilidad-de-casos-probados).
+
+El listado permite buscar por nombre con envío explícito mediante Buscar y limpiar
+el texto mediante Limpiar búsqueda. El criterio `q` se recorta, admite hasta 150
+caracteres y rechaza caracteres de control. Se combina con el año y, únicamente
+al elegir Electivas, con los chips Todos los niveles, 3.er Nivel, 4.º Nivel o
+5.º Nivel. Los cambios reinician la página; cambiar a un año obligatorio elimina
+el nivel. El backend filtra todos los resultados antes de paginar.
+
+`MateriaContext` y los constructores de destinos de `validations/materias.ts`
+conservan `q`, `anioCarrera`, `nivelElectiva` y página a través de detalle,
+edición, cursadas, comisiones, breadcrumbs y Volver. Las firmas anteriores de los
+constructores siguen funcionando; el contexto adicional es opcional.
+
+`Materia` incorpora `nivelElectiva`: `3`, `4`, `5` o null para registros heredados.
+Alta y edición muestran y exigen el nivel únicamente para Electiva. Al convertir
+una electiva en obligatoria se envía null cuando corresponde para limpiar el
+valor anterior; el backend también normaliza la consistencia. La edición conserva
+el envío de diferencias y evita solicitudes cuando no hay cambios. Listado y
+detalle muestran el nivel; el historial presenta los campos y sus valores con
+etiquetas legibles, incluido el nuevo valor null al limpiar el nivel.
+
+La sección de filtros usa un panel con buscador y chips de selección única para Todos
+los años, 1.º a 5.º año y Electivas. El grupo Nivel de electiva aparece únicamente al
+seleccionar Electivas. Los botones nativos exponen `aria-pressed`, admiten teclado y
+foco visible; se distribuyen en varias filas en pantallas pequeñas. Los estilos están
+aislados en `components/academic/MateriasList.module.css`, sin modificar estilos base.
+El contrato HTTP, permisos, validaciones y listado de resultados se conservan (TASK-026).
+
+Casos probados, correspondencia con criterios de aceptación, resultados y recorrido manual:
+[matriz de trazabilidad TASK-024](../docs/tasks/finished/TASK-024-filtros-materias-anio-carrera.md#trazabilidad-de-casos-probados).

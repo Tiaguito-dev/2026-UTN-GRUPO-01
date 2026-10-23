@@ -20,28 +20,28 @@ import { fixture } from "./academic-fixture.js";
 describe("CrearMateria", () => {
   it("crea la materia y la delega al puerto con el nombre recortado", async () => {
     const { crearMateria, materiaRepository } = fixture();
-    const materia = await crearMateria.execute({ nombre: "  Álgebra  " });
+    const materia = await crearMateria.execute({ nombre: "  Álgebra  ", anioCarrera: "1" });
     expect(materia).toMatchObject({ nombre: "Álgebra", deletedAt: null });
     expect(materia.id).toEqual(expect.any(String));
-    expect(materiaRepository.create).toHaveBeenCalledWith({ nombre: "Álgebra" });
+    expect(materiaRepository.create).toHaveBeenCalledWith({ nombre: "Álgebra", anioCarrera: "1", nivelElectiva: null });
   });
 
   it("nombre duplicado tira MateriaAlreadyExistsError sin volver a crear", async () => {
     const { crearMateria, materiaRepository, addMateria } = fixture();
     addMateria("Álgebra");
-    await expect(crearMateria.execute({ nombre: "Álgebra" })).rejects.toBeInstanceOf(MateriaAlreadyExistsError);
+    await expect(crearMateria.execute({ nombre: "Álgebra", anioCarrera: "1" })).rejects.toBeInstanceOf(MateriaAlreadyExistsError);
     expect(materiaRepository.create).not.toHaveBeenCalled();
   });
 
   it("detecta el duplicado después del trim, no sobre el texto crudo", async () => {
     const { crearMateria, addMateria } = fixture();
     addMateria("Álgebra");
-    await expect(crearMateria.execute({ nombre: "  Álgebra  " })).rejects.toBeInstanceOf(MateriaAlreadyExistsError);
+    await expect(crearMateria.execute({ nombre: "  Álgebra  ", anioCarrera: "1" })).rejects.toBeInstanceOf(MateriaAlreadyExistsError);
   });
 
   it("input inválido no toca el repositorio", async () => {
     const { crearMateria, materiaRepository } = fixture();
-    await expect(crearMateria.execute({ nombre: "   " })).rejects.toBeInstanceOf(InvalidAcademicInputError);
+    await expect(crearMateria.execute({ nombre: "   ", anioCarrera: "1" })).rejects.toBeInstanceOf(InvalidAcademicInputError);
     expect(materiaRepository.findByNombre).not.toHaveBeenCalled();
     expect(materiaRepository.create).not.toHaveBeenCalled();
   });
@@ -52,7 +52,7 @@ describe("CrearProfesor", () => {
     const { crearProfesor, profesorRepository } = fixture();
     const profesor = await crearProfesor.execute({ nombreCompleto: " Ada Lovelace " });
     expect(profesor).toMatchObject({ nombreCompleto: "Ada Lovelace", deletedAt: null });
-    expect(profesorRepository.create).toHaveBeenCalledWith({ nombreCompleto: "Ada Lovelace" });
+    expect(profesorRepository.create).toHaveBeenCalledWith({ nombreCompleto: "Ada Lovelace"  });
   });
 
   // Decisión del modelo de TASK-014/019: Profesor.nombreCompleto NO tiene restricción única.
@@ -199,12 +199,12 @@ describe("ListarProfesores", () => {
 
 describe("validateCrearMateriaInput", () => {
   it("recorta el nombre", () => {
-    expect(validateCrearMateriaInput({ nombre: "  Álgebra  " })).toEqual({ nombre: "Álgebra" });
+    expect(validateCrearMateriaInput({ nombre: "  Álgebra  ", anioCarrera: "1" })).toEqual({ nombre: "Álgebra", anioCarrera: "1", nivelElectiva: null });
   });
 
   it("acepta 150 caracteres, el límite exacto del VarChar", () => {
     const nombre = "a".repeat(150);
-    expect(validateCrearMateriaInput({ nombre })).toEqual({ nombre });
+    expect(validateCrearMateriaInput({ nombre, anioCarrera: "1" })).toEqual({ nombre, anioCarrera: "1", nivelElectiva: null });
   });
 
   it.each([
@@ -217,22 +217,22 @@ describe("validateCrearMateriaInput", () => {
     ["no string", 42],
     ["faltante", undefined],
   ])("rechaza el nombre %s", (_caso, nombre) => {
-    expect(() => validateCrearMateriaInput({ nombre })).toThrow(InvalidAcademicInputError);
+    expect(() => validateCrearMateriaInput({ nombre, anioCarrera: "1" })).toThrow(InvalidAcademicInputError);
   });
 
   it("rechaza un cuerpo con campos de más", () => {
-    expect(() => validateCrearMateriaInput({ nombre: "Álgebra", id: randomUUID() })).toThrow(CAMPOS_NO_PERMITIDOS);
+    expect(() => validateCrearMateriaInput({ nombre: "Álgebra", id: randomUUID(), anioCarrera: "1" })).toThrow(CAMPOS_NO_PERMITIDOS);
   });
 });
 
 describe("validateCrearProfesorInput", () => {
   it("recorta el nombre completo", () => {
-    expect(validateCrearProfesorInput({ nombreCompleto: " Ada Lovelace " })).toEqual({ nombreCompleto: "Ada Lovelace" });
+    expect(validateCrearProfesorInput({ nombreCompleto: " Ada Lovelace " })).toEqual({ nombreCompleto: "Ada Lovelace"  });
   });
 
   it("acepta 150 caracteres, el límite exacto del VarChar", () => {
     const nombreCompleto = "a".repeat(150);
-    expect(validateCrearProfesorInput({ nombreCompleto })).toEqual({ nombreCompleto });
+    expect(validateCrearProfesorInput({ nombreCompleto })).toEqual({ nombreCompleto  });
   });
 
   it.each([
