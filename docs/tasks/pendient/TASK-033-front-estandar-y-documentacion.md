@@ -1,4 +1,4 @@
-# TASK-030: Estándares de frontend, agente de front con el conocimiento del repo y lint como error
+# TASK-033: Estándares de frontend, agente de front con el conocimiento del repo y lint como error
 
 Estado: Pendiente. Decisiones 1 a 4 confirmadas por el desarrollador el 2026-10-21. Depende de
 TASK-023, TASK-024, TASK-025, TASK-026, TASK-027, TASK-028 y TASK-029.
