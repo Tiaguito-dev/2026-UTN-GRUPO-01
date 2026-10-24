@@ -1,7 +1,7 @@
 # TASK-023: Red de seguridad de calidad del frontend (lint, CI y tests de caracterización)
 
-Estado: En curso. Lint, CI, tests de caracterización, línea base visual y documentación
-implementados y verificados en local. Falta ver el workflow en un PR.
+Estado: Finalizada. Lint, CI, tests de caracterización, línea base visual y documentación
+implementados y verificados; mergeada en `desarrollo` con el PR #13.
 Decisiones 1 a 4 confirmadas por el desarrollador el 2026-10-21.
 Fecha: 2026-10-21
 
