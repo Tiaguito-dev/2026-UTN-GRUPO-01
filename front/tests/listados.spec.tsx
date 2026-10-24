@@ -1,18 +1,18 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MateriasList } from "@/components/academic/MateriasList";
 import { UsuariosList } from "@/components/admin/UsuariosList";
 import { listarMaterias } from "@/services/materias";
 import { listarUsuarios } from "@/services/users";
 
-const { router, location } = vi.hoisted(() => ({ router: { replace: vi.fn() }, location: { pathname: "/" } }));
+const { router, location } = vi.hoisted(() => ({ router: { replace: vi.fn() }, location: { pathname: "/", search: "" } }));
 vi.mock("next/link", () => import("./support/next-link"));
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
   usePathname: () => location.pathname,
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(location.search),
 }));
 vi.mock("@/services/academic", () => ({ listarMaterias: vi.fn() }));
 vi.mock("@/services/materias", () => ({ listarMaterias: vi.fn() }));
@@ -31,7 +31,9 @@ describe.each([
 
   function setup() {
     location.pathname = pathname;
+    location.search = "";
     router.replace.mockReset();
+    router.replace.mockImplementation((url: string) => { location.search = new URL(url, "http://local").search; });
     return render(<Component />);
   }
 
@@ -60,16 +62,20 @@ describe.each([
 
   it("Siguiente reemplaza la URL con ?page=2 y pide esa página", async () => {
     fetch.mockResolvedValue(page(["a"], 25));
-    setup();
+    const view = setup();
     await userEvent.click(await screen.findByRole("button", { name: "Página siguiente" }));
     expect(router.replace).toHaveBeenCalledWith(`${pathname}?page=2`, { scroll: false });
-    if (name !== "MateriasList") expect(fetch).toHaveBeenLastCalledWith({ page: 2 });
+    // TASK-027 decision 3: the page is read from the URL, so the new page is requested once the
+    // URL changes (here, on the re-render after `replace`), not from state kept by the list.
+    view.rerender(<Component />);
+    await waitFor(() => expect(fetch).toHaveBeenLastCalledWith(name === "MateriasList" ? { page: 2, anioCarrera: undefined } : { page: 2 }));
   });
 
   it("lleva el foco al h1 al montar", () => {
     fetch.mockReturnValue(new Promise(() => {}));
     setup();
-    if (name === "MateriasList") expect(document.activeElement?.getAttribute("tabindex")).toBe("-1");
+    // MateriasList: the results area (which holds the loading status) takes focus after the h1.
+    if (name === "MateriasList") expect(document.activeElement).toBe(screen.getByRole("status").parentElement);
     else expect(document.activeElement).toBe(screen.getByRole("heading", { level: 1, name: heading }));
   });
 });

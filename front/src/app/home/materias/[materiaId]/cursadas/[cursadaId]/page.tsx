@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { ComisionesList } from "@/components/academic/ComisionesList";
 import { periodoLabel } from "@/lib/format/periodo";
 import type { Cuatrimestre } from "@/services/academic";
@@ -21,11 +22,11 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 export default async function ComisionesPage({ params, searchParams }: { params: Promise<Params>; searchParams: Promise<SearchParams> }) {
   const { materiaId, cursadaId } = await params;
   const { nombre, anio, cuatrimestre } = await searchParams;
-  return <ComisionesList
+  return <Suspense fallback={<p role="status">Cargando comisiones…</p>}><ComisionesList
     materiaId={materiaId}
     cursadaId={cursadaId}
     materiaNombre={nombre}
     anio={anio ? Number(anio) : undefined}
     cuatrimestre={parseCuatrimestre(cuatrimestre)}
-  />;
+  /></Suspense>;
 }

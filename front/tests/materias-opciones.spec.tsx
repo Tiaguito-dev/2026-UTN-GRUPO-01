@@ -24,9 +24,10 @@ beforeEach(() => { requests.length = 0; });
 afterEach(cleanup);
 it("el selector administrativo recupera las 181 materias, incluida la última", async () => {
   const { result } = renderHook(() => useAllPages("materias", page => listarMaterias({ page, pageSize: 100 })));
-  await waitFor(() => expect(result.current.items).not.toBeNull());
-  expect(result.current.items).toHaveLength(181);
-  expect(result.current.items?.at(-1)?.id).toBe("181");
-  expect(result.current.error).toBe("");
+  await waitFor(() => expect(result.current.state.status).toBe("ready"));
+  const { state } = result.current;
+  const items = state.status === "ready" ? state.data : [];
+  expect(items).toHaveLength(181);
+  expect(items.at(-1)?.id).toBe("181");
   expect(requests).toEqual(["/materias?page=1&pageSize=100", "/materias?page=2&pageSize=100"]);
 });

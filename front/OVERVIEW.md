@@ -42,8 +42,56 @@ Los textos visibles siguen en español.
 | `Badge` | Etiqueta corta: `role` (rol de la cuenta) o `upcoming` (Próximamente). |
 | `FormField` | Campo con etiqueta, `input` o `select` (`options`), ayuda y error enlazados con `aria-describedby` y `aria-invalid`. |
 | `Breadcrumb`, `Pagination` | Ubicación actual y paginación de listados. |
+| `PageHeader`, `PaginatedListView` | Encabezado de pantalla y estados de un listado paginado (ver Cómo armar una pantalla). |
 
 Las variantes reproducen los estilos que cada pantalla ya tenía; unificarlos es una tarea aparte.
+
+## Cómo armar una pantalla
+
+Una pantalla nueva combina tres piezas de `components/ui/` y `hooks/`, sin copiar otra pantalla.
+
+**Encabezado.** La pantalla crea el id con `useId` y lo pasa a `<section aria-labelledby>` y a
+`PageHeader`, que dibuja breadcrumb, eyebrow, `h1` y descripción. El `h1` toma el foco al montar
+y cada vez que cambia `focusKey` (por ejemplo, el id del recurso), para anunciar el cambio de
+pantalla. Sin `PageHeader`, `useFocusOnMount(key)` devuelve la ref con el mismo efecto.
+
+```tsx
+const headingId = useId();
+return <section aria-labelledby={headingId}>
+  <PageHeader id={headingId} title="Usuarios registrados" description="…" />
+  …
+</section>;
+```
+
+**Listado paginado.** La página vive solo en la URL: `useUrlPagination` lee `?page` en cada render
+y `setPage` navega con `router.replace` conservando los demás parámetros (`setPage(1)` quita
+`page`). `PaginatedListView` recibe esa página, llama a `usePaginatedFetch` y resuelve carga,
+error con Reintentar (o `notFoundAction` ante un 404), vacío (`empty`) y paginación; `children`
+renderiza los ítems. Ambos hooks de datos devuelven un `AsyncState` discriminado (`loading`,
+`ready` con `data`, `error` con `error` y `notFound`); `useAllPages` usa la misma forma para las
+opciones de los selects. Como `useUrlPagination` usa `useSearchParams`, la página de `app/` envuelve
+el listado en `<Suspense>` con el mismo mensaje de carga (`app/home/admin/usuarios/page.tsx`).
+Ejemplo: `components/academic/ComisionesList.tsx`.
+
+```tsx
+const { page, setPage } = useUrlPagination();
+<PaginatedListView resetKey={cursadaId} page={page} onPageChange={setPage}
+  fetchPage={(next) => listarComisionesPorCursada(cursadaId, { page: next })}
+  loadingMessage="Cargando comisiones…" empty={<EmptyState>…</EmptyState>}>
+  {(result) => <Card variant="panel"><ul>{result.items.map(…)}</ul></Card>}
+</PaginatedListView>
+```
+
+**Formulario.** `useFormSubmission<K>` recibe `fields`, `validate`, `onSubmit` y `fallbackError`.
+Su `handleSubmit` lee `FormData`, valida, enfoca el primer campo inválido, ignora un segundo envío
+en curso y convierte la excepción en `error`, que se muestra con `<Notice focusOnShow>`. Las altas
+usan `AltaForm` (`components/admin/AltaForm.tsx`): cada `AltaField<K>` declara su `name` como
+literal, y `onSubmit` recibe `values` con esas claves tipadas; `values.nombr` no compila.
+
+```tsx
+<AltaForm fields={[{ name: "nombre", label: "Nombre", validate: validateNombre }]}
+  onSubmit={async (values) => { await crear(values.nombre); return "Alta registrada."; }} … />
+```
 
 ## Contratos iniciales
 

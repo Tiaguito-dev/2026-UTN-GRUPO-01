@@ -7,7 +7,7 @@ vi.mock("next/link", () => import("./support/next-link"));
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams("anioCarrera=ELECTIVA&listadoPage=2&q=Plan&nivelElectiva=4") }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ account: { role: state.role } }) }));
 vi.mock("@/hooks/useMateria", () => ({ useMateria: () => ({ materia: { id: "m1", nombre: "Materia", anioCarrera: "ELECTIVA", nivelElectiva: "4", createdAt: "2026-01-01", deletedAt: state.deletedAt }, error: "", retry: vi.fn() }) }));
-vi.mock("@/hooks/usePaginatedFetch", () => ({ usePaginatedFetch: () => ({ status: "ready", result: { items: [], total: 0, page: 1, pageSize: 3 }, page: 1, setPage: vi.fn() }) }));
+vi.mock("@/hooks/usePaginatedFetch", () => ({ usePaginatedFetch: () => ({ state: { status: "ready", data: { items: [], total: 0, page: 1, pageSize: 3 } }, retry: vi.fn() }) }));
 vi.mock("@/components/academic/CursadasList", () => ({ CursadasList: ({ materiasHref }: { materiasHref: string }) => <a href={materiasHref}>Materias de la cursada</a> }));
 afterEach(() => { cleanup(); state.role = "USER"; state.deletedAt = null; });
 describe("Detalle de materia", () => {

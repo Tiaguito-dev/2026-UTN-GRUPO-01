@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useMateria } from "@/hooks/useMateria";
@@ -31,7 +32,7 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
       {materia ? <>
         <Card variant="panel"><h2>Datos de la materia</h2><dl><dt>Nombre</dt><dd>{materia.nombre}</dd><dt>Año de la carrera</dt><dd>{anioCarreraLabel(materia.anioCarrera)}</dd>{materia.anioCarrera === "ELECTIVA" ? <><dt>Nivel de electiva</dt><dd>{nivelElectivaLabel(materia.nivelElectiva)}</dd></> : null}</dl></Card>
         <Card variant="panel"><h2>Auditoría</h2><dl><dt>Fecha de alta</dt><dd>{new Date(materia.createdAt).toLocaleString("es-AR")}</dd><dt>Estado</dt><dd>{materia.deletedAt ? "Inactiva" : "Activa"}</dd></dl></Card>
-        <MateriaHistory materiaId={materiaId} />
+        <MateriaHistory key={materiaId} materiaId={materiaId} />
         {account?.role === "ADMIN" && !materia.deletedAt ? <p><Link href={`/home/admin/materias/${encodeURIComponent(materiaId)}/editar${detailHref.includes("?") ? detailHref.slice(detailHref.indexOf("?")) : ""}`}>Editar</Link></p> : null}
       </> : null}
       <p><Link href={backHref}>Volver</Link></p>
@@ -40,13 +41,15 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
   </>;
 }
 function MateriaHistory({ materiaId }: { materiaId: string }) {
-  const { status, result, error, page, setPage, retry } = usePaginatedFetch(`historial:${materiaId}`, (next) => listarHistorialMateria(materiaId, { page: next }));
+  // Local page, not the URL: on this screen `?page` belongs to the cursadas list. `key={materiaId}` restarts it.
+  const [page, setPage] = useState(1);
+  const { state, retry } = usePaginatedFetch(`historial:${materiaId}`, (next) => listarHistorialMateria(materiaId, { page: next }), page);
   return <Card variant="panel"><h2>Historial de cambios</h2>
-    {status === "loading" ? <p role="status">Cargando historial…</p> : null}
-    {status === "error" ? <p role="alert">Lo sentimos. No pudimos recuperar el historial. {error} <button className="button" type="button" onClick={retry}>Reintentar</button></p> : null}
-    {status === "ready" && result ? <>
-      {result.items.length ? <ul>{result.items.map((entry) => <li key={entry.id}><p>{new Date(entry.createdAt).toLocaleString("es-AR")} — Usuario: {entry.actorId}</p><ul>{entry.cambios.map((change) => <li key={change.campo}>{historyFieldLabel(change.campo)}: {historyValue(change.campo, change.anterior)} → {historyValue(change.campo, change.nuevo)}</li>)}</ul></li>)}</ul> : <p>No hay cambios registrados.</p>}
-      <Pagination page={page} pageSize={result.pageSize} total={result.total} onChange={setPage} />
+    {state.status === "loading" ? <p role="status">Cargando historial…</p> : null}
+    {state.status === "error" ? <p role="alert">Lo sentimos. No pudimos recuperar el historial. {state.error} <button className="button" type="button" onClick={retry}>Reintentar</button></p> : null}
+    {state.status === "ready" ? <>
+      {state.data.items.length ? <ul>{state.data.items.map((entry) => <li key={entry.id}><p>{new Date(entry.createdAt).toLocaleString("es-AR")} — Usuario: {entry.actorId}</p><ul>{entry.cambios.map((change) => <li key={change.campo}>{historyFieldLabel(change.campo)}: {historyValue(change.campo, change.anterior)} → {historyValue(change.campo, change.nuevo)}</li>)}</ul></li>)}</ul> : <p>No hay cambios registrados.</p>}
+      <Pagination page={page} pageSize={state.data.pageSize} total={state.data.total} onChange={setPage} />
     </> : null}
   </Card>;
 }

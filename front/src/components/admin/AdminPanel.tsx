@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useId } from "react";
 import { findSection } from "@/components/home/sections";
 import { Card } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 const ACCIONES = [
   { href: "/home/admin/materias/nueva", title: "Nueva materia", detail: "Primer nivel de la jerarquía. El nombre no puede repetirse." },
@@ -14,12 +15,10 @@ const ACCIONES = [
 ];
 
 export function AdminPanel() {
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => { headingRef.current?.focus(); }, []);
+  const headingId = useId();
 
-  return <section aria-labelledby="admin-heading">
-    <h1 ref={headingRef} tabIndex={-1} id="admin-heading">Administración</h1>
-    <p className="system-description">{findSection("admin").description}</p>
+  return <section aria-labelledby={headingId}>
+    <PageHeader id={headingId} title="Administración" description={findSection("admin").description} />
     <Card variant="panel">
       <ul className="academic-list">
         {ACCIONES.map((accion) => <li key={accion.href}>
