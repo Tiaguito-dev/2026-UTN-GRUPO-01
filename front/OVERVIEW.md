@@ -17,12 +17,33 @@ defecto y el runtime de Node.js.
 ## Estructura
 
 - `src/app/`: rutas, layouts y estados del App Router.
-- `src/components/`: componentes reutilizables cuando sean necesarios.
+- `src/components/`: componentes por módulo (`home/`, `academic/`, `admin/`, `auth/`).
+- `src/components/ui/`: primitivas de UI genéricas, sin lógica de dominio (tabla abajo).
+- `src/lib/`: utilidades sin estado. `lib/format/` formatea valores para mostrar (`periodo.ts`,
+  `role.ts` con `ROLE_LABEL`) y `lib/messages.ts` reúne los textos que se repiten en dos o más
+  archivos; un mensaje que aparece una sola vez se queda en su componente.
 - `src/services/`: clientes HTTP dedicados por módulo.
 - `src/hooks/`: hooks reutilizables por módulo.
 - `src/types/`: contratos TypeScript del frontend.
 - `src/validations/`: validaciones de formularios.
 - `tests/`: pruebas de integración y end-to-end de los flujos funcionales.
+
+Idioma de los nombres: el dominio va en español (`AltaForm`, `listarMaterias`) y la
+infraestructura genérica en inglés (`usePaginatedFetch`, `SidebarNav`, las primitivas de `ui/`).
+Los textos visibles siguen en español.
+
+### Primitivas de `components/ui/`
+
+| Primitiva | Cuándo usarla |
+|---|---|
+| `Card` | Superficie con borde. `variant`: `panel` (contenido de una sección o formulario), `empty` (bloque de estado vacío), `profile` (perfil) o `auth` (formularios públicos de cuenta). `as` cambia el elemento. |
+| `Notice` | Aviso de error (`alert`), éxito o advertencia (`status`). `focusOnShow` mueve el foco al aviso al aparecer; se usa en errores de envío de formularios. |
+| `EmptyState` | Lista sin resultados (mensaje con acción en línea, dentro de un panel) o, con `symbol`/`title`, el bloque de Inicio y Próximamente. |
+| `Badge` | Etiqueta corta: `role` (rol de la cuenta) o `upcoming` (Próximamente). |
+| `FormField` | Campo con etiqueta, `input` o `select` (`options`), ayuda y error enlazados con `aria-describedby` y `aria-invalid`. |
+| `Breadcrumb`, `Pagination` | Ubicación actual y paginación de listados. |
+
+Las variantes reproducen los estilos que cada pantalla ya tenía; unificarlos es una tarea aparte.
 
 ## Contratos iniciales
 
@@ -64,7 +85,7 @@ Estilos: `app/globals.css` solo declara el orden de capas
 `src/styles/`: `reset.css`, `tokens.css` (colores, espaciado, radios, texto, sombras),
 `base.css` (elementos), `layout.css` (header, sidebar, contenido, `.page`) y
 `components/` con un archivo por área (`button`, `notice`, `form`, `breadcrumb`,
-`pagination`, `card`, `account-menu`, `landing`, `academic`). El orden de la cascada lo fijan
+`pagination`, `card`, `badge`, `account-menu`, `landing`, `academic`). El orden de la cascada lo fijan
 las capas, no la especificidad, y ninguna regla queda fuera de una capa. Los selectores de
 elemento solo llevan tipografía y reset; el aspecto de componente va en una clase (un
 `<button>` sin clase no se ve como botón primario: usa `.button`). Los CSS Modules no llevan
