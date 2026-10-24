@@ -9,7 +9,7 @@ import { periodoLabel } from "@/lib/format/periodo";
 import { validateNombre, validateSeleccion } from "@/validations/academic";
 import { FormField } from "@/components/ui/FormField";
 import { AltaForm } from "./AltaForm";
-import { bloqueoDeOpciones } from "./opciones";
+import { bloqueoDeOpciones, opcionesListas } from "./opciones";
 
 export function AltaComision() {
   // La materia no es parte del alta: solo acota qué cursadas se pueden elegir, porque el backend
@@ -22,7 +22,7 @@ export function AltaComision() {
     name="materia-filtro"
     label="Materia"
     hint="Primero elegí la materia para ver sus cursadas."
-    options={(materias.items ?? []).map((materia) => ({ value: materia.id, label: materia.nombre }))}
+    options={opcionesListas(materias.state).map((materia) => ({ value: materia.id, label: materia.nombre }))}
     value={materiaId}
     onChange={setMateriaId}
     required={false}
@@ -49,10 +49,10 @@ export function AltaComision() {
       {
         name: "cursadaId",
         label: "Cursada",
-        options: (cursadas.items ?? []).map((cursada) => ({ value: cursada.id, label: `${periodoLabel(cursada.anio, cursada.cuatrimestre)} — ${cursada.profesor}` })),
+        options: opcionesListas(cursadas.state).map((cursada) => ({ value: cursada.id, label: `${periodoLabel(cursada.anio, cursada.cuatrimestre)} — ${cursada.profesor}` })),
         // La lista de cursadas cambia al cambiar de materia: no alcanza con que haya algo elegido,
         // tiene que seguir perteneciendo a la materia visible.
-        validate: (value) => validateSeleccion(value) ?? (cursadas.items?.some((cursada) => cursada.id === value) ? undefined : "Elegí una cursada de la materia seleccionada."),
+        validate: (value) => validateSeleccion(value) ?? (opcionesListas(cursadas.state).some((cursada) => cursada.id === value) ? undefined : "Elegí una cursada de la materia seleccionada."),
       },
       { name: "nombre", label: "Nombre de la comisión", hint: "Hasta 100 caracteres.", validate: (value) => validateNombre(value, 100) },
     ]}

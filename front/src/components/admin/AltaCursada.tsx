@@ -7,7 +7,9 @@ import { useAllPages } from "@/hooks/useAllPages";
 import { CUATRIMESTRE_LABEL, periodoLabel } from "@/lib/format/periodo";
 import { ANIO_MINIMO, anioMaximo, validateAnio, validateSeleccion } from "@/validations/academic";
 import { AltaForm } from "./AltaForm";
-import { bloqueoDeOpciones } from "./opciones";
+import { bloqueoDeOpciones, opcionesListas } from "./opciones";
+
+const isCuatrimestre = (value: string): value is Cuatrimestre => value === "PRIMERO" || value === "SEGUNDO";
 
 export function AltaCursada() {
   const materias = useAllPages("materias", (page) => listarMaterias({ page, pageSize: MAX_PAGE_SIZE }));
@@ -24,19 +26,22 @@ export function AltaCursada() {
       { ...profesores, nombre: "profesores", vacio: <>Todavía no hay profesores cargados. <Link href="/home/admin/profesores/nuevo">Crear un profesor</Link> antes de dar de alta una cursada.</> },
     ])}
     fields={[
-      { name: "materiaId", label: "Materia", options: (materias.items ?? []).map((materia) => ({ value: materia.id, label: materia.nombre })), validate: validateSeleccion },
-      { name: "profesorId", label: "Profesor", options: (profesores.items ?? []).map((profesor) => ({ value: profesor.id, label: profesor.nombreCompleto })), validate: validateSeleccion },
+      { name: "materiaId", label: "Materia", options: opcionesListas(materias.state).map((materia) => ({ value: materia.id, label: materia.nombre })), validate: validateSeleccion },
+      { name: "profesorId", label: "Profesor", options: opcionesListas(profesores.state).map((profesor) => ({ value: profesor.id, label: profesor.nombreCompleto })), validate: validateSeleccion },
       { name: "anio", label: "Año", hint: `Un año entre ${ANIO_MINIMO} y ${maximo}.`, numeric: { min: ANIO_MINIMO, max: maximo }, validate: validateAnio },
       { name: "cuatrimestre", label: "Cuatrimestre", options: [{ value: "PRIMERO", label: CUATRIMESTRE_LABEL.PRIMERO }, { value: "SEGUNDO", label: CUATRIMESTRE_LABEL.SEGUNDO }], validate: validateSeleccion },
     ]}
     onSubmit={async (values) => {
+      const { cuatrimestre } = values;
+      // El select solo ofrece PRIMERO y SEGUNDO; el guard estrecha el tipo sin castear.
+      if (!isCuatrimestre(cuatrimestre)) throw new Error("Elegí un cuatrimestre de la lista.");
       const cursada = await crearCursada({
         materiaId: values.materiaId,
         profesorId: values.profesorId,
         anio: Number(values.anio.trim()),
-        cuatrimestre: values.cuatrimestre as Cuatrimestre,
+        cuatrimestre,
       });
-      const materia = materias.items?.find((item) => item.id === cursada.materiaId)?.nombre ?? "la materia elegida";
+      const materia = opcionesListas(materias.state).find((item) => item.id === cursada.materiaId)?.nombre ?? "la materia elegida";
       return `Cursada creada: ${materia}, ${periodoLabel(cursada.anio, cursada.cuatrimestre)}.`;
     }}
   />;

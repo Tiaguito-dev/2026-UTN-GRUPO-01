@@ -9,11 +9,13 @@ import { ComisionesList } from "../src/components/academic/ComisionesList";
 
 const { state } = vi.hoisted(() => ({ state: { value: {} as Record<string, unknown> } }));
 vi.mock("@/hooks/usePaginatedFetch", () => ({ usePaginatedFetch: () => state.value }));
-vi.mock("@/hooks/useUrlPageParam", () => ({ useUrlPageParam: () => [1, vi.fn()] }));
+vi.mock("@/hooks/useUrlPagination", () => ({ useUrlPagination: () => ({ page: 1, setPage: vi.fn() }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
 
-function setFetchState(overrides: Partial<{ status: string; result: unknown; error: string; notFound: boolean; page: number; setPage: (page: number) => void; retry: () => void }>) {
-  state.value = { status: "loading", result: null, error: "", notFound: false, page: 1, setPage: vi.fn(), retry: vi.fn(), ...overrides };
+// The hook returns `{ state, retry }` with a discriminated `AsyncState` (TASK-027 decision 4); the
+// tests keep describing the state with the old flat fields and map `result` to `data`.
+function setFetchState({ status = "loading", result, error = "", notFound = false }: Partial<{ status: string; result: unknown; error: string; notFound: boolean }>) {
+  state.value = { state: { status, data: result, error, notFound }, retry: vi.fn() };
 }
 
 describe("Breadcrumb", () => {
@@ -72,7 +74,6 @@ describe("MateriasList", () => {
   it("muestra el listado y la paginación cuando hay más de una página", () => {
     setFetchState({
       status: "ready",
-      page: 1,
       result: { items: [{ id: "m1", nombre: "Álgebra", createdAt: "", deletedAt: null }], total: 25, page: 1, pageSize: 10 },
     });
     const html = renderToStaticMarkup(createElement(MateriasList));
@@ -103,7 +104,6 @@ describe("CursadasList", () => {
   it("muestra el listado y la paginación con el nombre de materia recibido", () => {
     setFetchState({
       status: "ready",
-      page: 1,
       result: { items: [{ id: "c1", anio: 2026, cuatrimestre: "PRIMERO", profesor: "Prof. Rossi" }], total: 15, page: 1, pageSize: 10 },
     });
     const html = renderToStaticMarkup(createElement(CursadasList, { materiaId: "m1", materiaNombre: "Álgebra" }));
@@ -143,7 +143,6 @@ describe("ComisionesList", () => {
   it("muestra el listado y la paginación, con el breadcrumb completo de 3 niveles", () => {
     setFetchState({
       status: "ready",
-      page: 1,
       result: { items: [{ id: "co1", cursadaId: "c1", nombre: "Comisión A", activa: true, createdAt: "", deletedAt: null }], total: 12, page: 1, pageSize: 10 },
     });
     const html = renderToStaticMarkup(createElement(ComisionesList, baseProps));

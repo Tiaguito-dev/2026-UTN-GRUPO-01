@@ -1,13 +1,13 @@
 "use client";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { listarMaterias } from "@/services/materias";
 import type { AnioCarrera } from "@/types/materias";
-import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
+import { useFocusOnMount } from "@/hooks/useFocusOnMount";
 import { ANIOS_CARRERA, anioCarreraLabel, isAnioCarrera, materiaListHref, materiaDetailHref, parseMateriaPage, parseMateriaContext, validateMateriaSearch, NIVELES_ELECTIVA, nivelElectivaLabel, type MateriaContext } from "@/validations/materias";
-import { Breadcrumb } from "@/components/ui/Breadcrumb";
-import { Pagination } from "@/components/ui/Pagination";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { PaginatedListView } from "@/components/ui/PaginatedListView";
 import { Card } from "@/components/ui/Card";
 import { Notice } from "@/components/ui/Notice";
 import styles from "./MateriasList.module.css";
@@ -19,9 +19,9 @@ export function MateriasList() {
   const anio = isAnioCarrera(rawAnio) ? rawAnio : undefined;
   const page = parseMateriaPage(params.get("page"));
   const context = parseMateriaContext(params);
-  return <section aria-labelledby="materias-heading">
-    <Breadcrumb items={[{ label: "Materias" }]} />
-    <h1 id="materias-heading">Materias</h1>
+  const headingId = useId();
+  return <section aria-labelledby={headingId}>
+    <PageHeader id={headingId} title="Materias" breadcrumb={[{ label: "Materias" }]} />
     {params.get("successMessage") ? <Notice tone="success">{params.get("successMessage")}</Notice> : null}
     <div className={styles.filters}>
       <div className={styles.heading}>
@@ -44,26 +44,22 @@ export function MateriasList() {
         </div>
       </div> : null}
     </div>
-    <MateriasResults key={`${anio ?? "todos"}:${page}:${context.q ?? ""}:${context.nivelElectiva ?? ""}`} anio={anio} initialPage={page} context={context} />
+    <MateriasResults key={`${anio ?? "todos"}:${page}:${context.q ?? ""}:${context.nivelElectiva ?? ""}`} anio={anio} page={page} context={context} />
   </section>;
 }
-function MateriasResults({ anio, initialPage, context }: { anio: AnioCarrera | undefined; initialPage: number; context: MateriaContext }) {
+function MateriasResults({ anio, page, context }: { anio: AnioCarrera | undefined; page: number; context: MateriaContext }) {
   const router = useRouter();
-  const listRef = useRef<HTMLDivElement>(null);
-  const { status, result, error, page, retry } = usePaginatedFetch(`materias:${anio ?? "todos"}`, (next) => listarMaterias({ page: next, anioCarrera: anio, ...context }), initialPage);
-  useEffect(() => { listRef.current?.focus(); }, []);
-  return <div ref={listRef} tabIndex={-1}>
-    {status === "loading" ? <p role="status">Cargando materias…</p> : null}
-    {status === "error" ? <Notice tone="error">Lo sentimos. No pudimos recuperar las materias. Intentá nuevamente. <span>{error}</span> <button className="button" type="button" onClick={retry}>Reintentar</button></Notice> : null}
-    {status === "ready" && result ? result.items.length === 0 ? <p>No hay materias que coincidan con la búsqueda y los filtros.</p> : <>
-      {[...ANIOS_CARRERA, null].map((group) => {
+  const resultsFocus = useFocusOnMount<HTMLDivElement>();
+  return <div ref={resultsFocus} tabIndex={-1}>
+    <PaginatedListView resetKey="materias" page={page} onPageChange={(next) => router.replace(materiaListHref(anio, next, context), { scroll: false })} fetchPage={(next) => listarMaterias({ page: next, anioCarrera: anio, ...context })}
+      loadingMessage="Cargando materias…" errorMessage="Lo sentimos. No pudimos recuperar las materias. Intentá nuevamente." empty={<p>No hay materias que coincidan con la búsqueda y los filtros.</p>}>
+      {(result) => [...ANIOS_CARRERA, null].map((group) => {
         const items = result.items.filter((materia) => (materia.anioCarrera ?? null) === group);
         return items.length ? <Card variant="panel" key={group ?? "sin-anio"}><h2>{anioCarreraLabel(group)}</h2><ul className="academic-list">
           {items.map((materia) => <li key={materia.id}><Link href={materiaDetailHref(materia.id, anio, page, context)}>{materia.nombre}</Link>{materia.anioCarrera === "ELECTIVA" ? <span className="academic-list-detail"> — {nivelElectivaLabel(materia.nivelElectiva ?? null)}</span> : null}</li>)}
         </ul></Card> : null;
       })}
-      <Pagination page={page} pageSize={result.pageSize} total={result.total} onChange={(next) => router.replace(materiaListHref(anio, next, context), { scroll: false })} />
-    </> : null}
+    </PaginatedListView>
   </div>;
 }
 

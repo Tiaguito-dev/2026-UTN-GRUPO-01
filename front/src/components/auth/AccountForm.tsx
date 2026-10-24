@@ -2,14 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useFormSubmission } from "@/hooks/useFormSubmission";
 import { COORDINATION_NOTICE } from "@/services/session-coordinator";
 import { validateEmail, validateNewPassword, validateDisplayName, validateCurrentPassword, safeReturnPath } from "@/validations/auth";
 import { FormField } from "@/components/ui/FormField";
 import { Notice } from "@/components/ui/Notice";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 type Mode = "login" | "register" | "forgot" | "reset" | "change";
+type Field = "email" | "displayName" | "password" | "currentPassword" | "newPassword" | "confirmPassword";
+const fields: Field[] = ["email", "displayName", "password", "currentPassword", "newPassword", "confirmPassword"];
 const titles: Record<Mode, string> = { login: "Iniciar sesión", register: "Crear cuenta", forgot: "Recuperar contraseña", reset: "Restablecer contraseña", change: "Cambiar contraseña" };
 const actions: Record<Mode, string> = { login: "Iniciar sesión", register: "Crear cuenta", forgot: "Enviar instrucciones", reset: "Restablecer contraseña", change: "Cambiar contraseña" };
 const messages: Record<string, string> = { registered: "Cuenta creada, pendiente de verificación. Enviamos un enlace a tu correo institucional. Revisá tu bandeja de entrada y spam y verificá tu correo antes de iniciar sesión.", reset: "Contraseña restablecida. Iniciá sesión con tu nueva contraseña.", changed: "Contraseña cambiada. Iniciá sesión nuevamente.", logout: "Sesión cerrada correctamente." };
@@ -19,20 +23,66 @@ export function AccountForm({ mode }: { mode: Mode }) {
   const auth = useAuth();
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
-  const headingRef = useRef<HTMLHeadingElement>(null);
+  const headingId = useId();
   const initialized = useRef(false);
-  const submitting = useRef(false);
   const resetToken = useRef<string | null>(null);
   const [tokenReady, setTokenReady] = useState(mode !== "reset");
-  const [busy, setBusy] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const { busy, errors, error, setError, success, setSuccess, handleSubmit } = useFormSubmission({
+    fields,
+    validate: (values) => {
+      const nextErrors: Partial<Record<Field, string>> = {};
+      const check = (key: Field, issue: string | undefined) => { if (issue) nextErrors[key] = issue; };
+      if (["login", "register", "forgot"].includes(mode)) check("email", validateEmail(values.email));
+      if (mode === "register") check("displayName", validateDisplayName(values.displayName));
+      if (mode === "login") check("password", validateCurrentPassword(values.password));
+      if (mode === "register") check("password", validateNewPassword(values.password));
+      if (["reset", "change"].includes(mode)) {
+        check("newPassword", validateNewPassword(values.newPassword));
+        if (values.confirmPassword !== values.newPassword) nextErrors.confirmPassword = "Las contraseñas no coinciden.";
+      }
+      if (mode === "change") {
+        check("currentPassword", validateCurrentPassword(values.currentPassword));
+        if (values.newPassword === values.currentPassword) nextErrors.newPassword = "La nueva contraseña debe ser diferente de la actual.";
+      }
+      return nextErrors;
+    },
+    onSubmit: async (values, form) => {
+      if (mode === "reset" && !resetToken.current) throw new Error("El enlace de recuperación no es válido. Solicitá uno nuevo.");
+      if (mode === "register") {
+        await auth.register({ email: values.email, displayName: values.displayName, password: values.password });
+        form.reset();
+        router.replace("/login?notice=registered");
+      } else if (mode === "login") {
+        const destination = safeReturnPath(new URL(window.location.href).searchParams.get("returnTo"));
+        await auth.login({ email: values.email, password: values.password });
+        form.reset();
+        router.replace(destination);
+      } else if (mode === "forgot") {
+        const message = await auth.forgotPassword({ email: values.email });
+        form.reset();
+        setSuccess(message);
+      } else if (mode === "reset") {
+        try {
+          await auth.resetPassword({ token: resetToken.current!, newPassword: values.newPassword });
+        } catch (failure) {
+          if (typeof failure === "object" && failure !== null && "status" in failure && failure.status === 400) resetToken.current = null;
+          throw failure;
+        }
+        resetToken.current = null;
+        form.reset();
+        router.replace("/login?notice=reset");
+      } else {
+        await auth.changePassword({ currentPassword: values.currentPassword, newPassword: values.newPassword });
+        form.reset();
+        router.replace("/login?notice=changed");
+      }
+    },
+    fallbackError: "No pudimos completar la solicitud. Intentá nuevamente.",
+  });
 
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    headingRef.current?.focus();
     if (mode === "reset") {
       const url = new URL(window.location.href);
       const tokens = url.searchParams.getAll("token");
@@ -46,76 +96,10 @@ export function AccountForm({ mode }: { mode: Mode }) {
       const notice = new URL(window.location.href).searchParams.get("notice");
       setSuccess(notice ? messages[notice] ?? "" : "");
     }
-  }, [mode]);
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (submitting.current) return;
-    const form = event.currentTarget;
-    const data = new FormData(form);
-    const value = (key: string) => String(data.get(key) ?? "");
-    const nextErrors: Record<string, string> = {};
-    const check = (key: string, issue: string | undefined) => { if (issue) nextErrors[key] = issue; };
-    if (["login", "register", "forgot"].includes(mode)) check("email", validateEmail(value("email")));
-    if (mode === "register") check("displayName", validateDisplayName(value("displayName")));
-    if (mode === "login") check("password", validateCurrentPassword(value("password")));
-    if (mode === "register") check("password", validateNewPassword(value("password")));
-    if (["reset", "change"].includes(mode)) {
-      check("newPassword", validateNewPassword(value("newPassword")));
-      if (value("confirmPassword") !== value("newPassword")) nextErrors.confirmPassword = "Las contraseñas no coinciden.";
-    }
-    if (mode === "change") {
-      check("currentPassword", validateCurrentPassword(value("currentPassword")));
-      if (value("newPassword") === value("currentPassword")) nextErrors.newPassword = "La nueva contraseña debe ser diferente de la actual.";
-    }
-    setErrors(nextErrors);
-    setError("");
-    setSuccess("");
-    if (Object.keys(nextErrors).length) {
-      form.querySelector<HTMLInputElement>(`[name="${Object.keys(nextErrors)[0]}"]`)?.focus();
-      return;
-    }
-    if (mode === "reset" && !resetToken.current) {
-      setError("El enlace de recuperación no es válido. Solicitá uno nuevo.");
-      return;
-    }
-    submitting.current = true;
-    setBusy(true);
-    try {
-      if (mode === "register") {
-        await auth.register({ email: value("email"), displayName: value("displayName"), password: value("password") });
-        form.reset();
-        router.replace("/login?notice=registered");
-      } else if (mode === "login") {
-        const destination = safeReturnPath(new URL(window.location.href).searchParams.get("returnTo"));
-        await auth.login({ email: value("email"), password: value("password") });
-        form.reset();
-        router.replace(destination);
-      } else if (mode === "forgot") {
-        const message = await auth.forgotPassword({ email: value("email") });
-        form.reset();
-        setSuccess(message);
-      } else if (mode === "reset") {
-        await auth.resetPassword({ token: resetToken.current!, newPassword: value("newPassword") });
-        resetToken.current = null;
-        form.reset();
-        router.replace("/login?notice=reset");
-      } else {
-        await auth.changePassword({ currentPassword: value("currentPassword"), newPassword: value("newPassword") });
-        form.reset();
-        router.replace("/login?notice=changed");
-      }
-    } catch (failure) {
-      if (mode === "reset" && typeof failure === "object" && failure !== null && "status" in failure && failure.status === 400) resetToken.current = null;
-      setError(failure instanceof Error ? failure.message : "No pudimos completar la solicitud. Intentá nuevamente.");
-    } finally {
-      submitting.current = false;
-      setBusy(false);
-    }
-  }
+  }, [mode, setError, setSuccess]);
 
   const hasEmail = ["register", "login", "forgot"].includes(mode);
-  return <section aria-labelledby={`heading-${mode}`}><h1 ref={headingRef} tabIndex={-1} id={`heading-${mode}`}>{titles[mode]}</h1>
+  return <section aria-labelledby={headingId}><PageHeader id={headingId} title={titles[mode]} />
     {mode === "login" ? <p className="intro">Tu próximo paso empieza acá. Ingresá a tu cuenta.</p> : null}
     {mode === "register" ? <p className="intro">Registrate con tu correo @alu.frlp.utn.edu.ar. Te enviaremos un enlace para verificarlo antes de que puedas iniciar sesión.</p> : null}
     {mode === "forgot" ? <p className="intro">Ingresá tu email y te enviaremos instrucciones para recuperar el acceso.</p> : null}
@@ -124,7 +108,7 @@ export function AccountForm({ mode }: { mode: Mode }) {
     {mode === "login" && !auth.coordinationAvailable ? <Notice tone="warning">{COORDINATION_NOTICE}</Notice> : null}
     {error ? <Notice tone="error" focusOnShow>{error}</Notice> : null}
     {success ? <Notice tone="success">{success}</Notice> : null}
-    <form ref={formRef} onSubmit={submit} noValidate aria-busy={busy}>
+    <form ref={formRef} onSubmit={handleSubmit} noValidate aria-busy={busy}>
       {mode === "register" ? <FormField name="displayName" label="Nombre visible" input={{ autoComplete: "nickname" }} error={errors.displayName} /> : null}
       {hasEmail ? <FormField name="email" label="Email" input={{ type: "email", autoComplete: mode === "login" ? "username" : "email" }} error={errors.email} /> : null}
       {["login", "register"].includes(mode) ? <FormField name="password" label="Contraseña" input={{ type: "password", autoComplete: mode === "login" ? "current-password" : "new-password" }} error={errors.password} hint={mode === "register" ? passwordHint : undefined} /> : null}

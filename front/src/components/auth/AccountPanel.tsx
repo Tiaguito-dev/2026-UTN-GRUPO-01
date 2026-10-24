@@ -1,21 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useId } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { ROLE_LABEL } from "@/lib/format/role";
 import { LogoutButton } from "./LogoutButton";
 
 export function AccountPanel() {
   const { account } = useAuth();
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => { headingRef.current?.focus(); }, []);
+  const headingId = useId();
   if (!account) return null;
   const initials = account.displayName.trim().split(/\s+/u).slice(0, 2).map((part) => Array.from(part)[0]).join("").toLocaleUpperCase("es");
-  return <section aria-labelledby="account-heading">
-    <h1 ref={headingRef} tabIndex={-1} id="account-heading">Mi perfil</h1>
+  return <section aria-labelledby={headingId}>
+    <PageHeader id={headingId} title="Mi perfil" />
     <p className="account-intro">Tu información de cuenta y las opciones para administrar tu acceso.</p>
     <Card variant="profile">
       <div className="profile-identity"><span className="profile-avatar" aria-hidden="true">{initials}</span><div><h2>{account.displayName}</h2><Badge tone="role">{ROLE_LABEL[account.role]}</Badge></div></div>

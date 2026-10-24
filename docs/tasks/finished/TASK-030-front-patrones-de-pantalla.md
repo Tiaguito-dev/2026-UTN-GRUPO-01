@@ -1,4 +1,4 @@
-# TASK-027: Patrones de pantalla en el frontend (encabezado, listados paginados y formularios)
+# TASK-030: Patrones de pantalla en el frontend (encabezado, listados paginados y formularios)
 
 Estado: Pendiente. Decisiones 1 a 4 propuestas, a confirmar por el desarrollador antes de mover
 la tarea a `in-progress/`. Depende de TASK-023 y TASK-026.
