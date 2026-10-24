@@ -20,12 +20,12 @@
   .carousel-stage { position: relative; min-height: 24rem; perspective: 1200px; overflow: hidden; }
   .feature-card { position: absolute; left: calc(50% - 15rem); top: var(--space-4); width: min(30rem, 90%); min-height: 21rem; padding: var(--space-8); border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); box-shadow: var(--shadow-floating); transition: transform .35s ease, opacity .35s ease; }
   .feature-card-active { position: relative; left: auto; top: auto; margin: var(--space-4) auto var(--space-10); transform: translateZ(0); z-index: 3; }
-  .feature-card-next { transform: translateX(20rem) rotateY(-34deg) translateZ(-140px) scale(.88); opacity: .6; z-index: 1; }
-  .feature-card-previous { transform: translateX(-20rem) rotateY(34deg) translateZ(-140px) scale(.88); opacity: .6; z-index: 1; }
+  .feature-card-next { transform: translateX(20rem) rotateY(-34deg) translateZ(-140px) scale(.88); opacity: .9; z-index: 1; }
+  .feature-card-previous { transform: translateX(-20rem) rotateY(34deg) translateZ(-140px) scale(.88); opacity: .9; z-index: 1; }
   .feature-card-hidden { transform: translateZ(-400px) scale(.7); opacity: 0; visibility: hidden; }
   .feature-topline { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); margin-bottom: var(--space-8); }
   .feature-symbol { display: grid; place-items: center; width: 3rem; height: 3rem; font-size: var(--text-md); font-weight: var(--weight-bold); border-radius: var(--radius-lg); color: var(--primary); background: var(--soft-blue); }
-  .feature-category { text-transform: uppercase; font-size: .68rem; letter-spacing: .1em; font-weight: var(--weight-bold); color: var(--primary); margin: 0 0 .55rem; }
+  .feature-category { text-transform: uppercase; font-size: var(--text-xs); letter-spacing: .1em; font-weight: var(--weight-bold); color: var(--primary); margin: 0 0 .55rem; }
   .feature-card h3 { font-size: 1.8rem; margin: 0 0 var(--space-4); }
   .feature-description { color: var(--muted); line-height: 1.7; font-size: .95rem; margin: 0 0 var(--space-6); }
   .feature-footer { display: block; border-top: 1px solid var(--border); padding-top: var(--space-4); font-size: var(--text-xs); font-weight: var(--weight-medium); color: var(--muted); }
