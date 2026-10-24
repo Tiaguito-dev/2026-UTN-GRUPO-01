@@ -151,6 +151,14 @@ Pendiente de ejecución.
 
 ### Excepciones en `base.css` (completar al implementar)
 
+- `input, select` (y sus estados `:hover` y `[aria-invalid="true"]`): ancho, padding, borde y
+  fondo. Son controles de formulario y todos los de la app comparten el mismo aspecto.
+- `label`: `display: block`. Es parte del control de formulario; hay etiquetas fuera de `.field`
+  (por ejemplo, la búsqueda de `MateriasList`), así que no se puede pasar a una clase sin tocar
+  esos componentes.
+- `hr`: `border: 0` y `border-top`. Es el reset del separador; hoy no hay ningún `<hr>` en la
+  app.
+
 ## 7. Riesgos
 
 1. **Propiedades heredadas que nadie declaró.** Al sacar estilos de `nav a` o `button`, un
