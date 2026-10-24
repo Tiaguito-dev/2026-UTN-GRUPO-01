@@ -4,7 +4,7 @@ import Link from "next/link";
 import { crearCursada, listarMaterias, listarProfesores, type Cuatrimestre } from "@/services/academic";
 import { MAX_PAGE_SIZE } from "@/services/pagination";
 import { useAllPages } from "@/hooks/useAllPages";
-import { CUATRIMESTRE_LABEL, periodoLabel } from "@/components/academic/periodo";
+import { CUATRIMESTRE_LABEL, periodoLabel } from "@/lib/format/periodo";
 import { ANIO_MINIMO, anioMaximo, validateAnio, validateSeleccion } from "@/validations/academic";
 import { AltaForm } from "./AltaForm";
 import { bloqueoDeOpciones } from "./opciones";

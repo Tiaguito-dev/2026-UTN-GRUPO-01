@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Breadcrumb, type BreadcrumbItem } from "@/components/academic/Breadcrumb";
+import { Breadcrumb, type BreadcrumbItem } from "@/components/ui/Breadcrumb";
+import { Card } from "@/components/ui/Card";
+import { FormField } from "@/components/ui/FormField";
+import { Notice } from "@/components/ui/Notice";
 
 export interface AltaOption { value: string; label: string }
 
@@ -38,7 +41,6 @@ export function AltaForm({ breadcrumb, heading, description, fields, submitLabel
   onSubmit: (values: Record<string, string>) => Promise<string>;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const errorRef = useRef<HTMLDivElement>(null);
   const submitting = useRef(false);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -46,7 +48,6 @@ export function AltaForm({ breadcrumb, heading, description, fields, submitLabel
   const [success, setSuccess] = useState("");
 
   useEffect(() => { headingRef.current?.focus(); }, []);
-  useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -87,30 +88,16 @@ export function AltaForm({ breadcrumb, heading, description, fields, submitLabel
     <Breadcrumb items={breadcrumb} />
     <h1 ref={headingRef} tabIndex={-1} id="alta-heading">{heading}</h1>
     <p className="system-description">{description}</p>
-    <div className="academic-panel">
+    <Card variant="panel">
       {blocked}
-      {error ? <div ref={errorRef} role="alert" tabIndex={-1} className="notice error">{error}</div> : null}
-      {success ? <div role="status" className="notice success">{success}</div> : null}
+      {error ? <Notice tone="error" focusOnShow>{error}</Notice> : null}
+      {success ? <Notice tone="success">{success}</Notice> : null}
       {filter}
       <form onSubmit={submit} noValidate aria-busy={busy}>
-        {fields.map((field) => {
-          const issue = errors[field.name];
-          const describedBy = [field.hint ? `${field.name}-hint` : "", issue ? `${field.name}-error` : ""].filter(Boolean).join(" ") || undefined;
-          return <div className="field" key={field.name}>
-            <label htmlFor={field.name}>{field.label}</label>
-            {field.options
-              ? <select id={field.name} name={field.name} defaultValue="" required aria-invalid={Boolean(issue)} aria-describedby={describedBy} onChange={(event) => field.onChange?.(event.target.value)}>
-                <option value="">Elegí una opción</option>
-                {field.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-              : <input id={field.name} name={field.name} type={field.numeric ? "number" : "text"} {...(field.numeric ?? {})} step={field.numeric ? 1 : undefined} autoComplete="off" required aria-invalid={Boolean(issue)} aria-describedby={describedBy} />}
-            {field.hint ? <p id={`${field.name}-hint`} className="hint">{field.hint}</p> : null}
-            {issue ? <p id={`${field.name}-error`} className="field-error">Error: {issue}</p> : null}
-          </div>;
-        })}
+        {fields.map((field) => <FormField key={field.name} name={field.name} label={field.label} hint={field.hint} error={errors[field.name]} input={{ autoComplete: "off", numeric: field.numeric }} options={field.options} onChange={field.onChange} />)}
         <button className="button submit" disabled={busy || Boolean(blocked)}>{busy ? "Guardando…" : submitLabel}</button>
       </form>
-    </div>
+    </Card>
     <div className="form-links"><Link href="/home/admin">Volver al panel de administración</Link></div>
   </section>;
 }

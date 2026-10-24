@@ -25,7 +25,6 @@
   .feature-card-hidden { transform: translateZ(-400px) scale(.7); opacity: 0; visibility: hidden; }
   .feature-topline { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); margin-bottom: var(--space-8); }
   .feature-symbol { display: grid; place-items: center; width: 3rem; height: 3rem; font-size: var(--text-md); font-weight: var(--weight-bold); border-radius: var(--radius-lg); color: var(--primary); background: var(--soft-blue); }
-  .upcoming-badge { font-size: var(--text-xs); color: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-pill); padding: var(--space-1) .65rem; }
   .feature-category { text-transform: uppercase; font-size: .68rem; letter-spacing: .1em; font-weight: var(--weight-bold); color: var(--primary); margin: 0 0 .55rem; }
   .feature-card h3 { font-size: 1.8rem; margin: 0 0 var(--space-4); }
   .feature-description { color: var(--muted); line-height: 1.7; font-size: .95rem; margin: 0 0 var(--space-6); }

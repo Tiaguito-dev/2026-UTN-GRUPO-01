@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ComisionesList } from "@/components/academic/ComisionesList";
-import { periodoLabel } from "@/components/academic/periodo";
+import { periodoLabel } from "@/lib/format/periodo";
 import type { Cuatrimestre } from "@/services/academic";
 
 interface Params { materiaId: string; cursadaId: string }

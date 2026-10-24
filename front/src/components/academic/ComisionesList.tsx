@@ -7,9 +7,12 @@ import { useEffect, useRef } from "react";
 import { listarComisionesPorCursada, type Cuatrimestre } from "@/services/academic";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import { useUrlPageParam } from "@/hooks/useUrlPageParam";
-import { Breadcrumb } from "./Breadcrumb";
-import { Pagination } from "./Pagination";
-import { periodoLabel } from "./periodo";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { Pagination } from "@/components/ui/Pagination";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Notice } from "@/components/ui/Notice";
+import { periodoLabel } from "@/lib/format/periodo";
 
 export function ComisionesList({ materiaId, cursadaId, materiaNombre, anio, cuatrimestre }: {
   materiaId: string;
@@ -40,22 +43,22 @@ export function ComisionesList({ materiaId, cursadaId, materiaNombre, anio, cuat
     <h1 ref={headingRef} tabIndex={-1} id="comisiones-heading">{periodoActual}</h1>
     <p className="system-description">Turnos de cursada de este período.</p>
     {status === "loading" ? <p role="status">Cargando comisiones…</p> : null}
-    {status === "error" ? <p role="alert" className="notice error">
+    {status === "error" ? <Notice tone="error">
       {error}{" "}
       {notFound ? <Link href={backHref}>Volver a las cursadas de {materiaLabel}</Link> : <button className="button" type="button" onClick={retry}>Reintentar</button>}
-    </p> : null}
+    </Notice> : null}
     {status === "ready" && result ? (
       result.items.length === 0
-        ? <div className="academic-panel"><p>Esta cursada todavía no tiene comisiones cargadas. <Link href={backHref}>Volver a las cursadas de {materiaLabel}</Link></p></div>
+        ? <EmptyState action={<Link href={backHref}>Volver a las cursadas de {materiaLabel}</Link>}>Esta cursada todavía no tiene comisiones cargadas.</EmptyState>
         : <>
-          <div className="academic-panel">
+          <Card variant="panel">
             <ul className="academic-list">
               {result.items.map((comision) => <li key={comision.id}>
                 {comision.nombre}
                 {!comision.activa ? <span className="academic-list-detail"> — inactiva</span> : null}
               </li>)}
             </ul>
-          </div>
+          </Card>
           <Pagination page={page} pageSize={result.pageSize} total={result.total} onChange={handlePageChange} />
         </>
     ) : null}

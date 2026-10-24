@@ -7,9 +7,12 @@ import { useEffect, useRef } from "react";
 import { listarCursadasPorMateria } from "@/services/academic";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import { useUrlPageParam } from "@/hooks/useUrlPageParam";
-import { Breadcrumb } from "./Breadcrumb";
-import { Pagination } from "./Pagination";
-import { periodoLabel } from "./periodo";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { Pagination } from "@/components/ui/Pagination";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Notice } from "@/components/ui/Notice";
+import { periodoLabel } from "@/lib/format/periodo";
 
 export function CursadasList({ materiaId, materiaNombre, materiasHref = "/home/materias", embedded = false }: { materiaId: string; materiaNombre: string | undefined; materiasHref?: string; embedded?: boolean }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -25,15 +28,15 @@ export function CursadasList({ materiaId, materiaNombre, materiasHref = "/home/m
     {embedded ? <h2 id="cursadas-heading">Cursadas</h2> : <h1 ref={headingRef} tabIndex={-1} id="cursadas-heading">{materiaLabel}</h1>}
     <p className="system-description">Períodos en los que se dictó esta materia, con el profesor a cargo de cada uno.</p>
     {status === "loading" ? <p role="status">Cargando cursadas…</p> : null}
-    {status === "error" ? <p role="alert" className="notice error">
+    {status === "error" ? <Notice tone="error">
       {error}{" "}
       {notFound ? <Link href={materiasHref}>Volver al listado de materias</Link> : <button className="button" type="button" onClick={retry}>Reintentar</button>}
-    </p> : null}
+    </Notice> : null}
     {status === "ready" && result ? (
       result.items.length === 0
-        ? <div className="academic-panel"><p>Esta materia todavía no tiene cursadas cargadas. <Link href={materiasHref}>Volver al listado de materias</Link></p></div>
+        ? <EmptyState action={<Link href={materiasHref}>Volver al listado de materias</Link>}>Esta materia todavía no tiene cursadas cargadas.</EmptyState>
         : <>
-          <div className="academic-panel">
+          <Card variant="panel">
             <ul className="academic-list">
               {result.items.map((cursada) => {
                 const periodo = periodoLabel(cursada.anio, cursada.cuatrimestre);
@@ -51,7 +54,7 @@ export function CursadasList({ materiaId, materiaNombre, materiasHref = "/home/m
                 </li>;
               })}
             </ul>
-          </div>
+          </Card>
           <Pagination page={page} pageSize={result.pageSize} total={result.total} onChange={handlePageChange} />
         </>
     ) : null}

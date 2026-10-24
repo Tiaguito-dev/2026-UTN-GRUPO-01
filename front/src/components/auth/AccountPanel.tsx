@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
+import { ROLE_LABEL } from "@/lib/format/role";
 import { LogoutButton } from "./LogoutButton";
 
 export function AccountPanel() {
@@ -14,10 +17,10 @@ export function AccountPanel() {
   return <section aria-labelledby="account-heading">
     <h1 ref={headingRef} tabIndex={-1} id="account-heading">Mi perfil</h1>
     <p className="account-intro">Tu información de cuenta y las opciones para administrar tu acceso.</p>
-    <div className="profile-card">
-      <div className="profile-identity"><span className="profile-avatar" aria-hidden="true">{initials}</span><div><h2>{account.displayName}</h2><span className="profile-role">{account.role === "ADMIN" ? "Administrador" : "Usuario"}</span></div></div>
-      <dl className="profile-details"><div><dt>Nombre visible</dt><dd>{account.displayName}</dd></div><div><dt>Email</dt><dd>{account.email}</dd></div><div><dt>Tipo de cuenta</dt><dd>{account.role === "ADMIN" ? "Administrador" : "Usuario"}</dd></div></dl>
-    </div>
+    <Card variant="profile">
+      <div className="profile-identity"><span className="profile-avatar" aria-hidden="true">{initials}</span><div><h2>{account.displayName}</h2><Badge tone="role">{ROLE_LABEL[account.role]}</Badge></div></div>
+      <dl className="profile-details"><div><dt>Nombre visible</dt><dd>{account.displayName}</dd></div><div><dt>Email</dt><dd>{account.email}</dd></div><div><dt>Tipo de cuenta</dt><dd>{ROLE_LABEL[account.role]}</dd></div></dl>
+    </Card>
     <section className="profile-options" aria-labelledby="profile-options-heading"><h2 id="profile-options-heading">Opciones de cuenta</h2><p>Actualizá tu contraseña o cerrá la sesión de este navegador.</p><div className="profile-actions"><Link className="button button-secondary" href="/account/change-password">Cambiar contraseña</Link><LogoutButton /></div></section>
   </section>;
 }

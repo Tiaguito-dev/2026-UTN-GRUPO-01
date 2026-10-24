@@ -1,8 +1,8 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { Breadcrumb } from "../src/components/academic/Breadcrumb";
-import { Pagination } from "../src/components/academic/Pagination";
+import { Breadcrumb } from "../src/components/ui/Breadcrumb";
+import { Pagination } from "../src/components/ui/Pagination";
 import { MateriasList } from "../src/components/academic/MateriasList";
 import { CursadasList } from "../src/components/academic/CursadasList";
 import { ComisionesList } from "../src/components/academic/ComisionesList";

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { findSection } from "@/components/home/sections";
+import { Card } from "@/components/ui/Card";
 
 const ACCIONES = [
   { href: "/home/admin/materias/nueva", title: "Nueva materia", detail: "Primer nivel de la jerarquía. El nombre no puede repetirse." },
@@ -19,14 +20,14 @@ export function AdminPanel() {
   return <section aria-labelledby="admin-heading">
     <h1 ref={headingRef} tabIndex={-1} id="admin-heading">Administración</h1>
     <p className="system-description">{findSection("admin").description}</p>
-    <div className="academic-panel">
+    <Card variant="panel">
       <ul className="academic-list">
         {ACCIONES.map((accion) => <li key={accion.href}>
           <Link href={accion.href}>{accion.title}</Link>
           <p className="academic-list-detail">{accion.detail}</p>
         </li>)}
       </ul>
-    </div>
+    </Card>
     <p className="system-footnote">Para cargar la jerarquía completa el orden es materia, profesor, cursada y comisión: cada nivel necesita el anterior. La edición y la baja todavía no están disponibles.</p>
   </section>;
 }

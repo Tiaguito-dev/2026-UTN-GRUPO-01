@@ -1,5 +1,5 @@
 @layer components {
-  .auth-card .intro { text-align: center; }
+  .card-auth .intro { text-align: center; }
   .intro, .hint { color: var(--muted); }
   .field { margin-block: 1.35rem; }
   .hint, .field-error { font-size: .85rem; margin: .45rem 0; line-height: 1.5; }
