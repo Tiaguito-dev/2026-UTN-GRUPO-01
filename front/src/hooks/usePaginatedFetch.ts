@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import type { PaginatedResult } from "@/services/academic";
+import type { PaginatedResult } from "@/services/pagination";
 import { HttpError } from "@/services/http";
 
 export type FetchStatus = "loading" | "ready" | "error";

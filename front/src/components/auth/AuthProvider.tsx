@@ -5,6 +5,7 @@ import type { AuthStatus, ChangePasswordInput, LoginInput, PublicAccount, Regist
 import { getAuthService } from "@/services/auth";
 import { HttpError } from "@/services/http";
 import type { SessionRevision } from "@/services/session-coordinator";
+import { LOGOUT_UNCONFIRMED, SESSION_CHECK_FAILED } from "@/lib/messages";
 
 export interface AuthContextValue {
   status: AuthStatus;
@@ -32,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
   const failure = useCallback((caught: unknown) => {
     if (caught instanceof HttpError && caught.status === 401) { clear(); return; }
-    setError(caught instanceof Error ? caught.message : "No pudimos comprobar tu sesión. Intentá nuevamente.");
+    setError(caught instanceof Error ? caught.message : SESSION_CHECK_FAILED);
     setStatus("temporary-error");
   }, [clear]);
   const checkSession = useCallback(async () => {
@@ -96,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try { await getAuthService().logout(clear); }
     catch (caught) {
       // Keeping the account avoids asserting that a failed request revoked the server session.
-      setError("No pudimos confirmar el cierre de sesión. Intentá nuevamente.");
+      setError(LOGOUT_UNCONFIRMED);
       throw caught;
     }
   };

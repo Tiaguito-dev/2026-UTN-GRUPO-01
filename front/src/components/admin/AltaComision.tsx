@@ -5,8 +5,9 @@ import { useState } from "react";
 import { crearComision, listarCursadasPorMateria, listarMaterias } from "@/services/academic";
 import { MAX_PAGE_SIZE } from "@/services/pagination";
 import { useAllPages } from "@/hooks/useAllPages";
-import { periodoLabel } from "@/components/academic/periodo";
+import { periodoLabel } from "@/lib/format/periodo";
 import { validateNombre, validateSeleccion } from "@/validations/academic";
+import { FormField } from "@/components/ui/FormField";
 import { AltaForm } from "./AltaForm";
 import { bloqueoDeOpciones } from "./opciones";
 
@@ -17,14 +18,15 @@ export function AltaComision() {
   const materias = useAllPages("materias", (page) => listarMaterias({ page, pageSize: MAX_PAGE_SIZE }));
   const cursadas = useAllPages(materiaId, (page) => listarCursadasPorMateria(materiaId, { page, pageSize: MAX_PAGE_SIZE }));
 
-  const filtro = <div className="field">
-    <label htmlFor="materia-filtro">Materia</label>
-    <select id="materia-filtro" value={materiaId} aria-describedby="materia-filtro-hint" onChange={(event) => setMateriaId(event.target.value)}>
-      <option value="">Elegí una opción</option>
-      {(materias.items ?? []).map((materia) => <option key={materia.id} value={materia.id}>{materia.nombre}</option>)}
-    </select>
-    <p id="materia-filtro-hint" className="hint">Primero elegí la materia para ver sus cursadas.</p>
-  </div>;
+  const filtro = <FormField
+    name="materia-filtro"
+    label="Materia"
+    hint="Primero elegí la materia para ver sus cursadas."
+    options={(materias.items ?? []).map((materia) => ({ value: materia.id, label: materia.nombre }))}
+    value={materiaId}
+    onChange={setMateriaId}
+    required={false}
+  />;
 
   return <AltaForm
     breadcrumb={[{ label: "Administración", href: "/home/admin" }, { label: "Nueva comisión" }]}

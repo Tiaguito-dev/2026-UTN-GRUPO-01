@@ -8,8 +8,6 @@ export interface Cursada { id: string; materiaId: string; profesorId: string; an
 export interface CursadaResumen { id: string; anio: number; cuatrimestre: Cuatrimestre; profesor: string }
 export interface Comision { id: string; cursadaId: string; nombre: string; activa: boolean; createdAt: string; deletedAt: string | null }
 
-export type { PaginatedResult, PaginationInput };
-
 export { listarMaterias, crearMateria } from "./materias";
 export function listarProfesores(pagination: PaginationInput = {}): Promise<PaginatedResult<Profesor>> {
   return getAuthService().protectedGet(`/profesores${toQuery(pagination)}`);

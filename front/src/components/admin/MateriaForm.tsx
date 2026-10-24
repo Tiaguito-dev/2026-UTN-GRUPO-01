@@ -6,7 +6,10 @@ import { crearMateria, actualizarMateria } from "@/services/materias";
 import type { Materia, MateriaInput } from "@/types/materias";
 import { validateNombre } from "@/validations/academic";
 import { ANIOS_CARRERA, anioCarreraLabel, isAnioCarrera, NIVELES_ELECTIVA, isNivelElectiva, nivelElectivaLabel, parseMateriaContext, materiaListHref, parseMateriaPage } from "@/validations/materias";
-import { Breadcrumb } from "@/components/academic/Breadcrumb";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { Card } from "@/components/ui/Card";
+import { Notice } from "@/components/ui/Notice";
+import { SELECT_PLACEHOLDER } from "@/lib/messages";
 
 export function MateriaForm({ materia, detailHref }: { materia?: Materia; detailHref?: string }) {
   const router = useRouter();
@@ -54,18 +57,18 @@ export function MateriaForm({ materia, detailHref }: { materia?: Materia; detail
   return <section aria-labelledby="materia-form-heading">
     <Breadcrumb items={[{ label: "Materias", href: backList }, { label: materia ? "Editar materia" : "Nueva materia" }]} />
     <h1 id="materia-form-heading">{materia ? "Editar materia" : "Nueva materia"}</h1>
-    <div className="academic-panel">
-      {error ? <p role="alert" className="notice error">{error}</p> : null}
+    <Card variant="panel">
+      {error ? <Notice tone="error">{error}</Notice> : null}
       {notice ? <p role="status">{notice}</p> : null}
       <form onSubmit={submit} noValidate aria-busy={busy}>
         <div className="field"><label htmlFor="nombre">Nombre de la materia</label><input id="nombre" name="nombre" defaultValue={materia?.nombre ?? ""} maxLength={150} required aria-invalid={Boolean(errors.nombre)} aria-describedby={errors.nombre ? "nombre-error" : undefined} />{errors.nombre ? <p id="nombre-error" className="field-error">{errors.nombre}</p> : null}</div>
         <div className="field"><label htmlFor="anioCarrera">Año de la carrera</label><select id="anioCarrera" name="anioCarrera" value={selectedYear} onChange={(event) => setSelectedYear(event.target.value)} required aria-invalid={Boolean(errors.anioCarrera)} aria-describedby={errors.anioCarrera ? "anioCarrera-error" : undefined}>
-          <option value="">Elegí una opción</option>{ANIOS_CARRERA.map((anio) => <option key={anio} value={anio}>{anioCarreraLabel(anio)}</option>)}
+          <option value="">{SELECT_PLACEHOLDER}</option>{ANIOS_CARRERA.map((anio) => <option key={anio} value={anio}>{anioCarreraLabel(anio)}</option>)}
         </select>{errors.anioCarrera ? <p id="anioCarrera-error" className="field-error">{errors.anioCarrera}</p> : null}</div>
         {selectedYear === "ELECTIVA" ? <div className="field"><label htmlFor="nivelElectiva">Nivel de electiva</label><select id="nivelElectiva" name="nivelElectiva" defaultValue={materia?.nivelElectiva ?? ""} required aria-invalid={Boolean(errors.nivelElectiva)} aria-describedby={errors.nivelElectiva ? "nivelElectiva-error" : undefined}><option value="">Elegí un nivel</option>{NIVELES_ELECTIVA.map((nivel) => <option key={nivel} value={nivel}>{nivelElectivaLabel(nivel)}</option>)}</select>{errors.nivelElectiva ? <p id="nivelElectiva-error" className="field-error">{errors.nivelElectiva}</p> : null}</div> : null}
         <button className="button submit" disabled={busy}>{busy ? "Guardando…" : materia ? "Guardar cambios" : "Crear materia"}</button>
       </form>
-    </div>
+    </Card>
     <div className="form-links"><Link href={detailHref ?? "/home/materias"}>Volver</Link></div>
   </section>;
 }

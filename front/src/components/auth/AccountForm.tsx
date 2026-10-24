@@ -6,6 +6,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { COORDINATION_NOTICE } from "@/services/session-coordinator";
 import { validateEmail, validateNewPassword, validateDisplayName, validateCurrentPassword, safeReturnPath } from "@/validations/auth";
+import { FormField } from "@/components/ui/FormField";
+import { Notice } from "@/components/ui/Notice";
 
 type Mode = "login" | "register" | "forgot" | "reset" | "change";
 const titles: Record<Mode, string> = { login: "Iniciar sesión", register: "Crear cuenta", forgot: "Recuperar contraseña", reset: "Restablecer contraseña", change: "Cambiar contraseña" };
@@ -13,15 +15,10 @@ const actions: Record<Mode, string> = { login: "Iniciar sesión", register: "Cre
 const messages: Record<string, string> = { registered: "Cuenta creada, pendiente de verificación. Enviamos un enlace a tu correo institucional. Revisá tu bandeja de entrada y spam y verificá tu correo antes de iniciar sesión.", reset: "Contraseña restablecida. Iniciá sesión con tu nueva contraseña.", changed: "Contraseña cambiada. Iniciá sesión nuevamente.", logout: "Sesión cerrada correctamente." };
 const passwordHint = "Usá entre 8 y 128 caracteres. Podés incluir espacios y caracteres Unicode. La contraseña no se recorta.";
 
-function Field({ name, label, type = "text", autoComplete, error, hint }: { name: string; label: string; type?: string; autoComplete?: string; error?: string; hint?: string }) {
-  return <div className="field"><label htmlFor={name}>{label}</label><input id={name} name={name} type={type} autoComplete={autoComplete} required aria-invalid={Boolean(error)} aria-describedby={[hint ? `${name}-hint` : "", error ? `${name}-error` : ""].filter(Boolean).join(" ") || undefined} />{hint ? <p id={`${name}-hint`} className="hint">{hint}</p> : null}{error ? <p id={`${name}-error`} className="field-error">Error: {error}</p> : null}</div>;
-}
-
 export function AccountForm({ mode }: { mode: Mode }) {
   const auth = useAuth();
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
-  const errorRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const initialized = useRef(false);
   const submitting = useRef(false);
@@ -50,11 +47,6 @@ export function AccountForm({ mode }: { mode: Mode }) {
       setSuccess(notice ? messages[notice] ?? "" : "");
     }
   }, [mode]);
-
-  useEffect(() => {
-    if (!error) return;
-    errorRef.current?.focus();
-  }, [error]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -129,15 +121,15 @@ export function AccountForm({ mode }: { mode: Mode }) {
     {mode === "forgot" ? <p className="intro">Ingresá tu email y te enviaremos instrucciones para recuperar el acceso.</p> : null}
     {mode === "reset" ? <p className="intro">Al restablecer tu contraseña se cerrarán todas tus sesiones. Si recargás esta página, volvé a abrir el enlace del email.</p> : null}
     {mode === "change" ? <p className="intro">El cambio cerrará todas tus sesiones, incluida esta.</p> : null}
-    {mode === "login" && !auth.coordinationAvailable ? <p role="status" className="notice warning">{COORDINATION_NOTICE}</p> : null}
-    {error ? <div ref={errorRef} role="alert" tabIndex={-1} className="notice error">{error}</div> : null}
-    {success ? <div role="status" className="notice success">{success}</div> : null}
+    {mode === "login" && !auth.coordinationAvailable ? <Notice tone="warning">{COORDINATION_NOTICE}</Notice> : null}
+    {error ? <Notice tone="error" focusOnShow>{error}</Notice> : null}
+    {success ? <Notice tone="success">{success}</Notice> : null}
     <form ref={formRef} onSubmit={submit} noValidate aria-busy={busy}>
-      {mode === "register" ? <Field name="displayName" label="Nombre visible" autoComplete="nickname" error={errors.displayName} /> : null}
-      {hasEmail ? <Field name="email" label="Email" type="email" autoComplete={mode === "login" ? "username" : "email"} error={errors.email} /> : null}
-      {["login", "register"].includes(mode) ? <Field name="password" label="Contraseña" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} error={errors.password} hint={mode === "register" ? passwordHint : undefined} /> : null}
-      {mode === "change" ? <Field name="currentPassword" label="Contraseña actual" type="password" autoComplete="current-password" error={errors.currentPassword} /> : null}
-      {["reset", "change"].includes(mode) ? <><Field name="newPassword" label="Nueva contraseña" type="password" autoComplete="new-password" error={errors.newPassword} hint={passwordHint} /><Field name="confirmPassword" label="Confirmar contraseña" type="password" autoComplete="new-password" error={errors.confirmPassword} /></> : null}
+      {mode === "register" ? <FormField name="displayName" label="Nombre visible" input={{ autoComplete: "nickname" }} error={errors.displayName} /> : null}
+      {hasEmail ? <FormField name="email" label="Email" input={{ type: "email", autoComplete: mode === "login" ? "username" : "email" }} error={errors.email} /> : null}
+      {["login", "register"].includes(mode) ? <FormField name="password" label="Contraseña" input={{ type: "password", autoComplete: mode === "login" ? "current-password" : "new-password" }} error={errors.password} hint={mode === "register" ? passwordHint : undefined} /> : null}
+      {mode === "change" ? <FormField name="currentPassword" label="Contraseña actual" input={{ type: "password", autoComplete: "current-password" }} error={errors.currentPassword} /> : null}
+      {["reset", "change"].includes(mode) ? <><FormField name="newPassword" label="Nueva contraseña" input={{ type: "password", autoComplete: "new-password" }} error={errors.newPassword} hint={passwordHint} /><FormField name="confirmPassword" label="Confirmar contraseña" input={{ type: "password", autoComplete: "new-password" }} error={errors.confirmPassword} /></> : null}
       <button className="button submit" disabled={busy || !tokenReady || (mode === "reset" && !resetToken.current)}>{busy ? "Enviando…" : actions[mode]}</button>
     </form>
     {mode === "change" ? <div className="form-links"><Link href="/account">Volver a mi perfil</Link></div> : null}

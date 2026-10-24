@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type KeyboardEvent } from "react";
+import { Badge } from "@/components/ui/Badge";
 
 const features = [
   { title: "Conocé a tus profesores", category: "Reseñas docentes", description: "Experiencias de otros estudiantes para conocer estilos de enseñanza y llegar con más contexto a tu próxima cursada.", symbol: "01" },
@@ -27,7 +28,7 @@ export function FeatureCarousel() {
         const offset = (index - active + features.length) % features.length;
         const position = offset === 0 ? "active" : offset === 1 ? "next" : offset === features.length - 1 ? "previous" : "hidden";
         return <article key={feature.symbol} className={`feature-card feature-card-${position}`} aria-hidden={index !== active}>
-          <div className="feature-topline"><span className="feature-symbol">{feature.symbol}</span><span className="upcoming-badge">Próximamente</span></div>
+          <div className="feature-topline"><span className="feature-symbol">{feature.symbol}</span><Badge tone="upcoming">Próximamente</Badge></div>
           <p className="feature-category">{feature.category}</p>
           <h3>{feature.title}</h3>
           <p className="feature-description">{feature.description}</p>

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Notice } from "@/components/ui/Notice";
 
 export interface RecursoDeOpciones {
   items: unknown[] | null;
@@ -17,10 +18,10 @@ export interface RecursoDeOpciones {
  */
 export function bloqueoDeOpciones(recursos: RecursoDeOpciones[]): ReactNode {
   const fallido = recursos.find((recurso) => recurso.error);
-  if (fallido) return <div role="alert" className="notice error">{fallido.error} <button className="button" type="button" onClick={fallido.retry}>Reintentar</button></div>;
+  if (fallido) return <Notice tone="error">{fallido.error} <button className="button" type="button" onClick={fallido.retry}>Reintentar</button></Notice>;
   const cargando = recursos.find((recurso) => recurso.items === null);
-  if (cargando) return <div role="status" className="notice warning">Cargando {cargando.nombre}…</div>;
+  if (cargando) return <Notice tone="warning">Cargando {cargando.nombre}…</Notice>;
   const vacio = recursos.find((recurso) => recurso.items?.length === 0);
-  if (vacio) return <div role="status" className="notice warning">{vacio.vacio}</div>;
+  if (vacio) return <Notice tone="warning">{vacio.vacio}</Notice>;
   return null;
 }

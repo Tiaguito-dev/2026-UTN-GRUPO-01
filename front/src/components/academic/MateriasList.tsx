@@ -6,8 +6,10 @@ import { listarMaterias } from "@/services/materias";
 import type { AnioCarrera } from "@/types/materias";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import { ANIOS_CARRERA, anioCarreraLabel, isAnioCarrera, materiaListHref, materiaDetailHref, parseMateriaPage, parseMateriaContext, validateMateriaSearch, NIVELES_ELECTIVA, nivelElectivaLabel, type MateriaContext } from "@/validations/materias";
-import { Breadcrumb } from "./Breadcrumb";
-import { Pagination } from "./Pagination";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { Pagination } from "@/components/ui/Pagination";
+import { Card } from "@/components/ui/Card";
+import { Notice } from "@/components/ui/Notice";
 import styles from "./MateriasList.module.css";
 
 export function MateriasList() {
@@ -20,7 +22,7 @@ export function MateriasList() {
   return <section aria-labelledby="materias-heading">
     <Breadcrumb items={[{ label: "Materias" }]} />
     <h1 id="materias-heading">Materias</h1>
-    {params.get("successMessage") ? <p role="status" className="notice success">{params.get("successMessage")}</p> : null}
+    {params.get("successMessage") ? <Notice tone="success">{params.get("successMessage")}</Notice> : null}
     <div className={styles.filters}>
       <div className={styles.heading}>
         <p className={styles.title}>Filtros</p>
@@ -52,13 +54,13 @@ function MateriasResults({ anio, initialPage, context }: { anio: AnioCarrera | u
   useEffect(() => { listRef.current?.focus(); }, []);
   return <div ref={listRef} tabIndex={-1}>
     {status === "loading" ? <p role="status">Cargando materias…</p> : null}
-    {status === "error" ? <p role="alert" className="notice error">Lo sentimos. No pudimos recuperar las materias. Intentá nuevamente. <span>{error}</span> <button className="button" type="button" onClick={retry}>Reintentar</button></p> : null}
+    {status === "error" ? <Notice tone="error">Lo sentimos. No pudimos recuperar las materias. Intentá nuevamente. <span>{error}</span> <button className="button" type="button" onClick={retry}>Reintentar</button></Notice> : null}
     {status === "ready" && result ? result.items.length === 0 ? <p>No hay materias que coincidan con la búsqueda y los filtros.</p> : <>
       {[...ANIOS_CARRERA, null].map((group) => {
         const items = result.items.filter((materia) => (materia.anioCarrera ?? null) === group);
-        return items.length ? <div className="academic-panel" key={group ?? "sin-anio"}><h2>{anioCarreraLabel(group)}</h2><ul className="academic-list">
+        return items.length ? <Card variant="panel" key={group ?? "sin-anio"}><h2>{anioCarreraLabel(group)}</h2><ul className="academic-list">
           {items.map((materia) => <li key={materia.id}><Link href={materiaDetailHref(materia.id, anio, page, context)}>{materia.nombre}</Link>{materia.anioCarrera === "ELECTIVA" ? <span className="academic-list-detail"> — {nivelElectivaLabel(materia.nivelElectiva ?? null)}</span> : null}</li>)}
-        </ul></div> : null;
+        </ul></Card> : null;
       })}
       <Pagination page={page} pageSize={result.pageSize} total={result.total} onChange={(next) => router.replace(materiaListHref(anio, next, context), { scroll: false })} />
     </> : null}

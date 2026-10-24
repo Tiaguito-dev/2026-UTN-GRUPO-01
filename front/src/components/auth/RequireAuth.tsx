@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { safeReturnPath } from "@/validations/auth";
 import { COORDINATION_NOTICE } from "@/services/session-coordinator";
 import type { Role } from "@/types/auth";
+import { SESSION_CHECK_FAILED } from "@/lib/messages";
 
 export function RequireAuth({ children, roles }: { children: ReactNode; roles?: Role[] }) {
   const { status, account, error, checkSession, coordinationAvailable } = useAuth();
@@ -17,7 +18,7 @@ export function RequireAuth({ children, roles }: { children: ReactNode; roles?: 
   if (status === "checking") return <p role="status">Comprobando sesión…</p>;
   if (status === "anonymous") return <p role="status">Necesitás <Link href="/login">iniciar sesión</Link> para continuar.</p>;
   if (status === "temporary-error") return <section aria-label="Problema temporal de sesión">
-    <p role="alert">{error ?? "No pudimos comprobar tu sesión. Intentá nuevamente."}</p>
+    <p role="alert">{error ?? SESSION_CHECK_FAILED}</p>
     {!coordinationAvailable && <p>{COORDINATION_NOTICE}</p>}
     <button className="button" type="button" onClick={() => { void checkSession(); }}>Reintentar comprobación</button>
     <p><Link href="/login">Volver a iniciar sesión</Link></p>

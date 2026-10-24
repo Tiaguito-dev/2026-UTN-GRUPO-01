@@ -60,7 +60,7 @@ async function check(page, name, path, width) {
   await expect(page).toHaveScreenshot(`${name}-${width}.png`, {
     fullPage: true,
     // Data that changes between runs: the catalog in the test database and the random email.
-    mask: [page.locator(".academic-panel ul, .academic-panel .pagination"), page.getByText(/@alu\.frlp\.utn\.edu\.ar/)],
+    mask: [page.locator(".card-panel ul, .card-panel .pagination"), page.getByText(/@alu\.frlp\.utn\.edu\.ar/)],
   });
   const { violations } = await new AxeBuilder({ page }).analyze();
   const blocking = violations
