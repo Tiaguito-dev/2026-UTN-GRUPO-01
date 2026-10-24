@@ -176,3 +176,10 @@ Pendiente de ejecución.
 - En Nueva comisión, el filtro de materia sigue cambiando las cursadas disponibles.
 
 ### Avisos que siguen con `className="notice"` (completar al implementar)
+
+- `VerifyEmail.tsx:38`: no coincide con la búsqueda (`className={`notice ...`}`), pero sigue
+  armando la clase a mano. Tiene un estado `pending` sin tono (`notice` solo, sin color) que
+  `Notice` no contempla, y mueve el foco cuando el estado deja de ser `pending` con el aviso ya
+  montado, no al aparecer. Migrarlo pide un tono neutro o cambiar cuándo recibe el foco.
+- Guards de la sección 3: `RequireAuth` y el error temporal de `RequireGuest` no usan `.notice`
+  (son `<p role="alert">`), así que no figuran en la búsqueda y siguen igual.
