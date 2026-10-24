@@ -63,7 +63,7 @@ export function MateriaForm({ materia, detailHref }: { materia?: Materia; detail
           <option value="">Elegí una opción</option>{ANIOS_CARRERA.map((anio) => <option key={anio} value={anio}>{anioCarreraLabel(anio)}</option>)}
         </select>{errors.anioCarrera ? <p id="anioCarrera-error" className="field-error">{errors.anioCarrera}</p> : null}</div>
         {selectedYear === "ELECTIVA" ? <div className="field"><label htmlFor="nivelElectiva">Nivel de electiva</label><select id="nivelElectiva" name="nivelElectiva" defaultValue={materia?.nivelElectiva ?? ""} required aria-invalid={Boolean(errors.nivelElectiva)} aria-describedby={errors.nivelElectiva ? "nivelElectiva-error" : undefined}><option value="">Elegí un nivel</option>{NIVELES_ELECTIVA.map((nivel) => <option key={nivel} value={nivel}>{nivelElectivaLabel(nivel)}</option>)}</select>{errors.nivelElectiva ? <p id="nivelElectiva-error" className="field-error">{errors.nivelElectiva}</p> : null}</div> : null}
-        <button className="submit" disabled={busy}>{busy ? "Guardando…" : materia ? "Guardar cambios" : "Crear materia"}</button>
+        <button className="button submit" disabled={busy}>{busy ? "Guardando…" : materia ? "Guardar cambios" : "Crear materia"}</button>
       </form>
     </div>
     <div className="form-links"><Link href={detailHref ?? "/home/materias"}>Volver</Link></div>

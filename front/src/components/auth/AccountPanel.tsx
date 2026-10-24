@@ -11,7 +11,7 @@ export function AccountPanel() {
   useEffect(() => { headingRef.current?.focus(); }, []);
   if (!account) return null;
   const initials = account.displayName.trim().split(/\s+/u).slice(0, 2).map((part) => Array.from(part)[0]).join("").toLocaleUpperCase("es");
-  return <section className="account-profile" aria-labelledby="account-heading">
+  return <section aria-labelledby="account-heading">
     <h1 ref={headingRef} tabIndex={-1} id="account-heading">Mi perfil</h1>
     <p className="account-intro">Tu información de cuenta y las opciones para administrar tu acceso.</p>
     <div className="profile-card">

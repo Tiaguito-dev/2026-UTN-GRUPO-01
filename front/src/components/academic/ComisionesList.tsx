@@ -42,7 +42,7 @@ export function ComisionesList({ materiaId, cursadaId, materiaNombre, anio, cuat
     {status === "loading" ? <p role="status">Cargando comisiones…</p> : null}
     {status === "error" ? <p role="alert" className="notice error">
       {error}{" "}
-      {notFound ? <Link href={backHref}>Volver a las cursadas de {materiaLabel}</Link> : <button type="button" onClick={retry}>Reintentar</button>}
+      {notFound ? <Link href={backHref}>Volver a las cursadas de {materiaLabel}</Link> : <button className="button" type="button" onClick={retry}>Reintentar</button>}
     </p> : null}
     {status === "ready" && result ? (
       result.items.length === 0

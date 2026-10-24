@@ -25,7 +25,7 @@ export function UsuariosList() {
     <h1 ref={headingRef} tabIndex={-1} id="usuarios-heading">Usuarios registrados</h1>
     <p className="system-description">Cuentas que ya se registraron en la aplicación. Este listado es de consulta: desde acá no se modifican cuentas ni roles.</p>
     {status === "loading" ? <p role="status">Cargando usuarios…</p> : null}
-    {status === "error" ? <p role="alert" className="notice error">{error} <button type="button" onClick={retry}>Reintentar</button></p> : null}
+    {status === "error" ? <p role="alert" className="notice error">{error} <button className="button" type="button" onClick={retry}>Reintentar</button></p> : null}
     {status === "ready" && result ? (
       result.items.length === 0
         ? <div className="academic-panel"><p>Todavía no hay cuentas registradas. <Link href="/home/admin">Volver al panel de administración</Link></p></div>

@@ -18,7 +18,7 @@ export function RequireGuest({ children, preserveReturn = false }: { children: R
   if (status === "checking" || status === "authenticated") return <p role="status">Comprobando sesión…</p>;
   if (status === "temporary-error") {
     if (preserveReturn) return <><p role="status" className="notice warning">No pudimos confirmar el estado de tu sesión. Si elegís iniciar sesión nuevamente, el servidor comprobará tus credenciales.</p>{children}</>;
-    return <section className="auth-card" aria-label="Problema temporal de sesión"><p role="alert">{error ?? "No pudimos comprobar tu sesión. Intentá nuevamente."}</p><button type="button" onClick={() => { void checkSession(); }}>Reintentar comprobación</button><p><Link href="/login">Volver a iniciar sesión</Link></p></section>;
+    return <section className="auth-card" aria-label="Problema temporal de sesión"><p role="alert">{error ?? "No pudimos comprobar tu sesión. Intentá nuevamente."}</p><button className="button" type="button" onClick={() => { void checkSession(); }}>Reintentar comprobación</button><p><Link href="/login">Volver a iniciar sesión</Link></p></section>;
   }
   return children;
 }

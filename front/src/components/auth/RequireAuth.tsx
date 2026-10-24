@@ -19,7 +19,7 @@ export function RequireAuth({ children, roles }: { children: ReactNode; roles?: 
   if (status === "temporary-error") return <section aria-label="Problema temporal de sesión">
     <p role="alert">{error ?? "No pudimos comprobar tu sesión. Intentá nuevamente."}</p>
     {!coordinationAvailable && <p>{COORDINATION_NOTICE}</p>}
-    <button type="button" onClick={() => { void checkSession(); }}>Reintentar comprobación</button>
+    <button className="button" type="button" onClick={() => { void checkSession(); }}>Reintentar comprobación</button>
     <p><Link href="/login">Volver a iniciar sesión</Link></p>
   </section>;
   if (roles && account && !roles.includes(account.role)) return <section><h2>Acceso no permitido</h2><p role="alert">Tu cuenta no tiene permisos para esta operación.</p><Link href="/account">Volver a mi cuenta</Link></section>;

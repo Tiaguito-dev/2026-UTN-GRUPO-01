@@ -108,7 +108,7 @@ export function AltaForm({ breadcrumb, heading, description, fields, submitLabel
             {issue ? <p id={`${field.name}-error`} className="field-error">Error: {issue}</p> : null}
           </div>;
         })}
-        <button className="submit" disabled={busy || Boolean(blocked)}>{busy ? "Guardando…" : submitLabel}</button>
+        <button className="button submit" disabled={busy || Boolean(blocked)}>{busy ? "Guardando…" : submitLabel}</button>
       </form>
     </div>
     <div className="form-links"><Link href="/home/admin">Volver al panel de administración</Link></div>

@@ -7,7 +7,7 @@ import { SidebarNav } from "@/components/home/SidebarNav";
 export default function HomeLayout({ children }: { children: ReactNode }) {
   return <main id="main-content" className="system-main">
     <RequireAuth>
-      <div className="system-home">
+      <div>
         <SidebarNav />
         <div className="system-content">{children}</div>
       </div>

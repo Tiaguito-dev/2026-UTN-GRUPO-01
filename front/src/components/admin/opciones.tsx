@@ -17,7 +17,7 @@ export interface RecursoDeOpciones {
  */
 export function bloqueoDeOpciones(recursos: RecursoDeOpciones[]): ReactNode {
   const fallido = recursos.find((recurso) => recurso.error);
-  if (fallido) return <div role="alert" className="notice error">{fallido.error} <button type="button" onClick={fallido.retry}>Reintentar</button></div>;
+  if (fallido) return <div role="alert" className="notice error">{fallido.error} <button className="button" type="button" onClick={fallido.retry}>Reintentar</button></div>;
   const cargando = recursos.find((recurso) => recurso.items === null);
   if (cargando) return <div role="status" className="notice warning">Cargando {cargando.nombre}…</div>;
   const vacio = recursos.find((recurso) => recurso.items?.length === 0);

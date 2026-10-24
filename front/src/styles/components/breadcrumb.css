@@ -1,0 +1,6 @@
+@layer components {
+  .breadcrumb ol { display: flex; flex-wrap: wrap; gap: .4rem; list-style: none; padding: 0; margin: 0 0 var(--space-6); font-size: var(--text-md); color: var(--muted); }
+  .breadcrumb li:not(:last-child)::after { content: "›"; margin-left: .4rem; }
+  .breadcrumb a { display: inline-flex; align-items: center; min-height: 1.5rem; padding-block: .3rem; }
+  .breadcrumb span[aria-current] { color: var(--text); font-weight: var(--weight-semibold); }
+}

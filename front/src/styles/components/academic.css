@@ -1,0 +1,12 @@
+@layer components {
+  .academic-list { list-style: none; padding: 0; margin: 0 0 var(--space-6); display: grid; gap: var(--space-3); }
+  .academic-list li { padding: var(--space-4) var(--space-5); border: 1px solid var(--border); border-radius: .8rem; background: var(--surface); }
+  /* Dentro del panel blanco las tarjetas usan el fondo de página para seguir distinguiéndose. */
+  .academic-panel .academic-list { margin: 0; }
+  .academic-panel .academic-list li { background: var(--background); }
+  .academic-panel > p { color: var(--muted); margin: 0; }
+  .academic-list-detail { color: var(--muted); }
+  .academic-list li p { margin: .35rem 0 0; font-size: var(--text-md); }
+  /* Resumen o aviso arriba de la lista dentro del panel (ej. cuántas cuentas hay). */
+  .academic-panel > .academic-list-detail { margin: 0 0 var(--space-4); font-size: var(--text-md); }
+}
