@@ -55,6 +55,21 @@ Una pantalla nueva combina tres piezas de `components/ui/` y `hooks/`, sin copia
 y cada vez que cambia `focusKey` (por ejemplo, el id del recurso), para anunciar el cambio de
 pantalla. Sin `PageHeader`, `useFocusOnMount(key)` devuelve la ref con el mismo efecto.
 
+Regla de encabezado de las pantallas internas (TASK-032, decisión 2):
+
+| Elemento | Regla |
+|---|---|
+| `h1` | Siempre, vía `PageHeader`, con foco al montar. |
+| Breadcrumb | Solo si la pantalla tiene al menos un nivel padre. No se muestran breadcrumbs de un solo ítem. |
+| Eyebrow | Solo en pantallas informativas sin datos (Inicio y Próximamente). |
+| "Volver" al pie | Se elimina donde el breadcrumb ya lleva al mismo lugar. Se conserva en los estados vacío y error, donde no hay breadcrumb a la vista o donde la acción es la salida principal. |
+
+**Shell.** `/home/**` y `/account/**` usan `components/home/AppShell.tsx` desde su `layout.tsx`:
+`<main>`, `RequireAuth` (sesión y aviso de coordinación, una sola vez) y `SidebarNav`, cuyo `<nav>`
+es el único landmark "Navegación principal". En `/account/**` el sidebar marca Inicio. La
+autorización por rol va aparte, con `RequireRole` (`app/home/admin/layout.tsx`): sin rol muestra
+"Acceso no permitido" dentro del shell. Una página interna no se envuelve en guards ni en `<main>`.
+
 ```tsx
 const headingId = useId();
 return <section aria-labelledby={headingId}>
@@ -146,8 +161,10 @@ la autoridad de validación. No se agregan fuentes remotas, analítica ni recurs
 Las cookies HttpOnly, CSRF, coordinación de renovaciones y revocación se conservan en los
 servicios existentes. `/account` presenta únicamente los datos públicos en una tarjeta con
 iniciales, nombre, email y rol legible. Las acciones aparecen debajo, fuera de la tarjeta.
-Cambiar contraseña abre explícitamente `/account/change-password`, protegida por `RequireAuth`,
-con el formulario existente y un enlace de vuelta al perfil; no se muestra junto a los datos.
+Cambiar contraseña abre explícitamente `/account/change-password`, dentro del mismo shell,
+con el formulario existente, el breadcrumb "Mi perfil › Cambiar contraseña" y un enlace de vuelta
+al perfil; no se muestra junto a los datos. El perfil entra al shell (sidebar incluido) sin
+cambiar sus URLs, para no perder la navegación al abrirlo desde el menú de cuenta.
 `LogoutButton` comparte estados de envío, prevención de duplicados y errores recuperables entre
 el menú y el perfil. Solo navega al login después de confirmar el cierre en el backend.
 El retorno después del login permite únicamente `/home`, `/account` y `/account/change-password`.
@@ -170,8 +187,10 @@ y se adapta a botones superiores en móvil, sin desbordamiento horizontal. Inici
 Materias, Experiencias y Comunidad seleccionan contenido informativo en la misma pantalla.
 Las secciones futuras muestran Próximamente; no llaman a endpoints académicos ni presentan
 datos inventados. La selección utiliza `aria-current` y lleva el foco al título actualizado.
-El perfil se abre desde el menú de cuenta o Ver mi perfil. `RequireAuth` protege el home,
-perfil y cambio; los guards del backend siguen siendo la autoridad de autenticación.
+El perfil se abre desde el menú de cuenta o Ver mi perfil. `RequireAuth`, vía `AppShell`, protege
+el home, perfil y cambio; ante un error temporal muestra la pantalla "No pudimos comprobar tu
+sesión" con Reintentar comprobación (la misma que usa `RequireGuest` en landing y registro). Los
+guards del backend siguen siendo la autoridad de autenticación.
 
 ## Comandos
 
