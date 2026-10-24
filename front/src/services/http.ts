@@ -17,8 +17,9 @@ function apiOrigin(): string {
   return url.origin;
 }
 
-/** No credentials are available to JavaScript: the browser owns both HttpOnly cookies. */
-export async function requestJson<T>(path: string, options: { method?: "GET" | "POST" | "PATCH"; body?: unknown } = {}): Promise<T> {
+/** No credentials are available to JavaScript: the browser owns both HttpOnly cookies.
+ *  Returns the raw body; callers validate it with a schema from `schemas.ts` before using it. */
+export async function requestJson(path: string, options: { method?: "GET" | "POST" | "PATCH"; body?: unknown } = {}): Promise<unknown> {
   const method = options.method ?? "GET";
   let response: Response;
   try {
@@ -42,5 +43,5 @@ export async function requestJson<T>(path: string, options: { method?: "GET" | "
     const message = body && typeof body === "object" && "message" in body && typeof body.message === "string" ? body.message : "Lo sentimos. No pudimos completar la solicitud, intentá nuevamente.";
     throw new HttpError(response.status, message);
   }
-  return body as T;
+  return body;
 }

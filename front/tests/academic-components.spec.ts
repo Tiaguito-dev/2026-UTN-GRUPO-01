@@ -1,14 +1,15 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Breadcrumb } from "../src/components/ui/Breadcrumb";
 import { Pagination } from "../src/components/ui/Pagination";
 import { MateriasList } from "../src/components/academic/MateriasList";
 import { CursadasList } from "../src/components/academic/CursadasList";
 import { ComisionesList } from "../src/components/academic/ComisionesList";
 
-const { state } = vi.hoisted(() => ({ state: { value: {} as Record<string, unknown> } }));
+const { state, detail } = vi.hoisted(() => ({ state: { value: {} as Record<string, unknown> }, detail: { value: {} as Record<string, unknown> } }));
 vi.mock("@/hooks/usePaginatedFetch", () => ({ usePaginatedFetch: () => state.value }));
+vi.mock("@/hooks/useCursada", () => ({ useCursada: () => detail.value }));
 vi.mock("@/hooks/useUrlPagination", () => ({ useUrlPagination: () => ({ page: 1, setPage: vi.fn() }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
 
@@ -109,6 +110,7 @@ describe("CursadasList", () => {
     const html = renderToStaticMarkup(createElement(CursadasList, { materiaId: "m1", materiaNombre: "Álgebra" }));
     expect(html).toContain(">Álgebra<");
     expect(html).toContain("1er cuatrimestre 2026");
+    expect(html).toContain('href="/home/materias/m1/cursadas/c1"');
     expect(html).toContain("Prof. Rossi");
     expect(html).toContain("Página 1 de 2");
   });
@@ -121,7 +123,9 @@ describe("CursadasList", () => {
 });
 
 describe("ComisionesList", () => {
-  const baseProps = { materiaId: "m1", cursadaId: "c1", materiaNombre: "Álgebra", anio: 2026, cuatrimestre: "PRIMERO" as const };
+  const baseProps = { materiaId: "m1", cursadaId: "c1" };
+  const cursada = { id: "c1", anio: 2026, cuatrimestre: "PRIMERO", profesor: "Prof. Rossi", materia: { id: "m1", nombre: "Álgebra" } };
+  beforeEach(() => { detail.value = { cursada, error: "", notFound: false, retry: vi.fn() }; });
 
   it("muestra el estado de carga", () => {
     setFetchState({ status: "loading" });
@@ -152,10 +156,29 @@ describe("ComisionesList", () => {
     expect(html).toContain("Comisión A");
     expect(html).toContain("Página 1 de 2");
   });
-  it("decisión TASK-018 4.2: sin materiaNombre/anio/cuatrimestre por query param, usa etiquetas genéricas", () => {
+  it("TASK-031: con una URL editada a mano, nombre y enlace de vuelta salen de la misma materia del detalle", () => {
+    detail.value = { cursada: { ...cursada, materia: { id: "z1", nombre: "Física" } }, error: "", notFound: false, retry: vi.fn() };
     setFetchState({ status: "ready", result: { items: [], total: 0, page: 1, pageSize: 10 } });
-    const html = renderToStaticMarkup(createElement(ComisionesList, { materiaId: "m1", cursadaId: "c1", materiaNombre: undefined, anio: undefined, cuatrimestre: undefined }));
-    expect(html).toContain(">Materia<");
-    expect(html).toContain(">Período<");
+    const html = renderToStaticMarkup(createElement(ComisionesList, baseProps));
+    expect(html).toContain('href="/home/materias/z1"');
+    expect(html).not.toContain('href="/home/materias/m1"');
+    expect(html).toContain(">Física<");
+  });
+  it("TASK-031 decisión 2: mientras carga el detalle, título y breadcrumb muestran 'Cargando…'", () => {
+    detail.value = { cursada: null, error: "", notFound: false, retry: vi.fn() };
+    setFetchState({ status: "ready", result: { items: [], total: 0, page: 1, pageSize: 10 } });
+    const html = renderToStaticMarkup(createElement(ComisionesList, baseProps));
+    expect(html).toMatch(/<h1[^>]*>Cargando…<\/h1>/);
+    expect(html).not.toContain("Álgebra");
+  });
+  it("si el detalle da 404, muestra el estado notFound con el enlace de vuelta en vez del listado", () => {
+    detail.value = { cursada: null, error: "Cursada no encontrada.", notFound: true, retry: vi.fn() };
+    setFetchState({ status: "ready", result: { items: [{ id: "co1", cursadaId: "c1", nombre: "Comisión A", activa: true, createdAt: "", deletedAt: null }], total: 1, page: 1, pageSize: 10 } });
+    const html = renderToStaticMarkup(createElement(ComisionesList, baseProps));
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("Cursada no encontrada.");
+    expect(html).toContain('href="/home/materias/m1"');
+    expect(html).not.toContain("Reintentar");
+    expect(html).not.toContain("Comisión A");
   });
 });

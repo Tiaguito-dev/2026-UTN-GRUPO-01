@@ -27,11 +27,12 @@ export function CursadasList({ materiaId, materiaNombre, materiasHref = "/home/m
       notFoundAction={back} empty={<EmptyState action={back}>Esta materia todavía no tiene cursadas cargadas.</EmptyState>}>
       {(result) => <Card variant="panel"><ul className="academic-list">
         {result.items.map((cursada) => {
-          const query = new URLSearchParams({ nombre: materiaLabel, anio: String(cursada.anio), cuatrimestre: cursada.cuatrimestre });
+          // Only the list context travels: names and period come from the backend (TASK-031).
+          const query = new URLSearchParams();
           if (isAnioCarrera(careerYear)) query.set("anioCarrera", careerYear);
           if (listPage > 1) query.set("listadoPage", String(listPage));
           if (searchContext.q) query.set("q", searchContext.q); if (searchContext.nivelElectiva) query.set("nivelElectiva", searchContext.nivelElectiva);
-          return <li key={cursada.id}><Link href={`/home/materias/${materiaId}/cursadas/${cursada.id}?${query.toString()}`}>{periodoLabel(cursada.anio, cursada.cuatrimestre)}</Link><span className="academic-list-detail"> — {cursada.profesor}</span></li>;
+          return <li key={cursada.id}><Link href={`/home/materias/${materiaId}/cursadas/${cursada.id}${query.size ? `?${query}` : ""}`}>{periodoLabel(cursada.anio, cursada.cuatrimestre)}</Link><span className="academic-list-detail"> — {cursada.profesor}</span></li>;
         })}
       </ul></Card>}
     </PaginatedListView>

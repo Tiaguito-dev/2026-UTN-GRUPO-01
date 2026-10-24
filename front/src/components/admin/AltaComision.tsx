@@ -6,7 +6,7 @@ import { crearComision, listarCursadasPorMateria, listarMaterias } from "@/servi
 import { MAX_PAGE_SIZE } from "@/services/pagination";
 import { useAllPages } from "@/hooks/useAllPages";
 import { periodoLabel } from "@/lib/format/periodo";
-import { validateNombre, validateSeleccion } from "@/validations/academic";
+import { MAX_NOMBRE_COMISION, validateNombre, validateSeleccion } from "@/validations/academic";
 import { FormField } from "@/components/ui/FormField";
 import { AltaForm } from "./AltaForm";
 import { bloqueoDeOpciones, opcionesListas } from "./opciones";
@@ -54,7 +54,7 @@ export function AltaComision() {
         // tiene que seguir perteneciendo a la materia visible.
         validate: (value) => validateSeleccion(value) ?? (opcionesListas(cursadas.state).some((cursada) => cursada.id === value) ? undefined : "Elegí una cursada de la materia seleccionada."),
       },
-      { name: "nombre", label: "Nombre de la comisión", hint: "Hasta 100 caracteres.", validate: (value) => validateNombre(value, 100) },
+      { name: "nombre", label: "Nombre de la comisión", hint: `Hasta ${MAX_NOMBRE_COMISION} caracteres.`, validate: (value) => validateNombre(value, MAX_NOMBRE_COMISION) },
     ]}
     onSubmit={async (values) => {
       const comision = await crearComision({ cursadaId: values.cursadaId, nombre: values.nombre.trim() });

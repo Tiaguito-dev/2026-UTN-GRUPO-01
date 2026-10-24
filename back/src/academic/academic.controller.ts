@@ -11,6 +11,7 @@ import { ListarMaterias } from "./application/listar-materias.js";
 import { ListarProfesores } from "./application/listar-profesores.js";
 import { ListarCursadasPorMateria, type CursadaConProfesor } from "./application/listar-cursadas-por-materia.js";
 import { ListarComisionesPorCursada } from "./application/listar-comisiones-por-cursada.js";
+import { ObtenerCursada, type CursadaDetalle } from "./application/obtener-cursada.js";
 import { CrearMateria } from "./application/crear-materia.js";
 import { CrearProfesor } from "./application/crear-profesor.js";
 import { CrearCursada } from "./application/crear-cursada.js";
@@ -37,6 +38,7 @@ export class AcademicController {
     private readonly obtenerMateria: ObtenerMateria,
     private readonly actualizarMateria: ActualizarMateria,
     private readonly listarHistorialMateria: ListarHistorialMateria,
+    private readonly obtenerCursada: ObtenerCursada,
   ) {}
 
   @Get("materias")
@@ -63,6 +65,11 @@ export class AcademicController {
   @Get("materias/:materiaId/cursadas")
   cursadas(@Param("materiaId") materiaId: string, @Query() query: unknown): Promise<PaginatedResult<CursadaConProfesor>> {
     return this.listarCursadasPorMateria.execute(materiaId, query);
+  }
+
+  @Get("cursadas/:cursadaId")
+  cursada(@Param("cursadaId") cursadaId: string): Promise<CursadaDetalle> {
+    return this.obtenerCursada.execute(cursadaId);
   }
 
   @Get("cursadas/:cursadaId/comisiones")

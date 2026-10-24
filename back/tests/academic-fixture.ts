@@ -34,7 +34,7 @@ export function fixture() {
     findAll: vi.fn(async (pagination, filters = {}) => paginate([...materias.values()].filter(m => !m.deletedAt && (!filters.anioCarrera || m.anioCarrera === filters.anioCarrera) && (!filters.nivelElectiva || m.nivelElectiva === filters.nivelElectiva) && (!filters.q || m.nombre.toLowerCase().includes(filters.q.toLowerCase()))).sort((a,b) => (a.anioCarrera ?? "Z").localeCompare(b.anioCarrera ?? "Z") || a.nombre.localeCompare(b.nombre) || a.id.localeCompare(b.id)), pagination)),
     update: vi.fn(async (id, input) => { const materia = { ...materias.get(id)!, ...input }; materias.set(id, materia); return materia; }),
     findHistorial: vi.fn(async (_id, pagination) => paginate([], pagination)),
-    findById: vi.fn(async (id) => materias.get(id) ?? null),
+    findById: vi.fn(async (id) => { const m = materias.get(id); return m && !m.deletedAt ? m : null; }),
     findByNombre: vi.fn(async (nombre) => [...materias.values()].find((m) => m.nombre === nombre) ?? null),
     create: vi.fn(async ({ nombre, anioCarrera, nivelElectiva }) => {
       const materia: Materia = { id: randomUUID(), nombre, anioCarrera, nivelElectiva: nivelElectiva ?? null, createdAt: new Date(), deletedAt: null };
@@ -53,7 +53,7 @@ export function fixture() {
   };
   const cursadaRepository: CursadaRepository = {
     findByMateriaId: vi.fn(async (materiaId, pagination) => paginate([...cursadas.values()].filter((c) => c.materiaId === materiaId), pagination)),
-    findById: vi.fn(async (id) => cursadas.get(id) ?? null),
+    findById: vi.fn(async (id) => { const c = cursadas.get(id); return c && !c.deletedAt ? c : null; }),
     findByPeriodo: vi.fn(async (materiaId, anio, cuatrimestre) =>
       [...cursadas.values()].find((c) => c.materiaId === materiaId && c.anio === anio && c.cuatrimestre === cuatrimestre) ?? null),
     create: vi.fn(async (input) => {

@@ -1,4 +1,4 @@
-# TASK-028: Contratos front/back del módulo académico (detalle por id y respuestas validadas)
+# TASK-031: Contratos front/back del módulo académico (detalle por id y respuestas validadas)
 
 Estado: Pendiente. Decisiones 1 a 4 confirmadas por el desarrollador el 2026-10-21. Depende de
 TASK-027.

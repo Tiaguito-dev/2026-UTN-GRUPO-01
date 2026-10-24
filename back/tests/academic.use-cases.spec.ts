@@ -4,6 +4,8 @@ import { validateId } from "../src/academic/application/academic-id.js";
 import { MateriaNotFoundError, CursadaNotFoundError, InvalidIdError } from "../src/academic/application/errors.js";
 import { validatePagination } from "../src/shared/domain/pagination-input.js";
 import { InvalidPaginationError } from "../src/shared/domain/errors.js";
+import { ObtenerMateria } from "../src/academic/application/obtener-materia.js";
+import { ObtenerCursada } from "../src/academic/application/obtener-cursada.js";
 import { fixture } from "./academic-fixture.js";
 
 describe("ListarMaterias", () => {
@@ -86,6 +88,72 @@ describe("ListarComisionesPorCursada", () => {
     const { listarComisionesPorCursada, comisionRepository } = fixture();
     await expect(listarComisionesPorCursada.execute(randomUUID(), undefined)).rejects.toBeInstanceOf(CursadaNotFoundError);
     expect(comisionRepository.findByCursadaId).not.toHaveBeenCalled();
+  });
+});
+
+describe("ObtenerMateria", () => {
+  it("devuelve la materia con la misma forma que un ítem del listado", async () => {
+    const { materiaRepository, addMateria } = fixture();
+    const materia = addMateria("Álgebra", "1");
+    await expect(new ObtenerMateria(materiaRepository).execute(materia.id)).resolves.toEqual(materia);
+  });
+
+  it("id no-UUID tira InvalidIdError sin tocar el repositorio", async () => {
+    const { materiaRepository } = fixture();
+    await expect(new ObtenerMateria(materiaRepository).execute("not-a-uuid")).rejects.toBeInstanceOf(InvalidIdError);
+    expect(materiaRepository.findById).not.toHaveBeenCalled();
+  });
+
+  it("id válido pero inexistente tira MateriaNotFoundError", async () => {
+    const { materiaRepository } = fixture();
+    await expect(new ObtenerMateria(materiaRepository).execute(randomUUID())).rejects.toBeInstanceOf(MateriaNotFoundError);
+  });
+
+  it("una materia dada de baja tira MateriaNotFoundError", async () => {
+    const { materiaRepository, addMateria } = fixture();
+    const materia = addMateria("Álgebra");
+    materia.deletedAt = new Date();
+    await expect(new ObtenerMateria(materiaRepository).execute(materia.id)).rejects.toBeInstanceOf(MateriaNotFoundError);
+  });
+});
+
+describe("ObtenerCursada", () => {
+  const obtener = (f: ReturnType<typeof fixture>) => new ObtenerCursada(f.cursadaRepository, f.materiaRepository, f.profesorRepository);
+
+  it("devuelve el resumen de la cursada más la materia, y nada más", async () => {
+    const f = fixture();
+    const materia = f.addMateria("Álgebra");
+    const profesor = f.addProfesor("Ada Lovelace");
+    const cursada = f.addCursada(materia.id, profesor.id, 2025);
+    await expect(obtener(f).execute(cursada.id)).resolves.toStrictEqual({
+      id: cursada.id, anio: 2025, cuatrimestre: "PRIMERO", profesor: "Ada Lovelace", materia: { id: materia.id, nombre: "Álgebra" },
+    });
+  });
+
+  it("id no-UUID tira InvalidIdError sin tocar los repositorios", async () => {
+    const f = fixture();
+    await expect(obtener(f).execute("not-a-uuid")).rejects.toBeInstanceOf(InvalidIdError);
+    expect(f.cursadaRepository.findById).not.toHaveBeenCalled();
+  });
+
+  it("id válido pero inexistente tira CursadaNotFoundError", async () => {
+    const f = fixture();
+    await expect(obtener(f).execute(randomUUID())).rejects.toBeInstanceOf(CursadaNotFoundError);
+  });
+
+  it("una cursada dada de baja tira CursadaNotFoundError", async () => {
+    const f = fixture();
+    const cursada = f.addCursada(f.addMateria("Álgebra").id, f.addProfesor("Ada Lovelace").id);
+    cursada.deletedAt = new Date();
+    await expect(obtener(f).execute(cursada.id)).rejects.toBeInstanceOf(CursadaNotFoundError);
+  });
+
+  it("una cursada cuya materia está dada de baja tira CursadaNotFoundError", async () => {
+    const f = fixture();
+    const materia = f.addMateria("Álgebra");
+    const cursada = f.addCursada(materia.id, f.addProfesor("Ada Lovelace").id);
+    materia.deletedAt = new Date();
+    await expect(obtener(f).execute(cursada.id)).rejects.toBeInstanceOf(CursadaNotFoundError);
   });
 });
 
