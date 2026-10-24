@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 
-export function LogoutButton({ className = "button-secondary", onSuccess }: { className?: string; onSuccess?: () => void }) {
+export function LogoutButton({ className = "button button-secondary", onSuccess }: { className?: string; onSuccess?: () => void }) {
   const auth = useAuth();
   const router = useRouter();
   const submitting = useRef(false);
@@ -20,5 +20,5 @@ export function LogoutButton({ className = "button-secondary", onSuccess }: { cl
     catch { setError("No pudimos confirmar el cierre de sesión. Intentá nuevamente."); }
     finally { submitting.current = false; setBusy(false); }
   }
-  return <div className="logout-control"><button type="button" className={className} onClick={() => { void logout(); }} aria-disabled={busy} aria-busy={busy}>{busy ? "Cerrando sesión…" : "Cerrar sesión"}</button>{error ? <p ref={errorRef} tabIndex={-1} role="alert" className="notice error">{error}</p> : null}</div>;
+  return <div className="logout-control"><button className={className} type="button" onClick={() => { void logout(); }} aria-disabled={busy} aria-busy={busy}>{busy ? "Cerrando sesión…" : "Cerrar sesión"}</button>{error ? <p ref={errorRef} tabIndex={-1} role="alert" className="notice error">{error}</p> : null}</div>;
 }

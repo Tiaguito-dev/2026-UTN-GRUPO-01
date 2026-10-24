@@ -59,7 +59,16 @@ utilizar ArrowLeft/ArrowRight/Home/End. Anuncia la selección y oculta las tarje
 a lectores de pantalla. Con movimiento reducido se desactiva la animación y se muestra solo
 la tarjeta activa. La presentación se adapta a móvil y escritorio.
 
-`globals.css` centraliza colores de marca y semánticos. Formularios con etiquetas visibles,
+Estilos: `app/globals.css` solo declara el orden de capas
+(`@layer reset, tokens, base, layout, components, utilities;`) e importa los archivos de
+`src/styles/`: `reset.css`, `tokens.css` (colores, espaciado, radios, texto, sombras),
+`base.css` (elementos), `layout.css` (header, sidebar, contenido, `.page`) y
+`components/` con un archivo por área (`button`, `notice`, `form`, `breadcrumb`,
+`pagination`, `card`, `account-menu`, `landing`, `academic`). El orden de la cascada lo fijan
+las capas, no la especificidad, y ninguna regla queda fuera de una capa. Los selectores de
+elemento solo llevan tipografía y reset; el aspecto de componente va en una clase (un
+`<button>` sin clase no se ve como botón primario: usa `.button`). Los CSS Modules no llevan
+capa y le ganan a todas. Formularios con etiquetas visibles,
 foco de teclado, errores asociados y botones de envío bloqueados durante la petición.
 Contraseñas nuevas: entre 8 y 128 caracteres Unicode, sin recortar ni normalizar, en registro,
 restablecimiento y cambio. Login permite las credenciales existentes; el backend sigue siendo

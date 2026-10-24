@@ -27,7 +27,7 @@ export function CursadasList({ materiaId, materiaNombre, materiasHref = "/home/m
     {status === "loading" ? <p role="status">Cargando cursadas…</p> : null}
     {status === "error" ? <p role="alert" className="notice error">
       {error}{" "}
-      {notFound ? <Link href={materiasHref}>Volver al listado de materias</Link> : <button type="button" onClick={retry}>Reintentar</button>}
+      {notFound ? <Link href={materiasHref}>Volver al listado de materias</Link> : <button className="button" type="button" onClick={retry}>Reintentar</button>}
     </p> : null}
     {status === "ready" && result ? (
       result.items.length === 0

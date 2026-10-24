@@ -1,0 +1,12 @@
+@layer components {
+  .account-menu { position: relative; }
+  .account-menu-trigger { display: inline-flex; align-items: center; justify-content: center; width: 3rem; min-height: 3rem; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-round); background: var(--soft-blue); color: var(--primary); }
+  .account-menu-trigger:hover, .account-menu-trigger[aria-expanded="true"] { background: var(--primary); color: var(--surface); }
+  .account-menu-panel { position: absolute; top: calc(100% + .65rem); right: 0; z-index: var(--z-popover); width: min(18rem, calc(100vw - 3rem)); padding: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-popover); }
+  .account-menu-panel a, .account-menu-action { display: flex; width: 100%; padding: var(--space-3) var(--space-4); min-height: 3rem; border: 0; border-radius: .55rem; color: var(--text); background: transparent; font-size: var(--text-md); font-weight: var(--weight-medium); justify-content: flex-start; text-align: left; }
+  .account-menu-panel a { text-decoration: none; }
+  .account-menu-action { align-items: center; }
+  .account-menu-panel a:hover, .account-menu-action:hover { background: var(--soft-blue); color: var(--primary); }
+  .account-menu-panel > p { margin: var(--space-2); font-size: var(--text-md); color: var(--muted); }
+  .account-menu-panel .notice { font-size: .85rem; margin: var(--space-2); }
+}

@@ -1,0 +1,6 @@
+@layer components {
+  .notice { padding: var(--space-4); margin-block: var(--space-4); border: 1px solid currentColor; border-radius: .7rem; }
+  .notice.error { color: var(--error); background: var(--error-background); }
+  .notice.success { color: var(--success); background: var(--success-background); }
+  .notice.warning { color: var(--warning); background: var(--warning-background); }
+}

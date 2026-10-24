@@ -47,7 +47,7 @@ export function ResendVerification() {
     {success ? <div role="status" className="notice success">{success}</div> : null}
     <form onSubmit={submit} noValidate aria-busy={busy}>
       <div className="field"><label htmlFor="verification-email">Email institucional</label><input ref={emailRef} id="verification-email" name="email" type="email" autoComplete="email" required aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "verification-email-error" : undefined} />{emailError ? <p id="verification-email-error" className="field-error">Error: {emailError}</p> : null}</div>
-      <button className="submit" disabled={busy}>{busy ? "Enviando…" : "Enviar enlace de verificación"}</button>
+      <button className="button submit" disabled={busy}>{busy ? "Enviando…" : "Enviar enlace de verificación"}</button>
     </form>
     <div className="form-links"><Link href="/login">Volver al login</Link><Link href="/register">Crear una cuenta</Link></div>
   </section>;

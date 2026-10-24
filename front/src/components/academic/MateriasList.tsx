@@ -30,15 +30,15 @@ export function MateriasList() {
       <div className={styles.filterGroup} role="group" aria-labelledby="anio-carrera-label">
         <p id="anio-carrera-label" className={styles.groupLabel}>Año de la carrera</p>
         <div className={styles.chips}>
-          <button type="button" className={styles.chip} aria-pressed={!anio} onClick={() => router.replace(materiaListHref(undefined, 1, context), { scroll: false })}>Todos los años</button>
-          {ANIOS_CARRERA.map((value) => <button key={value} type="button" className={styles.chip} aria-pressed={anio === value} onClick={() => router.replace(materiaListHref(value, 1, context), { scroll: false })}>{value === "ELECTIVA" ? "Electivas" : anioCarreraLabel(value)}</button>)}
+          <button className={`button ${styles.chip}`} type="button" aria-pressed={!anio} onClick={() => router.replace(materiaListHref(undefined, 1, context), { scroll: false })}>Todos los años</button>
+          {ANIOS_CARRERA.map((value) => <button className={`button ${styles.chip}`} key={value} type="button" aria-pressed={anio === value} onClick={() => router.replace(materiaListHref(value, 1, context), { scroll: false })}>{value === "ELECTIVA" ? "Electivas" : anioCarreraLabel(value)}</button>)}
         </div>
       </div>
       {anio === "ELECTIVA" ? <div className={`${styles.filterGroup} ${styles.electiveGroup}`} role="group" aria-labelledby="nivel-electiva-label">
         <p id="nivel-electiva-label" className={styles.groupLabel}>Nivel de electiva</p>
         <div className={styles.chips}>
-          <button type="button" className={styles.chip} aria-pressed={!context.nivelElectiva} onClick={() => router.replace(materiaListHref(anio, 1, { ...context, nivelElectiva: undefined }), { scroll: false })}>Todos los niveles</button>
-          {NIVELES_ELECTIVA.map((nivel) => <button key={nivel} type="button" className={styles.chip} aria-pressed={context.nivelElectiva === nivel} onClick={() => router.replace(materiaListHref(anio, 1, { ...context, nivelElectiva: nivel }), { scroll: false })}>{nivelElectivaLabel(nivel)}</button>)}
+          <button className={`button ${styles.chip}`} type="button" aria-pressed={!context.nivelElectiva} onClick={() => router.replace(materiaListHref(anio, 1, { ...context, nivelElectiva: undefined }), { scroll: false })}>Todos los niveles</button>
+          {NIVELES_ELECTIVA.map((nivel) => <button className={`button ${styles.chip}`} key={nivel} type="button" aria-pressed={context.nivelElectiva === nivel} onClick={() => router.replace(materiaListHref(anio, 1, { ...context, nivelElectiva: nivel }), { scroll: false })}>{nivelElectivaLabel(nivel)}</button>)}
         </div>
       </div> : null}
     </div>
@@ -52,7 +52,7 @@ function MateriasResults({ anio, initialPage, context }: { anio: AnioCarrera | u
   useEffect(() => { listRef.current?.focus(); }, []);
   return <div ref={listRef} tabIndex={-1}>
     {status === "loading" ? <p role="status">Cargando materias…</p> : null}
-    {status === "error" ? <p role="alert" className="notice error">Lo sentimos. No pudimos recuperar las materias. Intentá nuevamente. <span>{error}</span> <button type="button" onClick={retry}>Reintentar</button></p> : null}
+    {status === "error" ? <p role="alert" className="notice error">Lo sentimos. No pudimos recuperar las materias. Intentá nuevamente. <span>{error}</span> <button className="button" type="button" onClick={retry}>Reintentar</button></p> : null}
     {status === "ready" && result ? result.items.length === 0 ? <p>No hay materias que coincidan con la búsqueda y los filtros.</p> : <>
       {[...ANIOS_CARRERA, null].map((group) => {
         const items = result.items.filter((materia) => (materia.anioCarrera ?? null) === group);
@@ -75,7 +75,7 @@ function MateriaSearch({ query, onSearch }: { query: string; onSearch: (q: strin
     if (!issue) onSearch(value.trim());
   }
   return <form className={styles.search} onSubmit={submit} noValidate role="search">
-    <div className={styles.searchField}><label htmlFor="materia-search">Buscar por nombre</label><div className={styles.searchControls}><input id="materia-search" name="q" type="search" value={value} onChange={(event) => setValue(event.target.value)} placeholder="Nombre de la materia" maxLength={150} aria-invalid={Boolean(error)} aria-describedby={error ? "materia-search-error" : undefined} /><button type="submit" className={styles.searchButton}>Buscar</button></div>{error ? <p id="materia-search-error" role="alert" className="field-error">{error}</p> : null}</div>
-    {value || query ? <button type="button" className={styles.clearButton} onClick={() => { setValue(""); setError(""); onSearch(""); }}>Limpiar búsqueda</button> : null}
+    <div className={styles.searchField}><label htmlFor="materia-search">Buscar por nombre</label><div className={styles.searchControls}><input id="materia-search" name="q" type="search" value={value} onChange={(event) => setValue(event.target.value)} placeholder="Nombre de la materia" maxLength={150} aria-invalid={Boolean(error)} aria-describedby={error ? "materia-search-error" : undefined} /><button className={`button ${styles.searchButton}`} type="submit">Buscar</button></div>{error ? <p id="materia-search-error" role="alert" className="field-error">{error}</p> : null}</div>
+    {value || query ? <button className={`button ${styles.clearButton}`} type="button" onClick={() => { setValue(""); setError(""); onSearch(""); }}>Limpiar búsqueda</button> : null}
   </form>;
 }

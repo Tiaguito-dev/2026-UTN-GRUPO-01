@@ -1,5 +1,5 @@
 import { VerifyEmail } from "@/components/auth/VerifyEmail";
 
 export default function VerifyEmailPage() {
-  return <main id="main-content"><div className="auth-card"><VerifyEmail /></div></main>;
+  return <main id="main-content" className="page"><div className="auth-card"><VerifyEmail /></div></main>;
 }

@@ -24,7 +24,7 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
       <Breadcrumb items={[{ label: "Materias", href: backHref }, { label: materia?.nombre ?? "Materia" }]} />
       <h1 id="materia-heading">{materia?.nombre ?? "Materia"}</h1>
       {params.get("successMessage") ? <p role="status" className="notice success">{params.get("successMessage")}</p> : null}
-      {error ? <p role="alert" className="notice error">Lo sentimos. No pudimos recuperar la materia. {error} <button onClick={retry} type="button">Reintentar</button></p> : null}
+      {error ? <p role="alert" className="notice error">Lo sentimos. No pudimos recuperar la materia. {error} <button className="button" onClick={retry} type="button">Reintentar</button></p> : null}
       {!materia && !error ? <p role="status">Cargando materia…</p> : null}
       {materia ? <>
         <div className="academic-panel"><h2>Datos de la materia</h2><dl><dt>Nombre</dt><dd>{materia.nombre}</dd><dt>Año de la carrera</dt><dd>{anioCarreraLabel(materia.anioCarrera)}</dd>{materia.anioCarrera === "ELECTIVA" ? <><dt>Nivel de electiva</dt><dd>{nivelElectivaLabel(materia.nivelElectiva)}</dd></> : null}</dl></div>
@@ -41,7 +41,7 @@ function MateriaHistory({ materiaId }: { materiaId: string }) {
   const { status, result, error, page, setPage, retry } = usePaginatedFetch(`historial:${materiaId}`, (next) => listarHistorialMateria(materiaId, { page: next }));
   return <div className="academic-panel"><h2>Historial de cambios</h2>
     {status === "loading" ? <p role="status">Cargando historial…</p> : null}
-    {status === "error" ? <p role="alert">Lo sentimos. No pudimos recuperar el historial. {error} <button type="button" onClick={retry}>Reintentar</button></p> : null}
+    {status === "error" ? <p role="alert">Lo sentimos. No pudimos recuperar el historial. {error} <button className="button" type="button" onClick={retry}>Reintentar</button></p> : null}
     {status === "ready" && result ? <>
       {result.items.length ? <ul>{result.items.map((entry) => <li key={entry.id}><p>{new Date(entry.createdAt).toLocaleString("es-AR")} — Usuario: {entry.actorId}</p><ul>{entry.cambios.map((change) => <li key={change.campo}>{historyFieldLabel(change.campo)}: {historyValue(change.campo, change.anterior)} → {historyValue(change.campo, change.nuevo)}</li>)}</ul></li>)}</ul> : <p>No hay cambios registrados.</p>}
       <Pagination page={page} pageSize={result.pageSize} total={result.total} onChange={setPage} />

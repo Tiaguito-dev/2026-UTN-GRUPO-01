@@ -138,7 +138,7 @@ export function AccountForm({ mode }: { mode: Mode }) {
       {["login", "register"].includes(mode) ? <Field name="password" label="Contraseña" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} error={errors.password} hint={mode === "register" ? passwordHint : undefined} /> : null}
       {mode === "change" ? <Field name="currentPassword" label="Contraseña actual" type="password" autoComplete="current-password" error={errors.currentPassword} /> : null}
       {["reset", "change"].includes(mode) ? <><Field name="newPassword" label="Nueva contraseña" type="password" autoComplete="new-password" error={errors.newPassword} hint={passwordHint} /><Field name="confirmPassword" label="Confirmar contraseña" type="password" autoComplete="new-password" error={errors.confirmPassword} /></> : null}
-      <button className="submit" disabled={busy || !tokenReady || (mode === "reset" && !resetToken.current)}>{busy ? "Enviando…" : actions[mode]}</button>
+      <button className="button submit" disabled={busy || !tokenReady || (mode === "reset" && !resetToken.current)}>{busy ? "Enviando…" : actions[mode]}</button>
     </form>
     {mode === "change" ? <div className="form-links"><Link href="/account">Volver a mi perfil</Link></div> : null}
     <div className="form-links">{mode === "login" ? <><Link href="/register">Crear una cuenta</Link><Link href="/forgot-password">¿Olvidaste tu contraseña?</Link></> : null}{["forgot", "register", "reset"].includes(mode) ? <Link href="/login">Volver al login</Link> : null}{mode === "reset" ? <Link href="/forgot-password">Solicitar un nuevo enlace de recuperación</Link> : null}</div>
