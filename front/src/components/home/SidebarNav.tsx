@@ -8,7 +8,9 @@ import { SYSTEM_SECTIONS } from "./sections";
 /** La sección activa sale de la URL, no de estado interno: el sidebar vive en el layout y
  *  persiste entre navegaciones, incluido el drill-down de /home/materias/**. */
 function isCurrent(pathname: string, href: string): boolean {
-  return href === "/home" ? pathname === "/home" : pathname === href || pathname.startsWith(`${href}/`);
+  // /account/** marca Inicio: el perfil no tiene sección en el sidebar, se abre desde el menú de cuenta.
+  if (href === "/home") return pathname === "/home" || pathname === "/account" || pathname.startsWith("/account/");
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function SidebarNav() {
@@ -17,9 +19,9 @@ export function SidebarNav() {
   // Una sección con rol se muestra solo con la sesión ya confirmada: mientras se comprueba no
   // aparece ni desaparece, queda oculta.
   const sections = SYSTEM_SECTIONS.filter((item) => !item.role || (status === "authenticated" && account?.role === item.role));
-  return <aside className="system-sidebar" aria-label="Secciones del sistema">
+  return <aside className="system-sidebar">
     <p className="sidebar-title">Tu espacio</p>
-    <nav aria-label="Funcionalidades">
+    <nav aria-label="Navegación principal">
       <ul>
         {sections.map((item) => <li key={item.id}>
           <Link className="button" href={item.href} aria-current={isCurrent(pathname, item.href) ? "page" : undefined}>

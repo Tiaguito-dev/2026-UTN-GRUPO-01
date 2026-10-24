@@ -6,7 +6,7 @@
   /* Antes lo daba `a:hover`, que le ganaba a `.brand` por especificidad. */
   .brand:hover { color: var(--primary-hover); }
   .brand-mark { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; background: var(--primary); color: var(--surface); border-radius: var(--radius-md); font-size: var(--text-sm); letter-spacing: -.04em; }
-  .site-header nav, .actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-4); }
+  .actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-4); }
   .site-header-auth { position: sticky; top: 0; z-index: var(--z-header); height: var(--header-h); padding-inline: var(--space-6); }
   .system-main > p, .system-main > section { margin: var(--space-8) var(--space-6); }
   .system-sidebar { position: fixed; top: var(--header-h); bottom: 0; left: 0; width: var(--sidebar-w); padding: var(--space-8) var(--space-4); background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; }
@@ -29,7 +29,6 @@
   }
   @media (max-width: 600px) {
     .site-header { gap: var(--space-3); padding: var(--space-4) var(--space-6); }
-    .site-header nav { gap: var(--space-6); }
     .page { padding-block: var(--space-8); }
   }
 }
