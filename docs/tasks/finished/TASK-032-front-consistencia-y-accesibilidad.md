@@ -1,7 +1,8 @@
-# TASK-029: Consistencia y accesibilidad de las pantallas internas
+# TASK-032: Consistencia y accesibilidad de las pantallas internas
 
-Estado: Pendiente. Decisiones 1 a 4 propuestas, a confirmar por el desarrollador antes de mover
-la tarea a `in-progress/`. Depende de TASK-023, TASK-026 y TASK-027.
+Estado: Implementada, pendiente de revisión. Decisiones 1 a 4 confirmadas por el desarrollador.
+Pendientes antes de cerrar: encabezados de `/account/change-password` y capturas de Linux (ver
+sección 6). Depende de TASK-023, TASK-026 y TASK-027.
 Fecha: 2026-10-21
 
 ## 1. Contexto y objetivo
@@ -174,7 +175,42 @@ Aplicarla:
 
 ## 6. Validación
 
-Pendiente de ejecución.
+Corrida el 2026-10-24 en Windows 10 (Git Bash, Node 22.19.0), con Google Chrome del sistema y la
+base exclusiva `butchery_test` del Postgres de Docker de desarrollo (sin migraciones pendientes).
+Para el harness, back compilado con `npm run build --workspace=back` y front con
+`NEXT_PUBLIC_API_URL=http://localhost:3301 NEXT_PUBLIC_ALLOW_LOCAL_HTTP=true`.
+
+- `npm run lint`: 0 errores, 12 avisos. Los mismos de antes más uno del mismo tipo
+  (`react/no-children-prop`) en `auth-navigation.spec.ts`, que ya pasaba `children` como prop.
+- `npm run typecheck`: sin errores. Después de un `next build`, falla mientras `.next/dev/types`
+  siga siendo de un `next dev` anterior al nuevo `app/account/layout.tsx`, porque `tsconfig.json`
+  incluye los dos directorios de tipos generados. Se arregla levantando `next dev` una vez. Es un
+  artefacto local: en CI no existe `.next`.
+- `npm run test`: 22 archivos, 217 tests, todos pasan. Nuevos: `RequireRole` (ADMIN ve el
+  contenido, USER ve "Acceso no permitido" con `h1` y "Volver al inicio" a `/home`, nunca el aviso
+  de coordinación), el `h1` y las acciones del error de sesión, Inicio activo en `/account/**` y
+  un único landmark "Navegación principal".
+- `npm run build`: compila y genera las 22 páginas.
+- `auth.browser.spec.mjs`: 11 passed. El archivo tiene 11 casos, no 12.
+- `visual.browser.spec.mjs` con `--ignore-snapshots --update-snapshots=none`: 6 passed. Pantallas
+  nuevas en el spec: cambio de contraseña, error de sesión (`/auth/me` con 500) y acceso denegado
+  (cuenta USER en `/home/admin`). Se quitó `KNOWN_VIOLATIONS`. axe no reporta violaciones de
+  ningún nivel (tampoco `moderate` ni `minor`) en las 9 pantallas a 390px y 1280px. El spec
+  también verifica que ninguna pantalla muestre un breadcrumb de un solo ítem.
+- La violación `color-contrast` de la landing se corrigió subiendo la opacidad de las tarjetas
+  laterales del carrusel de `.6` a `.9`: con `.6` el texto `--muted` quedaba en 2.6:1, con `.9`
+  queda en 4.8:1.
+- `rg -n 'font-size: \.6' front/src/styles`: sin resultados.
+- `curl -I` contra `next start`: `/account` devuelve `Referrer-Policy: no-referrer` y
+  `Cache-Control: no-store`. `/account/change-password` devuelve `Cache-Control:
+  s-maxage=31536000` y no tiene `Referrer-Policy`. Ya pasaba antes de esta tarea: `next.config.ts`
+  solo lista `/account`, y la regla no cubre las subrutas. El criterio de aceptación no se cumple
+  para esta ruta. Corregirlo exige tocar `next.config.ts`, que queda fuera del alcance de la
+  sección 2. Queda a decisión del desarrollador.
+- Capturas: la línea base versionada es de Linux (`*-linux.png`) y en Windows Playwright busca
+  `*-win32.png`. No se regeneró ninguna: hay que correr `--update-snapshots` desde Linux para
+  perfil, cambio de contraseña, Materias, alta de materia, error de sesión y acceso denegado, y
+  también para la landing, que cambia por la opacidad del carrusel.
 
 ### Pruebas manuales para el desarrollador
 
@@ -191,6 +227,10 @@ Pendiente de ejecución.
 - Recorrer landing, login, registro y recuperación: no tienen que cambiar.
 
 ### Violaciones `moderate` que quedan (completar al implementar)
+
+Ninguna. axe no reporta violaciones `moderate` en ninguna pantalla del spec visual, a 390px ni a
+1280px. Pantallas fuera del spec, sin analizar con axe: detalle de materia, cursadas, comisiones,
+edición de materia, el resto de las altas, usuarios y Próximamente.
 
 ## 7. Riesgos
 

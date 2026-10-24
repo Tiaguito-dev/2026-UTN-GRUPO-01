@@ -1,15 +1,32 @@
 "use client";
 import Link from "next/link";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useId, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { safeReturnPath } from "@/validations/auth";
 import { COORDINATION_NOTICE } from "@/services/session-coordinator";
-import type { Role } from "@/types/auth";
+import { Notice } from "@/components/ui/Notice";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { SESSION_CHECK_FAILED } from "@/lib/messages";
 
-export function RequireAuth({ children, roles }: { children: ReactNode; roles?: Role[] }) {
-  const { status, account, error, checkSession, coordinationAvailable } = useAuth();
+/** Full screen for a session check that failed temporarily. Shared with `RequireGuest`. */
+export function SessionCheckFailed({ children }: { children?: ReactNode }) {
+  const { error, checkSession } = useAuth();
+  const headingId = useId();
+  return <section aria-label="Problema temporal de sesión">
+    <PageHeader id={headingId} title="No pudimos comprobar tu sesión" />
+    <Notice tone="error">{error ?? SESSION_CHECK_FAILED}</Notice>
+    {children}
+    <div className="actions">
+      <button className="button" type="button" onClick={() => { void checkSession(); }}>Reintentar comprobación</button>
+      <Link className="button button-secondary" href="/login">Volver a iniciar sesión</Link>
+    </div>
+  </section>;
+}
+
+/** Session guard only. Role checks live in `RequireRole`, so the coordination notice shows once. */
+export function RequireAuth({ children }: { children: ReactNode }) {
+  const { status, coordinationAvailable } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   useEffect(() => {
@@ -17,12 +34,6 @@ export function RequireAuth({ children, roles }: { children: ReactNode; roles?: 
   }, [status, router, pathname]);
   if (status === "checking") return <p role="status">Comprobando sesión…</p>;
   if (status === "anonymous") return <p role="status">Necesitás <Link href="/login">iniciar sesión</Link> para continuar.</p>;
-  if (status === "temporary-error") return <section aria-label="Problema temporal de sesión">
-    <p role="alert">{error ?? SESSION_CHECK_FAILED}</p>
-    {!coordinationAvailable && <p>{COORDINATION_NOTICE}</p>}
-    <button className="button" type="button" onClick={() => { void checkSession(); }}>Reintentar comprobación</button>
-    <p><Link href="/login">Volver a iniciar sesión</Link></p>
-  </section>;
-  if (roles && account && !roles.includes(account.role)) return <section><h2>Acceso no permitido</h2><p role="alert">Tu cuenta no tiene permisos para esta operación.</p><Link href="/account">Volver a mi cuenta</Link></section>;
+  if (status === "temporary-error") return <SessionCheckFailed>{!coordinationAvailable && <Notice tone="warning">{COORDINATION_NOTICE}</Notice>}</SessionCheckFailed>;
   return <>{!coordinationAvailable && <p role="status">{COORDINATION_NOTICE}</p>}{children}</>;
 }

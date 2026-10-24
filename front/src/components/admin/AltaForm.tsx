@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useId, type ReactNode } from "react";
 import { useFormSubmission } from "@/hooks/useFormSubmission";
 import type { BreadcrumbItem } from "@/components/ui/Breadcrumb";
@@ -73,6 +72,5 @@ export function AltaForm<K extends string>({ breadcrumb, heading, description, f
         <button className="button submit" disabled={busy || Boolean(blocked)}>{busy ? "Guardando…" : submitLabel}</button>
       </form>
     </Card>
-    <div className="form-links"><Link href="/home/admin">Volver al panel de administración</Link></div>
   </section>;
 }

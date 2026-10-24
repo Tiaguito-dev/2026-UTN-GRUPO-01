@@ -21,7 +21,7 @@ export function MateriasList() {
   const context = parseMateriaContext(params);
   const headingId = useId();
   return <section aria-labelledby={headingId}>
-    <PageHeader id={headingId} title="Materias" breadcrumb={[{ label: "Materias" }]} />
+    <PageHeader id={headingId} title="Materias" />
     {params.get("successMessage") ? <Notice tone="success">{params.get("successMessage")}</Notice> : null}
     <div className={styles.filters}>
       <div className={styles.heading}>

@@ -2,9 +2,7 @@
   /* Card: shared surface; each variant keeps the padding, width and shadow of the class it replaced. */
   .card { border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); }
   .card-auth { width: min(100%, 32rem); margin-inline: auto; padding: clamp(1.5rem, 4vw, 2.5rem); box-shadow: var(--shadow-card); }
-  .card-auth h1, .account-container h1 { text-align: center; }
-  .account-container { max-width: 42rem; margin-inline: auto; }
-  .account-intro { text-align: center; color: var(--muted); margin: -.5rem 0 var(--space-8); }
+  .card-auth h1 { text-align: center; }
   .card-profile { padding: clamp(1.5rem, 4vw, 2.5rem); box-shadow: var(--shadow-card); }
   .profile-identity { display: flex; align-items: center; gap: var(--space-5); padding-bottom: var(--space-6); border-bottom: 1px solid var(--border); }
   .profile-identity > div { min-width: 0; }

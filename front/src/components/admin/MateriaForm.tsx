@@ -6,7 +6,7 @@ import { crearMateria, actualizarMateria } from "@/services/materias";
 import type { Materia, MateriaInput } from "@/types/materias";
 import { MAX_NOMBRE_MATERIA, validateNombre } from "@/validations/academic";
 import { ANIOS_CARRERA, anioCarreraLabel, isAnioCarrera, NIVELES_ELECTIVA, isNivelElectiva, nivelElectivaLabel, parseMateriaContext, materiaListHref, parseMateriaPage } from "@/validations/materias";
-import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Notice } from "@/components/ui/Notice";
 import { SELECT_PLACEHOLDER } from "@/lib/messages";
@@ -55,8 +55,7 @@ export function MateriaForm({ materia, detailHref }: { materia?: Materia; detail
   const listYear = listContext.get("anioCarrera");
   const backList = materiaListHref(isAnioCarrera(listYear) ? listYear : undefined, parseMateriaPage(listContext.get("listadoPage")), parseMateriaContext(listContext));
   return <section aria-labelledby="materia-form-heading">
-    <Breadcrumb items={[{ label: "Materias", href: backList }, { label: materia ? "Editar materia" : "Nueva materia" }]} />
-    <h1 id="materia-form-heading">{materia ? "Editar materia" : "Nueva materia"}</h1>
+    <PageHeader id="materia-form-heading" title={materia ? "Editar materia" : "Nueva materia"} breadcrumb={[{ label: "Materias", href: backList }, { label: materia ? "Editar materia" : "Nueva materia" }]} />
     <Card variant="panel">
       {error ? <Notice tone="error">{error}</Notice> : null}
       {notice ? <p role="status">{notice}</p> : null}
@@ -69,6 +68,7 @@ export function MateriaForm({ materia, detailHref }: { materia?: Materia; detail
         <button className="button submit" disabled={busy}>{busy ? "Guardando…" : materia ? "Guardar cambios" : "Crear materia"}</button>
       </form>
     </Card>
-    <div className="form-links"><Link href={detailHref ?? "/home/materias"}>Volver</Link></div>
+    {/* Alta: el breadcrumb ya lleva al listado. Edición: vuelve al detalle, que el breadcrumb no muestra. */}
+    {materia ? <div className="form-links"><Link href={detailHref ?? "/home/materias"}>Volver</Link></div> : null}
   </section>;
 }

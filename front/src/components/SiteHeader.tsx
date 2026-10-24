@@ -28,17 +28,15 @@ export function SiteHeader() {
   function close() { setOpen(false); }
   return <header className={`site-header${status === "authenticated" ? " site-header-auth" : ""}`}>
     <Link href={status === "authenticated" ? "/home" : "/"} className="brand"><span className="brand-mark" aria-hidden="true">PB</span><span>Profesor Butchery</span></Link>
-    {status === "authenticated" ? <nav aria-label="Navegación principal">
-      <div className="account-menu" ref={containerRef} onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) close();
-      }}>
-        <button ref={triggerRef} className="account-menu-trigger" type="button" aria-label="Opciones de cuenta" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(!open)}>
-          <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 8 0 0 1 16 0v2" /></svg>
-        </button>
-        {open ? <div id={panelId} className="account-menu-panel">
-          {status === "authenticated" ? <><Link href="/account" onClick={close}>Mi perfil</Link><Link href="/account/change-password" onClick={close}>Cambiar contraseña</Link><LogoutButton onSuccess={close} className="account-menu-action" /></> : null}
-        </div> : null}
-      </div>
-    </nav> : null}
+    {status === "authenticated" ? <div className="account-menu" ref={containerRef} onBlur={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) close();
+    }}>
+      <button ref={triggerRef} className="account-menu-trigger" type="button" aria-label="Opciones de cuenta" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(!open)}>
+        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 8 0 0 1 16 0v2" /></svg>
+      </button>
+      {open ? <div id={panelId} className="account-menu-panel">
+        <Link href="/account" onClick={close}>Mi perfil</Link><Link href="/account/change-password" onClick={close}>Cambiar contraseña</Link><LogoutButton onSuccess={close} className="account-menu-action" />
+      </div> : null}
+    </div> : null}
   </header>;
 }

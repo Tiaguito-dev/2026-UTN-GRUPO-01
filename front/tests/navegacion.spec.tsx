@@ -59,11 +59,21 @@ describe("SidebarNav", () => {
     ["/home/materias", "MMaterias"],
     ["/home/materias/m1/cursadas/c1", "MMaterias"],
     ["/home/profesores", "PProfesores"],
+    ["/account", "⌂Inicio"],
+    ["/account/change-password", "⌂Inicio"],
   ])("en %s marca %s con aria-current", (pathname, expected) => {
     location.pathname = pathname;
     auth.value = { status: "authenticated", account: { role: "USER" } };
     render(<SidebarNav />);
     expect(current()).toEqual([expected]);
+  });
+
+  it("con el header, el sidebar es el único landmark Navegación principal", () => {
+    location.pathname = "/home";
+    auth.value = { status: "authenticated", account: { role: "USER" }, logout: async () => {} };
+    render(<><SiteHeader /><SidebarNav /></>);
+    expect(screen.getAllByRole("navigation").map((nav) => nav.getAttribute("aria-label"))).toEqual(["Navegación principal"]);
+    expect(screen.queryByRole("complementary", { name: /./ })).toBeNull();
   });
 
   it.each([
