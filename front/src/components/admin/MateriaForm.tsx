@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
 import { crearMateria, actualizarMateria } from "@/services/materias";
 import type { Materia, MateriaInput } from "@/types/materias";
-import { validateNombre } from "@/validations/academic";
+import { MAX_NOMBRE_MATERIA, validateNombre } from "@/validations/academic";
 import { ANIOS_CARRERA, anioCarreraLabel, isAnioCarrera, NIVELES_ELECTIVA, isNivelElectiva, nivelElectivaLabel, parseMateriaContext, materiaListHref, parseMateriaPage } from "@/validations/materias";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Card } from "@/components/ui/Card";
@@ -30,7 +30,7 @@ export function MateriaForm({ materia, detailHref }: { materia?: Materia; detail
     const rawNivel = data.get("nivelElectiva");
     const nivelElectiva = anioCarrera === "ELECTIVA" && isNivelElectiva(rawNivel) ? rawNivel : null;
     const nextErrors: Record<string, string> = {};
-    const issue = validateNombre(rawNombre, 150);
+    const issue = validateNombre(rawNombre, MAX_NOMBRE_MATERIA);
     if (issue) nextErrors.nombre = issue;
     if (!isAnioCarrera(anioCarrera)) nextErrors.anioCarrera = "Elegí un año entre 1 y 5 o Electiva.";
     if (anioCarrera === "ELECTIVA" && !isNivelElectiva(rawNivel)) nextErrors.nivelElectiva = "Elegí el nivel 3, 4 o 5 de la electiva.";
@@ -61,7 +61,7 @@ export function MateriaForm({ materia, detailHref }: { materia?: Materia; detail
       {error ? <Notice tone="error">{error}</Notice> : null}
       {notice ? <p role="status">{notice}</p> : null}
       <form onSubmit={submit} noValidate aria-busy={busy}>
-        <div className="field"><label htmlFor="nombre">Nombre de la materia</label><input id="nombre" name="nombre" defaultValue={materia?.nombre ?? ""} maxLength={150} required aria-invalid={Boolean(errors.nombre)} aria-describedby={errors.nombre ? "nombre-error" : undefined} />{errors.nombre ? <p id="nombre-error" className="field-error">{errors.nombre}</p> : null}</div>
+        <div className="field"><label htmlFor="nombre">Nombre de la materia</label><input id="nombre" name="nombre" defaultValue={materia?.nombre ?? ""} maxLength={MAX_NOMBRE_MATERIA} required aria-invalid={Boolean(errors.nombre)} aria-describedby={errors.nombre ? "nombre-error" : undefined} />{errors.nombre ? <p id="nombre-error" className="field-error">{errors.nombre}</p> : null}</div>
         <div className="field"><label htmlFor="anioCarrera">Año de la carrera</label><select id="anioCarrera" name="anioCarrera" value={selectedYear} onChange={(event) => setSelectedYear(event.target.value)} required aria-invalid={Boolean(errors.anioCarrera)} aria-describedby={errors.anioCarrera ? "anioCarrera-error" : undefined}>
           <option value="">{SELECT_PLACEHOLDER}</option>{ANIOS_CARRERA.map((anio) => <option key={anio} value={anio}>{anioCarreraLabel(anio)}</option>)}
         </select>{errors.anioCarrera ? <p id="anioCarrera-error" className="field-error">{errors.anioCarrera}</p> : null}</div>

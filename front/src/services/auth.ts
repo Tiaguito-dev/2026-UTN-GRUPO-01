@@ -1,14 +1,13 @@
 import type { ChangePasswordInput, LoginInput, PublicAccount, RegisterInput, ResetPasswordInput } from "@/types/auth";
+import type { z } from "zod";
 import { HttpError, requestJson } from "./http";
+import { messageSchema, parseResponse, publicAccountSchema } from "./schemas";
 import { SessionCoordinator, type SessionRevision } from "./session-coordinator";
 
 function sameRevision(first: SessionRevision | null, second: SessionRevision | null): boolean { return first?.id === second?.id; }
 const CLOSED = ["logout", "reset", "change", "expired"];
 function publicAccount(value: unknown): PublicAccount {
-  if (!value || typeof value !== "object") throw new HttpError(502, "El servidor devolvió una cuenta inválida. Intentá nuevamente.");
-  const account = value as Record<string, unknown>;
-  if (typeof account.id !== "string" || !account.id || typeof account.email !== "string" || typeof account.displayName !== "string" || (account.role !== "ADMIN" && account.role !== "USER")) throw new HttpError(502, "El servidor devolvió una cuenta inválida. Intentá nuevamente.");
-  return { id: account.id, email: account.email, displayName: account.displayName, role: account.role, ...(typeof account.createdAt === "string" ? { createdAt: account.createdAt } : {}) };
+  return parseResponse(publicAccountSchema, value, "El servidor devolvió una cuenta inválida. Intentá nuevamente.");
 }
 
 export class AuthService {
@@ -46,10 +45,13 @@ export class AuthService {
     return this.renewal;
   }
   /** Only protected GETs can use generic recovery. Ambiguous mutations are never replayed. */
-  async protectedGet<T>(path: string): Promise<T> {
+  protectedGet(path: string): Promise<unknown>;
+  protectedGet<T>(path: string, schema: z.ZodType<T>): Promise<T>;
+  async protectedGet<T>(path: string, schema?: z.ZodType<T>): Promise<unknown> {
+    const parse = (body: unknown) => schema ? parseResponse(schema, body) : body;
     const observed = this.coordinator.read();
     try {
-      const result = await requestJson<T>(path);
+      const result = parse(await requestJson(path));
       if (observed?.kind === "refresh-uncertain") await this.coordinator.lock(async () => {
         if (sameRevision(observed, this.coordinator.read())) {
           await this.rawMe();
@@ -61,20 +63,22 @@ export class AuthService {
     catch (error) {
       if (!(error instanceof HttpError) || error.status !== 401) throw error;
       await this.renew(observed);
-      return requestJson<T>(path);
+      return parse(await requestJson(path));
     }
   }
   /** Alta administrativa: un 401 lo genera el guard de sesión antes del handler, así que la
    *  escritura no se ejecutó y reintentarla una vez tras el refresh no puede duplicar el alta.
    *  Cualquier otro fallo (409, 404, 400, red) se devuelve sin reintentar. */
-  async protectedPost<T>(path: string, body: unknown): Promise<T> {
+  async protectedPost<T>(path: string, body: unknown, schema: z.ZodType<T>): Promise<T> {
     const observed = this.coordinator.read();
-    try { return await requestJson<T>(path, { method: "POST", body }); }
+    let result: unknown;
+    try { result = await requestJson(path, { method: "POST", body }); }
     catch (error) {
       if (!(error instanceof HttpError) || error.status !== 401) throw error;
       await this.renew(observed);
-      return requestJson<T>(path, { method: "POST", body });
+      result = await requestJson(path, { method: "POST", body });
     }
+    return parseResponse(schema, result);
   }
   async me(): Promise<PublicAccount> { return publicAccount(await this.protectedGet("/auth/me")); }
   probe(): Promise<PublicAccount> { return this.rawMe(); }
@@ -90,12 +94,12 @@ export class AuthService {
     return publicAccount(await requestJson("/auth/register", { method: "POST", body: { email: input.email.trim().toLowerCase(), displayName: input.displayName.trim(), password: input.password } }));
   }
   async forgotPassword(input: { email: string }): Promise<string> {
-    const result = await requestJson<{ message: string }>("/auth/forgot-password", { method: "POST", body: { email: input.email.trim().toLowerCase() } });
+    const result = parseResponse(messageSchema, await requestJson("/auth/forgot-password", { method: "POST", body: { email: input.email.trim().toLowerCase() } }));
     return result.message;
   }
   resetPassword(input: ResetPasswordInput, onSuccess?: () => void): Promise<void> {
     return this.coordinator.lock(async () => {
-      await requestJson<void>("/auth/reset-password", { method: "POST", body: input });
+      await requestJson("/auth/reset-password", { method: "POST", body: input });
       this.coordinator.publish("reset");
       onSuccess?.();
     });
@@ -119,12 +123,12 @@ export class AuthService {
         account = await this.rawMe();
       }
       if (account.id !== expectedAccountId) throw new HttpError(409, "La cuenta cambió en otra pestaña. Comprobá la cuenta antes de continuar.");
-      try { await requestJson<void>("/auth/change-password", { method: "POST", body: input }); }
+      try { await requestJson("/auth/change-password", { method: "POST", body: input }); }
       catch (error) {
         if (!(error instanceof HttpError) || error.status !== 401 || renewed) throw error;
         if (!this.coordinator.available) throw new HttpError(0, "No se puede renovar de forma segura en este navegador. Iniciá sesión nuevamente.");
         await this.renewLocked(observed, true);
-        await requestJson<void>("/auth/change-password", { method: "POST", body: input });
+        await requestJson("/auth/change-password", { method: "POST", body: input });
       }
       this.coordinator.publish("change");
       onSuccess?.();
@@ -132,7 +136,7 @@ export class AuthService {
   }
   logout(onSuccess?: () => void): Promise<void> {
     return this.coordinator.lock(async () => {
-      await requestJson<void>("/auth/logout", { method: "POST" });
+      await requestJson("/auth/logout", { method: "POST" });
       this.coordinator.publish("logout");
       onSuccess?.();
     });

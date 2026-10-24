@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useMateria } from "@/hooks/useMateria";
@@ -21,13 +21,16 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
   const listadoPage = parseMateriaPage(params.get("listadoPage"));
   const backHref = materiaListHref(anio, listadoPage, context);
   const detailHref = materiaDetailHref(materiaId, anio, listadoPage, context);
-  const { materia, error, retry } = useMateria(materiaId);
+  const { materia, error, notFound, retry } = useMateria(materiaId);
+  // Name from the backend detail (TASK-031): "Cargando…" until it arrives.
+  const materiaLabel = materia?.nombre ?? (error ? "Materia" : "Cargando…");
+  useEffect(() => { if (materia) document.title = `${materia.nombre} | Profesor Butchery`; }, [materia]);
   return <>
     <section aria-labelledby="materia-heading">
-      <Breadcrumb items={[{ label: "Materias", href: backHref }, { label: materia?.nombre ?? "Materia" }]} />
-      <h1 id="materia-heading">{materia?.nombre ?? "Materia"}</h1>
+      <Breadcrumb items={[{ label: "Materias", href: backHref }, { label: materiaLabel }]} />
+      <h1 id="materia-heading">{materiaLabel}</h1>
       {params.get("successMessage") ? <Notice tone="success">{params.get("successMessage")}</Notice> : null}
-      {error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la materia. {error} <button className="button" onClick={retry} type="button">Reintentar</button></Notice> : null}
+      {error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la materia. {error} {notFound ? <Link href={backHref}>Volver al listado de materias</Link> : <button className="button" onClick={retry} type="button">Reintentar</button>}</Notice> : null}
       {!materia && !error ? <p role="status">Cargando materia…</p> : null}
       {materia ? <>
         <Card variant="panel"><h2>Datos de la materia</h2><dl><dt>Nombre</dt><dd>{materia.nombre}</dd><dt>Año de la carrera</dt><dd>{anioCarreraLabel(materia.anioCarrera)}</dd>{materia.anioCarrera === "ELECTIVA" ? <><dt>Nivel de electiva</dt><dd>{nivelElectivaLabel(materia.nivelElectiva)}</dd></> : null}</dl></Card>

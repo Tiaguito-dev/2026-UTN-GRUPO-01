@@ -228,4 +228,53 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     expect(response.status).toBe(200);
     expect(body.items).toEqual([{ id: cursada.id, anio: cursada.anio, cuatrimestre: cursada.cuatrimestre, profesor: profesor.nombreCompleto }]);
   });
+
+  it("GET /materias/:id exige sesión y devuelve la misma forma que un ítem del listado", async () => {
+    const materia = await createMateria();
+    expect((await get(`/materias/${materia.id}`)).status).toBe(401);
+
+    const cookie = await sessionCookie();
+    const response = await get(`/materias/${materia.id}`, cookie);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toStrictEqual({
+      id: materia.id, nombre: materia.nombre, anioCarrera: null, nivelElectiva: null, createdAt: materia.createdAt.toISOString(), deletedAt: null,
+    });
+    const listado = await (await get(`/materias?q=${encodeURIComponent(materia.nombre)}`, cookie)).json();
+    expect(listado.items).toEqual([await (await get(`/materias/${materia.id}`, cookie)).json()]);
+  });
+
+  it("GET /materias/:id responde 400 con id inválido y 404 si no existe o está dada de baja", async () => {
+    const cookie = await sessionCookie();
+    const deleted = await createMateria();
+    await prisma.materia.update({ where: { id: deleted.id }, data: { deletedAt: new Date() } });
+    expect((await get(`/materias/not-a-uuid`, cookie)).status).toBe(400);
+    expect((await get(`/materias/${randomUUID()}`, cookie)).status).toBe(404);
+    expect((await get(`/materias/${deleted.id}`, cookie)).status).toBe(404);
+  });
+
+  it("GET /cursadas/:id exige sesión y devuelve el resumen con la materia", async () => {
+    const materia = await createMateria();
+    const profesor = await createProfesor();
+    const cursada = await createCursada(materia.id, profesor.id, 2025);
+    expect((await get(`/cursadas/${cursada.id}`)).status).toBe(401);
+
+    const cookie = await sessionCookie();
+    const response = await get(`/cursadas/${cursada.id}`, cookie);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toStrictEqual({
+      id: cursada.id, anio: 2025, cuatrimestre: "PRIMERO", profesor: profesor.nombreCompleto, materia: { id: materia.id, nombre: materia.nombre },
+    });
+  });
+
+  it("GET /cursadas/:id responde 400 con id inválido y 404 si no existe o está dada de baja", async () => {
+    const cookie = await sessionCookie();
+    const materia = await createMateria();
+    const cursada = await createCursada(materia.id, (await createProfesor()).id);
+    await prisma.cursada.update({ where: { id: cursada.id }, data: { deletedAt: new Date() } });
+    expect((await get(`/cursadas/not-a-uuid`, cookie)).status).toBe(400);
+    const missing = await get(`/cursadas/${randomUUID()}`, cookie);
+    expect(missing.status).toBe(404);
+    expect((await missing.json()).message).toBe("La cursada solicitada no existe.");
+    expect((await get(`/cursadas/${cursada.id}`, cookie)).status).toBe(404);
+  });
 });

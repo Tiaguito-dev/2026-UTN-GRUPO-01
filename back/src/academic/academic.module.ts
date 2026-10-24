@@ -21,6 +21,7 @@ import { CrearProfesor } from "./application/crear-profesor.js";
 import { CrearCursada } from "./application/crear-cursada.js";
 import { CrearComision } from "./application/crear-comision.js";
 import { ObtenerMateria } from "./application/obtener-materia.js";
+import { ObtenerCursada } from "./application/obtener-cursada.js";
 import { ActualizarMateria } from "./application/actualizar-materia.js";
 import { ListarHistorialMateria } from "./application/listar-historial-materia.js";
 
@@ -63,6 +64,12 @@ import { ListarHistorialMateria } from "./application/listar-historial-materia.j
       useFactory: (materias: MateriaRepository, cursadas: CursadaRepository, profesores: ProfesorRepository) =>
         new ListarCursadasPorMateria(materias, cursadas, profesores),
       inject: [MATERIA_REPOSITORY, CURSADA_REPOSITORY, PROFESOR_REPOSITORY],
+    },
+    {
+      provide: ObtenerCursada,
+      useFactory: (cursadas: CursadaRepository, materias: MateriaRepository, profesores: ProfesorRepository) =>
+        new ObtenerCursada(cursadas, materias, profesores),
+      inject: [CURSADA_REPOSITORY, MATERIA_REPOSITORY, PROFESOR_REPOSITORY],
     },
     {
       provide: ListarComisionesPorCursada,

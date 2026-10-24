@@ -210,6 +210,13 @@ el frontend. Las instrucciones para ejecutar Next fuera de Docker están en el R
   timeout y errores seguros. Los POST agregan `X-CSRF-Protection: 1` y JSON; el navegador
   aporta Origin. El backend valida el origen exacto configurado. No hay endpoint para
   obtener un token CSRF ni lectura de cookies HttpOnly desde JavaScript.
+- `requestJson` devuelve el cuerpo sin tipar. Cada servicio lo valida con su esquema Zod de
+  `services/schemas.ts` (`protectedGet`/`protectedPost` reciben el esquema). Una respuesta con
+  forma inesperada se convierte en `HttpError(502)` con mensaje en español, que las pantallas
+  ya muestran con Reintentar (TASK-031).
+- Los nombres de materia y período que muestran títulos y breadcrumbs salen del backend
+  (`GET /materias/:id`, `GET /cursadas/:id`); la URL del recorrido lleva solo ids y el
+  contexto del listado. Mientras llega el detalle se muestra "Cargando…".
 - `services/auth.ts` ofrece registro, login, cuenta, recuperación, reset, cambio y logout.
   Ante un 401 en un GET protegido, comparte un intento de renovación y repite la consulta
   una sola vez. Un 403, error de red o 500 no genera una renovación automática. Login,
