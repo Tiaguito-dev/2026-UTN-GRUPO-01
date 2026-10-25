@@ -15,6 +15,16 @@ export class CursadaNotFoundError extends DomainError {
   constructor() { super("La cursada solicitada no existe."); this.name = "CursadaNotFoundError"; }
 }
 
+export class ComisionNotFoundError extends DomainError {
+  readonly httpStatus = 404;
+  constructor() { super("La comisión solicitada no existe."); this.name = "ComisionNotFoundError"; }
+}
+
+export class ProfesorNoAsignadoError extends DomainError {
+  readonly httpStatus = 404;
+  constructor() { super("El profesor no está asignado a esa comisión."); this.name = "ProfesorNoAsignadoError"; }
+}
+
 export class InvalidIdError extends DomainError {
   readonly httpStatus = 400;
   constructor() { super("El identificador no es válido."); this.name = "InvalidIdError"; }
@@ -40,5 +50,10 @@ export class CursadaAlreadyExistsError extends DomainError {
 
 export class ComisionAlreadyExistsError extends DomainError {
   readonly httpStatus = 409;
-  constructor() { super("Ya existe una comisión con ese nombre en esa cursada."); this.name = "ComisionAlreadyExistsError"; }
+  constructor() { super("Ya existe esa comisión en esa cursada."); this.name = "ComisionAlreadyExistsError"; }
+}
+
+export class CarreraConComisionesError extends DomainError {
+  readonly httpStatus = 409;
+  constructor() { super("No se puede quitar una carrera que tiene comisiones."); this.name = "CarreraConComisionesError"; }
 }

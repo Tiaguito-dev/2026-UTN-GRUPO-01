@@ -1,12 +1,9 @@
-// Rangos de control C0 (0-31) y C1 + DEL (127-159). Se comprueba por punto de código, igual que
-// `academic-text.ts` del backend, para no depender de escapes en un literal de expresión regular.
-function hasControlCharacters(value: string): boolean {
-  for (const char of value) {
-    const code = char.codePointAt(0) ?? 0;
-    if (code < 32 || (code >= 127 && code <= 159)) return true;
-  }
-  return false;
-}
+import { hasControlCharacters } from "./text";
+
+// Límites del backend (`crear-*-input.ts`). `tests/validation-parity.spec.ts` falla si divergen.
+export const MAX_NOMBRE_MATERIA = 150;
+export const MAX_NOMBRE_PROFESOR = 150;
+export const MAX_NOMBRE_COMISION = 100;
 
 /** Espeja `nombreSchema` del backend: se recorta, no puede quedar vacío, sin caracteres de
  *  control, y se mide en puntos de código igual que el VarChar de Postgres. */
@@ -26,6 +23,17 @@ export function validateAnio(value: string): string | undefined {
   const anio = Number(texto);
   if (!/^[0-9]+$/u.test(texto) || anio < ANIO_MINIMO || anio > anioMaximo()) {
     return `El año debe ser un número entero entre ${ANIO_MINIMO} y ${anioMaximo()}.`;
+  }
+}
+
+export const NUMERO_COMISION_MINIMO = 1;
+export const NUMERO_COMISION_MAXIMO = 999;
+
+export function validateNumeroComision(value: string): string | undefined {
+  const texto = value.trim();
+  const numero = Number(texto);
+  if (!/^[0-9]+$/u.test(texto) || numero < NUMERO_COMISION_MINIMO || numero > NUMERO_COMISION_MAXIMO) {
+    return `El número de comisión debe ser un número entero entre ${NUMERO_COMISION_MINIMO} y ${NUMERO_COMISION_MAXIMO}.`;
   }
 }
 

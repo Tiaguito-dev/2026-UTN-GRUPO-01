@@ -45,6 +45,25 @@ Ya funciona, está testeado (277+ tests), y migrarlo es puro refactor sin capaci
 riesgo de re-testear un módulo estable para ganar solo consistencia estilística no se justifica
 todavía. Se revisita cuando alguien ya esté tocando esos archivos por otro motivo.
 
+## Frontend
+
+En el front, Zod valida **respuestas** del backend, no formularios (TASK-031):
+
+- `front/src/services/schemas.ts` tiene un esquema por respuesta y `paginatedSchema(item)`.
+  Cada uno se anota como `z.ZodType<Tipo>`, así el compilador comprueba que coincide con el
+  tipo que usan las pantallas.
+- `protectedGet` y `protectedPost` reciben el esquema y validan antes de devolver. Si falla,
+  `parseResponse` lanza `HttpError(502, "El servidor devolvió datos con un formato inesperado.
+  Intentá nuevamente.")`: igual que en el back, el error nativo de Zod nunca sale hacia afuera.
+- Los formularios siguen con funciones propias en `front/src/validations/` que devuelven el
+  mensaje en español. Una regla tiene una sola implementación por lado (por ejemplo
+  `hasControlCharacters` en `validations/text.ts`) y los límites son constantes exportadas
+  (`MAX_NOMBRE_MATERIA`, `ANIO_MINIMO`, …).
+- `front/tests/validation-parity.spec.ts` importa los validadores reales del back por ruta
+  relativa y corre la misma tabla de casos contra los dos lados: falla si uno acepta lo que el
+  otro rechaza. Si mantenerlo se vuelve difícil, es la señal para un paquete de esquemas
+  compartido (ver TASK-031, sección 6).
+
 ## Referencia
 
 `back/src/academic/application/academic-id.ts`, `back/src/shared/domain/pagination-input.ts`.

@@ -4,7 +4,7 @@ import { RequireGuest } from "@/components/auth/RequireGuest";
 
 export default function HomePage() {
   return (
-    <main id="main-content" className="landing"><RequireGuest>
+    <main id="main-content" className="page landing"><RequireGuest>
       <section id="proyecto" className="hero" aria-labelledby="hero-title">
         <p className="eyebrow"><span aria-hidden="true" />De estudiantes, para estudiantes</p>
         <h1 id="hero-title">Tu carrera, con <span>más perspectiva.</span></h1>

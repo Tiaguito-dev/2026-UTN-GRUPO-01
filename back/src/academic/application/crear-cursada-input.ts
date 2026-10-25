@@ -4,7 +4,6 @@ import { CAMPOS_NO_PERMITIDOS, InvalidAcademicInputError } from "./errors.js";
 
 export interface CrearCursadaInput {
   materiaId: string;
-  profesorId: string;
   anio: number;
   cuatrimestre: Cuatrimestre;
 }
@@ -21,7 +20,6 @@ export function anioMaximo(now: Date = new Date()): number {
 function schema(): z.ZodType<CrearCursadaInput> {
   return z.strictObject({
     materiaId: z.string().uuid(),
-    profesorId: z.string().uuid(),
     anio: z.number().int().min(ANIO_MINIMO).max(anioMaximo()),
     cuatrimestre: z.enum(["PRIMERO", "SEGUNDO"]),
   });
@@ -29,14 +27,13 @@ function schema(): z.ZodType<CrearCursadaInput> {
 
 const MENSAJES: Record<string, string> = {
   materiaId: "El identificador de la materia no es válido.",
-  profesorId: "El identificador del profesor no es válido.",
   cuatrimestre: "El cuatrimestre debe ser PRIMERO o SEGUNDO.",
 };
 
 export function validateCrearCursadaInput(value: unknown): CrearCursadaInput {
   const result = schema().safeParse(value);
   if (result.success) return result.data;
-  if (result.error.issues[0]?.code === "unrecognized_keys") throw new InvalidAcademicInputError(CAMPOS_NO_PERMITIDOS);
+  if (result.error.issues.some((issue) => issue.code === "unrecognized_keys")) throw new InvalidAcademicInputError(CAMPOS_NO_PERMITIDOS);
   const campo = String(result.error.issues[0]?.path[0] ?? "");
   if (campo === "anio") {
     throw new InvalidAcademicInputError(`El año debe ser un número entero entre ${ANIO_MINIMO} y ${anioMaximo()}.`);

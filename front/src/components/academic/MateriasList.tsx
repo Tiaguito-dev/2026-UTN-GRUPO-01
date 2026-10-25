@@ -1,67 +1,168 @@
 "use client";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { listarMaterias } from "@/services/materias";
-import type { AnioCarrera } from "@/types/materias";
-import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
-import { ANIOS_CARRERA, anioCarreraLabel, isAnioCarrera, materiaListHref, materiaDetailHref, parseMateriaPage, parseMateriaContext, validateMateriaSearch, NIVELES_ELECTIVA, nivelElectivaLabel, type MateriaContext } from "@/validations/materias";
-import { Breadcrumb } from "./Breadcrumb";
-import { Pagination } from "./Pagination";
+import type { AnioCarrera, Carrera, Materia } from "@/types/materias";
+import { useFocusOnMount } from "@/hooks/useFocusOnMount";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import {
+  ANIOS_CARRERA,
+  CARRERAS,
+  anioCarreraLabel,
+  carreraShortLabel,
+  carrerasResumenLabel,
+  isAnioCarrera,
+  isCarrera,
+  materiaListHref,
+  materiaDetailHref,
+  parseMateriaPage,
+  parseMateriaContext,
+  validateMateriaSearch,
+  NIVELES_ELECTIVA,
+  nivelElectivaLabel,
+  type MateriaContext,
+} from "@/validations/materias";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { PaginatedListView } from "@/components/ui/PaginatedListView";
+import { Notice } from "@/components/ui/Notice";
+import { Dialog } from "@/components/ui/Dialog";
+import { FilterChips } from "@/components/ui/FilterChips";
+import { RowLink } from "@/components/ui/RowLink";
+import { MateriaForm } from "@/components/admin/MateriaForm";
+import { PlusIcon } from "./detalle";
 import styles from "./MateriasList.module.css";
 
 export function MateriasList() {
   const params = useSearchParams();
   const router = useRouter();
+  const rawCarrera = params.get("carrera");
+  const carrera = isCarrera(rawCarrera) ? rawCarrera : undefined;
   const rawAnio = params.get("anioCarrera");
-  const anio = isAnioCarrera(rawAnio) ? rawAnio : undefined;
+  const anio = carrera && isAnioCarrera(rawAnio) ? rawAnio : undefined;
   const page = parseMateriaPage(params.get("page"));
   const context = parseMateriaContext(params);
-  return <section aria-labelledby="materias-heading">
-    <Breadcrumb items={[{ label: "Materias" }]} />
-    <h1 id="materias-heading">Materias</h1>
-    {params.get("successMessage") ? <p role="status" className="notice success">{params.get("successMessage")}</p> : null}
+  const headingId = useId();
+  const isAdmin = useIsAdmin();
+  const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [created, setCreated] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  return <section aria-labelledby={headingId}>
+    <div className={styles.header}>
+      <PageHeader id={headingId} title="Materias" description="Información para acercarte a cada materia con más contexto antes de cursarla." />
+      {isAdmin ? <button className={`button ${styles.newButton}`} type="button" onClick={() => setCreating(true)}><PlusIcon />Nueva materia</button> : null}
+    </div>
+    {params.get("successMessage") ? <Notice tone="success">{params.get("successMessage")}</Notice> : null}
+    {created ? <Notice tone="success">{created}</Notice> : null}
+    {/* TASK-043: short alta that returns to this list, so it opens in a Dialog; the page stays as fallback. */}
+    {isAdmin ? <Dialog open={creating} onClose={() => setCreating(false)} title="Nueva materia" description="El nombre no puede repetirse." busy={saving}>
+      {creating ? <MateriaForm onCancel={() => setCreating(false)} onBusyChange={setSaving} onSuccess={(materia) => {
+        setCreating(false);
+        setCreated(`Materia creada: ${materia.nombre}.`);
+        setRefreshKey((key) => key + 1);
+      }} /> : null}
+    </Dialog> : null}
     <div className={styles.filters}>
       <div className={styles.heading}>
         <p className={styles.title}>Filtros</p>
-        <p className={styles.description}>Encontrá una materia por su nombre o explorá por año.</p>
+        <p className={styles.description}>Elegí tu carrera y después buscá por nombre o explorá por año.</p>
       </div>
-      <MateriaSearch key={context.q ?? ""} query={context.q ?? ""} onSearch={(q) => router.replace(materiaListHref(anio, 1, { ...context, q }), { scroll: false })} />
-      <div className={styles.filterGroup} role="group" aria-labelledby="anio-carrera-label">
-        <p id="anio-carrera-label" className={styles.groupLabel}>Año de la carrera</p>
-        <div className={styles.chips}>
-          <button type="button" className={styles.chip} aria-pressed={!anio} onClick={() => router.replace(materiaListHref(undefined, 1, context), { scroll: false })}>Todos los años</button>
-          {ANIOS_CARRERA.map((value) => <button key={value} type="button" className={styles.chip} aria-pressed={anio === value} onClick={() => router.replace(materiaListHref(value, 1, context), { scroll: false })}>{value === "ELECTIVA" ? "Electivas" : anioCarreraLabel(value)}</button>)}
+      <div className={styles.careerGroup} role="group" aria-labelledby="carrera-label">
+        <p id="carrera-label" className={styles.groupLabel}>Carrera</p>
+        <div className={styles.careers}>
+          <button className={`button ${styles.career}`} type="button" aria-pressed={!carrera} onClick={() => router.replace(materiaListHref(undefined, undefined, 1, { ...context, carrera: undefined, nivelElectiva: undefined }), { scroll: false })}><span className={styles.careerInitial} aria-hidden="true">∗</span>Todas</button>
+          {CARRERAS.map((cod) => <button className={`button ${styles.career}`} key={cod} type="button" aria-pressed={carrera === cod} onClick={() => router.replace(materiaListHref(cod, undefined, 1, { ...context, carrera: cod, nivelElectiva: undefined }), { scroll: false })}><span className={styles.careerInitial} aria-hidden="true">{cod}</span>{carreraShortLabel(cod)}</button>)}
         </div>
       </div>
-      {anio === "ELECTIVA" ? <div className={`${styles.filterGroup} ${styles.electiveGroup}`} role="group" aria-labelledby="nivel-electiva-label">
-        <p id="nivel-electiva-label" className={styles.groupLabel}>Nivel de electiva</p>
-        <div className={styles.chips}>
-          <button type="button" className={styles.chip} aria-pressed={!context.nivelElectiva} onClick={() => router.replace(materiaListHref(anio, 1, { ...context, nivelElectiva: undefined }), { scroll: false })}>Todos los niveles</button>
-          {NIVELES_ELECTIVA.map((nivel) => <button key={nivel} type="button" className={styles.chip} aria-pressed={context.nivelElectiva === nivel} onClick={() => router.replace(materiaListHref(anio, 1, { ...context, nivelElectiva: nivel }), { scroll: false })}>{nivelElectivaLabel(nivel)}</button>)}
-        </div>
-      </div> : null}
+      <MateriaSearch key={context.q ?? ""} query={context.q ?? ""} onSearch={(q) => router.replace(materiaListHref(carrera, anio, 1, { ...context, q }), { scroll: false })} />
+      {carrera ? (
+        <FilterChips
+          label="Año de la carrera"
+          id="anio-carrera-label"
+          className={styles.filterGroup}
+          options={[
+            { value: "", label: "Todos los años" },
+            ...ANIOS_CARRERA.map((value) => ({
+              value,
+              label: value === "ELECTIVA" ? "Electivas" : anioCarreraLabel(value),
+            })),
+          ]}
+          value={anio ?? ""}
+          onChange={(value) =>
+            router.replace(materiaListHref(carrera, value ? (value as AnioCarrera) : undefined, 1, context), { scroll: false })
+          }
+        />
+      ) : null}
+      {carrera && anio === "ELECTIVA" ? (
+        <FilterChips
+          label="Nivel de electiva"
+          id="nivel-electiva-label"
+          className={`${styles.filterGroup} ${styles.electiveGroup}`}
+          options={[
+            { value: "", label: "Todos los niveles" },
+            ...NIVELES_ELECTIVA.map((nivel) => ({
+              value: nivel,
+              label: nivelElectivaLabel(nivel),
+            })),
+          ]}
+          value={context.nivelElectiva ?? ""}
+          onChange={(value) =>
+            router.replace(
+              materiaListHref(carrera, anio, 1, {
+                ...context,
+                nivelElectiva: value ? (value as typeof context.nivelElectiva) : undefined,
+              }),
+              { scroll: false }
+            )
+          }
+        />
+      ) : null}
     </div>
-    <MateriasResults key={`${anio ?? "todos"}:${page}:${context.q ?? ""}:${context.nivelElectiva ?? ""}`} anio={anio} initialPage={page} context={context} />
+    <MateriasResults key={`${carrera ?? "todas"}:${anio ?? "todos"}:${page}:${context.q ?? ""}:${context.nivelElectiva ?? ""}`} carrera={carrera} anio={anio} page={page} context={context} refreshKey={refreshKey} />
   </section>;
 }
-function MateriasResults({ anio, initialPage, context }: { anio: AnioCarrera | undefined; initialPage: number; context: MateriaContext }) {
+
+function MateriasResults({ carrera, anio, page, context, refreshKey }: { carrera: Carrera | undefined; anio: AnioCarrera | undefined; page: number; context: MateriaContext; refreshKey: number }) {
   const router = useRouter();
-  const listRef = useRef<HTMLDivElement>(null);
-  const { status, result, error, page, retry } = usePaginatedFetch(`materias:${anio ?? "todos"}`, (next) => listarMaterias({ page: next, anioCarrera: anio, ...context }), initialPage);
-  useEffect(() => { listRef.current?.focus(); }, []);
-  return <div ref={listRef} tabIndex={-1}>
-    {status === "loading" ? <p role="status">Cargando materias…</p> : null}
-    {status === "error" ? <p role="alert" className="notice error">Lo sentimos. No pudimos recuperar las materias. Intentá nuevamente. <span>{error}</span> <button type="button" onClick={retry}>Reintentar</button></p> : null}
-    {status === "ready" && result ? result.items.length === 0 ? <p>No hay materias que coincidan con la búsqueda y los filtros.</p> : <>
-      {[...ANIOS_CARRERA, null].map((group) => {
-        const items = result.items.filter((materia) => (materia.anioCarrera ?? null) === group);
-        return items.length ? <div className="academic-panel" key={group ?? "sin-anio"}><h2>{anioCarreraLabel(group)}</h2><ul className="academic-list">
-          {items.map((materia) => <li key={materia.id}><Link href={materiaDetailHref(materia.id, anio, page, context)}>{materia.nombre}</Link>{materia.anioCarrera === "ELECTIVA" ? <span className="academic-list-detail"> — {nivelElectivaLabel(materia.nivelElectiva ?? null)}</span> : null}</li>)}
-        </ul></div> : null;
-      })}
-      <Pagination page={page} pageSize={result.pageSize} total={result.total} onChange={(next) => router.replace(materiaListHref(anio, next, context), { scroll: false })} />
-    </> : null}
+  const resultsFocus = useFocusOnMount<HTMLDivElement>();
+  const row = (materia: Materia) => {
+    const fila = carrera ? materia.carreras.find((c) => c.carrera === carrera) : undefined;
+    const badge = carrerasResumenLabel(materia.carreras);
+    const detailParts: string[] = [];
+    if (fila?.anioCarrera === "ELECTIVA") detailParts.push(nivelElectivaLabel(fila.nivelElectiva));
+    if (badge) detailParts.push(badge);
+    const detail = detailParts.length ? `— ${detailParts.join(" — ")}` : undefined;
+    return (
+      <RowLink
+        key={materia.id}
+        href={materiaDetailHref(materia.id, carrera, anio, page, context)}
+        detail={detail}
+      >
+        {materia.nombre}
+      </RowLink>
+    );
+  };
+  return <div ref={resultsFocus} tabIndex={-1} className={styles.results}>
+    <PaginatedListView resetKey="materias" page={page} refreshKey={refreshKey} onPageChange={(next) => router.replace(materiaListHref(carrera, anio, next, context), { scroll: false })} fetchPage={(next) => listarMaterias({ page: next, carrera, anioCarrera: anio, ...context })}
+      loadingMessage="Cargando materias…" errorMessage="Lo sentimos. No pudimos recuperar las materias. Intentá nuevamente." empty={<p>No hay materias que coincidan con la búsqueda y los filtros.</p>}>
+      {(result) => {
+        if (!carrera) return <div className="academic-panel"><ul className="row-list">{result.items.map(row)}</ul></div>;
+        return [...ANIOS_CARRERA, null].map((group) => {
+          const items = result.items.filter((materia) => (materia.carreras.find((c) => c.carrera === carrera)?.anioCarrera ?? null) === group);
+          if (!items.length) return null;
+          const groupId = `materias-grupo-${group ?? "sin-anio"}`;
+          return <section className="academic-panel" key={group ?? "sin-anio"} aria-labelledby={groupId}>
+            <div className={styles.groupHeader}>
+              <h2 id={groupId}><span className={styles.groupBadge} aria-hidden="true">{group === "ELECTIVA" ? "E" : group ?? "–"}</span>{anioCarreraLabel(group)}</h2>
+              <span className={styles.groupCount}>{items.length === 1 ? "1 materia" : `${items.length} materias`}</span>
+            </div>
+            <ul className="row-list">{items.map(row)}</ul>
+          </section>;
+        });
+      }}
+    </PaginatedListView>
   </div>;
 }
 
@@ -75,7 +176,7 @@ function MateriaSearch({ query, onSearch }: { query: string; onSearch: (q: strin
     if (!issue) onSearch(value.trim());
   }
   return <form className={styles.search} onSubmit={submit} noValidate role="search">
-    <div className={styles.searchField}><label htmlFor="materia-search">Buscar por nombre</label><div className={styles.searchControls}><input id="materia-search" name="q" type="search" value={value} onChange={(event) => setValue(event.target.value)} placeholder="Nombre de la materia" maxLength={150} aria-invalid={Boolean(error)} aria-describedby={error ? "materia-search-error" : undefined} /><button type="submit" className={styles.searchButton}>Buscar</button></div>{error ? <p id="materia-search-error" role="alert" className="field-error">{error}</p> : null}</div>
-    {value || query ? <button type="button" className={styles.clearButton} onClick={() => { setValue(""); setError(""); onSearch(""); }}>Limpiar búsqueda</button> : null}
+    <div className={styles.searchField}><label htmlFor="materia-search">Buscar por nombre</label><div className={styles.searchControls}><input id="materia-search" name="q" type="search" value={value} onChange={(event) => setValue(event.target.value)} placeholder="Nombre de la materia" maxLength={150} aria-invalid={Boolean(error)} aria-describedby={error ? "materia-search-error" : undefined} /><button className={`button ${styles.searchButton}`} type="submit">Buscar</button></div>{error ? <p id="materia-search-error" role="alert" className="field-error">{error}</p> : null}</div>
+    {value || query ? <button className={`button ${styles.clearButton}`} type="button" onClick={() => { setValue(""); setError(""); onSearch(""); }}>Limpiar búsqueda</button> : null}
   </form>;
 }

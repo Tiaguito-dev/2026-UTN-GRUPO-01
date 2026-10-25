@@ -9,6 +9,136 @@
 - Adaptadores HTTPS sin dependencias nuevas, con deadline y errores sin secretos.
 - Blueprint de Render Free y guía de configuración para API de Brevo, evitando los puertos
   SMTP bloqueados. Cambio verificado localmente; despliegue productivo pendiente.
+### Filas de lista clickeables con flecha (TASK-052)
+
+- Nueva primitiva `RowLink` en `components/ui/RowLink.tsx` y hoja de estilos `list.css` para filas que actúan como un único enlace accesible con chevron SVG decorativo (`aria-hidden`) y soporte para `detail`, `trailing` y estado actual (`current`) ([TASK-052](docs/tasks/finished/TASK-052-front-filas-de-lista-clickeables.md)).
+- Migración de `MateriasList`, `CursadasList` y `ComisionDetail` (otras comisiones y listado de profesores) a `ul.row-list` y `RowLink`.
+- Limpieza de estilos residuales `.academic-rows` y `.academic-row` en `academic.css`.
+- Actualización del inventario de primitivas en `docs/standards/frontend-componentes.md` y ajuste de máscara en `visual.browser.spec.mjs`.
+
+### Chips de filtro reutilizables (TASK-051)
+
+- Nueva primitiva `FilterChips` en `components/ui/FilterChips.tsx` para grupos de opciones de selección única con botones y `aria-pressed`, accesible vía teclado y lector de pantalla con etiqueta visible u oculta ([TASK-051](docs/tasks/finished/TASK-051-front-chips-de-filtro.md)).
+- Hoja de estilos `chip.css` bajo la capa `components` utilizando tokens oficiales (`--border`, `--surface`, `--muted`, `--primary`, `--radius-pill`, `--space-2`, `--space-4`, `--text-sm`) e importada en `globals.css`.
+- Migración de los filtros de año y nivel de electiva en `MateriasList.tsx` y filtro por carrera en `ComisionesList.tsx` a `FilterChips`.
+- Eliminación de `.chip` y `.chips` de `MateriasList.module.css` y `ComisionesList.module.css`.
+- Actualización de inventario en `docs/standards/frontend-componentes.md` y suite de pruebas unitarias en `ui-filter-chips.spec.tsx`.
+
+### Tonos de etiqueta para cargos docentes (TASK-053)
+
+- Extensión de la primitiva `Badge` con los tonos genéricos `solid`, `soft` y `outline` ([TASK-053](docs/tasks/finished/TASK-053-front-tonos-de-etiqueta-cargo.md)).
+- Clases correspondientes en `badge.css` utilizando la escala oficial de tokens de color, bordes y tipografía.
+- Módulo `lib/format/cargo.ts` con mapeo de cargos (`TITULAR → solid`, `ADJUNTO → soft`, `JTP → outline`) y etiquetas legibles (`CARGO_LABEL`), conservando `Badge` agnóstico al dominio.
+- Actualización de documentación en `docs/standards/frontend-componentes.md` y cobertura con pruebas unitarias (`cargo.spec.ts`, `ui-badge.spec.tsx`).
+
+### Navegación de detalle: "Volver" y breadcrumb rediseñado (TASK-050)
+
+- Rediseño de la primitiva `Breadcrumb` con borde, niveles de 38px, separador SVG chevron accesible (`aria-hidden`) y resaltado del nivel actual con fondo `--soft-blue` y peso semibold ([TASK-050](docs/tasks/finished/TASK-050-front-navegacion-de-detalle.md)).
+- Nueva primitiva `BackLink` con `aria-label` descriptivo del destino (`"Volver a <destino>"`) y estilo con objetivo táctil de 48px, fondo `--surface` y borde `--border`.
+- Soporte para la prop `back` en `PageHeader`, renderizando `BackLink` y `Breadcrumb` en una barra responsive (`.page-nav`) antes del encabezado.
+- Adopción en `MateriaDetail`, `CursadasList`, `ComisionesList` y `ComisionDetail`, retirando enlaces "Volver" redundantes al pie.
+- Actualización de estándares en `docs/standards/frontend-pantallas.md` y `docs/standards/frontend-componentes.md`.
+
+### Contracción del modelo legado de carreras y comisiones (TASK-044)
+
+- Cierre de la migración expand-contract de carreras y comisiones ([TASK-044](docs/tasks/finished/TASK-044-contraer-modelo-legado.md)).
+- Eliminación de columnas legadas `Comision.nombre`, `Cursada.profesorId`, `Materia.anioCarrera` y `Materia.nivelElectiva` y sus restricciones e índices asociados en la migración `20261101000000_contraer_modelo_legado`.
+- `Comision`: `carrera` y `numero` obligatorios con restricción única `[cursadaId, carrera, numero]`. `nombre` se deriva dinámicamente como `${carrera}-${numero}`.
+- Contratos de API estrictos: rechazo con 400 (`CAMPOS_NO_PERMITIDOS`) de cualquier campo legado no reconocido (`nombre` en comisión, `profesorId` en cursada, `anioCarrera`/`nivelElectiva` en altas/ediciones de materia).
+- Eliminación de `ProfesorRepository` y llamadas legadas del listado y detalle de cursada (sin N+1).
+- Búsqueda de materias sin filtro de carrera ordenada por `nombre ASC, id ASC`; filtros por año/nivel sin carrera devuelven 400.
+- Retiro de `actorId` en la respuesta de `GET /materias/:id/historial`, conservando `actor: { id, displayName }`.
+
+### Historial de materia solo para ADMIN y con nombre del actor (TASK-046)
+
+- El endpoint `GET /materias/:materiaId/historial` exige rol `ADMIN` vía `@Roles("ADMIN")` y devuelve cada entrada con `actor: { id, displayName }` ([TASK-046](docs/tasks/finished/TASK-046-historial-admin-con-actor.md)).
+- En el frontend, el detalle de materia y los esquemas de respuesta leen y presentan el nombre público del actor (`Usuario: {entry.actor.displayName}`) en la línea de tiempo.
+
+### Historial de materia restringido a administradores en el frontend (TASK-045)
+
+- El detalle de materia deja de solicitar y renderizar la sección de historial (`MateriaHistory`) a usuarios no administradores ([TASK-045](docs/tasks/finished/TASK-045-front-historial-solo-admin.md)).
+- Cobertura de tests unitarios verificando que usuarios comunes no realizan petición al endpoint ni visualizan el historial, mientras que ADMIN sí.
+
+### Rediseño de materias, cursadas, comisiones y administración (TASK-043)
+
+- Alta de materias en modal desde `/home/materias` (`ui/Dialog` + `MateriaForm`), con recarga del listado sin navegar ([TASK-043](docs/tasks/finished/TASK-043-front-rediseno-academico.md)).
+- Detalle de materia, cursada y comisión con la estructura del canvas "Page 2": Volver, insignias, cursadas por año, historial como línea de tiempo y datos de la comisión solo para ADMIN.
+- Enlaces "Nueva cursada" y "Nueva comisión" con la materia o la cursada precargada por query; `ui/FormField` acepta `defaultValue`.
+- Panel de administración con "Oferta académica" y "Cuentas y moderación", responsive.
+- Hook `useIsAdmin` (absorbe TASK-049).
+
+### Separación de MateriaForm y AltaForm de su página (TASK-048)
+
+- `MateriaForm` y `AltaFormFields` operan como cuerpos puros de formulario con callback `onSuccess` y `onCancel` opcional, sin importar `PageHeader` ni `next/navigation` ([TASK-048](docs/tasks/finished/TASK-048-front-formularios-separados-de-pagina.md)).
+- Envoltorio `MateriaFormPage` para las páginas actuales de alta y edición, conservando el encabezado, contenedor de tarjeta y navegación con mensaje de éxito.
+- `AltaForm` mantiene compatibilidad con las pantallas del panel administrativo integrando `AltaFormFields`.
+- Cobertura de tests unitarios específicos (`admin-materia-form.spec.tsx`, `admin-materia-form-page.spec.tsx`, `admin-alta-form.spec.tsx`).
+
+### Recarga desde afuera en PaginatedListView / usePaginatedFetch (TASK-047)
+
+- Soporte para `refreshKey?: number` opcional en `usePaginatedFetch` y `PaginatedListView` ([TASK-047](docs/tasks/finished/TASK-047-front-recarga-listado-paginado.md)).
+- Permite refrescar la misma página sin desmontar componentes ni perder el foco tras altas o ediciones en modal.
+- Documentación del patrón en `docs/standards/frontend-pantallas.md`.
+
+### Frontend adaptado a carreras, comisiones y asignación de profesores (TASK-042)
+
+- Listado `/home/materias` con selector de carrera (Todas + 5 carreras), chips de año y electivas condicionales y agrupación por año por carrera ([TASK-042](docs/tasks/finished/TASK-042-front-contrato-carreras-comisiones.md)).
+- Alta y edición de materias (`MateriaForm`) con selección múltiple de carreras y validación de año por carrera.
+- Cursadas actualizadas para mostrar cantidades (`X comisiones · Y profesores · S, C`) sin referencia a profesor responsable.
+- Comisiones con filtro por chips de carrera en la cursada, visualización de profesores con su cargo docente.
+- Pantalla nueva de detalle de comisión (`/home/materias/[materiaId]/cursadas/[cursadaId]/comisiones/[comisionId]`) con asignación, modificación de cargo y desasignación de profesores (solo ADMIN), enlace a otras comisiones y placeholder de experiencias.
+- Formulario de alta de comisiones con carrera filtrada por materia y número de comisión (1-999) con preview del código identificador.
+- Tipos, esquemas Zod (`academic.ts`, `schemas.ts`, `materias.ts`) y soporte para métodos `PUT` y `DELETE` en `http.ts`.
+
+
+### Lecturas de carreras, resumen de cursada y detalle de comisión (TASK-041)
+
+- Materias con `carreras[]` en toda respuesta y filtro `?carrera=` en el listado
+  ([TASK-041](docs/tasks/finished/TASK-041-lecturas-carreras-comisiones.md)).
+- Resumen de cursada con cantidades de comisiones y profesores y letras de carrera.
+- Comisiones con `carrera`, `numero` y profesores ordenados por cargo.
+- `GET /comisiones/:comisionId` con cursada y materia; campos legados intactos.
+
+### Doble escritura de carreras, comisiones y profesores (TASK-040)
+
+- Materias con `carreras[]` y relleno de la carrera `S` para las existentes con año
+  ([TASK-040](docs/tasks/finished/TASK-040-doble-escritura-carreras-profesores.md)).
+- Comisiones con carrera y número; formas legadas vigentes hasta TASK-044.
+- Asignación y baja de profesores por comisión (`PUT`/`DELETE`, solo ADMIN).
+- Cursada sin profesor obligatorio; historial `"carreras"`; 409 al quitar una carrera con comisiones.
+- Seed en el formato nuevo, idempotente.
+
+### Normalización de tokens de color, layout, radios y tipografía secundaria (TASK-035)
+
+- Nuevos tokens `--primary-rgb` y `--content-max-app` en `tokens.css`; la sombra de los chips activos y `.system-content` dejan de usar literales ([TASK-035](docs/tasks/in-progress/TASK-035-front-normalizacion-tokens.md)).
+- Radios de `.55rem`, `.65rem`, `.7rem`, `.8rem` y `1.1rem` unificados en `--radius-sm`, `--radius-md` y `--radius-lg`.
+- Textos de ayuda, errores, `dt`, avisos y chips pasan de `.85rem` a `--text-sm`.
+
+### Tokens de diseño en MateriasList (TASK-034)
+
+- Reemplazo de literales coincidentes con la escala por variables `var(...)` en `MateriasList.module.css` ([TASK-034](docs/tasks/finished/TASK-034-front-tokens-materias-list.md)).
+- Valores de radio (`--radius-xl`, `--radius-pill`, `--radius-lg`), peso (`--weight-heavy`, `--weight-semibold`), texto (`--text-md`) y espaciado (`--space-1` a `--space-6`) alineados con `tokens.css`.
+- Valores computados idénticos, sin diferencias visuales en `/home/materias`.
+
+### Cierre del plan de refactorización del frontend (TASK-023 y TASK-027 a TASK-033)
+
+- Etapa 0, red de seguridad: ESLint, CI, tests de interacción y spec visual con axe
+  ([TASK-023](docs/tasks/finished/TASK-023-front-red-de-seguridad-calidad.md)).
+- Etapa 1, tokens de diseño de espacio, radio, texto, peso, sombra, layout y capas
+  ([TASK-027](docs/tasks/finished/TASK-027-front-tokens-de-diseno.md)).
+- Etapa 2, cascada CSS con `@layer` y un archivo por área
+  ([TASK-028](docs/tasks/finished/TASK-028-front-cascada-css-controlada.md)).
+- Etapa 3, primitivas compartidas de `components/ui/`
+  ([TASK-029](docs/tasks/finished/TASK-029-front-primitivas-de-ui.md)).
+- Etapa 4, patrones de listado, detalle y alta
+  ([TASK-030](docs/tasks/finished/TASK-030-front-patrones-de-pantalla.md)).
+- Etapa 5, endpoints de detalle y respuestas validadas con Zod
+  ([TASK-031](docs/tasks/finished/TASK-031-contratos-front-back-academico.md)).
+- Etapa 6, encabezados, shell compartido y accesibilidad sin violaciones axe graves
+  ([TASK-032](docs/tasks/finished/TASK-032-front-consistencia-y-accesibilidad.md)).
+- Etapa 7, estándares `frontend-*.md`, agente de front, ESLint en error y listado de profesores
+  para administración en `/home/admin/profesores`
+  ([TASK-033](docs/tasks/pendient/TASK-033-front-estandar-y-documentacion.md)).
 
 ### Presentación de filtros de materias (TASK-026)
 

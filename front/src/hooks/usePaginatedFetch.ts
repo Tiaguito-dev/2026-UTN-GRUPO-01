@@ -1,42 +1,37 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import type { PaginatedResult } from "@/services/academic";
+import { useEffect, useEffectEvent, useState } from "react";
+import type { PaginatedResult } from "@/services/pagination";
 import { HttpError } from "@/services/http";
 
-export type FetchStatus = "loading" | "ready" | "error";
+export type AsyncState<T> = { status: "loading" } | { status: "ready"; data: T } | { status: "error"; error: string; notFound: boolean };
 
-/** resetKey identifies the resource being listed (e.g. a materiaId); changing it goes back to page 1. */
-export function usePaginatedFetch<T>(resetKey: string, fetchPage: (page: number) => Promise<PaginatedResult<T>>, initialPage = 1) {
-  const [page, setPage] = useState(initialPage);
-  const [status, setStatus] = useState<FetchStatus>("loading");
-  const [result, setResult] = useState<PaginatedResult<T> | null>(null);
-  const [error, setError] = useState("");
-  const [notFound, setNotFound] = useState(false);
+/**
+ * Fetches `page` of the resource identified by `resetKey` (e.g. a materiaId). The page comes from
+ * outside (usually `useUrlPagination`), so this hook keeps no page of its own.
+ */
+export function usePaginatedFetch<T>(resetKey: string, fetchPage: (page: number) => Promise<PaginatedResult<T>>, page: number, refreshKey = 0) {
   const [retryToken, setRetryToken] = useState(0);
-  const previousResetKey = useRef(resetKey);
-
-  useEffect(() => {
-    if (previousResetKey.current !== resetKey) { previousResetKey.current = resetKey; setPage(1); }
-  }, [resetKey]);
+  // Each settled response remembers the request it answers; a newer request reads as loading.
+  const [settled, setSettled] = useState<{ request: string; state: AsyncState<PaginatedResult<T>> } | null>(null);
+  const request = JSON.stringify([resetKey, page, retryToken, refreshKey]);
+  const load = useEffectEvent(() => fetchPage(page));
 
   useEffect(() => {
     let active = true;
-    setStatus("loading");
-    setError("");
-    setNotFound(false);
-    fetchPage(page)
-      .then((data) => { if (active) { setResult(data); setStatus("ready"); } })
-      .catch((failure: unknown) => {
+    load().then(
+      (data) => { if (active) setSettled({ request, state: { status: "ready", data } }); },
+      (failure: unknown) => {
         if (!active) return;
-        setError(failure instanceof Error ? failure.message : "No pudimos completar la solicitud. Intentá nuevamente.");
-        setNotFound(failure instanceof HttpError && failure.status === 404);
-        setStatus("error");
-      });
+        setSettled({ request, state: {
+          status: "error",
+          error: failure instanceof Error ? failure.message : "No pudimos completar la solicitud. Intentá nuevamente.",
+          notFound: failure instanceof HttpError && failure.status === 404,
+        } });
+      },
+    );
     return () => { active = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resetKey, page, retryToken]);
+  }, [request]);
 
-  const retry = () => setRetryToken((token) => token + 1);
-
-  return { status, result, error, notFound, page, setPage, retry };
+  const state: AsyncState<PaginatedResult<T>> = settled?.request === request ? settled.state : { status: "loading" };
+  return { state, retry: () => setRetryToken((token) => token + 1) };
 }

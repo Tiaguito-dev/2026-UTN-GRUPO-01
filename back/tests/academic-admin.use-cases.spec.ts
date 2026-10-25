@@ -12,7 +12,6 @@ import {
   InvalidAcademicInputError,
   MateriaAlreadyExistsError,
   MateriaNotFoundError,
-  ProfesorNotFoundError,
 } from "../src/academic/application/errors.js";
 import { InvalidPaginationError } from "../src/shared/domain/errors.js";
 import { fixture } from "./academic-fixture.js";
@@ -20,28 +19,29 @@ import { fixture } from "./academic-fixture.js";
 describe("CrearMateria", () => {
   it("crea la materia y la delega al puerto con el nombre recortado", async () => {
     const { crearMateria, materiaRepository } = fixture();
-    const materia = await crearMateria.execute({ nombre: "  Álgebra  ", anioCarrera: "1" });
+    const materia = await crearMateria.execute({ nombre: "  Álgebra  ", carreras: [{ carrera: "S", anioCarrera: "1" }] });
     expect(materia).toMatchObject({ nombre: "Álgebra", deletedAt: null });
     expect(materia.id).toEqual(expect.any(String));
-    expect(materiaRepository.create).toHaveBeenCalledWith({ nombre: "Álgebra", anioCarrera: "1", nivelElectiva: null });
+    expect(materiaRepository.create).toHaveBeenCalledWith(expect.objectContaining({
+      nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "1", nivelElectiva: null }] }));
   });
 
   it("nombre duplicado tira MateriaAlreadyExistsError sin volver a crear", async () => {
     const { crearMateria, materiaRepository, addMateria } = fixture();
     addMateria("Álgebra");
-    await expect(crearMateria.execute({ nombre: "Álgebra", anioCarrera: "1" })).rejects.toBeInstanceOf(MateriaAlreadyExistsError);
+    await expect(crearMateria.execute({ nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "1" }] })).rejects.toBeInstanceOf(MateriaAlreadyExistsError);
     expect(materiaRepository.create).not.toHaveBeenCalled();
   });
 
   it("detecta el duplicado después del trim, no sobre el texto crudo", async () => {
     const { crearMateria, addMateria } = fixture();
     addMateria("Álgebra");
-    await expect(crearMateria.execute({ nombre: "  Álgebra  ", anioCarrera: "1" })).rejects.toBeInstanceOf(MateriaAlreadyExistsError);
+    await expect(crearMateria.execute({ nombre: "  Álgebra  ", carreras: [{ carrera: "S", anioCarrera: "1" }] })).rejects.toBeInstanceOf(MateriaAlreadyExistsError);
   });
 
   it("input inválido no toca el repositorio", async () => {
     const { crearMateria, materiaRepository } = fixture();
-    await expect(crearMateria.execute({ nombre: "   ", anioCarrera: "1" })).rejects.toBeInstanceOf(InvalidAcademicInputError);
+    await expect(crearMateria.execute({ nombre: "   ", carreras: [{ carrera: "S", anioCarrera: "1" }] })).rejects.toBeInstanceOf(InvalidAcademicInputError);
     expect(materiaRepository.findByNombre).not.toHaveBeenCalled();
     expect(materiaRepository.create).not.toHaveBeenCalled();
   });
@@ -52,12 +52,9 @@ describe("CrearProfesor", () => {
     const { crearProfesor, profesorRepository } = fixture();
     const profesor = await crearProfesor.execute({ nombreCompleto: " Ada Lovelace " });
     expect(profesor).toMatchObject({ nombreCompleto: "Ada Lovelace", deletedAt: null });
-    expect(profesorRepository.create).toHaveBeenCalledWith({ nombreCompleto: "Ada Lovelace"  });
+    expect(profesorRepository.create).toHaveBeenCalledWith({ nombreCompleto: "Ada Lovelace" });
   });
 
-  // Decisión del modelo de TASK-014/019: Profesor.nombreCompleto NO tiene restricción única.
-  // Los homónimos son reales en una facultad. Si este test empieza a fallar es porque alguien
-  // "arregló" un duplicado que no es un error.
   it("acepta dos profesores con el mismo nombre completo (los homónimos son válidos)", async () => {
     const { crearProfesor, profesorRepository } = fixture();
     const primero = await crearProfesor.execute({ nombreCompleto: "Juan Pérez" });
@@ -78,54 +75,44 @@ describe("CrearCursada", () => {
   function conJerarquia() {
     const f = fixture();
     const materia = f.addMateria("Álgebra");
-    const profesor = f.addProfesor("Ada Lovelace");
-    return { ...f, materia, profesor };
+    return { ...f, materia };
   }
 
   it("crea la cursada y la delega al puerto con los datos validados", async () => {
-    const { crearCursada, cursadaRepository, materia, profesor } = conJerarquia();
-    const datos = { materiaId: materia.id, profesorId: profesor.id, anio: 2026, cuatrimestre: "PRIMERO" as const };
+    const { crearCursada, cursadaRepository, materia } = conJerarquia();
+    const datos = { materiaId: materia.id, anio: 2026, cuatrimestre: "PRIMERO" as const };
     const cursada = await crearCursada.execute(datos);
     expect(cursada).toMatchObject(datos);
     expect(cursadaRepository.create).toHaveBeenCalledWith(datos);
   });
 
-  it("materia inexistente tira MateriaNotFoundError y no consulta el profesor", async () => {
-    const { crearCursada, profesorRepository, cursadaRepository, profesor } = conJerarquia();
-    const promesa = crearCursada.execute({ materiaId: randomUUID(), profesorId: profesor.id, anio: 2026, cuatrimestre: "PRIMERO" });
+  it("materia inexistente tira MateriaNotFoundError", async () => {
+    const { crearCursada, cursadaRepository } = conJerarquia();
+    const promesa = crearCursada.execute({ materiaId: randomUUID(), anio: 2026, cuatrimestre: "PRIMERO" });
     await expect(promesa).rejects.toBeInstanceOf(MateriaNotFoundError);
-    expect(profesorRepository.findById).not.toHaveBeenCalled();
-    expect(cursadaRepository.create).not.toHaveBeenCalled();
-  });
-
-  it("profesor inexistente tira ProfesorNotFoundError (error distinto al de materia)", async () => {
-    const { crearCursada, cursadaRepository, materia } = conJerarquia();
-    const promesa = crearCursada.execute({ materiaId: materia.id, profesorId: randomUUID(), anio: 2026, cuatrimestre: "PRIMERO" });
-    await expect(promesa).rejects.toBeInstanceOf(ProfesorNotFoundError);
-    await expect(promesa).rejects.not.toBeInstanceOf(MateriaNotFoundError);
     expect(cursadaRepository.create).not.toHaveBeenCalled();
   });
 
   it("misma materia, año y cuatrimestre tira CursadaAlreadyExistsError", async () => {
-    const { crearCursada, cursadaRepository, addCursada, materia, profesor } = conJerarquia();
-    addCursada(materia.id, profesor.id, 2026);
-    const promesa = crearCursada.execute({ materiaId: materia.id, profesorId: profesor.id, anio: 2026, cuatrimestre: "PRIMERO" });
+    const { crearCursada, cursadaRepository, addCursada, materia } = conJerarquia();
+    addCursada(materia.id, 2026);
+    const promesa = crearCursada.execute({ materiaId: materia.id, anio: 2026, cuatrimestre: "PRIMERO" });
     await expect(promesa).rejects.toBeInstanceOf(CursadaAlreadyExistsError);
     expect(cursadaRepository.create).not.toHaveBeenCalled();
   });
 
   it("el otro cuatrimestre de la misma materia y año es una cursada distinta", async () => {
-    const { crearCursada, addCursada, materia, profesor } = conJerarquia();
-    addCursada(materia.id, profesor.id, 2026);
-    const cursada = await crearCursada.execute({ materiaId: materia.id, profesorId: profesor.id, anio: 2026, cuatrimestre: "SEGUNDO" });
+    const { crearCursada, addCursada, materia } = conJerarquia();
+    addCursada(materia.id, 2026);
+    const cursada = await crearCursada.execute({ materiaId: materia.id, anio: 2026, cuatrimestre: "SEGUNDO" });
     expect(cursada.cuatrimestre).toBe("SEGUNDO");
   });
 
   it("el mismo período con otra materia es una cursada distinta", async () => {
-    const { crearCursada, addMateria, addCursada, materia, profesor } = conJerarquia();
-    addCursada(materia.id, profesor.id, 2026);
+    const { crearCursada, addMateria, addCursada, materia } = conJerarquia();
+    addCursada(materia.id, 2026);
     const otra = addMateria("Análisis Matemático");
-    const cursada = await crearCursada.execute({ materiaId: otra.id, profesorId: profesor.id, anio: 2026, cuatrimestre: "PRIMERO" });
+    const cursada = await crearCursada.execute({ materiaId: otra.id, anio: 2026, cuatrimestre: "PRIMERO" });
     expect(cursada.materiaId).toBe(otra.id);
   });
 });
@@ -134,40 +121,38 @@ describe("CrearComision", () => {
   function conCursada() {
     const f = fixture();
     const materia = f.addMateria("Álgebra");
-    const profesor = f.addProfesor("Ada Lovelace");
-    const cursada = f.addCursada(materia.id, profesor.id);
+    const cursada = f.addCursada(materia.id);
     return { ...f, cursada };
   }
 
-  it("crea la comisión activa y la delega al puerto con el nombre recortado", async () => {
+  it("crea la comisión activa y la delega al puerto con carrera y número", async () => {
     const { crearComision, comisionRepository, cursada } = conCursada();
-    const comision = await crearComision.execute({ cursadaId: cursada.id, nombre: " Comisión 1 - Mañana " });
-    expect(comision).toMatchObject({ cursadaId: cursada.id, nombre: "Comisión 1 - Mañana", activa: true });
-    expect(comisionRepository.create).toHaveBeenCalledWith({ cursadaId: cursada.id, nombre: "Comisión 1 - Mañana" });
+    const comision = await crearComision.execute({ cursadaId: cursada.id, carrera: "S", numero: 1 });
+    expect(comision).toMatchObject({ cursadaId: cursada.id, carrera: "S", numero: 1, nombre: "S-1", activa: true });
+    expect(comisionRepository.create).toHaveBeenCalledWith({ cursadaId: cursada.id, carrera: "S", numero: 1 });
   });
 
   it("cursada inexistente tira CursadaNotFoundError sin buscar duplicados", async () => {
     const { crearComision, comisionRepository } = conCursada();
-    const promesa = crearComision.execute({ cursadaId: randomUUID(), nombre: "Comisión 1" });
+    const promesa = crearComision.execute({ cursadaId: randomUUID(), carrera: "S", numero: 1 });
     await expect(promesa).rejects.toBeInstanceOf(CursadaNotFoundError);
-    expect(comisionRepository.findByCursadaIdAndNombre).not.toHaveBeenCalled();
+    expect(comisionRepository.findByCursadaIdCarreraNumero).not.toHaveBeenCalled();
     expect(comisionRepository.create).not.toHaveBeenCalled();
   });
 
-  it("nombre repetido en la misma cursada tira ComisionAlreadyExistsError", async () => {
+  it("comisión repetida en la misma cursada tira ComisionAlreadyExistsError", async () => {
     const { crearComision, comisionRepository, addComision, cursada } = conCursada();
-    addComision(cursada.id, "Comisión 1");
-    await expect(crearComision.execute({ cursadaId: cursada.id, nombre: "Comisión 1" })).rejects.toBeInstanceOf(ComisionAlreadyExistsError);
+    addComision(cursada.id, "S", 1);
+    await expect(crearComision.execute({ cursadaId: cursada.id, carrera: "S", numero: 1 })).rejects.toBeInstanceOf(ComisionAlreadyExistsError);
     expect(comisionRepository.create).not.toHaveBeenCalled();
   });
 
-  // Decisión 6 de TASK-019: la unicidad es (cursadaId, nombre), no global.
-  it("acepta el mismo nombre de comisión en otra cursada", async () => {
-    const { crearComision, addMateria, addProfesor, addCursada, addComision, cursada } = conCursada();
-    addComision(cursada.id, "Comisión 1 - Mañana");
-    const otra = addCursada(addMateria("Análisis Matemático").id, addProfesor("Alan Turing").id);
-    const comision = await crearComision.execute({ cursadaId: otra.id, nombre: "Comisión 1 - Mañana" });
-    expect(comision).toMatchObject({ cursadaId: otra.id, nombre: "Comisión 1 - Mañana" });
+  it("acepta la misma comisión en otra cursada", async () => {
+    const { crearComision, addMateria, addCursada, addComision, cursada } = conCursada();
+    addComision(cursada.id, "S", 1);
+    const otra = addCursada(addMateria("Análisis Matemático").id);
+    const comision = await crearComision.execute({ cursadaId: otra.id, carrera: "S", numero: 1 });
+    expect(comision).toMatchObject({ cursadaId: otra.id, carrera: "S", numero: 1, nombre: "S-1" });
   });
 });
 
@@ -199,12 +184,14 @@ describe("ListarProfesores", () => {
 
 describe("validateCrearMateriaInput", () => {
   it("recorta el nombre", () => {
-    expect(validateCrearMateriaInput({ nombre: "  Álgebra  ", anioCarrera: "1" })).toEqual({ nombre: "Álgebra", anioCarrera: "1", nivelElectiva: null });
+    expect(validateCrearMateriaInput({ nombre: "  Álgebra  ", carreras: [{ carrera: "S", anioCarrera: "1" }] }))
+      .toMatchObject({ nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "1", nivelElectiva: null }] });
   });
 
   it("acepta 150 caracteres, el límite exacto del VarChar", () => {
     const nombre = "a".repeat(150);
-    expect(validateCrearMateriaInput({ nombre, anioCarrera: "1" })).toEqual({ nombre, anioCarrera: "1", nivelElectiva: null });
+    expect(validateCrearMateriaInput({ nombre, carreras: [{ carrera: "S", anioCarrera: "1" }] }))
+      .toMatchObject({ nombre, carreras: [{ carrera: "S", anioCarrera: "1", nivelElectiva: null }] });
   });
 
   it.each([
@@ -217,22 +204,22 @@ describe("validateCrearMateriaInput", () => {
     ["no string", 42],
     ["faltante", undefined],
   ])("rechaza el nombre %s", (_caso, nombre) => {
-    expect(() => validateCrearMateriaInput({ nombre, anioCarrera: "1" })).toThrow(InvalidAcademicInputError);
+    expect(() => validateCrearMateriaInput({ nombre, carreras: [{ carrera: "S", anioCarrera: "1" }] })).toThrow(InvalidAcademicInputError);
   });
 
   it("rechaza un cuerpo con campos de más", () => {
-    expect(() => validateCrearMateriaInput({ nombre: "Álgebra", id: randomUUID(), anioCarrera: "1" })).toThrow(CAMPOS_NO_PERMITIDOS);
+    expect(() => validateCrearMateriaInput({ nombre: "Álgebra", id: randomUUID(), carreras: [{ carrera: "S", anioCarrera: "1" }] })).toThrow(CAMPOS_NO_PERMITIDOS);
   });
 });
 
 describe("validateCrearProfesorInput", () => {
   it("recorta el nombre completo", () => {
-    expect(validateCrearProfesorInput({ nombreCompleto: " Ada Lovelace " })).toEqual({ nombreCompleto: "Ada Lovelace"  });
+    expect(validateCrearProfesorInput({ nombreCompleto: " Ada Lovelace " })).toEqual({ nombreCompleto: "Ada Lovelace" });
   });
 
   it("acepta 150 caracteres, el límite exacto del VarChar", () => {
     const nombreCompleto = "a".repeat(150);
-    expect(validateCrearProfesorInput({ nombreCompleto })).toEqual({ nombreCompleto  });
+    expect(validateCrearProfesorInput({ nombreCompleto })).toEqual({ nombreCompleto });
   });
 
   it.each([
@@ -251,7 +238,7 @@ describe("validateCrearProfesorInput", () => {
 });
 
 describe("validateCrearCursadaInput", () => {
-  const base = { materiaId: randomUUID(), profesorId: randomUUID(), cuatrimestre: "PRIMERO" as const };
+  const base = { materiaId: randomUUID(), cuatrimestre: "PRIMERO" as const };
 
   it.each([ANIO_MINIMO, anioMaximo()])("acepta el año %i, límite exacto del rango", (anio) => {
     expect(validateCrearCursadaInput({ ...base, anio })).toEqual({ ...base, anio });
@@ -279,8 +266,12 @@ describe("validateCrearCursadaInput", () => {
     expect(() => validateCrearCursadaInput({ ...base, cuatrimestre, anio: 2026 })).toThrow(InvalidAcademicInputError);
   });
 
-  it.each(["materiaId", "profesorId"])("rechaza %s cuando no es UUID", (campo) => {
-    expect(() => validateCrearCursadaInput({ ...base, anio: 2026, [campo]: "not-a-uuid" })).toThrow(InvalidAcademicInputError);
+  it("rechaza materiaId cuando no es UUID", () => {
+    expect(() => validateCrearCursadaInput({ ...base, anio: 2026, materiaId: "not-a-uuid" })).toThrow(InvalidAcademicInputError);
+  });
+
+  it("rechaza profesorId con CAMPOS_NO_PERMITIDOS", () => {
+    expect(() => validateCrearCursadaInput({ ...base, anio: 2026, profesorId: randomUUID() })).toThrow(CAMPOS_NO_PERMITIDOS);
   });
 
   it("rechaza un cuerpo con campos de más", () => {
@@ -291,30 +282,19 @@ describe("validateCrearCursadaInput", () => {
 describe("validateCrearComisionInput", () => {
   const cursadaId = randomUUID();
 
-  it("recorta el nombre", () => {
-    expect(validateCrearComisionInput({ cursadaId, nombre: "  Comisión 1  " })).toEqual({ cursadaId, nombre: "Comisión 1" });
+  it("acepta carrera y número válidos", () => {
+    expect(validateCrearComisionInput({ cursadaId, carrera: "S", numero: 1 })).toEqual({ cursadaId, carrera: "S", numero: 1 });
   });
 
-  it("acepta 100 caracteres, el límite exacto del VarChar", () => {
-    const nombre = "a".repeat(100);
-    expect(validateCrearComisionInput({ cursadaId, nombre })).toEqual({ cursadaId, nombre });
-  });
-
-  it.each([
-    ["vacío", ""],
-    ["solo espacios", "  "],
-    ["con caracteres de control", "Comisión\r1"],
-    ["más largo que el VarChar", "a".repeat(101)],
-    ["faltante", undefined],
-  ])("rechaza el nombre %s", (_caso, nombre) => {
-    expect(() => validateCrearComisionInput({ cursadaId, nombre })).toThrow(InvalidAcademicInputError);
+  it("rechaza nombre libre con CAMPOS_NO_PERMITIDOS", () => {
+    expect(() => validateCrearComisionInput({ cursadaId, nombre: "Comisión 1" })).toThrow(CAMPOS_NO_PERMITIDOS);
   });
 
   it("rechaza cursadaId que no es UUID", () => {
-    expect(() => validateCrearComisionInput({ cursadaId: "not-a-uuid", nombre: "Comisión 1" })).toThrow(InvalidAcademicInputError);
+    expect(() => validateCrearComisionInput({ cursadaId: "not-a-uuid", carrera: "S", numero: 1 })).toThrow(InvalidAcademicInputError);
   });
 
   it("rechaza un cuerpo con campos de más", () => {
-    expect(() => validateCrearComisionInput({ cursadaId, nombre: "Comisión 1", activa: false })).toThrow(CAMPOS_NO_PERMITIDOS);
+    expect(() => validateCrearComisionInput({ cursadaId, carrera: "S", numero: 1, activa: false })).toThrow(CAMPOS_NO_PERMITIDOS);
   });
 });
