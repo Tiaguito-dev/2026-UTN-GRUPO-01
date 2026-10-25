@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { AppModule } from "./app.module.js";
 import { AUTH_CONFIG, readAuthConfig, type AuthConfig } from "./auth/auth.config.js";
 import { configureAuthHttp } from "./auth/presentation/http-security.js";
-import { readSmtpConfig } from "./auth/smtp.config.js";
+import { readEmailConfig } from "./auth/email.config.js";
 
 config({
   path: [resolve(process.cwd(), ".env"), resolve(process.cwd(), "../.env")],
@@ -14,7 +14,7 @@ config({
 async function bootstrap(): Promise<void> {
   // Validate before Nest startup logging, so missing keys never lead to a listening server.
   readAuthConfig(process.env);
-  readSmtpConfig(process.env);
+  readEmailConfig(process.env);
   const app = await NestFactory.create(AppModule, { abortOnError: false });
   app.enableShutdownHooks();
   configureAuthHttp(app, app.get<AuthConfig>(AUTH_CONFIG));
