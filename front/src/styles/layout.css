@@ -15,7 +15,7 @@
   .system-sidebar li { margin-bottom: var(--space-2); }
   .sidebar-symbol { display: grid; place-items: center; width: 1.6rem; height: 1.6rem; font-weight: var(--weight-heavy); }
   .sidebar-note { padding: var(--space-6) var(--space-3) 0; margin-top: var(--space-8); border-top: 1px solid var(--border); color: var(--muted); font-size: var(--text-sm); }
-  .system-content { margin-left: var(--sidebar-w); padding: clamp(2rem, 5vw, 4rem); max-width: 83rem; }
+  .system-content { margin-left: var(--sidebar-w); padding: clamp(2rem, 5vw, 4rem); max-width: var(--content-max-app); }
   .system-content h1 { font-size: clamp(1.8rem, 4vw, 2.75rem); overflow-wrap: anywhere; margin-bottom: var(--space-4); }
   .system-description { color: var(--muted); max-width: 42rem; margin: 0 0 var(--space-8); }
   .page { width: min(100% - 3rem, var(--content-max)); margin-inline: auto; padding-block: var(--space-16); }

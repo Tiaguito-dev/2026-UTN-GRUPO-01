@@ -2,7 +2,7 @@
   .card-auth .intro { text-align: center; }
   .intro, .hint { color: var(--muted); }
   .field { margin-block: 1.35rem; }
-  .hint, .field-error { font-size: .85rem; margin: .45rem 0; line-height: 1.5; }
+  .hint, .field-error { font-size: var(--text-sm); margin: .45rem 0; line-height: 1.5; }
   .field-error { color: var(--error); }
   .form-links { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); margin-top: var(--space-6); font-size: var(--text-md); }
 }

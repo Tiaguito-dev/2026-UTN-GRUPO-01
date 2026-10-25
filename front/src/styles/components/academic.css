@@ -1,6 +1,6 @@
 @layer components {
   .academic-list { list-style: none; padding: 0; margin: 0 0 var(--space-6); display: grid; gap: var(--space-3); }
-  .academic-list li { padding: var(--space-4) var(--space-5); border: 1px solid var(--border); border-radius: .8rem; background: var(--surface); }
+  .academic-list li { padding: var(--space-4) var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
   /* Dentro del panel blanco las tarjetas usan el fondo de página para seguir distinguiéndose. */
   .card-panel .academic-list { margin: 0; }
   .card-panel .academic-list li { background: var(--background); }

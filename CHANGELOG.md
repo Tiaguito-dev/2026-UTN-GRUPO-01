@@ -2,6 +2,12 @@
 
 ## [Sin publicar]
 
+### Normalización de tokens de color, layout, radios y tipografía secundaria (TASK-035)
+
+- Nuevos tokens `--primary-rgb` y `--content-max-app` en `tokens.css`; la sombra de los chips activos y `.system-content` dejan de usar literales ([TASK-035](docs/tasks/in-progress/TASK-035-front-normalizacion-tokens.md)).
+- Radios de `.55rem`, `.65rem`, `.7rem`, `.8rem` y `1.1rem` unificados en `--radius-sm`, `--radius-md` y `--radius-lg`.
+- Textos de ayuda, errores, `dt`, avisos y chips pasan de `.85rem` a `--text-sm`.
+
 ### Tokens de diseño en MateriasList (TASK-034)
 
 - Reemplazo de literales coincidentes con la escala por variables `var(...)` en `MateriasList.module.css` ([TASK-034](docs/tasks/finished/TASK-034-front-tokens-materias-list.md)).

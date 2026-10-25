@@ -7,7 +7,7 @@
   .profile-identity { display: flex; align-items: center; gap: var(--space-5); padding-bottom: var(--space-6); border-bottom: 1px solid var(--border); }
   .profile-identity > div { min-width: 0; }
   .profile-identity h2 { margin: 0 0 var(--space-2); overflow-wrap: anywhere; font-size: var(--text-xl); }
-  .profile-avatar { display: grid; place-items: center; flex: 0 0 4rem; height: 4rem; border-radius: 1.1rem; font-weight: var(--weight-heavy); font-size: 1.35rem; color: var(--primary); background: var(--soft-blue); }
+  .profile-avatar { display: grid; place-items: center; flex: 0 0 4rem; height: 4rem; border-radius: var(--radius-lg); font-weight: var(--weight-heavy); font-size: 1.35rem; color: var(--primary); background: var(--soft-blue); }
   .profile-details { margin: var(--space-6) 0 0; display: grid; gap: var(--space-5); }
   .profile-details dt { margin: 0 0 var(--space-1); }
   .profile-details dd { font-size: var(--text-base); }
@@ -26,5 +26,5 @@
   .system-footnote { color: var(--muted); font-size: var(--text-sm); max-width: 50rem; margin-top: var(--space-6); }
   .card-panel { padding: clamp(1.25rem, 3vw, 2rem); max-width: 50rem; }
   /* Fondo de la ficha de datos (MateriaDetail), que antes venía del selector `dl`. */
-  .card-panel dl { padding: var(--space-4) var(--space-5); border-radius: .8rem; background: var(--background); }
+  .card-panel dl { padding: var(--space-4) var(--space-5); border-radius: var(--radius-md); background: var(--background); }
 }
