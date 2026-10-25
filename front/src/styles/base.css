@@ -13,7 +13,7 @@
   h1 { font-size: var(--text-2xl); margin-top: 0; }
   h2 { font-size: var(--text-xl); margin-top: var(--space-8); }
   label { display: block; font-size: var(--text-md); font-weight: var(--weight-semibold); margin-bottom: .45rem; }
-  input, select { font: inherit; width: 100%; min-height: 3.2rem; padding: var(--space-3) var(--space-4); border: 1px solid var(--input-border); border-radius: .7rem; background: var(--surface); color: var(--text); }
+  input, select { font: inherit; width: 100%; min-height: 3.2rem; padding: var(--space-3) var(--space-4); border: 1px solid var(--input-border); border-radius: var(--radius-md); background: var(--surface); color: var(--text); }
   input:hover, select:hover { border-color: var(--primary); }
   input[aria-invalid="true"], select[aria-invalid="true"] { border: 2px solid var(--error); }
   button { font: inherit; cursor: pointer; }
@@ -21,7 +21,7 @@
   /* El reloj de espera es solo para el envío en curso, que los formularios marcan con aria-busy. */
   [aria-busy="true"] button:disabled, button[aria-busy="true"] { cursor: wait; }
   dl { overflow-wrap: anywhere; }
-  dt { font-weight: var(--weight-semibold); font-size: .85rem; color: var(--muted); margin-top: var(--space-3); }
+  dt { font-weight: var(--weight-semibold); font-size: var(--text-sm); color: var(--muted); margin-top: var(--space-3); }
   dt:first-child { margin-top: 0; }
   dd { margin-left: 0; }
   hr { border: 0; border-top: 1px solid var(--border); margin-block: var(--space-8); }

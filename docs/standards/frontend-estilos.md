@@ -61,9 +61,9 @@ por qué.
 | Texto | `--text-xs` .75rem (mínimo, ver [frontend-pantallas.md](./frontend-pantallas.md#accesibilidad)), `--text-sm` .8rem, `--text-md` .9rem, `--text-base` 1rem, `--text-xl` 1.5rem, `--text-2xl` 2rem |
 | Peso | `--weight-medium` 600, `--weight-semibold` 650, `--weight-bold` 700, `--weight-heavy` 750 |
 | Sombra | `--shadow-popover`, `--shadow-card`, `--shadow-floating`; todas sobre `--shadow-rgb` (el tono de `--text`) |
-| Layout | `--header-h` 5.5rem, `--sidebar-w` 15rem, `--content-max` 72rem |
+| Layout | `--header-h` 5.5rem, `--sidebar-w` 15rem, `--content-max` 72rem (páginas públicas y encabezado), `--content-max-app` 83rem (`.system-content` de la aplicación) |
 | Capas (`z-index`) | `--z-skip-link` 10, `--z-popover` 20, `--z-header` 30 |
-| Color | `--primary`, `--primary-hover`, `--accent`, `--link`, `--surface`, `--background`, `--text`, `--muted`, `--border`, `--input-border`, `--soft-blue`, y `--error`, `--success`, `--warning` con su `-background` |
+| Color | `--primary`, `--primary-rgb` (canal RGB de `--primary` para `rgb(var(--primary-rgb) / N%)`), `--primary-hover`, `--accent`, `--link`, `--surface`, `--background`, `--text`, `--muted`, `--border`, `--input-border`, `--soft-blue`, y `--error`, `--success`, `--warning` con su `-background` |
 
 Excepciones, todas de TASK-027 (decisión 5):
 
