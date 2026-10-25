@@ -13,7 +13,10 @@ services:
     # y el compilador (@nestjs/cli, typescript, prisma) vive ahi. Sin esto el build muere con
     # "sh: 1: nest: not found".
     buildCommand: npm ci --include=dev && npm run build --workspace=back
-    startCommand: npm run start --workspace=back
+    # Las migraciones corrian a mano contra Neon: un deploy sin aplicarlas antes dejaba
+    # el esquema desincronizado y el login (y cualquier query nueva) respondia 500.
+    # db:deploy es prisma migrate deploy: idempotente, solo aplica lo pendiente.
+    startCommand: npm run db:deploy --workspace=back && npm run start --workspace=back
     healthCheckPath: /health/ready
     envVars:
       - key: NODE_ENV
