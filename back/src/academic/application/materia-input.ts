@@ -29,6 +29,7 @@ export function validateMateriaPagination(value: unknown, maximum: number, defau
 
 export function validateMateriaFilter(value: unknown): MateriaFilters {
   const result = z.object({ anioCarrera: anioCarreraSchema.optional(), nivelElectiva: nivelElectivaSchema.optional(),
+    // eslint-disable-next-line no-control-regex -- rechaza caracteres de control deliberadamente, no es un error de tipeo
     q: z.string().refine((text) => !/[\u0000-\u001f\u007f-\u009f]/u.test(text))
       .transform((text) => text.trim()).refine((text) => Array.from(text).length <= 150).optional(),
   }).safeParse(value ?? {});

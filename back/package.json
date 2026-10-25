@@ -9,6 +9,7 @@
     "start:dev": "nest start --watch",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.build.json && tsc --noEmit -p tsconfig.test.json",
+    "lint": "eslint . --max-warnings 0",
     "auth:provision-admin": "node dist/auth/provision-admin.js",
     "academic:seed": "node dist/academic/seed-academic.js",
     "db:deploy": "prisma migrate deploy",
@@ -40,8 +41,10 @@
     "@types/node": "^22.20.4",
     "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.23.1",
+    "eslint": "^9.39.5",
     "prisma": "6.19.3",
     "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.0",
     "vitest": "^5.0.1"
   }
 }
