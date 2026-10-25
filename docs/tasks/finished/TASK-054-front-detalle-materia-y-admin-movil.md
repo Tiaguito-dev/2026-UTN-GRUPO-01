@@ -1,6 +1,6 @@
 # TASK-054: Accesos rápidos en admin móvil, historial con hito de alta y modal de nueva cursada
 
-Estado: Pendiente.
+Estado: Terminada.
 Fecha: 2026-10-25
 
 ## 1. Contexto y objetivo
@@ -118,13 +118,17 @@ repo, workspace `front`):
   - `tests/materia-detalle.spec.tsx` → historial del actor: ahora verifica `"Ada Lovelace"` sin el
     prefijo `"Usuario: "`.
   - `tests/materia-detalle.spec.tsx` → "Nueva cursada": ya no hay `href` que verificar (el botón
-    abre un `Dialog`, no navega); el test quedó en comprobar que el botón existe para ADMIN
-    (la cobertura de "no navega, abre modal, crea y refresca" queda pendiente como test de
-    interacción con `@testing-library/react`, no se armó en esta tarea — ver Riesgos).
+    abre un `Dialog`, no navega); el test quedó en comprobar que el botón existe para ADMIN.
+
+- Se agregó `tests/cursadas-nueva-modal.spec.tsx` (3 casos) con el test de interacción que había
+  quedado pendiente: abre el modal con la materia ya fija (sin selector de materia), crea la
+  cursada, cierra el modal, recarga el listado de `CursadasList` sin navegar, y confirma que un
+  usuario común no ve el botón ni que "Cancelar" crea o recarga nada. `npm run test --workspace=front`:
+  **281/281 en verde** (36 archivos); `npm run typecheck --workspace=front` y
+  `npm run lint --workspace=front`: **OK**.
 
 No se corrió `npm run test:e2e --workspace=front` (Playwright, solo local) ni se regeneraron
-capturas visuales; lo marca como pendiente para el desarrollador antes de mover la tarea a
-`finished/`.
+capturas visuales — decisión del desarrollador, fuera de alcance de esta tarea.
 
 ### Pruebas manuales para el desarrollador
 
@@ -147,7 +151,3 @@ capturas visuales; lo marca como pendiente para el desarrollador antes de mover 
 
 - Si `actor.displayName` llega vacío para un historial viejo, el fallback debe evitar un avatar con
   iniciales vacías; verificar con un registro real si existe alguno anterior a TASK-046.
-- No hay un test de interacción (abrir el modal, crear la cursada, ver que cierra y refresca) para
-  el flujo nuevo de "Nueva cursada" en `CursadasList`; solo quedó cubierta la presencia del botón.
-  Si se agrega, va en un archivo con entorno jsdom y mocks de `@/services/academic` (`crearCursada`,
-  `listarMaterias`) y `@/hooks/useAllPages`, siguiendo el patrón de `tests/admin-alta-precarga.spec.tsx`.
