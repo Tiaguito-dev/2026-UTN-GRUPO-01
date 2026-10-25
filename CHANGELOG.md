@@ -2,6 +2,12 @@
 
 ## [Sin publicar]
 
+### Tokens de diseño en MateriasList (TASK-034)
+
+- Reemplazo de literales coincidentes con la escala por variables `var(...)` en `MateriasList.module.css` ([TASK-034](docs/tasks/finished/TASK-034-front-tokens-materias-list.md)).
+- Valores de radio (`--radius-xl`, `--radius-pill`, `--radius-lg`), peso (`--weight-heavy`, `--weight-semibold`), texto (`--text-md`) y espaciado (`--space-1` a `--space-6`) alineados con `tokens.css`.
+- Valores computados idénticos, sin diferencias visuales en `/home/materias`.
+
 ### Cierre del plan de refactorización del frontend (TASK-023 y TASK-027 a TASK-033)
 
 - Etapa 0, red de seguridad: ESLint, CI, tests de interacción y spec visual con axe
