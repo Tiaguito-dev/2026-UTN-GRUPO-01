@@ -42,5 +42,5 @@ externa, el agente explica qué hará y espera aprobación.
 
 Convenciones funcionales (paginación, navegación post-guardado), arquitectura de módulos,
 seguridad por rol y UX detalladas no están codificadas acá: se definen dentro de la tarea
-concreta que las necesite (ver "Estándares" en [.agents/back.md](./.agents/back.md) /
-[front.md](./.agents/front.md)).
+concreta que las necesite. Las ya definidas viven en `docs/standards/` (ver "Estándares" en
+[.agents/back.md](./.agents/back.md) y "Estándares que aplica" en [front.md](./.agents/front.md)).

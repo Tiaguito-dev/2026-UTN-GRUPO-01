@@ -26,8 +26,8 @@ commit, push y limpieza post-merge.
 
 ## Estándares
 
-`docs/standards/` (un estándar de testing dedicado se agrega ahí una vez que se elijan el stack y
-los frameworks de test).
+`docs/standards/`. Para el front:
+[frontend-tests.md](../docs/standards/frontend-tests.md).
 
 ## Estrategia de testing del frontend
 

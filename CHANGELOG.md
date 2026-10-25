@@ -2,6 +2,26 @@
 
 ## [Sin publicar]
 
+### Cierre del plan de refactorización del frontend (TASK-023 y TASK-027 a TASK-033)
+
+- Etapa 0, red de seguridad: ESLint, CI, tests de interacción y spec visual con axe
+  ([TASK-023](docs/tasks/finished/TASK-023-front-red-de-seguridad-calidad.md)).
+- Etapa 1, tokens de diseño de espacio, radio, texto, peso, sombra, layout y capas
+  ([TASK-027](docs/tasks/finished/TASK-027-front-tokens-de-diseno.md)).
+- Etapa 2, cascada CSS con `@layer` y un archivo por área
+  ([TASK-028](docs/tasks/finished/TASK-028-front-cascada-css-controlada.md)).
+- Etapa 3, primitivas compartidas de `components/ui/`
+  ([TASK-029](docs/tasks/finished/TASK-029-front-primitivas-de-ui.md)).
+- Etapa 4, patrones de listado, detalle y alta
+  ([TASK-030](docs/tasks/finished/TASK-030-front-patrones-de-pantalla.md)).
+- Etapa 5, endpoints de detalle y respuestas validadas con Zod
+  ([TASK-031](docs/tasks/finished/TASK-031-contratos-front-back-academico.md)).
+- Etapa 6, encabezados, shell compartido y accesibilidad sin violaciones axe graves
+  ([TASK-032](docs/tasks/finished/TASK-032-front-consistencia-y-accesibilidad.md)).
+- Etapa 7, estándares `frontend-*.md`, agente de front, ESLint en error y listado de profesores
+  para administración en `/home/admin/profesores`
+  ([TASK-033](docs/tasks/pendient/TASK-033-front-estandar-y-documentacion.md)).
+
 ### Presentación de filtros de materias (TASK-026)
 
 - Etapa aprobada por el usuario el 2026-10-22; pruebas frontend completas aprobadas.

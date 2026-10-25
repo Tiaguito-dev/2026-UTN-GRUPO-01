@@ -171,7 +171,11 @@ la auditoría.
 
 ## 6. Validación
 
-Pendiente de ejecución.
+Implementada. `lint`, `typecheck`, `test` y `build` del workspace `front` pasan. La línea base
+visual se regeneró completa en Linux (Docker, `mcr.microsoft.com/playwright:v1.64.0-noble`,
+Google Chrome 156.0.8078.47): cambian las 12 capturas de TASK-023 y se agregan `profesores`,
+`cambio-contrasena`, `error-sesion` y `acceso-denegado`. El spec visual y de axe pasa contra esa
+línea base en un contenedor limpio, sin violaciones `serious` ni `critical`.
 
 ### Pruebas manuales para el desarrollador
 
@@ -186,7 +190,47 @@ Pendiente de ejecución.
 
 ### Excepciones de lint (completar al implementar)
 
+| Archivo:línea | Regla | Motivo |
+|---|---|---|
+| `front/src/components/FeatureCarousel.tsx:24` | `jsx-a11y/no-noninteractive-element-interactions`, `jsx-a11y/no-noninteractive-tabindex` | Patrón de carrusel WAI-ARIA: la región enfocable maneja flechas, Home y End. Cambiar el rol o quitar el foco cambia el comportamiento de teclado. |
+| `front/src/components/auth/AuthProvider.tsx:78` | `react-hooks/set-state-in-effect` | La comprobación inicial de sesión llama al backend al montar y marca el estado `checking` antes del pedido. |
+| `front/src/components/auth/VerifyEmail.tsx:23` | `react-hooks/set-state-in-effect` | El token se lee de `window.location` una vez después del montaje; leerlo durante el render rompe la hidratación de SSR. |
+| `front/tests/auth-navigation.spec.ts:24` | `react/no-children-prop` | `RequireRole` declara `children` como obligatorio; con `createElement` solo compila si `children` va dentro del objeto de props. |
+
 ### Hallazgos del ejercicio (completar al implementar)
+
+`/home/admin/profesores` lo armó un agente en sesión limpia, con acceso a `.agents/front.md`, los
+estándares `frontend-*.md`, `services/` y el código que esos documentos nombran. Es la prueba más
+débil del riesgo 3: el agente ya conoce patrones de Next y React, y no reemplaza a una persona
+del grupo que no participó de las etapas 0 a 6.
+
+Lo que alcanzó sin mirar nada más: la página delgada con `Suspense`, el guard por layout de
+`/home/admin/**`, `PageHeader` con breadcrumb, `useUrlPagination` + `PaginatedListView` y el
+servicio `listarProfesores` ya validado con `profesorSchema`.
+
+| Qué faltaba o hubo que adivinar | Qué se miró | Cambio |
+|---|---|---|
+| En qué carpeta va la pantalla: el profesor es de `academic`, pero las pantallas de administración están en `admin/`. | `components/admin/` (`UsuariosList`, `AltaProfesor`). | `frontend-componentes.md`, regla 1: `admin/` reúne las pantallas de `/home/admin/**`. |
+| Qué es `resetKey` de `PaginatedListView`. | Comentario de `hooks/usePaginatedFetch.ts`. | `frontend-pantallas.md`, patrón 1: qué nombra `resetKey`. |
+| El ejemplo del vacío usa "Volver al panel de administración"; repetirlo en un segundo archivo obliga a moverlo a `lib/messages.ts` y tocar `UsuariosList`. | `lib/messages.ts`. | `frontend-pantallas.md`, patrón 1: el `action` del vacío puede ser la salida o lo que lo resuelve. La pantalla usa "Cargar un profesor". |
+| Qué tests lleva un listado nuevo: el estándar no nombra `tests/listados.spec.tsx`. | Búsqueda de `UsuariosList` en `front/tests/`. | `frontend-tests.md`, regla 1: un listado nuevo se agrega a esa tabla. |
+| Cómo correr Playwright: con el build por defecto el login falla ("Falta configurar la conexión" y después "requiere HTTPS o HTTP local explícito"). | `services/http.ts`, `playwright.config.ts`. | `frontend-tests.md`: variables `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_ALLOW_LOCAL_HTTP` del build. |
+| Cómo regenerar en Linux desde Windows. | — | `frontend-tests.md`: receta con la imagen de Playwright en Docker. |
+| La base de pruebas conserva los profesores de corridas anteriores, así que la captura cambiaría entre corridas. | — | `frontend-tests.md`: fijar la respuesta con `page.route` + `route.fetch()`. |
+| No hay formato de fecha en `lib/format/` (`UsuariosList` tiene uno local). | `lib/format/`. | Ninguno: la pantalla muestra solo el nombre para no copiar el formato. Anotado en *Pendientes conocidos* de `.agents/front.md`. |
+
+Verificación visual. El spec corrió en Linux (Docker, `mcr.microsoft.com/playwright:v1.64.0-noble`,
+Google Chrome 156.0.8078.47, Postgres 17 y Mailpit). axe no encontró violaciones `serious` ni
+`critical` en ninguna pantalla. La línea base anterior era de TASK-023 y no se había regenerado
+después de TASK-027 a TASK-032 (`landing` e `inicio` cambiaban de alto), y le faltaban
+`cambio-contrasena`, `error-sesion` y `acceso-denegado`. Por decisión del desarrollador se
+regeneró completa en esta tarea con `--update-snapshots=all` y se verificó sin actualizar en un
+contenedor nuevo (6 passed). La versión de Chrome quedó anotada en `frontend-tests.md`.
+
+Defectos vistos en otras pantallas, para otra tarea: el formato de fecha local de
+`UsuariosList`. Además, `docs/tasks/finished/` tiene a la vez
+`TASK-024-front-tokens-de-diseno.md` y `TASK-027-front-tokens-de-diseno.md` (resto de la
+renumeración).
 
 ## 7. Riesgos
 
