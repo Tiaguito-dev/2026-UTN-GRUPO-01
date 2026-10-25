@@ -136,6 +136,8 @@ raíz; no necesita archivos de entorno en `back/` y `front/`. Desarrollo funcion
 - `npm run dev:back`: inicia NestJS en desarrollo desde la raíz.
 - `npm run build --workspace=back`: genera Prisma Client y compila el backend.
 - `npm test --workspace=back`: ejecuta las pruebas con Vitest.
+- `npm run lint --workspace=back`: ejecuta ESLint (`eslint . --max-warnings 0`), mismo criterio
+  de severidad que `front` (toda regla activa es error).
 - `npm run db:generate`: regenera Prisma Client.
 - `npm run db:migrate`: crea y aplica una migración de desarrollo.
 - `npm run db:studio`: abre Prisma Studio.
@@ -269,8 +271,7 @@ npm test --workspace=back
 Integración exige TEST_DATABASE_URL hacia una base exclusivamente de pruebas; aplicar db:deploy
 con DATABASE_URL apuntando a esa base antes de ejecutar. Usa HTTP en puerto efímero, Prisma y
 Argon2 reales y limpia solo cuentas creadas por el suite. Sin variable, integración se omite.
-No existe configuración/comando de lint. Evidencia:
-[TASK-005](../docs/tasks/finished/TASK-005-auth-etapa-1.md).
+Evidencia: [TASK-005](../docs/tasks/finished/TASK-005-auth-etapa-1.md).
 
 La etapa 2 implementa login, JWT, sesiones y autorización según la sección siguiente.
 
@@ -708,4 +709,7 @@ borran únicamente sus propias cuentas y credenciales; el buzón es exclusivamen
 
 Evidencia histórica de validación por etapa (conteos de tests, versiones de Node, fechas de
 aceptación) en [CHANGELOG.md](../CHANGELOG.md) y en cada `TASK-NNN` bajo
-[docs/tasks/finished/](../docs/tasks/finished/). No hay lint configurado.
+[docs/tasks/finished/](../docs/tasks/finished/). Lint: `npm run lint --workspace=back`,
+configuración en [eslint.config.mjs](./eslint.config.mjs). CI propio en
+[.github/workflows/back.yml](../.github/workflows/back.yml), con check de deriva de
+migraciones (`prisma migrate diff`) además de typecheck/lint/test/build.

@@ -16,6 +16,7 @@ export function readSmtpConfig(env: NodeJS.ProcessEnv): SmtpConfig {
   const fail = (name: string): never => { throw new Error(`Configuración de email inválida: ${name}.`); };
   const required = (name: string): string => {
     const value = env[name]?.trim();
+    // eslint-disable-next-line no-control-regex -- rechaza caracteres de control deliberadamente, no es un error de tipeo
     if (!value || /[\u0000-\u001f\u007f]/u.test(value)) return fail(name);
     return value;
   };
