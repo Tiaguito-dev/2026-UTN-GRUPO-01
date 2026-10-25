@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 const ACCIONES = [
   { href: "/home/admin/materias/nueva", title: "Nueva materia", detail: "Primer nivel de la jerarquía. El nombre no puede repetirse." },
   { href: "/home/admin/profesores/nuevo", title: "Nuevo profesor", detail: "Queda disponible para asignarlo a cualquier cursada." },
+  { href: "/home/admin/profesores", title: "Profesores", detail: "Listado de consulta de los profesores cargados." },
   { href: "/home/admin/cursadas/nueva", title: "Nueva cursada", detail: "El dictado de una materia en un año y cuatrimestre, con un profesor a cargo." },
   { href: "/home/admin/comisiones/nueva", title: "Nueva comisión", detail: "Una comisión dentro de una cursada ya creada." },
   { href: "/home/admin/usuarios", title: "Usuarios registrados", detail: "Listado de consulta de las cuentas de la aplicación." },

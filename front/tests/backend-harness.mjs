@@ -49,8 +49,8 @@ for (const [name, method] of [["admin", Get("admin")], ["expire", Post("expire-a
 }
 Req()(BrowserFixtureController.prototype, "expire", 0);
 Res({ passthrough: true })(BrowserFixtureController.prototype, "expire", 1);
-const module = await Test.createTestingModule({ imports: [AppModule, AuthModule], controllers: [BrowserFixtureController] }).compile();
-const app = module.createNestApplication();
+const testingModule = await Test.createTestingModule({ imports: [AppModule, AuthModule], controllers: [BrowserFixtureController] }).compile();
+const app = testingModule.createNestApplication();
 app.useLogger(false);
 prisma = app.get(PrismaService); config = app.get(AUTH_CONFIG);
 configureAuthHttp(app, config);

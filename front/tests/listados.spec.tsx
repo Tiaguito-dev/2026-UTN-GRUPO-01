@@ -4,8 +4,10 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MateriasList } from "@/components/academic/MateriasList";
 import { UsuariosList } from "@/components/admin/UsuariosList";
+import { ProfesoresList } from "@/components/admin/ProfesoresList";
 import { listarMaterias } from "@/services/materias";
 import { listarUsuarios } from "@/services/users";
+import { listarProfesores } from "@/services/academic";
 
 const { router, location } = vi.hoisted(() => ({ router: { replace: vi.fn() }, location: { pathname: "/", search: "" } }));
 vi.mock("next/link", () => import("./support/next-link"));
@@ -14,7 +16,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => location.pathname,
   useSearchParams: () => new URLSearchParams(location.search),
 }));
-vi.mock("@/services/academic", () => ({ listarMaterias: vi.fn() }));
+vi.mock("@/services/academic", () => ({ listarMaterias: vi.fn(), listarProfesores: vi.fn() }));
 vi.mock("@/services/materias", () => ({ listarMaterias: vi.fn() }));
 vi.mock("@/services/users", () => ({ listarUsuarios: vi.fn() }));
 
@@ -22,10 +24,12 @@ afterEach(cleanup);
 
 const usuario = (id: string) => ({ id, email: `${id}@alu.frlp.utn.edu.ar`, displayName: `Cuenta ${id}`, role: "USER" as const, createdAt: "2026-01-02T00:00:00.000Z" });
 const materia = (id: string) => ({ id, anioCarrera: null, nombre: `Materia ${id}`, createdAt: "2026-01-02T00:00:00.000Z", nivelElectiva: null, deletedAt: null });
+const profesor = (id: string) => ({ id, nombreCompleto: `Profesor ${id}`, createdAt: "2026-01-02T00:00:00.000Z", deletedAt: null });
 
 describe.each([
   { name: "MateriasList", Component: MateriasList, fetch: vi.mocked(listarMaterias) as Mock, pathname: "/home/materias", heading: "Materias", item: materia, itemText: "Materia a", loading: "Cargando materias…", empty: /No hay materias que coincidan con la búsqueda y los filtros/ },
   { name: "UsuariosList", Component: UsuariosList, fetch: vi.mocked(listarUsuarios) as Mock, pathname: "/home/admin/usuarios", heading: "Usuarios registrados", item: usuario, itemText: "Cuenta a", loading: "Cargando usuarios…", empty: /Todavía no hay cuentas registradas/ },
+  { name: "ProfesoresList", Component: ProfesoresList, fetch: vi.mocked(listarProfesores) as Mock, pathname: "/home/admin/profesores", heading: "Profesores", item: profesor, itemText: "Profesor a", loading: "Cargando profesores…", empty: /Todavía no hay profesores cargados/ },
 ])("$name", ({ name, Component, fetch, pathname, heading, item, itemText, loading, empty }) => {
   const page = (ids: string[], total = ids.length) => ({ items: ids.map((id) => item(id)), total, page: 1, pageSize: 10 });
 

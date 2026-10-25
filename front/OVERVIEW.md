@@ -17,96 +17,32 @@ defecto y el runtime de Node.js.
 ## Estructura
 
 - `src/app/`: rutas, layouts y estados del App Router.
-- `src/components/`: componentes por módulo (`home/`, `academic/`, `admin/`, `auth/`).
-- `src/components/ui/`: primitivas de UI genéricas, sin lógica de dominio (tabla abajo).
+- `src/components/`: componentes por módulo (`home/`, `academic/`, `admin/`, `auth/`), más
+  `SiteHeader` y `FeatureCarousel` en la raíz.
+- `src/components/ui/`: primitivas de UI genéricas, sin lógica de dominio.
 - `src/lib/`: utilidades sin estado. `lib/format/` formatea valores para mostrar (`periodo.ts`,
-  `role.ts` con `ROLE_LABEL`) y `lib/messages.ts` reúne los textos que se repiten en dos o más
-  archivos; un mensaje que aparece una sola vez se queda en su componente.
+  `role.ts` con `ROLE_LABEL`) y `lib/messages.ts` reúne los textos de interfaz repetidos.
 - `src/services/`: clientes HTTP dedicados por módulo.
 - `src/hooks/`: hooks reutilizables por módulo.
 - `src/types/`: contratos TypeScript del frontend.
 - `src/validations/`: validaciones de formularios.
+- `src/styles/`: CSS por capas (`reset`, `tokens`, `base`, `layout`, `components`), importado
+  desde `app/globals.css`.
 - `tests/`: pruebas de integración y end-to-end de los flujos funcionales.
 
-Idioma de los nombres: el dominio va en español (`AltaForm`, `listarMaterias`) y la
-infraestructura genérica en inglés (`usePaginatedFetch`, `SidebarNav`, las primitivas de `ui/`).
-Los textos visibles siguen en español.
+Las reglas del front están en `docs/standards/`:
+[frontend-estilos.md](../docs/standards/frontend-estilos.md) (capas y tokens),
+[frontend-componentes.md](../docs/standards/frontend-componentes.md) (primitivas de `ui/`, `lib/`
+y nombres), [frontend-pantallas.md](../docs/standards/frontend-pantallas.md) (patrones de
+pantalla, encabezado, shell, accesibilidad y checklist de pantalla nueva) y
+[frontend-tests.md](../docs/standards/frontend-tests.md).
 
-### Primitivas de `components/ui/`
+## Shell del espacio interno
 
-| Primitiva | Cuándo usarla |
-|---|---|
-| `Card` | Superficie con borde. `variant`: `panel` (contenido de una sección o formulario), `empty` (bloque de estado vacío), `profile` (perfil) o `auth` (formularios públicos de cuenta). `as` cambia el elemento. |
-| `Notice` | Aviso de error (`alert`), éxito o advertencia (`status`). `focusOnShow` mueve el foco al aviso al aparecer; se usa en errores de envío de formularios. |
-| `EmptyState` | Lista sin resultados (mensaje con acción en línea, dentro de un panel) o, con `symbol`/`title`, el bloque de Inicio y Próximamente. |
-| `Badge` | Etiqueta corta: `role` (rol de la cuenta) o `upcoming` (Próximamente). |
-| `FormField` | Campo con etiqueta, `input` o `select` (`options`), ayuda y error enlazados con `aria-describedby` y `aria-invalid`. |
-| `Breadcrumb`, `Pagination` | Ubicación actual y paginación de listados. |
-| `PageHeader`, `PaginatedListView` | Encabezado de pantalla y estados de un listado paginado (ver Cómo armar una pantalla). |
-
-Las variantes reproducen los estilos que cada pantalla ya tenía; unificarlos es una tarea aparte.
-
-## Cómo armar una pantalla
-
-Una pantalla nueva combina tres piezas de `components/ui/` y `hooks/`, sin copiar otra pantalla.
-
-**Encabezado.** La pantalla crea el id con `useId` y lo pasa a `<section aria-labelledby>` y a
-`PageHeader`, que dibuja breadcrumb, eyebrow, `h1` y descripción. El `h1` toma el foco al montar
-y cada vez que cambia `focusKey` (por ejemplo, el id del recurso), para anunciar el cambio de
-pantalla. Sin `PageHeader`, `useFocusOnMount(key)` devuelve la ref con el mismo efecto.
-
-Regla de encabezado de las pantallas internas (TASK-032, decisión 2):
-
-| Elemento | Regla |
-|---|---|
-| `h1` | Siempre, vía `PageHeader`, con foco al montar. |
-| Breadcrumb | Solo si la pantalla tiene al menos un nivel padre. No se muestran breadcrumbs de un solo ítem. |
-| Eyebrow | Solo en pantallas informativas sin datos (Inicio y Próximamente). |
-| "Volver" al pie | Se elimina donde el breadcrumb ya lleva al mismo lugar. Se conserva en los estados vacío y error, donde no hay breadcrumb a la vista o donde la acción es la salida principal. |
-
-**Shell.** `/home/**` y `/account/**` usan `components/home/AppShell.tsx` desde su `layout.tsx`:
-`<main>`, `RequireAuth` (sesión y aviso de coordinación, una sola vez) y `SidebarNav`, cuyo `<nav>`
-es el único landmark "Navegación principal". En `/account/**` el sidebar marca Inicio. La
-autorización por rol va aparte, con `RequireRole` (`app/home/admin/layout.tsx`): sin rol muestra
-"Acceso no permitido" dentro del shell. Una página interna no se envuelve en guards ni en `<main>`.
-
-```tsx
-const headingId = useId();
-return <section aria-labelledby={headingId}>
-  <PageHeader id={headingId} title="Usuarios registrados" description="…" />
-  …
-</section>;
-```
-
-**Listado paginado.** La página vive solo en la URL: `useUrlPagination` lee `?page` en cada render
-y `setPage` navega con `router.replace` conservando los demás parámetros (`setPage(1)` quita
-`page`). `PaginatedListView` recibe esa página, llama a `usePaginatedFetch` y resuelve carga,
-error con Reintentar (o `notFoundAction` ante un 404), vacío (`empty`) y paginación; `children`
-renderiza los ítems. Ambos hooks de datos devuelven un `AsyncState` discriminado (`loading`,
-`ready` con `data`, `error` con `error` y `notFound`); `useAllPages` usa la misma forma para las
-opciones de los selects. Como `useUrlPagination` usa `useSearchParams`, la página de `app/` envuelve
-el listado en `<Suspense>` con el mismo mensaje de carga (`app/home/admin/usuarios/page.tsx`).
-Ejemplo: `components/academic/ComisionesList.tsx`.
-
-```tsx
-const { page, setPage } = useUrlPagination();
-<PaginatedListView resetKey={cursadaId} page={page} onPageChange={setPage}
-  fetchPage={(next) => listarComisionesPorCursada(cursadaId, { page: next })}
-  loadingMessage="Cargando comisiones…" empty={<EmptyState>…</EmptyState>}>
-  {(result) => <Card variant="panel"><ul>{result.items.map(…)}</ul></Card>}
-</PaginatedListView>
-```
-
-**Formulario.** `useFormSubmission<K>` recibe `fields`, `validate`, `onSubmit` y `fallbackError`.
-Su `handleSubmit` lee `FormData`, valida, enfoca el primer campo inválido, ignora un segundo envío
-en curso y convierte la excepción en `error`, que se muestra con `<Notice focusOnShow>`. Las altas
-usan `AltaForm` (`components/admin/AltaForm.tsx`): cada `AltaField<K>` declara su `name` como
-literal, y `onSubmit` recibe `values` con esas claves tipadas; `values.nombr` no compila.
-
-```tsx
-<AltaForm fields={[{ name: "nombre", label: "Nombre", validate: validateNombre }]}
-  onSubmit={async (values) => { await crear(values.nombre); return "Alta registrada."; }} … />
-```
+`/home/**` y `/account/**` usan `components/home/AppShell.tsx` desde su `layout.tsx`: `<main>`,
+`RequireAuth` y `SidebarNav`, cuyo `<nav>` es el landmark "Navegación principal". En
+`/account/**` el sidebar marca Inicio. `app/home/admin/layout.tsx` agrega `RequireRole` para
+ADMIN: sin ese rol muestra "Acceso no permitido" dentro del shell.
 
 ## Contratos iniciales
 
@@ -115,8 +51,21 @@ literal, y `onSubmit` recibe `values` con esas claves tipadas; `values.nombr` no
 - `/forgot-password`, `/reset-password`: recuperación pública de cuenta.
 - `/verify-email`: confirma el enlace SMTP y retira el token de la URL; no inicia sesión.
 - `/resend-verification`: solicita un enlace para una cuenta pendiente, incluso anterior al cambio.
-- `/home`: inicio protegido con funcionalidades previstas y estados vacíos informativos.
+- `/home`: inicio protegido con saludo, estado vacío informativo y acceso al perfil.
+- `/home/profesores`, `/home/experiencias`, `/home/comunidad`: secciones en preparación
+  (Próximamente), sin llamadas a endpoints académicos.
+- `/home/materias`: listado paginado de materias con búsqueda y filtros por año y nivel de electiva.
+- `/home/materias/[materiaId]`: detalle de la materia, historial de cambios y sus cursadas.
+- `/home/materias/[materiaId]/cursadas/[cursadaId]`: comisiones de una cursada.
+- `/home/admin`: panel de administración (solo ADMIN, como todo `/home/admin/**`).
+- `/home/admin/materias/nueva`, `/home/admin/materias/[materiaId]/editar`: alta y edición de
+  materias.
+- `/home/admin/profesores/nuevo`, `/home/admin/cursadas/nueva`, `/home/admin/comisiones/nueva`:
+  altas del resto de la jerarquía académica.
+- `/home/admin/profesores`: listado paginado de consulta de los profesores cargados.
+- `/home/admin/usuarios`: listado de consulta de las cuentas registradas.
 - `/account`, `/account/change-password`: perfil y cambio de contraseña protegidos.
+- `/health`: comprobación pública de estado (`app/health/route.ts`).
 - `NEXT_PUBLIC_API_URL`: URL pública del backend.
 
 ## Landing y experiencia de cuenta
@@ -143,16 +92,8 @@ utilizar ArrowLeft/ArrowRight/Home/End. Anuncia la selección y oculta las tarje
 a lectores de pantalla. Con movimiento reducido se desactiva la animación y se muestra solo
 la tarjeta activa. La presentación se adapta a móvil y escritorio.
 
-Estilos: `app/globals.css` solo declara el orden de capas
-(`@layer reset, tokens, base, layout, components, utilities;`) e importa los archivos de
-`src/styles/`: `reset.css`, `tokens.css` (colores, espaciado, radios, texto, sombras),
-`base.css` (elementos), `layout.css` (header, sidebar, contenido, `.page`) y
-`components/` con un archivo por área (`button`, `notice`, `form`, `breadcrumb`,
-`pagination`, `card`, `badge`, `account-menu`, `landing`, `academic`). El orden de la cascada lo fijan
-las capas, no la especificidad, y ninguna regla queda fuera de una capa. Los selectores de
-elemento solo llevan tipografía y reset; el aspecto de componente va en una clase (un
-`<button>` sin clase no se ve como botón primario: usa `.button`). Los CSS Modules no llevan
-capa y le ganan a todas. Formularios con etiquetas visibles,
+Estilos: capas y tokens según [frontend-estilos.md](../docs/standards/frontend-estilos.md).
+Formularios con etiquetas visibles,
 foco de teclado, errores asociados y botones de envío bloqueados durante la petición.
 Contraseñas nuevas: entre 8 y 128 caracteres Unicode, sin recortar ni normalizar, en registro,
 restablecimiento y cambio. Login permite las credenciales existentes; el backend sigue siendo
@@ -181,13 +122,14 @@ registro permiten reintentar. Ir explícitamente al login permite comprobar nuev
 con una advertencia, sin declarar terminada la sesión anterior. Esto permite recuperarse
 también de una renovación cuya respuesta no pudo confirmarse.
 
-`SystemHome` presenta un saludo con el nombre público de la cuenta y un estado vacío que
-explica qué funcionalidades llegarán al sistema. El menú lateral permanece fijo en escritorio
-y se adapta a botones superiores en móvil, sin desbordamiento horizontal. Inicio, Profesores,
-Materias, Experiencias y Comunidad seleccionan contenido informativo en la misma pantalla.
-Las secciones futuras muestran Próximamente; no llaman a endpoints académicos ni presentan
-datos inventados. La selección utiliza `aria-current` y lleva el foco al título actualizado.
-El perfil se abre desde el menú de cuenta o Ver mi perfil. `RequireAuth`, vía `AppShell`, protege
+`/home` (`InicioSection`) presenta un saludo con el nombre público de la cuenta y un estado
+vacío que explica qué funcionalidades llegarán al sistema. El menú lateral permanece fijo en
+escritorio y se adapta a botones superiores en móvil, sin desbordamiento horizontal. Cada
+sección del menú (`components/home/sections.ts`) es una ruta propia: Inicio, Profesores,
+Materias, Experiencias, Comunidad y, solo para ADMIN, Administración. Profesores, Experiencias
+y Comunidad muestran Próximamente (`UpcomingSection`); no llaman a endpoints académicos ni
+presentan datos inventados. El enlace de la sección actual lleva `aria-current`, y el título de
+cada pantalla recibe el foco al montar. El perfil se abre desde el menú de cuenta o Ver mi perfil. `RequireAuth`, vía `AppShell`, protege
 el home, perfil y cambio; ante un error temporal muestra la pantalla "No pudimos comprobar tu
 sesión" con Reintentar comprobación (la misma que usa `RequireGuest` en landing y registro). Los
 guards del backend siguen siendo la autoridad de autenticación.
@@ -199,14 +141,14 @@ guards del backend siguen siendo la autoridad de autenticación.
 - `npm run start --workspace=front`: sirve el build de producción.
 - `npm run typecheck --workspace=front`: comprueba tipos TypeScript.
 - `npm run lint --workspace=front`: corre ESLint (`front/eslint.config.mjs`: Next
-  `core-web-vitals`, `react-hooks` y `jsx-a11y`). Por ahora las reglas avisan sin fallar,
-  salvo `react-hooks/rules-of-hooks`.
+  `core-web-vitals`, `react-hooks` y `jsx-a11y`) con `--max-warnings 0`; todas las reglas son
+  error.
 - `npm run test --workspace=front`: ejecuta las pruebas unitarias de Vitest.
 - `npm run test:e2e --workspace=front`: ejecuta el harness Playwright; requiere la configuración
   y los servicios de prueba que documentó en su momento la tarea de integración de cuenta
   (`docs/tasks/finished/`). Incluye `visual.browser.spec.mjs`: capturas de referencia y análisis
-  axe de las pantallas principales. Las capturas se regeneran (`--update-snapshots`) solo desde
-  Linux, con el Google Chrome del sistema.
+  axe de las pantallas principales. Cómo y desde dónde se regeneran las capturas:
+  [frontend-tests.md](../docs/standards/frontend-tests.md).
 
 El workflow `.github/workflows/front.yml` corre `typecheck`, `lint`, `test` y `build` en cada PR
 hacia `desarrollo` o `main` que toque el front. Solo verifica; no despliega.

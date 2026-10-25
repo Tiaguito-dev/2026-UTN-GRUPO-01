@@ -75,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (caught) { if (active && generation.current === version && service.coordinator.read()?.id === latest.id) failure(caught); }
     };
     const unsubscribe = service.coordinator.subscribe((revision) => { void synchronize(revision); });
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the initial session check calls the backend on mount and must mark the state as "checking" before the request.
     void checkSession();
     return () => { active = false; generation.current += 1; unsubscribe(); };
   }, [checkSession, clear, failure]);

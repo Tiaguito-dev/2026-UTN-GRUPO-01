@@ -20,6 +20,7 @@ export function VerifyEmail() {
     // Keep the credential in this request's closure only; never in browser storage or URL.
     window.history.replaceState(window.history.state, "", url.pathname);
     if (!token) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- the token is read from window.location once after mount; reading it during render would break SSR hydration.
       setResult({ status: "error", message: "El enlace de verificación no es válido. Solicitá uno nuevo." });
       return;
     }

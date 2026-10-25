@@ -10,7 +10,7 @@ const API = "http://localhost:3301";
 const password = " Contraseña de prueba segura 2026 ";
 const SCREENS = {
   public: [["landing", "/"], ["login", "/login"]],
-  private: [["inicio", "/home"], ["materias", "/home/materias"], ["alta-materia", "/home/admin/materias/nueva"], ["perfil", "/account"], ["cambio-contrasena", "/account/change-password"]],
+  private: [["inicio", "/home"], ["materias", "/home/materias"], ["alta-materia", "/home/admin/materias/nueva"], ["profesores", "/home/admin/profesores"], ["perfil", "/account"], ["cambio-contrasena", "/account/change-password"]],
 };
 let prisma;
 const userIds = [];
@@ -77,6 +77,11 @@ for (const width of [390, 1280]) {
 
     test("pantallas internas", async ({ page }) => {
       await loginAs(page, "ADMIN");
+      // The test database keeps the profesores of earlier runs: a fixed page keeps the capture stable.
+      await page.route((url) => url.origin === API && url.pathname === "/profesores", async (route) => route.fulfill({
+        response: await route.fetch(),
+        json: { items: [{ id: "p1", nombreCompleto: "Profesor de prueba", createdAt: "2026-01-02T00:00:00.000Z", deletedAt: null }], total: 1, page: 1, pageSize: 10 },
+      }));
       for (const [name, path] of SCREENS.private) await test.step(name, () => check(page, name, path, width));
     });
 
