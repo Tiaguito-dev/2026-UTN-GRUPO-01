@@ -37,16 +37,16 @@ services:
         value: profesor-butchery
       - key: AUTH_JWT_AUDIENCE
         value: profesor-butchery-web
-      # El handshake SMTPS hacia un proveedor remoto no entra en los 1500 ms que alcanzan
-      # para Mailpit en loopback. La respuesta minima debe superar el timeout en 250 ms.
+      # Render Free bloquea SMTP 25/465/587: enviar mediante Brevo HTTPS (TASK-028).
+      - key: EMAIL_PROVIDER
+        value: brevo
+      - key: EMAIL_FROM_NAME
+        value: Profesor Butchery
+      # Deadline de correo y respuesta minima coherentes, también para HTTPS.
       - key: SMTP_TIMEOUT_MS
         value: "8000"
       - key: AUTH_PASSWORD_RESET_MIN_RESPONSE_MS
         value: "8500"
-      - key: SMTP_SECURE
-        value: "true"
-      - key: SMTP_ALLOW_LOCAL_PLAINTEXT
-        value: "false"
       # Cadena de conexion directa de Neon, con sslmode=require.
       - key: DATABASE_URL
         sync: false
@@ -62,13 +62,7 @@ services:
       # Mismo origen del front + /reset-password.
       - key: AUTH_PASSWORD_RESET_URL
         sync: false
-      - key: SMTP_HOST
+      - key: EMAIL_FROM
         sync: false
-      - key: SMTP_PORT
-        sync: false
-      - key: SMTP_FROM
-        sync: false
-      - key: SMTP_USERNAME
-        sync: false
-      - key: SMTP_PASSWORD
+      - key: BREVO_API_KEY
         sync: false

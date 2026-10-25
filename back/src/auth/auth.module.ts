@@ -34,7 +34,8 @@ import { ChangePassword } from "./application/change-password.js";
 import { PASSWORD_RECOVERY_REPOSITORY, type PasswordRecoveryRepository } from "./domain/password-recovery.repository.js";
 import { PASSWORD_RESET_EMAIL, type PasswordResetEmail } from "./domain/password-reset-email.js";
 import { PrismaPasswordRecoveryRepository } from "./infrastructure/prisma-password-recovery.repository.js";
-import { SMTP_CONFIG, readSmtpConfig, type SmtpConfig } from "./smtp.config.js";
+import { EMAIL_CONFIG, readEmailConfig, type EmailConfig } from "./email.config.js";
+import { BrevoPasswordResetEmail, BrevoVerificationEmail } from "./infrastructure/brevo-email.js";
 import { SmtpPasswordResetEmail } from "./infrastructure/smtp-password-reset-email.js";
 
 @Module({
@@ -42,10 +43,12 @@ import { SmtpPasswordResetEmail } from "./infrastructure/smtp-password-reset-ema
   controllers: [AuthController],
   providers: [
     { provide: EMAIL_VERIFICATION_REPOSITORY, useFactory: (prisma: PrismaService) => new PrismaEmailVerificationRepository(prisma), inject: [PrismaService] },
-    { provide: VERIFICATION_EMAIL, useFactory: (smtp: SmtpConfig, config: AuthConfig) => new SmtpVerificationEmail(smtp, config.passwordResetUrl), inject: [SMTP_CONFIG, AUTH_CONFIG] },
+    { provide: VERIFICATION_EMAIL, useFactory: (email: EmailConfig, config: AuthConfig) => email.provider === "brevo"
+      ? new BrevoVerificationEmail(email, config.passwordResetUrl)
+      : new SmtpVerificationEmail(email.smtp, config.passwordResetUrl), inject: [EMAIL_CONFIG, AUTH_CONFIG] },
     { provide: EmailVerification, useFactory: (users: UserRepository, repository: EmailVerificationRepository, email: VerificationEmail, tokens: RefreshTokenService, config: AuthConfig) => new EmailVerification(users, repository, email, tokens, undefined, undefined, config.passwordResetMinResponseMs, (code) => new Logger("EmailVerification").error(code)), inject: [USER_REPOSITORY, EMAIL_VERIFICATION_REPOSITORY, VERIFICATION_EMAIL, REFRESH_TOKEN_SERVICE, AUTH_CONFIG] },
     { provide: AUTH_CONFIG, useFactory: () => readAuthConfig(process.env) },
-    { provide: SMTP_CONFIG, useFactory: () => readSmtpConfig(process.env) },
+    { provide: EMAIL_CONFIG, useFactory: () => readEmailConfig(process.env) },
     {
       provide: PASSWORD_RECOVERY_REPOSITORY,
       useFactory: (prisma: PrismaService) => new PrismaPasswordRecoveryRepository(prisma),
@@ -53,8 +56,10 @@ import { SmtpPasswordResetEmail } from "./infrastructure/smtp-password-reset-ema
     },
     {
       provide: PASSWORD_RESET_EMAIL,
-      useFactory: (smtp: SmtpConfig, configuration: AuthConfig) => new SmtpPasswordResetEmail(smtp, configuration.passwordResetUrl),
-      inject: [SMTP_CONFIG, AUTH_CONFIG],
+      useFactory: (email: EmailConfig, configuration: AuthConfig) => email.provider === "brevo"
+        ? new BrevoPasswordResetEmail(email, configuration.passwordResetUrl)
+        : new SmtpPasswordResetEmail(email.smtp, configuration.passwordResetUrl),
+      inject: [EMAIL_CONFIG, AUTH_CONFIG],
     },
     {
       provide: RequestPasswordReset,

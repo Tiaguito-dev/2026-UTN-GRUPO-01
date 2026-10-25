@@ -734,6 +734,19 @@ en Mailpit y completar `/reset-password`: no es necesario copiar el token a un J
 Los comandos anteriores permiten comprobar directamente la API. No mostrar enlaces,
 tokens o claves en terminal/logs; borrar los JSON y el jar privados al finalizar.
 
+### Correo en Render Free (TASK-028)
+
+Render Free bloquea conexiones SMTP 25/465/587. Configurar `EMAIL_PROVIDER=brevo`,
+`BREVO_API_KEY` privada, `EMAIL_FROM` verificado y `EMAIL_FROM_NAME=Profesor Butchery`.
+El adaptador usa `https://api.brevo.com/v3/smtp/email` para verificación y recuperación;
+no requiere credenciales SMTP ni una dependencia adicional. No intercambiar clave API y SMTP.
+`SMTP_TIMEOUT_MS` limita también la solicitud HTTPS; conservar la respuesta mínima
+`AUTH_PASSWORD_RESET_MIN_RESPONSE_MS` al menos 250 ms mayor (8000/8500 recomendado).
+La URL de recuperación y el origen frontend deben ser HTTPS públicos para que el enlace
+de verificación apunte al sitio desplegado. Fallos de envío no cambian la cuenta a verificada.
+`EMAIL_PROVIDER=smtp` (predeterminado) conserva SMTP/Mailpit y su validación existente.
+No hay fallback silencioso entre proveedores. Ver `infra/DESPLIEGUE-CLOUD.md`.
+
 ### Integración frontend y verificación
 
 La pantalla `/reset-password` ya está implementada: conserva el token únicamente en memoria,

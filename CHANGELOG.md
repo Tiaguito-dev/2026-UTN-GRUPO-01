@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### Correo por Brevo HTTPS (TASK-028)
+
+- Selección de proveedor SMTP o Brevo para verificación institucional y recuperación de
+  contraseña; SMTP permanece como opción predeterminada compatible con Mailpit.
+- Adaptadores HTTPS sin dependencias nuevas, con deadline y errores sin secretos.
+- Blueprint de Render Free y guía de configuración para API de Brevo, evitando los puertos
+  SMTP bloqueados. Cambio verificado localmente; despliegue productivo pendiente.
 ### Filas de lista clickeables con flecha (TASK-052)
 
 - Nueva primitiva `RowLink` en `components/ui/RowLink.tsx` y hoja de estilos `list.css` para filas que actúan como un único enlace accesible con chevron SVG decorativo (`aria-hidden`) y soporte para `detail`, `trailing` y estado actual (`current`) ([TASK-052](docs/tasks/finished/TASK-052-front-filas-de-lista-clickeables.md)).
