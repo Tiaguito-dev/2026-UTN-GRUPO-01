@@ -72,3 +72,21 @@ Git y verificación de recepción/activación en producción. Tarea sin cerrar, 
 El 2026-10-25 el desarrollador solicita commit local para compartir posteriormente la rama
 con el encargado de Render. HU-11 resguardada en stash independiente antes de recuperar
 Brevo. No hay autorización nueva de push/PR/merge en esta solicitud.
+
+## Integración con desarrollo (2026-10-25)
+
+El desarrollador solicita incorporar los últimos cambios manteniendo el trabajo previo.
+Se integra origin/desarrollo (3aa55b8) en la rama de Brevo, conservando los dos commits
+publicados. El único conflicto textual es CHANGELOG: se conservan ambas entradas.
+El blueprint conserva tanto las migraciones de arranque nuevas como el proveedor Brevo.
+Sin aplicar migraciones a bases locales o productivas en esta actualización: el nuevo modelo
+académico requiere revisión de datos antes de poner al día la base de trabajo.
+HU-11 queda intacta en su stash; debe adaptarse al nuevo modelo y primitivas antes de aplicarse.
+Se sincronizan dependencias y cliente Prisma generado y se verifica tipos, tests de Brevo y lint.
+El lint nuevo detectó no-control-regex en la validación deliberada de caracteres de control
+de email.config. Se documenta una excepción de línea con motivo, siguiendo exactamente
+el patrón ya aplicado en auth.config y smtp.config; se conserva la validación de seguridad.
+Validación de integración: 169 pruebas aprobadas, typechecks backend/frontend y lint backend
+aprobados. Se regeneraron tipos locales de Next que referían a rutas de HU-11 resguardadas.
+Las advertencias de espacios en tres archivos entrantes de desarrollo se conservan sin
+limpieza ajena al alcance; la diferencia propia respecto de origin/desarrollo pasa diff-check.

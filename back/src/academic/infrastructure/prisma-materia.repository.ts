@@ -1,10 +1,11 @@
 import { Prisma } from "../../generated/prisma/client.js";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import type { Pagination, PaginatedResult } from "../../shared/domain/pagination.js";
-import type { AnioCarrera, NivelElectiva, Materia, MateriaCambio, MateriaHistorial } from "../domain/materia.js";
-import { resolveNivelElectiva } from "../application/materia-input.js";
-import { InvalidAcademicInputError, MateriaAlreadyExistsError, MateriaNotFoundError } from "../application/errors.js";
+import { serializarCarreras, type AnioCarrera, type Carrera, type NivelElectiva, type Materia, type MateriaCambio, type MateriaCarrera, type MateriaHistorial } from "../domain/materia.js";
+import { MateriaAlreadyExistsError, MateriaNotFoundError } from "../application/errors.js";
 import type { CreateMateriaInput, MateriaFilters, MateriaRepository } from "../application/ports/materia.repository.js";
+
+const conCarreras = { carreras: { orderBy: { carrera: "asc" } } } satisfies Prisma.MateriaInclude;
 
 export class PrismaMateriaRepository implements MateriaRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -12,17 +13,36 @@ export class PrismaMateriaRepository implements MateriaRepository {
   async findAll(pagination: Pagination, filters: MateriaFilters = {}): Promise<PaginatedResult<Materia>> {
     // PostgreSQL LIKE metacharacters must be escaped for a literal substring search.
     const q = filters.q?.replace(/[\\%_]/g, "\\$&");
+    const nombre: Prisma.StringFilter | undefined = q ? { contains: q, mode: "insensitive" } : undefined;
+    const skip = (pagination.page - 1) * pagination.pageSize;
+    if (filters.carrera) {
+      const where: Prisma.MateriaCarreraWhereInput = { carrera: filters.carrera,
+        ...(filters.anioCarrera ? { anioCarrera: filters.anioCarrera } : {}),
+        ...(filters.nivelElectiva ? { nivelElectiva: filters.nivelElectiva } : {}),
+        materia: { deletedAt: null, ...(nombre ? { nombre } : {}) },
+      };
+      const [filas, total] = await Promise.all([
+        this.prisma.materiaCarrera.findMany({
+          where,
+          include: { materia: { include: conCarreras } },
+          orderBy: [{ anioCarrera: "asc" }, { nivelElectiva: { sort: "asc", nulls: "last" } },
+            { materia: { nombre: "asc" } }, { materiaId: "asc" }],
+          skip,
+          take: pagination.pageSize,
+        }),
+        this.prisma.materiaCarrera.count({ where }),
+      ]);
+      return { items: filas.map((fila) => toMateria(fila.materia)), total, page: pagination.page, pageSize: pagination.pageSize };
+    }
     const where: Prisma.MateriaWhereInput = { deletedAt: null,
-      ...(filters.anioCarrera ? { anioCarrera: filters.anioCarrera } : {}),
-      ...(filters.nivelElectiva ? { nivelElectiva: filters.nivelElectiva } : {}),
-      ...(q ? { nombre: { contains: q, mode: "insensitive" } } : {}),
+      ...(nombre ? { nombre } : {}),
     };
     const [items, total] = await Promise.all([
       this.prisma.materia.findMany({
         where,
-        orderBy: [{ anioCarrera: { sort: "asc", nulls: "last" } },
-          { nivelElectiva: { sort: "asc", nulls: "last" } }, { nombre: "asc" }, { id: "asc" }],
-        skip: (pagination.page - 1) * pagination.pageSize,
+        include: conCarreras,
+        orderBy: [{ nombre: "asc" }, { id: "asc" }],
+        skip,
         take: pagination.pageSize,
       }),
       this.prisma.materia.count({ where }),
@@ -31,18 +51,23 @@ export class PrismaMateriaRepository implements MateriaRepository {
   }
 
   async findById(id: string): Promise<Materia | null> {
-    const materia = await this.prisma.materia.findFirst({ where: { id, deletedAt: null } });
+    const materia = await this.prisma.materia.findFirst({ where: { id, deletedAt: null }, include: conCarreras });
     return materia ? toMateria(materia) : null;
   }
 
   async findByNombre(nombre: string): Promise<Materia | null> {
-    const materia = await this.prisma.materia.findFirst({ where: { nombre, deletedAt: null } });
+    const materia = await this.prisma.materia.findFirst({ where: { nombre, deletedAt: null }, include: conCarreras });
     return materia ? toMateria(materia) : null;
   }
 
-  async create(input: CreateMateriaInput): Promise<Materia> {
+  async findCarreras(materiaId: string): Promise<Carrera[]> {
+    const filas = await this.prisma.materiaCarrera.findMany({ where: { materiaId }, select: { carrera: true } });
+    return filas.map((fila) => fila.carrera);
+  }
+
+  async create({ carreras, ...input }: CreateMateriaInput): Promise<Materia> {
     try {
-      return toMateria(await this.prisma.materia.create({ data: input }));
+      return toMateria(await this.prisma.materia.create({ data: { ...input, carreras: { create: carreras } }, include: conCarreras }));
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         throw new MateriaAlreadyExistsError();
@@ -56,32 +81,36 @@ export class PrismaMateriaRepository implements MateriaRepository {
       return await this.prisma.$transaction(async (tx) => {
         // Serialize concurrent edits so each history event records the actual previous values.
         await tx.$queryRaw`SELECT "id" FROM "Materia" WHERE "id" = ${id}::uuid FOR UPDATE`;
-        const current = await tx.materia.findFirst({ where: { id, deletedAt: null } });
+        const current = await tx.materia.findFirst({ where: { id, deletedAt: null }, include: conCarreras });
         if (!current) throw new MateriaNotFoundError();
-        if (!current.anioCarrera && !input.anioCarrera) {
-          throw new InvalidAcademicInputError("Indique un año de carrera entre 1 y 5 o Electiva.");
-        }
-        const nivelElectiva = resolveNivelElectiva((input.anioCarrera ?? current.anioCarrera) as AnioCarrera | null,
-          input.nivelElectiva === undefined ? current.nivelElectiva as NivelElectiva | null : input.nivelElectiva);
         const cambios: MateriaCambio[] = [];
-        const data: Partial<CreateMateriaInput> = {};
+        const data: Prisma.MateriaUpdateInput = {};
         if (input.nombre !== undefined && input.nombre !== current.nombre) {
           data.nombre = input.nombre;
           cambios.push({ campo: "nombre", anterior: current.nombre, nuevo: input.nombre });
         }
-        if (input.anioCarrera !== undefined && input.anioCarrera !== current.anioCarrera) {
-          data.anioCarrera = input.anioCarrera;
-          cambios.push({ campo: "anioCarrera", anterior: current.anioCarrera, nuevo: input.anioCarrera });
+        let reemplazarCarreras = false;
+        if (input.carreras) {
+          const anterior = serializarCarreras(current.carreras.map(toMateriaCarrera));
+          const nuevo = serializarCarreras(input.carreras);
+          if (anterior !== nuevo) {
+            reemplazarCarreras = true;
+            cambios.push({ campo: "carreras", anterior: anterior || null, nuevo });
+          }
         }
-        if (nivelElectiva !== current.nivelElectiva) {
-          data.nivelElectiva = nivelElectiva;
-          cambios.push({ campo: "nivelElectiva", anterior: current.nivelElectiva, nuevo: nivelElectiva });
+        if (cambios.length === 0 && Object.keys(data).length === 0) return toMateria(current);
+        const updated = Object.keys(data).length > 0
+          ? await tx.materia.update({ where: { id }, data })
+          : current;
+        if (reemplazarCarreras && input.carreras) {
+          await tx.materiaCarrera.deleteMany({ where: { materiaId: id } });
+          await tx.materiaCarrera.createMany({ data: input.carreras.map((fila) => ({ materiaId: id, ...fila })) });
         }
-        if (cambios.length === 0) return toMateria(current);
-        const updated = await tx.materia.update({ where: { id }, data });
-        await tx.materiaHistorial.create({ data: { materiaId: id, actorId,
-          cambios: cambios.map((cambio) => ({ ...cambio })) } });
-        return toMateria(updated);
+        if (cambios.length > 0) {
+          await tx.materiaHistorial.create({ data: { materiaId: id, actorId,
+            cambios: cambios.map((cambio) => ({ ...cambio })) } });
+        }
+        return toMateria({ ...updated, carreras: await tx.materiaCarrera.findMany({ where: { materiaId: id }, ...conCarreras.carreras }) });
       });
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") throw new MateriaAlreadyExistsError();
@@ -92,15 +121,31 @@ export class PrismaMateriaRepository implements MateriaRepository {
   async findHistorial(id: string, pagination: Pagination): Promise<PaginatedResult<MateriaHistorial>> {
     const where = { materiaId: id };
     const [rows, total] = await Promise.all([
-      this.prisma.materiaHistorial.findMany({ where, orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        skip: (pagination.page - 1) * pagination.pageSize, take: pagination.pageSize }),
+      this.prisma.materiaHistorial.findMany({
+        where,
+        include: { actor: { select: { id: true, displayName: true } } },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip: (pagination.page - 1) * pagination.pageSize,
+        take: pagination.pageSize,
+      }),
       this.prisma.materiaHistorial.count({ where }),
     ]);
-    const items = rows.map((row) => ({ ...row, cambios: row.cambios as unknown as MateriaCambio[] }));
+    const items = rows.map((row) => ({
+      id: row.id,
+      materiaId: row.materiaId,
+      actor: row.actor,
+      createdAt: row.createdAt,
+      cambios: row.cambios as unknown as MateriaCambio[],
+    }));
     return { items, total, ...pagination };
   }
 }
 
-function toMateria(row: { id: string; nombre: string; anioCarrera: string | null; nivelElectiva: string | null; createdAt: Date; deletedAt: Date | null }): Materia {
-  return { ...row, anioCarrera: row.anioCarrera as AnioCarrera | null, nivelElectiva: row.nivelElectiva as NivelElectiva | null };
+function toMateria(row: Prisma.MateriaGetPayload<{ include: typeof conCarreras }>): Materia {
+  return { id: row.id, nombre: row.nombre, carreras: row.carreras.map(toMateriaCarrera),
+    createdAt: row.createdAt, deletedAt: row.deletedAt };
+}
+
+function toMateriaCarrera(row: { carrera: Carrera; anioCarrera: string; nivelElectiva: string | null }): MateriaCarrera {
+  return { carrera: row.carrera, anioCarrera: row.anioCarrera as AnioCarrera, nivelElectiva: row.nivelElectiva as NivelElectiva | null };
 }

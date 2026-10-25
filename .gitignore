@@ -44,4 +44,4 @@ docker-compose.override.yml
 .atl/
 
 # Sub-agentes de Claude Code — personales, no se comparten vía git (ver .agents/OVERVIEW.md)
-.claude/agents/
+.claude

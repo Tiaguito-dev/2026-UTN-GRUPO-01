@@ -1,37 +1,45 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MateriasList } from "@/components/academic/MateriasList";
 import { UsuariosList } from "@/components/admin/UsuariosList";
+import { ProfesoresList } from "@/components/admin/ProfesoresList";
 import { listarMaterias } from "@/services/materias";
 import { listarUsuarios } from "@/services/users";
+import { listarProfesores } from "@/services/academic";
 
-const { router, location } = vi.hoisted(() => ({ router: { replace: vi.fn() }, location: { pathname: "/" } }));
+const { router, location } = vi.hoisted(() => ({ router: { replace: vi.fn() }, location: { pathname: "/", search: "" } }));
 vi.mock("next/link", () => import("./support/next-link"));
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
   usePathname: () => location.pathname,
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(location.search),
 }));
-vi.mock("@/services/academic", () => ({ listarMaterias: vi.fn() }));
+vi.mock("@/services/academic", () => ({ listarMaterias: vi.fn(), listarProfesores: vi.fn() }));
 vi.mock("@/services/materias", () => ({ listarMaterias: vi.fn() }));
 vi.mock("@/services/users", () => ({ listarUsuarios: vi.fn() }));
+// TASK-043: MateriasList reads the role (useIsAdmin → useAuth) for "Nueva materia".
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ account: { role: "USER" } }) }));
 
 afterEach(cleanup);
 
 const usuario = (id: string) => ({ id, email: `${id}@alu.frlp.utn.edu.ar`, displayName: `Cuenta ${id}`, role: "USER" as const, createdAt: "2026-01-02T00:00:00.000Z" });
-const materia = (id: string) => ({ id, anioCarrera: null, nombre: `Materia ${id}`, createdAt: "2026-01-02T00:00:00.000Z", nivelElectiva: null, deletedAt: null });
+const materia = (id: string) => ({ id, nombre: `Materia ${id}`, carreras: [], createdAt: "2026-01-02T00:00:00.000Z", deletedAt: null });
+const profesor = (id: string) => ({ id, nombreCompleto: `Profesor ${id}`, createdAt: "2026-01-02T00:00:00.000Z", deletedAt: null });
 
 describe.each([
   { name: "MateriasList", Component: MateriasList, fetch: vi.mocked(listarMaterias) as Mock, pathname: "/home/materias", heading: "Materias", item: materia, itemText: "Materia a", loading: "Cargando materias…", empty: /No hay materias que coincidan con la búsqueda y los filtros/ },
   { name: "UsuariosList", Component: UsuariosList, fetch: vi.mocked(listarUsuarios) as Mock, pathname: "/home/admin/usuarios", heading: "Usuarios registrados", item: usuario, itemText: "Cuenta a", loading: "Cargando usuarios…", empty: /Todavía no hay cuentas registradas/ },
+  { name: "ProfesoresList", Component: ProfesoresList, fetch: vi.mocked(listarProfesores) as Mock, pathname: "/home/admin/profesores", heading: "Profesores", item: profesor, itemText: "Profesor a", loading: "Cargando profesores…", empty: /Todavía no hay profesores cargados/ },
 ])("$name", ({ name, Component, fetch, pathname, heading, item, itemText, loading, empty }) => {
   const page = (ids: string[], total = ids.length) => ({ items: ids.map((id) => item(id)), total, page: 1, pageSize: 10 });
 
   function setup() {
     location.pathname = pathname;
+    location.search = "";
     router.replace.mockReset();
+    router.replace.mockImplementation((url: string) => { location.search = new URL(url, "http://local").search; });
     return render(<Component />);
   }
 
@@ -40,7 +48,7 @@ describe.each([
     setup();
     expect(screen.getByRole("status")).toHaveProperty("textContent", loading);
     expect(await screen.findByText(itemText)).toBeTruthy();
-    expect(fetch).toHaveBeenCalledWith(name === "MateriasList" ? { page: 1, anioCarrera: undefined } : { page: 1 });
+    expect(fetch).toHaveBeenCalledWith(name === "MateriasList" ? { page: 1, carrera: undefined, anioCarrera: undefined } : { page: 1 });
   });
 
   it("ante un error, Reintentar vuelve a pedir la página", async () => {
@@ -60,16 +68,17 @@ describe.each([
 
   it("Siguiente reemplaza la URL con ?page=2 y pide esa página", async () => {
     fetch.mockResolvedValue(page(["a"], 25));
-    setup();
+    const view = setup();
     await userEvent.click(await screen.findByRole("button", { name: "Página siguiente" }));
     expect(router.replace).toHaveBeenCalledWith(`${pathname}?page=2`, { scroll: false });
-    if (name !== "MateriasList") expect(fetch).toHaveBeenLastCalledWith({ page: 2 });
+    view.rerender(<Component />);
+    await waitFor(() => expect(fetch).toHaveBeenLastCalledWith(name === "MateriasList" ? { page: 2, carrera: undefined, anioCarrera: undefined } : { page: 2 }));
   });
 
   it("lleva el foco al h1 al montar", () => {
     fetch.mockReturnValue(new Promise(() => {}));
     setup();
-    if (name === "MateriasList") expect(document.activeElement?.getAttribute("tabindex")).toBe("-1");
+    if (name === "MateriasList") expect(document.activeElement).toBe(screen.getByRole("status").parentElement);
     else expect(document.activeElement).toBe(screen.getByRole("heading", { level: 1, name: heading }));
   });
 });

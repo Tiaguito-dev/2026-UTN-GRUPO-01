@@ -11,12 +11,13 @@ vi.mock("next/link", () => import("./support/next-link"));
 afterEach(cleanup);
 
 const required = (label: string) => (value: string) => (value.trim() ? undefined : `Ingresá ${label}.`);
-const fields: AltaField[] = [
+type Campo = "nombre" | "codigo";
+const fields: AltaField<Campo>[] = [
   { name: "nombre", label: "Nombre", validate: required("el nombre") },
   { name: "codigo", label: "Código", hint: "Como figura en el plan.", validate: required("el código") },
 ];
 
-function setup(onSubmit: (values: Record<string, string>) => Promise<string>, blocked?: ReactNode) {
+function setup(onSubmit: (values: Record<Campo, string>) => Promise<string>, blocked?: ReactNode) {
   render(<AltaForm breadcrumb={[{ label: "Alta" }]} heading="Nueva materia" description="Alta de prueba." fields={fields} submitLabel="Crear materia" blocked={blocked} onSubmit={onSubmit} />);
   return { nombre: screen.getByLabelText("Nombre") as HTMLInputElement, codigo: screen.getByLabelText("Código") as HTMLInputElement, submit: screen.getByRole("button", { name: "Crear materia" }) };
 }
@@ -74,29 +75,45 @@ describe("AltaForm", () => {
     expect(screen.getByText("Cargando materias…")).toBeTruthy();
     expect(submit).toHaveProperty("disabled", true);
   });
+
+  // Lo verifica `npm run typecheck`: si `values` volviera a ser `Record<string, string>`, la
+  // directiva `@ts-expect-error` quedaría sin uso y el chequeo fallaría.
+  it("infiere de `fields` los nombres válidos de `values`", () => {
+    const alta = <AltaForm breadcrumb={[]} heading="Alta" description="" submitLabel="Crear"
+      fields={[{ name: "nombre", label: "Nombre", validate: () => undefined }]}
+      onSubmit={async (values) => {
+        const nombre: string = values.nombre;
+        // @ts-expect-error `nombr` no es un campo declarado en `fields`.
+        return `${nombre} ${values.nombr}`;
+      }} />;
+    expect(alta).toBeTruthy();
+  });
 });
 
 describe("bloqueoDeOpciones", () => {
-  const recurso = (overrides: Partial<RecursoDeOpciones>): RecursoDeOpciones => ({ items: ["x"], error: "", retry: vi.fn(), nombre: "materias", vacio: "Primero creá una materia.", ...overrides });
+  // TASK-027 decision 4: the resource carries the `AsyncState` of `useAllPages` instead of `items`/`error`.
+  const recurso = (overrides: Partial<RecursoDeOpciones>): RecursoDeOpciones => ({ state: { status: "ready", data: ["x"] }, retry: vi.fn(), nombre: "materias", vacio: "Primero creá una materia.", ...overrides });
+  const loading = { status: "loading" } as const;
+  const listo = (data: unknown[]) => ({ status: "ready", data }) as const;
   const show = (node: ReactNode) => render(<>{node}</>).container.textContent;
 
   it("prioriza el error sobre la carga y el vacío, con Reintentar", async () => {
-    const fallido = recurso({ nombre: "cursadas", error: "No pudimos cargar las cursadas." });
-    render(<>{bloqueoDeOpciones([recurso({ items: null }), recurso({ items: [] }), fallido])}</>);
+    const fallido = recurso({ nombre: "cursadas", state: { status: "error", error: "No pudimos cargar las cursadas.", notFound: false } });
+    render(<>{bloqueoDeOpciones([recurso({ state: loading }), recurso({ state: listo([]) }), fallido])}</>);
     expect(screen.getByRole("alert").textContent).toContain("No pudimos cargar las cursadas.");
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
     expect(fallido.retry).toHaveBeenCalledTimes(1);
   });
 
   it("sin errores, prioriza la carga sobre el vacío", () => {
-    expect(show(bloqueoDeOpciones([recurso({ items: [] }), recurso({ nombre: "profesores", items: null })]))).toBe("Cargando profesores…");
+    expect(show(bloqueoDeOpciones([recurso({ state: listo([]) }), recurso({ nombre: "profesores", state: loading })]))).toBe("Cargando profesores…");
   });
 
   it("sin errores ni carga, muestra el aviso de vacío", () => {
-    expect(show(bloqueoDeOpciones([recurso({}), recurso({ items: [] })]))).toBe("Primero creá una materia.");
+    expect(show(bloqueoDeOpciones([recurso({}), recurso({ state: listo([]) })]))).toBe("Primero creá una materia.");
   });
 
   it("con todo cargado devuelve null", () => {
-    expect(bloqueoDeOpciones([recurso({}), recurso({ items: ["y", "z"] })])).toBeNull();
+    expect(bloqueoDeOpciones([recurso({}), recurso({ state: listo(["y", "z"]) })])).toBeNull();
   });
 });

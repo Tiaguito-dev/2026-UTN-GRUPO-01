@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import type { PaginatedResult } from "@/services/pagination";
+import type { AsyncState } from "./usePaginatedFetch";
 
 const MAX_PAGES = 20;
 
@@ -12,33 +13,37 @@ const MAX_PAGES = 20;
  * devuelve error en vez de publicar opciones parciales. Catálogos mayores necesitan búsqueda.
  */
 export function useAllPages<T>(key: string, fetchPage: (page: number) => Promise<PaginatedResult<T>>) {
-  const [items, setItems] = useState<T[] | null>(null);
-  const [error, setError] = useState("");
   const [retryToken, setRetryToken] = useState(0);
+  // Same idea as `usePaginatedFetch`: a settled result only counts for the request it answers.
+  const [settled, setSettled] = useState<{ request: string; state: AsyncState<T[]> } | null>(null);
+  const request = JSON.stringify([key, retryToken]);
+  const load = useEffectEvent((page: number) => fetchPage(page));
 
   useEffect(() => {
-    let active = true;
-    setItems(key ? null : []);
-    setError("");
     if (!key) return;
+    let active = true;
     (async () => {
       const collected: T[] = [];
       for (let page = 1; page <= MAX_PAGES; page += 1) {
-        const result = await fetchPage(page);
+        const result = await load(page);
         collected.push(...result.items);
         if (collected.length >= result.total) return collected;
         if (result.items.length === 0) throw new Error("No pudimos cargar todas las opciones. Intentá nuevamente.");
       }
       throw new Error("El catálogo supera el límite de carga. No se mostraron opciones incompletas.");
-    })()
-      .then((collected) => { if (active) setItems(collected); })
-      .catch((failure: unknown) => {
+    })().then(
+      (collected) => { if (active) setSettled({ request, state: { status: "ready", data: collected } }); },
+      (failure: unknown) => {
         if (!active) return;
-        setError(failure instanceof Error ? failure.message : "No pudimos cargar las opciones. Intentá nuevamente.");
-      });
-    return () => { active = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, retryToken]);
+        setSettled({ request, state: { status: "error", error: failure instanceof Error ? failure.message : "No pudimos cargar las opciones. Intentá nuevamente.", notFound: false } });
+      },
+    );
+    // Forget this result when the request ends, so coming back to the same key loads again.
+    return () => { active = false; setSettled(null); };
+  }, [key, request]);
 
-  return { items, error, retry: () => setRetryToken((token) => token + 1) };
+  const state: AsyncState<T[]> = !key ? { status: "ready", data: NOTHING } : settled?.request === request ? settled.state : { status: "loading" };
+  return { state, retry: () => setRetryToken((token) => token + 1) };
 }
+
+const NOTHING: never[] = [];

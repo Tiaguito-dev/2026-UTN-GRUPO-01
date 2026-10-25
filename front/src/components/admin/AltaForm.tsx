@@ -1,116 +1,129 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Breadcrumb, type BreadcrumbItem } from "@/components/academic/Breadcrumb";
+import { useEffect, useId, type ReactNode } from "react";
+import { useFormSubmission } from "@/hooks/useFormSubmission";
+import type { BreadcrumbItem } from "@/components/ui/Breadcrumb";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Card } from "@/components/ui/Card";
+import { FormField } from "@/components/ui/FormField";
+import { Notice } from "@/components/ui/Notice";
 
 export interface AltaOption { value: string; label: string }
 
-export interface AltaField {
-  name: string;
+export interface AltaField<K extends string> {
+  name: K;
   label: string;
   hint?: string;
   /** Presente ⇒ el campo se renderiza como `<select>`. */
   options?: AltaOption[];
   numeric?: { min: number; max: number };
+  /** Valor inicial de un select (precarga por query); se aplica cuando llega o cambia. */
+  defaultValue?: string;
   /** Para selects que condicionan al resto del formulario (materia → cursada). */
   onChange?: (value: string) => void;
   validate: (value: string) => string | undefined;
 }
 
-/**
- * Formulario de alta compartido por las 4 entidades del panel: mismo recorrido que
- * `AccountForm` (campos no controlados leídos con FormData, validación local antes de enviar,
- * foco al primer campo inválido, envío bloqueado mientras hay una solicitud en curso) sin
- * repetirlo cuatro veces. Lo que cambia por entidad son los campos y el `onSubmit`.
- */
-export function AltaForm({ breadcrumb, heading, description, fields, submitLabel, blocked, filter, onSubmit }: {
-  breadcrumb: BreadcrumbItem[];
-  heading: string;
-  description: string;
-  fields: AltaField[];
+export interface AltaFormFieldsProps<K extends string> {
+  fields: AltaField<K>[];
   submitLabel: string;
   /** Motivo por el que todavía no se puede enviar (opciones cargando o que no se pudieron traer). */
   blocked?: ReactNode;
   /** Controles que acotan las opciones del alta sin formar parte de ella. */
   filter?: ReactNode;
   /** Devuelve el mensaje de confirmación a mostrar. */
-  onSubmit: (values: Record<string, string>) => Promise<string>;
-}) {
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const errorRef = useRef<HTMLDivElement>(null);
-  const submitting = useRef(false);
-  const [busy, setBusy] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  onSubmit: (values: Record<K, string>) => Promise<string>;
+  /** Si se pasa, se llama con el mensaje en vez de mostrarlo en el lugar. */
+  onSuccess?: (message: string) => void;
+  onCancel?: () => void;
+  /** Dentro de un `Dialog` (TASK-054, "Alta en modal"): su `busy` sigue el envío. */
+  onBusyChange?: (busy: boolean) => void;
+}
 
-  useEffect(() => { headingRef.current?.focus(); }, []);
-  useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (submitting.current) return;
-    const form = event.currentTarget;
-    const data = new FormData(form);
-    const values: Record<string, string> = {};
-    const nextErrors: Record<string, string> = {};
-    for (const field of fields) {
-      values[field.name] = String(data.get(field.name) ?? "");
-      const issue = field.validate(values[field.name]);
-      if (issue) nextErrors[field.name] = issue;
-    }
-    setErrors(nextErrors);
-    setError("");
-    setSuccess("");
-    const firstInvalid = Object.keys(nextErrors)[0];
-    if (firstInvalid) {
-      form.querySelector<HTMLElement>(`[name="${firstInvalid}"]`)?.focus();
-      return;
-    }
-    submitting.current = true;
-    setBusy(true);
-    try {
+/**
+ * Cuerpo del formulario de alta; resuelve el envío con `useFormSubmission`.
+ * Sin `PageHeader` ni envoltorio de página, apto para modal o página.
+ */
+export function AltaFormFields<K extends string>({
+  fields,
+  submitLabel,
+  blocked,
+  filter,
+  onSubmit,
+  onSuccess,
+  onCancel,
+  onBusyChange,
+}: AltaFormFieldsProps<K>) {
+  const { busy, errors, error, success, setSuccess, handleSubmit } = useFormSubmission({
+    fields: fields.map((field) => field.name),
+    validate: (values) => {
+      const issues: Partial<Record<K, string>> = {};
+      for (const field of fields) {
+        const issue = field.validate(values[field.name]);
+        if (issue) issues[field.name] = issue;
+      }
+      return issues;
+    },
+    onSubmit: async (values, form) => {
       const message = await onSubmit(values);
       form.reset();
-      setSuccess(message);
-    } catch (failure) {
-      // El backend ya devuelve el mensaje en español (duplicado, inexistente, entrada inválida).
-      setError(failure instanceof Error ? failure.message : "No pudimos registrar el alta. Intentá nuevamente.");
-    } finally {
-      submitting.current = false;
-      setBusy(false);
-    }
-  }
+      if (onSuccess) {
+        onSuccess(message);
+      } else {
+        setSuccess(message);
+      }
+    },
+    // El backend ya devuelve el mensaje en español (duplicado, inexistente, entrada inválida).
+    fallbackError: "No pudimos registrar el alta. Intentá nuevamente.",
+  });
+  useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
 
-  return <section aria-labelledby="alta-heading">
-    <Breadcrumb items={breadcrumb} />
-    <h1 ref={headingRef} tabIndex={-1} id="alta-heading">{heading}</h1>
-    <p className="system-description">{description}</p>
-    <div className="academic-panel">
-      {blocked}
-      {error ? <div ref={errorRef} role="alert" tabIndex={-1} className="notice error">{error}</div> : null}
-      {success ? <div role="status" className="notice success">{success}</div> : null}
-      {filter}
-      <form onSubmit={submit} noValidate aria-busy={busy}>
-        {fields.map((field) => {
-          const issue = errors[field.name];
-          const describedBy = [field.hint ? `${field.name}-hint` : "", issue ? `${field.name}-error` : ""].filter(Boolean).join(" ") || undefined;
-          return <div className="field" key={field.name}>
-            <label htmlFor={field.name}>{field.label}</label>
-            {field.options
-              ? <select id={field.name} name={field.name} defaultValue="" required aria-invalid={Boolean(issue)} aria-describedby={describedBy} onChange={(event) => field.onChange?.(event.target.value)}>
-                <option value="">Elegí una opción</option>
-                {field.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-              : <input id={field.name} name={field.name} type={field.numeric ? "number" : "text"} {...(field.numeric ?? {})} step={field.numeric ? 1 : undefined} autoComplete="off" required aria-invalid={Boolean(issue)} aria-describedby={describedBy} />}
-            {field.hint ? <p id={`${field.name}-hint`} className="hint">{field.hint}</p> : null}
-            {issue ? <p id={`${field.name}-error`} className="field-error">Error: {issue}</p> : null}
-          </div>;
-        })}
-        <button className="submit" disabled={busy || Boolean(blocked)}>{busy ? "Guardando…" : submitLabel}</button>
-      </form>
-    </div>
-    <div className="form-links"><Link href="/home/admin">Volver al panel de administración</Link></div>
+  return <>
+    {blocked}
+    {error ? <Notice tone="error" focusOnShow>{error}</Notice> : null}
+    {success ? <Notice tone="success">{success}</Notice> : null}
+    {filter}
+    <form onSubmit={handleSubmit} noValidate aria-busy={busy}>
+      {fields.map((field) => <FormField key={field.name} name={field.name} defaultValue={field.defaultValue} label={field.label} hint={field.hint} error={errors[field.name]} input={{ autoComplete: "off", numeric: field.numeric }} options={field.options} onChange={field.onChange} />)}
+      <div className={onCancel ? "dialog-actions" : undefined}>
+        {onCancel ? <button type="button" className="button button-secondary" onClick={onCancel}>Cancelar</button> : null}
+        <button className={`button ${onCancel ? "" : "submit"}`} disabled={busy || Boolean(blocked)}>{busy ? "Guardando…" : submitLabel}</button>
+      </div>
+    </form>
+  </>;
+}
+
+/**
+ * Formulario de alta compartido por las entidades del panel; envuelve a `AltaFormFields`
+ * en `section`, `PageHeader` y `Card panel`.
+ */
+export function AltaForm<K extends string>({ breadcrumb, heading, description, fields, submitLabel, blocked, filter, onSubmit, onSuccess }: {
+  breadcrumb: BreadcrumbItem[];
+  heading: string;
+  description: string;
+  fields: AltaField<K>[];
+  submitLabel: string;
+  /** Motivo por el que todavía no se puede enviar (opciones cargando o que no se pudieron traer). */
+  blocked?: ReactNode;
+  /** Controles que acotan las opciones del alta sin formar parte de ella. */
+  filter?: ReactNode;
+  /** Devuelve el mensaje de confirmación a mostrar. */
+  onSubmit: (values: Record<K, string>) => Promise<string>;
+  onSuccess?: (message: string) => void;
+}) {
+  const headingId = useId();
+
+  return <section aria-labelledby={headingId}>
+    <PageHeader id={headingId} title={heading} description={description} breadcrumb={breadcrumb} />
+    <Card variant="panel">
+      <AltaFormFields
+        fields={fields}
+        submitLabel={submitLabel}
+        blocked={blocked}
+        filter={filter}
+        onSubmit={onSubmit}
+        onSuccess={onSuccess}
+      />
+    </Card>
   </section>;
 }

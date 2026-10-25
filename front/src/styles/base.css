@@ -1,0 +1,28 @@
+/* Selectores de elemento: solo tipografía y reset. El aspecto de componente va en una clase.
+   Excepciones (controles de formulario y separador): ver TASK-028, sección 6. */
+@layer base {
+  body { margin: 0; line-height: 1.6; }
+  a { color: var(--link); text-underline-offset: .2em; }
+  a:hover { color: var(--primary-hover); }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+  /* El <h1> de cada sección recibe foco por código para que un lector de pantalla anuncie el
+     cambio de pantalla. No es alcanzable con Tab (tabindex="-1"), así que ocultar su contorno no
+     le quita nada a la navegación por teclado. */
+  h1[tabindex="-1"]:focus, h1[tabindex="-1"]:focus-visible { outline: none; }
+  h1, h2, h3 { letter-spacing: -.035em; line-height: 1.15; }
+  h1 { font-size: var(--text-2xl); margin-top: 0; }
+  h2 { font-size: var(--text-xl); margin-top: var(--space-8); }
+  label { display: block; font-size: var(--text-md); font-weight: var(--weight-semibold); margin-bottom: .45rem; }
+  input, select { font: inherit; width: 100%; min-height: 3.2rem; padding: var(--space-3) var(--space-4); border: 1px solid var(--input-border); border-radius: var(--radius-md); background: var(--surface); color: var(--text); }
+  input:hover, select:hover { border-color: var(--primary); }
+  input[aria-invalid="true"], select[aria-invalid="true"] { border: 2px solid var(--error); }
+  button { font: inherit; cursor: pointer; }
+  button:disabled { cursor: not-allowed; opacity: .7; }
+  /* El reloj de espera es solo para el envío en curso, que los formularios marcan con aria-busy. */
+  [aria-busy="true"] button:disabled, button[aria-busy="true"] { cursor: wait; }
+  dl { overflow-wrap: anywhere; }
+  dt { font-weight: var(--weight-semibold); font-size: var(--text-sm); color: var(--muted); margin-top: var(--space-3); }
+  dt:first-child { margin-top: 0; }
+  dd { margin-left: 0; }
+  hr { border: 0; border-top: 1px solid var(--border); margin-block: var(--space-8); }
+}

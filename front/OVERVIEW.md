@@ -17,12 +17,32 @@ defecto y el runtime de Node.js.
 ## Estructura
 
 - `src/app/`: rutas, layouts y estados del App Router.
-- `src/components/`: componentes reutilizables cuando sean necesarios.
+- `src/components/`: componentes por módulo (`home/`, `academic/`, `admin/`, `auth/`), más
+  `SiteHeader` y `FeatureCarousel` en la raíz.
+- `src/components/ui/`: primitivas de UI genéricas, sin lógica de dominio.
+- `src/lib/`: utilidades sin estado. `lib/format/` formatea valores para mostrar (`periodo.ts`,
+  `role.ts` con `ROLE_LABEL`) y `lib/messages.ts` reúne los textos de interfaz repetidos.
 - `src/services/`: clientes HTTP dedicados por módulo.
 - `src/hooks/`: hooks reutilizables por módulo.
 - `src/types/`: contratos TypeScript del frontend.
 - `src/validations/`: validaciones de formularios.
+- `src/styles/`: CSS por capas (`reset`, `tokens`, `base`, `layout`, `components`), importado
+  desde `app/globals.css`.
 - `tests/`: pruebas de integración y end-to-end de los flujos funcionales.
+
+Las reglas del front están en `docs/standards/`:
+[frontend-estilos.md](../docs/standards/frontend-estilos.md) (capas y tokens),
+[frontend-componentes.md](../docs/standards/frontend-componentes.md) (primitivas de `ui/`, `lib/`
+y nombres), [frontend-pantallas.md](../docs/standards/frontend-pantallas.md) (patrones de
+pantalla, encabezado, shell, accesibilidad y checklist de pantalla nueva) y
+[frontend-tests.md](../docs/standards/frontend-tests.md).
+
+## Shell del espacio interno
+
+`/home/**` y `/account/**` usan `components/home/AppShell.tsx` desde su `layout.tsx`: `<main>`,
+`RequireAuth` y `SidebarNav`, cuyo `<nav>` es el landmark "Navegación principal". En
+`/account/**` el sidebar marca Inicio. `app/home/admin/layout.tsx` agrega `RequireRole` para
+ADMIN: sin ese rol muestra "Acceso no permitido" dentro del shell.
 
 ## Contratos iniciales
 
@@ -31,8 +51,23 @@ defecto y el runtime de Node.js.
 - `/forgot-password`, `/reset-password`: recuperación pública de cuenta.
 - `/verify-email`: confirma el enlace SMTP y retira el token de la URL; no inicia sesión.
 - `/resend-verification`: solicita un enlace para una cuenta pendiente, incluso anterior al cambio.
-- `/home`: inicio protegido con funcionalidades previstas y estados vacíos informativos.
+- `/home`: inicio protegido con saludo, estado vacío informativo y acceso al perfil.
+- `/home/profesores`, `/home/experiencias`, `/home/comunidad`: secciones en preparación
+  (Próximamente), sin llamadas a endpoints académicos.
+- `/home/materias`: listado paginado de materias con selector de carrera ("Todas" y las 5 carreras de ingeniería), búsqueda por nombre y filtros por año y nivel de electiva según carrera.
+- `/home/materias/[materiaId]`: detalle de la materia con sus carreras asociadas, historial de cambios (solo visible y consultado para ADMIN) y sus cursadas (con conteo de comisiones, profesores y letras de carrera).
+- `/home/materias/[materiaId]/cursadas/[cursadaId]`: comisiones de una cursada filtrables por chip de carrera, con listado de docentes asignados y cargos.
+- `/home/materias/[materiaId]/cursadas/[cursadaId]/comisiones/[comisionId]`: detalle de la comisión con docentes asignados, administración de profesores (solo ADMIN), enlace a otras comisiones de la cursada y experiencias (Próximamente).
+- `/home/admin`: panel de administración (solo ADMIN, como todo `/home/admin/**`).
+- `/home/admin/materias/nueva`, `/home/admin/materias/[materiaId]/editar`: alta y edición de
+  materias con asignación multicarretera (`carreras: MateriaCarrera[]`).
+- `/home/admin/profesores/nuevo`: alta de profesores.
+- `/home/admin/cursadas/nueva`: alta de cursada por materia y período (sin profesor responsable).
+- `/home/admin/comisiones/nueva`: alta de comisión por cursada, carrera y número (1 a 999).
+- `/home/admin/profesores`: listado paginado de consulta de los profesores cargados.
+- `/home/admin/usuarios`: listado de consulta de las cuentas registradas.
 - `/account`, `/account/change-password`: perfil y cambio de contraseña protegidos.
+- `/health`: comprobación pública de estado (`app/health/route.ts`).
 - `NEXT_PUBLIC_API_URL`: URL pública del backend.
 
 ## Landing y experiencia de cuenta
@@ -59,7 +94,8 @@ utilizar ArrowLeft/ArrowRight/Home/End. Anuncia la selección y oculta las tarje
 a lectores de pantalla. Con movimiento reducido se desactiva la animación y se muestra solo
 la tarjeta activa. La presentación se adapta a móvil y escritorio.
 
-`globals.css` centraliza colores de marca y semánticos. Formularios con etiquetas visibles,
+Estilos: capas y tokens según [frontend-estilos.md](../docs/standards/frontend-estilos.md).
+Formularios con etiquetas visibles,
 foco de teclado, errores asociados y botones de envío bloqueados durante la petición.
 Contraseñas nuevas: entre 8 y 128 caracteres Unicode, sin recortar ni normalizar, en registro,
 restablecimiento y cambio. Login permite las credenciales existentes; el backend sigue siendo
@@ -68,8 +104,10 @@ la autoridad de validación. No se agregan fuentes remotas, analítica ni recurs
 Las cookies HttpOnly, CSRF, coordinación de renovaciones y revocación se conservan en los
 servicios existentes. `/account` presenta únicamente los datos públicos en una tarjeta con
 iniciales, nombre, email y rol legible. Las acciones aparecen debajo, fuera de la tarjeta.
-Cambiar contraseña abre explícitamente `/account/change-password`, protegida por `RequireAuth`,
-con el formulario existente y un enlace de vuelta al perfil; no se muestra junto a los datos.
+Cambiar contraseña abre explícitamente `/account/change-password`, dentro del mismo shell,
+con el formulario existente, el breadcrumb "Mi perfil › Cambiar contraseña" y un enlace de vuelta
+al perfil; no se muestra junto a los datos. El perfil entra al shell (sidebar incluido) sin
+cambiar sus URLs, para no perder la navegación al abrirlo desde el menú de cuenta.
 `LogoutButton` comparte estados de envío, prevención de duplicados y errores recuperables entre
 el menú y el perfil. Solo navega al login después de confirmar el cierre en el backend.
 El retorno después del login permite únicamente `/home`, `/account` y `/account/change-password`.
@@ -86,14 +124,17 @@ registro permiten reintentar. Ir explícitamente al login permite comprobar nuev
 con una advertencia, sin declarar terminada la sesión anterior. Esto permite recuperarse
 también de una renovación cuya respuesta no pudo confirmarse.
 
-`SystemHome` presenta un saludo con el nombre público de la cuenta y un estado vacío que
-explica qué funcionalidades llegarán al sistema. El menú lateral permanece fijo en escritorio
-y se adapta a botones superiores en móvil, sin desbordamiento horizontal. Inicio, Profesores,
-Materias, Experiencias y Comunidad seleccionan contenido informativo en la misma pantalla.
-Las secciones futuras muestran Próximamente; no llaman a endpoints académicos ni presentan
-datos inventados. La selección utiliza `aria-current` y lleva el foco al título actualizado.
-El perfil se abre desde el menú de cuenta o Ver mi perfil. `RequireAuth` protege el home,
-perfil y cambio; los guards del backend siguen siendo la autoridad de autenticación.
+`/home` (`InicioSection`) presenta un saludo con el nombre público de la cuenta y un estado
+vacío que explica qué funcionalidades llegarán al sistema. El menú lateral permanece fijo en
+escritorio y se adapta a botones superiores en móvil, sin desbordamiento horizontal. Cada
+sección del menú (`components/home/sections.ts`) es una ruta propia: Inicio, Profesores,
+Materias, Experiencias, Comunidad y, solo para ADMIN, Administración. Profesores, Experiencias
+y Comunidad muestran Próximamente (`UpcomingSection`); no llaman a endpoints académicos ni
+presentan datos inventados. El enlace de la sección actual lleva `aria-current`, y el título de
+cada pantalla recibe el foco al montar. El perfil se abre desde el menú de cuenta o Ver mi perfil. `RequireAuth`, vía `AppShell`, protege
+el home, perfil y cambio; ante un error temporal muestra la pantalla "No pudimos comprobar tu
+sesión" con Reintentar comprobación (la misma que usa `RequireGuest` en landing y registro). Los
+guards del backend siguen siendo la autoridad de autenticación.
 
 ## Comandos
 
@@ -102,14 +143,14 @@ perfil y cambio; los guards del backend siguen siendo la autoridad de autenticac
 - `npm run start --workspace=front`: sirve el build de producción.
 - `npm run typecheck --workspace=front`: comprueba tipos TypeScript.
 - `npm run lint --workspace=front`: corre ESLint (`front/eslint.config.mjs`: Next
-  `core-web-vitals`, `react-hooks` y `jsx-a11y`). Por ahora las reglas avisan sin fallar,
-  salvo `react-hooks/rules-of-hooks`.
+  `core-web-vitals`, `react-hooks` y `jsx-a11y`) con `--max-warnings 0`; todas las reglas son
+  error.
 - `npm run test --workspace=front`: ejecuta las pruebas unitarias de Vitest.
 - `npm run test:e2e --workspace=front`: ejecuta el harness Playwright; requiere la configuración
   y los servicios de prueba que documentó en su momento la tarea de integración de cuenta
   (`docs/tasks/finished/`). Incluye `visual.browser.spec.mjs`: capturas de referencia y análisis
-  axe de las pantallas principales. Las capturas se regeneran (`--update-snapshots`) solo desde
-  Linux, con el Google Chrome del sistema.
+  axe de las pantallas principales. Cómo y desde dónde se regeneran las capturas:
+  [frontend-tests.md](../docs/standards/frontend-tests.md).
 
 El workflow `.github/workflows/front.yml` corre `typecheck`, `lint`, `test` y `build` en cada PR
 hacia `desarrollo` o `main` que toque el front. Solo verifica; no despliega.
@@ -132,6 +173,13 @@ el frontend. Las instrucciones para ejecutar Next fuera de Docker están en el R
   timeout y errores seguros. Los POST agregan `X-CSRF-Protection: 1` y JSON; el navegador
   aporta Origin. El backend valida el origen exacto configurado. No hay endpoint para
   obtener un token CSRF ni lectura de cookies HttpOnly desde JavaScript.
+- `requestJson` devuelve el cuerpo sin tipar. Cada servicio lo valida con su esquema Zod de
+  `services/schemas.ts` (`protectedGet`/`protectedPost` reciben el esquema). Una respuesta con
+  forma inesperada se convierte en `HttpError(502)` con mensaje en español, que las pantallas
+  ya muestran con Reintentar (TASK-031).
+- Los nombres de materia y período que muestran títulos y breadcrumbs salen del backend
+  (`GET /materias/:id`, `GET /cursadas/:id`); la URL del recorrido lleva solo ids y el
+  contexto del listado. Mientras llega el detalle se muestra "Cargando…".
 - `services/auth.ts` ofrece registro, login, cuenta, recuperación, reset, cambio y logout.
   Ante un 401 en un GET protegido, comparte un intento de renovación y repite la consulta
   una sola vez. Un 403, error de red o 500 no genera una renovación automática. Login,
@@ -240,3 +288,73 @@ El contrato HTTP, permisos, validaciones y listado de resultados se conservan (T
 
 Casos probados, correspondencia con criterios de aceptación, resultados y recorrido manual:
 [matriz de trazabilidad TASK-024](../docs/tasks/finished/TASK-024-filtros-materias-anio-carrera.md#trazabilidad-de-casos-probados).
+
+## Carreras, comisiones y profesores asignados (TASK-042)
+
+La jerarquía académica adopta el nuevo modelo de dominio:
+
+- **Carreras en materias**: `Materia` modela `carreras: MateriaCarrera[]` (`carrera`, `anioCarrera`,
+  `nivelElectiva`). El selector de carreras de `/home/materias` permite navegar "Todas" o una carrera
+  específica. Los chips de año y nivel de electiva se muestran únicamente cuando hay una carrera
+  seleccionada. En "Todas" se presenta una lista plana con badges de carreras ("Común a las 5 carreras",
+  "Solo Sistemas", etc.); al elegir una carrera se agrupa por año lectivo (1 a 5 y Electivas).
+- **Formularios de materias**: `MateriaForm` permite marcar una o más carreras con checkboxes. Para cada
+  carrera marcada se define año y opcionalmente nivel si es electiva. Valida que al menos una carrera
+  esté tildada y advierte en caso de discrepancia de años entre carreras.
+- **Cursadas**: no tienen profesor asignado ni campo `profesorId`. Su resumen y detalle exponen
+  `cantidadComisiones`, `cantidadProfesores` y `letrasCarreras` (ej. "S, C").
+- **Comisiones y carreras**: cada comisión pertenece a una carrera (`carrera`) y tiene un número entero
+  (1 a 999), construyendo su código identificador como `<Letra>-<Número>` (ej. `S-31`).
+  `/home/materias/[materiaId]/cursadas/[cursadaId]` permite filtrar comisiones por chips de carrera
+  (client-side a partir de `pageSize=100`) y muestra para cada comisión sus profesores con cargo docente
+  (`TITULAR`, `ASOCIADO`, `ADJUNTO`, `JTP`, `AYUDANTE`).
+- **Detalle de comisión**: `/home/materias/[materiaId]/cursadas/[cursadaId]/comisiones/[comisionId]`
+  permite consultar la comisión, ver los profesores asignados con sus cargos, acceder a otras
+  comisiones de la cursada y ver el placeholder de experiencias ("Próximamente"). Para administradores
+  (rol ADMIN), ofrece controles en línea para asignar nuevos profesores con su cargo, modificar el
+  cargo docente o desasignar profesores.
+- **Alta de comisiones**: `AltaComision` filtra el combo de carreras según las carreras habilitadas
+  en la materia elegida, valida el número entre 1 y 999 con paridad con el backend y muestra
+  previsualización en vivo del código de la comisión.
+
+## Rediseño de pantallas académicas y administración (TASK-043)
+
+Las pantallas siguen el canvas *Style Guide 2026-UTN-GRUPO-01* (Page 2):
+
+- `/home/materias`: el ADMIN tiene un botón "Nueva materia" que abre `ui/Dialog` con el cuerpo de
+  `MateriaForm`. Al crear, el diálogo se cierra, aparece un aviso `role="status"` y el listado se
+  recarga con `refreshKey`, sin navegar. `/home/admin/materias/nueva` queda como respaldo. Los
+  grupos por año tienen un h2 con insignia y la cantidad de materias.
+- Detalle de materia: Volver, breadcrumb y h1 desde `PageHeader`, con insignias. Se quitan las
+  cards "Datos de la materia" y "Auditoría". Las cursadas se agrupan por año. El historial pasa a
+  una línea de tiempo y sigue visible para todos, con `actorId`.
+- Cursada (`ComisionesList`): eyebrow con la materia y h1 con el período. Comisiones en tarjetas.
+- Comisión: h1 "Comisión X". "Datos de la comisión" es solo para ADMIN y se muestra como `<dl>`.
+  El ADMIN conserva la edición de cargo y "Quitar" en cada fila. El enlace "Asignar profesor"
+  lleva el foco al formulario de asignación.
+- Los enlaces de alta precargan por query: "Nueva cursada" pasa `?materiaId=` y "Nueva comisión"
+  pasa `?cursadaId=`. `AltaCursada` y `AltaComision` leen el parámetro (sus páginas van envueltas
+  en `Suspense`), y `ui/FormField` acepta `defaultValue`.
+- `/home/admin`: "Oferta académica" (Materias, Cursadas, Comisiones, Profesores) y "Cuentas y
+  moderación". "Ver todas" de cursadas y comisiones lleva a `/home/materias`, porque no hay
+  listados globales.
+- `hooks/useIsAdmin.ts` reemplaza las comparaciones de rol escritas a mano.
+- Clases compartidas `academic-*` en `styles/components/academic.css`; piezas comunes en
+  `components/academic/detalle.tsx`.
+
+Esta sección reemplaza la descripción de `MateriaDetail` de TASK-024. Lo omitido figura en
+[TASK-043](../docs/tasks/finished/TASK-043-front-rediseno-academico.md#resultado).
+
+## Accesos rápidos, historial con hito de alta y modal de cursada (TASK-054)
+
+- `/home/admin`: en viewport mobile (`≤600px`) aparecen dos links de ancla ("Oferta académica" /
+  "Cuentas") arriba del contenido; en desktop no se muestran.
+- El historial de materia muestra un avatar con las iniciales del actor (en vez del ícono de lápiz
+  fijo) y, como última entrada de la última página, un hito fijo "Alta de la materia" con
+  `materia.createdAt`, sin actor ni diffs.
+- `CursadasList`: las carreras de cada cursada se muestran como chips de una letra
+  (`academic-tag`), no como texto separado por comas.
+- Desde el detalle de materia, "Nueva cursada" abre un `Dialog` con `AltaCursada materiaId={…}`
+  (materia ya fija, sin selector); al crear, el modal se cierra y el listado se recarga con
+  `refreshKey`, sin navegar. `/home/admin/cursadas/nueva` sigue intacta como ruta directa, con
+  `AltaCursada` leyendo `?materiaId` cuando no recibe la prop.

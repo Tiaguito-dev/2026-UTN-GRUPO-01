@@ -1,21 +1,49 @@
 "use client";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+
 import { useRef, useState, type FormEvent } from "react";
 import { crearMateria, actualizarMateria } from "@/services/materias";
-import type { Materia, MateriaInput } from "@/types/materias";
-import { validateNombre } from "@/validations/academic";
-import { ANIOS_CARRERA, anioCarreraLabel, isAnioCarrera, NIVELES_ELECTIVA, isNivelElectiva, nivelElectivaLabel, parseMateriaContext, materiaListHref, parseMateriaPage } from "@/validations/materias";
-import { Breadcrumb } from "@/components/academic/Breadcrumb";
+import type { Carrera, Materia, MateriaCarrera, MateriaInput } from "@/types/materias";
+import { MAX_NOMBRE_MATERIA, validateNombre } from "@/validations/academic";
+import {
+  ANIOS_CARRERA,
+  CARRERAS,
+  anioCarreraLabel,
+  carreraLabel,
+  isAnioCarrera,
+  NIVELES_ELECTIVA,
+  isNivelElectiva,
+  nivelElectivaLabel,
+} from "@/validations/materias";
+import { Notice } from "@/components/ui/Notice";
+import { SELECT_PLACEHOLDER } from "@/lib/messages";
 
-export function MateriaForm({ materia, detailHref }: { materia?: Materia; detailHref?: string }) {
-  const router = useRouter();
+export function MateriaForm({
+  materia,
+  onSuccess,
+  onCancel,
+  onBusyChange,
+}: {
+  materia?: Materia;
+  onSuccess: (materia: Materia) => void;
+  onCancel?: () => void;
+  /** Inside a Dialog, its `busy` follows the submission (TASK-043). */
+  onBusyChange?: (busy: boolean) => void;
+}) {
   const submitting = useRef(false);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [selectedYear, setSelectedYear] = useState(materia?.anioCarrera ?? "");
+  const [selectedCarreras, setSelectedCarreras] = useState<Carrera[]>(
+    materia ? materia.carreras.map((c) => c.carrera) : []
+  );
+  const [selectedYear, setSelectedYear] = useState(materia?.carreras[0]?.anioCarrera ?? "");
+  const [selectedNivel, setSelectedNivel] = useState(materia?.carreras[0]?.nivelElectiva ?? "");
+
+  const aniosDistintos = materia
+    ? new Set(materia.carreras.map((c) => `${c.anioCarrera}:${c.nivelElectiva ?? ""}`)).size > 1
+    : false;
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting.current) return;
@@ -26,46 +54,160 @@ export function MateriaForm({ materia, detailHref }: { materia?: Materia; detail
     const anioCarrera = data.get("anioCarrera");
     const rawNivel = data.get("nivelElectiva");
     const nivelElectiva = anioCarrera === "ELECTIVA" && isNivelElectiva(rawNivel) ? rawNivel : null;
+
     const nextErrors: Record<string, string> = {};
-    const issue = validateNombre(rawNombre, 150);
+    const issue = validateNombre(rawNombre, MAX_NOMBRE_MATERIA);
     if (issue) nextErrors.nombre = issue;
+    if (selectedCarreras.length === 0) nextErrors.carreras = "Elegí al menos una carrera.";
     if (!isAnioCarrera(anioCarrera)) nextErrors.anioCarrera = "Elegí un año entre 1 y 5 o Electiva.";
-    if (anioCarrera === "ELECTIVA" && !isNivelElectiva(rawNivel)) nextErrors.nivelElectiva = "Elegí el nivel 3, 4 o 5 de la electiva.";
-    setErrors(nextErrors); setError(""); setNotice("");
-    if (Object.keys(nextErrors).length || !isAnioCarrera(anioCarrera)) { form.querySelector<HTMLElement>(`[name="${Object.keys(nextErrors)[0]}"]`)?.focus(); return; }
-    const input: MateriaInput = { nombre, anioCarrera, ...(nivelElectiva ? { nivelElectiva } : {}) };
+    if (anioCarrera === "ELECTIVA" && !isNivelElectiva(rawNivel)) {
+      nextErrors.nivelElectiva = "Elegí el nivel 3, 4 o 5 de la electiva.";
+    }
+
+    setErrors(nextErrors);
+    setError("");
+    setNotice("");
+    if (Object.keys(nextErrors).length || !isAnioCarrera(anioCarrera)) {
+      const firstKey = Object.keys(nextErrors)[0];
+      if (firstKey === "carreras") form.querySelector<HTMLElement>('input[name="carreras"]')?.focus();
+      else form.querySelector<HTMLElement>(`[name="${firstKey}"]`)?.focus();
+      return;
+    }
+
+    const carrerasInput: MateriaCarrera[] = selectedCarreras.map((carrera) => ({
+      carrera,
+      anioCarrera,
+      nivelElectiva,
+    }));
+    const input: MateriaInput = { nombre, carreras: carrerasInput };
     const changes: Partial<MateriaInput> = {};
     if (materia?.nombre !== nombre) changes.nombre = nombre;
-    if (materia?.anioCarrera !== anioCarrera) changes.anioCarrera = anioCarrera;
-    if (materia && (materia.nivelElectiva ?? null) !== nivelElectiva) changes.nivelElectiva = nivelElectiva;
-    if (materia && !Object.keys(changes).length) { setNotice("No hay cambios para guardar."); return; }
-    submitting.current = true; setBusy(true);
+
+    const prevSerialized = materia?.carreras
+      .map((c) => `${c.carrera}:${c.anioCarrera}:${c.nivelElectiva ?? ""}`)
+      .sort()
+      .join(",");
+    const nextSerialized = carrerasInput
+      .map((c) => `${c.carrera}:${c.anioCarrera}:${c.nivelElectiva ?? ""}`)
+      .sort()
+      .join(",");
+    if (materia && prevSerialized !== nextSerialized) {
+      changes.carreras = carrerasInput;
+    }
+
+    if (materia && !Object.keys(changes).length) {
+      setNotice("No hay cambios para guardar.");
+      return;
+    }
+
+    submitting.current = true;
+    setBusy(true);
+    onBusyChange?.(true);
     try {
-      if (materia) await actualizarMateria(materia.id, changes); else await crearMateria(input);
-      const target = materia ? detailHref ?? `/home/materias/${encodeURIComponent(materia.id)}` : "/home/materias";
-      const message = materia ? "Materia actualizada correctamente." : `Materia creada: ${nombre}.`;
-      router.push(`${target}${target.includes("?") ? "&" : "?"}successMessage=${encodeURIComponent(message)}`);
-    } catch (failure) { setError(`Lo sentimos. No pudimos guardar la materia. ${failure instanceof Error ? failure.message : "Intentá nuevamente."}`); }
-    finally { submitting.current = false; setBusy(false); }
+      const result = materia ? await actualizarMateria(materia.id, changes) : await crearMateria(input);
+      onSuccess(result);
+    } catch (failure) {
+      setError(`Lo sentimos. No pudimos guardar la materia. ${failure instanceof Error ? failure.message : "Intentá nuevamente."}`);
+    } finally {
+      submitting.current = false;
+      setBusy(false);
+      onBusyChange?.(false);
+    }
   }
-  const listContext = new URL(detailHref ?? "/home/materias", "https://local.invalid").searchParams;
-  const listYear = listContext.get("anioCarrera");
-  const backList = materiaListHref(isAnioCarrera(listYear) ? listYear : undefined, parseMateriaPage(listContext.get("listadoPage")), parseMateriaContext(listContext));
-  return <section aria-labelledby="materia-form-heading">
-    <Breadcrumb items={[{ label: "Materias", href: backList }, { label: materia ? "Editar materia" : "Nueva materia" }]} />
-    <h1 id="materia-form-heading">{materia ? "Editar materia" : "Nueva materia"}</h1>
-    <div className="academic-panel">
-      {error ? <p role="alert" className="notice error">{error}</p> : null}
+
+  return (
+    <>
+      {aniosDistintos ? (
+        <Notice tone="warning">
+          Esta materia tiene años distintos según la carrera. Guardar los cambios igualará todas las carreras al año elegido.
+        </Notice>
+      ) : null}
+      {error ? <Notice tone="error" focusOnShow>{error}</Notice> : null}
       {notice ? <p role="status">{notice}</p> : null}
       <form onSubmit={submit} noValidate aria-busy={busy}>
-        <div className="field"><label htmlFor="nombre">Nombre de la materia</label><input id="nombre" name="nombre" defaultValue={materia?.nombre ?? ""} maxLength={150} required aria-invalid={Boolean(errors.nombre)} aria-describedby={errors.nombre ? "nombre-error" : undefined} />{errors.nombre ? <p id="nombre-error" className="field-error">{errors.nombre}</p> : null}</div>
-        <div className="field"><label htmlFor="anioCarrera">Año de la carrera</label><select id="anioCarrera" name="anioCarrera" value={selectedYear} onChange={(event) => setSelectedYear(event.target.value)} required aria-invalid={Boolean(errors.anioCarrera)} aria-describedby={errors.anioCarrera ? "anioCarrera-error" : undefined}>
-          <option value="">Elegí una opción</option>{ANIOS_CARRERA.map((anio) => <option key={anio} value={anio}>{anioCarreraLabel(anio)}</option>)}
-        </select>{errors.anioCarrera ? <p id="anioCarrera-error" className="field-error">{errors.anioCarrera}</p> : null}</div>
-        {selectedYear === "ELECTIVA" ? <div className="field"><label htmlFor="nivelElectiva">Nivel de electiva</label><select id="nivelElectiva" name="nivelElectiva" defaultValue={materia?.nivelElectiva ?? ""} required aria-invalid={Boolean(errors.nivelElectiva)} aria-describedby={errors.nivelElectiva ? "nivelElectiva-error" : undefined}><option value="">Elegí un nivel</option>{NIVELES_ELECTIVA.map((nivel) => <option key={nivel} value={nivel}>{nivelElectivaLabel(nivel)}</option>)}</select>{errors.nivelElectiva ? <p id="nivelElectiva-error" className="field-error">{errors.nivelElectiva}</p> : null}</div> : null}
-        <button className="submit" disabled={busy}>{busy ? "Guardando…" : materia ? "Guardar cambios" : "Crear materia"}</button>
+        <div className="field">
+          <label htmlFor="nombre">Nombre de la materia</label>
+          <input
+            id="nombre"
+            name="nombre"
+            defaultValue={materia?.nombre ?? ""}
+            maxLength={MAX_NOMBRE_MATERIA}
+            required
+            aria-invalid={Boolean(errors.nombre)}
+            aria-describedby={errors.nombre ? "nombre-error" : undefined}
+          />
+          {errors.nombre ? <p id="nombre-error" className="field-error">{errors.nombre}</p> : null}
+        </div>
+        <fieldset className="field">
+          <legend>Carreras</legend>
+          <div className="checkbox-group">
+            {CARRERAS.map((c) => (
+              <label key={c} className="checkbox-label">
+                <input
+                  type="checkbox"
+                  name="carreras"
+                  value={c}
+                  checked={selectedCarreras.includes(c)}
+                  onChange={(e) => {
+                    if (e.target.checked) setSelectedCarreras([...selectedCarreras, c]);
+                    else setSelectedCarreras(selectedCarreras.filter((x) => x !== c));
+                  }}
+                />
+                {c} — {carreraLabel(c)}
+              </label>
+            ))}
+          </div>
+          {errors.carreras ? <p id="carreras-error" className="field-error">{errors.carreras}</p> : null}
+        </fieldset>
+        <div className="field">
+          <label htmlFor="anioCarrera">Año de la carrera</label>
+          <select
+            id="anioCarrera"
+            name="anioCarrera"
+            value={selectedYear}
+            onChange={(event) => setSelectedYear(event.target.value)}
+            required
+            aria-invalid={Boolean(errors.anioCarrera)}
+            aria-describedby={errors.anioCarrera ? "anioCarrera-error" : undefined}
+          >
+            <option value="">{SELECT_PLACEHOLDER}</option>
+            {ANIOS_CARRERA.map((anio) => (
+              <option key={anio} value={anio}>{anioCarreraLabel(anio)}</option>
+            ))}
+          </select>
+          {errors.anioCarrera ? <p id="anioCarrera-error" className="field-error">{errors.anioCarrera}</p> : null}
+        </div>
+        {selectedYear === "ELECTIVA" ? (
+          <div className="field">
+            <label htmlFor="nivelElectiva">Nivel de electiva</label>
+            <select
+              id="nivelElectiva"
+              name="nivelElectiva"
+              value={selectedNivel}
+              onChange={(e) => setSelectedNivel(e.target.value)}
+              required
+              aria-invalid={Boolean(errors.nivelElectiva)}
+              aria-describedby={errors.nivelElectiva ? "nivelElectiva-error" : undefined}
+            >
+              <option value="">Elegí un nivel</option>
+              {NIVELES_ELECTIVA.map((nivel) => (
+                <option key={nivel} value={nivel}>{nivelElectivaLabel(nivel)}</option>
+              ))}
+            </select>
+            {errors.nivelElectiva ? <p id="nivelElectiva-error" className="field-error">{errors.nivelElectiva}</p> : null}
+          </div>
+        ) : null}
+        <div className={onCancel ? "dialog-actions" : undefined}>
+          {onCancel ? (
+            <button type="button" className="button button-secondary" onClick={onCancel}>
+              Cancelar
+            </button>
+          ) : null}
+          <button className={`button ${onCancel ? "" : "submit"}`} disabled={busy}>
+            {busy ? "Guardando…" : materia ? "Guardar cambios" : "Crear materia"}
+          </button>
+        </div>
       </form>
-    </div>
-    <div className="form-links"><Link href={detailHref ?? "/home/materias"}>Volver</Link></div>
-  </section>;
+    </>
+  );
 }
