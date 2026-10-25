@@ -91,7 +91,37 @@ si alguien edita `schema.prisma` sin generar la migración correspondiente.
 7. **Shadow database para `migrate diff`**: una segunda base en el mismo contenedor `postgres:17`
    del job (el rol `postgres` por defecto tiene `CREATEDB`), no un segundo servicio Postgres
    dedicado. Más simple y no hay motivo a priori para esperar problemas de permisos con el rol por
-   defecto del contenedor oficial.
+   defecto del contenedor oficial. Confirmado en validación local: sin problemas de permisos.
+8. **Servicio `mailpit` agregado al workflow, no previsto en el plan original.** Al validar
+   localmente (paso obligatorio antes de confiar en el YAML) se descubrió que la mayoría de los
+   tests de integración de `back` no se limitan a comprobar SMTP explícitamente: `POST
+   /auth/register`, `forgot-password`, `reset-password` y la verificación de correo intentan una
+   entrega SMTP real y responden 503 si falla (comportamiento documentado en
+   `back/OVERVIEW.md`). Sin un servidor de correo alcanzable en `127.0.0.1:1025` (el host que usa
+   `tests/auth-test.config.ts` por defecto), decenas de tests fallan, no solo los que piden
+   `TEST_MAILPIT_API_URL`. Se agrega el servicio `mailpit` (misma imagen que
+   `docker-compose.dev.yml`, `axllent/mailpit:v1.29.2`) con sus dos puertos (1025 SMTP, 8025 API),
+   y `TEST_MAILPIT_API_URL` en el entorno del job. Efecto colateral positivo: deja de saltearse la
+   única suite que antes se omitía por falta de esa variable, cumpliendo el criterio "0 salteados"
+   de la sección 5 tal como estaba escrito.
+9. **Paso `test` corre con `--no-file-parallelism`, no previsto en el plan original.** Validación
+   local: con los archivos de prueba en paralelo (comportamiento por defecto de Vitest), las
+   suites de integración que envían correo real compiten por el mismo `mailpit` del job y exceden
+   el timeout SMTP configurado (1500 ms); eso produjo decenas de fallas 503 al correr todo en
+   paralelo. Serializar por archivo evita esa saturación.
+10. **`TEST_SMTP_TIMEOUT_MS: "8000"` en el entorno del job, no previsto en el plan original.**
+    Incluso serializado, algunas corridas locales mostraron 1 a 3 tests fallando de forma
+    intermitente por 503: medí directamente con `nodemailer` fuera de los tests que dos envíos
+    SMTP concurrentes contra el mismo `mailpit` tardaron hasta ~2060 ms en este entorno (Windows +
+    Docker Desktop), por encima del timeout de 1500 ms que usan los tests por defecto. No se tocó
+    `back/src/` ni `back/tests/`: `tests/auth-test.config.ts:11` ya lee
+    `TEST_SMTP_TIMEOUT_MS` como override pensado exactamente para esto
+    (`process.env["TEST_SMTP_TIMEOUT_MS"] ?? "1500"`); seteé esa variable a 8000 ms únicamente en
+    el entorno del job de `back.yml`, sin cambiar ningún archivo de código o de test. Alternativa
+    descartada: bajar a un solo archivo de test vía más serialización o un `pool` con un worker —
+    no ataca la causa (latencia SMTP real), solo la escondería peor y más lento. Confirmado con 3
+    corridas completas de la suite en local con esta variable: 492/492 verdes, 0 salteados, las
+    tres veces (sección 6).
 
 ## 5. Criterios de aceptación
 
@@ -115,4 +145,54 @@ si alguien edita `schema.prisma` sin generar la migración correspondiente.
 
 ## 6. Validación
 
-(Se completa durante la implementación, con la salida real de cada comando.)
+Ejecutada el 2026-10-25 sobre `ci/back-lint-tests-migrate-check`, en local, con un contenedor
+`postgres:17` descartable (puerto publicado distinto del Postgres de desarrollo) y el `mailpit`
+ya corriendo del stack de desarrollo (misma imagen `axllent/mailpit:v1.29.2` que usa
+`docker-compose.dev.yml` y que el workflow nuevo agrega como servicio).
+
+| Comando | Resultado |
+|---|---|
+| `npm run lint --workspace=back` | Exit 0. 4 hallazgos reales (`no-control-regex`), los cuatro justificados con `eslint-disable-next-line` (detalle abajo). |
+| `npm run typecheck --workspace=back` | Exit 0. |
+| `npx prisma migrate diff --from-migrations back/prisma/migrations --to-schema-datamodel back/prisma/schema.prisma --shadow-database-url <shadow local> --exit-code` | Exit 0, "No difference detected." |
+| `npm run db:deploy --workspace=back` contra la base de prueba | 8 migraciones aplicadas sin error. |
+| `npm run test --workspace=back -- --no-file-parallelism` con `TEST_DATABASE_URL`, `TEST_MAILPIT_API_URL` y `TEST_SMTP_TIMEOUT_MS=8000` seteados | 3 corridas completas, independientes, con la base de datos truncada entre cada una: **492/492 verdes, 0 salteados, las tres veces.** Antes de agregar `TEST_SMTP_TIMEOUT_MS`, con el timeout por defecto (1500 ms), 1 a 3 tests fallaban de forma intermitente por 503 (ver decisión 10). |
+| `npm run build --workspace=back` | Exit 0, `dist/` generado. |
+| Workflow `back.yml` en un PR real de GitHub Actions | Pendiente — se confirma al abrir el PR (paso 5, fuera de este commit local). |
+
+### Hallazgos de lint (4, los cuatro justificados)
+
+Los cuatro son la misma regla, `no-control-regex`, sobre regex de validación de entrada que
+rechazan caracteres de control deliberadamente (NUL, DEL, C0/C1): no son errores de tipeo, son el
+comportamiento buscado. Se agregó `// eslint-disable-next-line no-control-regex -- <motivo>` en
+cada línea:
+
+- `back/src/academic/application/materia-input.ts:33` (filtro de búsqueda de materias).
+- `back/src/auth/auth.config.ts:41` (validación de variables de entorno de autenticación).
+- `back/src/auth/domain/registration-input.ts:12` (validación de email de registro).
+- `back/src/auth/smtp.config.ts:20` (validación de variables de entorno SMTP).
+
+### Latencia SMTP hacia `mailpit` en este entorno (resuelto con `TEST_SMTP_TIMEOUT_MS`)
+
+Varios tests de integración de `back/tests/` (registro, verificación de correo, recuperación de
+contraseña) envían un correo real contra `mailpit` y fallan con 503 si la entrega no se confirma
+dentro del timeout SMTP. En este entorno (Windows + Docker Desktop) medí directamente con
+`nodemailer`, fuera de los tests, que dos envíos SMTP concurrentes contra el mismo `mailpit`
+tardaron 1064 ms y 2059 ms — por encima del default de 1500 ms que usan los tests
+(`tests/auth-test.config.ts:11`). Con el default, corridas completas con `--no-file-parallelism`
+dieron 491/492, 489/492 y 491/492 verdes: siempre fallando por 503 en un flujo que depende de SMTP
+real, nunca por los cambios de este commit (ningún archivo de `back/src/` ni `back/tests/` tocado
+para esto).
+
+Se fijó `TEST_SMTP_TIMEOUT_MS: "8000"` solo en el entorno del job de `back.yml` (decisión 10):
+holgado a propósito para absorber la contención de un único `mailpit` compartido por 22 archivos
+de test, sin tocar código ni tests. Confirmado con 3 corridas completas e independientes (base de
+datos truncada entre cada una) contra el mismo contenedor Postgres/mailpit descartables:
+**492/492 verdes, 0 salteados, las tres veces.**
+
+### Dependencias agregadas
+
+`eslint` ^9.39.5 (misma mayor que `front`) y `typescript-eslint` ^8.72.0, ambas de desarrollo.
+`@eslint/js` no se agregó como dependencia directa: ya es una dependencia transitiva de `eslint`
+9.x (resuelta como `9.39.5` en este repo) y se usa igual que en cualquier config de
+`typescript-eslint` sin tipos.
