@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import * as front from "../src/validations/academic";
 // The real backend validators, imported by relative path (TASK-031 decision 3): the name limits
 // live inline in each one, so testing them, not `nombreSchema` alone, catches a one-sided change.
-import { materiaFields } from "../../back/src/academic/application/materia-input.js";
+import { materiaNombreSchema } from "../../back/src/academic/application/materia-input.js";
 import { validateCrearProfesorInput } from "../../back/src/academic/application/crear-profesor-input.js";
 import { validateCrearComisionInput } from "../../back/src/academic/application/crear-comision-input.js";
 import { ANIO_MINIMO, anioMaximo, validateCrearCursadaInput } from "../../back/src/academic/application/crear-cursada-input.js";
@@ -13,9 +13,8 @@ function accepts(validate: () => unknown): boolean {
 }
 
 const nombres = [
-  { entidad: "materia", max: front.MAX_NOMBRE_MATERIA, back: (nombre: string) => materiaFields.nombre.safeParse(nombre).success },
+  { entidad: "materia", max: front.MAX_NOMBRE_MATERIA, back: (nombre: string) => materiaNombreSchema.safeParse(nombre).success },
   { entidad: "profesor", max: front.MAX_NOMBRE_PROFESOR, back: (nombre: string) => accepts(() => validateCrearProfesorInput({ nombreCompleto: nombre })) },
-  { entidad: "comisión", max: front.MAX_NOMBRE_COMISION, back: (nombre: string) => accepts(() => validateCrearComisionInput({ cursadaId: UUID, nombre })) },
 ];
 function casosDeNombre(max: number): [string, string][] {
   return [
@@ -48,8 +47,18 @@ describe("Paridad front/back: año de la cursada", () => {
   it("acepta y rechaza los mismos años alrededor de los límites de los dos lados", () => {
     const bordes = [ANIO_MINIMO, front.ANIO_MINIMO, anioMaximo(), front.anioMaximo()];
     for (const anio of new Set(bordes.flatMap((borde) => [borde - 1, borde, borde + 1]))) {
-      const backAcepta = accepts(() => validateCrearCursadaInput({ materiaId: UUID, profesorId: UUID, anio, cuatrimestre: "PRIMERO" }));
+      const backAcepta = accepts(() => validateCrearCursadaInput({ materiaId: UUID, anio, cuatrimestre: "PRIMERO" }));
       expect(front.validateAnio(String(anio)) === undefined, `año ${anio}`).toBe(backAcepta);
+    }
+  });
+});
+
+describe("Paridad front/back: número de comisión", () => {
+  it("acepta y rechaza los mismos números de comisión", () => {
+    const casos = [-1, 0, 1, 2, 50, 999, 1000, 1001];
+    for (const numero of casos) {
+      const backAcepta = accepts(() => validateCrearComisionInput({ cursadaId: UUID, carrera: "S", numero }));
+      expect(front.validateNumeroComision(String(numero)) === undefined, `número ${numero}`).toBe(backAcepta);
     }
   });
 });

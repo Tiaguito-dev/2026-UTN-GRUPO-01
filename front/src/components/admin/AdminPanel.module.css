@@ -1,0 +1,155 @@
+/* TASK-054: visible solo bajo el breakpoint mobile ya usado en el resto del front (ej. MateriasList.module.css). */
+.quickLinks {
+  display: none;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.quickLinks a {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--primary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+@media (max-width: 600px) {
+  .quickLinks {
+    display: flex;
+  }
+}
+
+.group {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  margin-bottom: var(--space-10);
+}
+
+.groupTitle {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.groupDescription {
+  max-width: 45rem;
+  margin: var(--space-2) 0 0;
+  color: var(--muted);
+  font-size: var(--text-md);
+}
+
+/* Cards and the arrows between them, in the order the hierarchy is loaded. */
+.flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1.75rem minmax(0, 1fr) 1.75rem minmax(0, 1fr) 1.75rem minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.accounts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: var(--space-4);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.cardHead h3 {
+  margin: 0;
+  font-size: var(--text-base);
+}
+
+.symbol {
+  display: grid;
+  place-items: center;
+  width: var(--space-10);
+  height: var(--space-10);
+  flex: 0 0 var(--space-10);
+  border-radius: var(--radius-md);
+  background: var(--soft-blue);
+  color: var(--primary);
+  font-weight: var(--weight-heavy);
+}
+
+.detail {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-md);
+}
+
+.requirement {
+  flex: 1 1 auto;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.chip,
+.chipMuted {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  font-weight: var(--weight-semibold);
+}
+
+.chip {
+  background: var(--soft-blue);
+  color: var(--primary);
+}
+
+.chipMuted {
+  border: 1px solid var(--border);
+}
+
+.actions {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.actions :global(.button) {
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-md);
+}
+
+.arrow {
+  display: grid;
+  place-items: center;
+  color: var(--input-border);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+}
+
+.arrow span {
+  display: inline-block;
+}
+
+/* Narrow content (tablet, 375 px): cards stack and the arrows turn vertical. */
+@container (width < 52rem) {
+  .flow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+  }
+
+  .arrow span {
+    transform: rotate(90deg);
+  }
+}

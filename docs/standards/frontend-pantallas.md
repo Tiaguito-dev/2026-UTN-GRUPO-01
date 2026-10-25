@@ -66,11 +66,13 @@ return <section aria-labelledby={headingId}>
 | `h1` | Siempre uno, vía `PageHeader`, con foco al montar. |
 | Breadcrumb | Solo si la pantalla tiene al menos un nivel padre. Nunca de un solo ítem. |
 | Eyebrow | Solo en pantallas informativas sin datos (Inicio y Próximamente). |
-| "Volver" al pie | No, si el breadcrumb ya lleva al mismo lugar. Sí en los estados vacío y error, donde no hay breadcrumb a la vista o la acción es la salida principal. |
+| "Volver" arriba | Sí, en pantallas de detalle con nivel padre, junto al breadcrumb y con `aria-label` que nombra el destino. Nunca al pie repitiendo el breadcrumb. En estados vacío y error se mantiene como salida principal. |
 
 **Por qué:** con el foco en el `h1`, un lector de pantalla anuncia el cambio de pantalla. Un
 breadcrumb de un ítem no orienta, y dos enlaces al mismo destino en la misma pantalla son ruido
-(TASK-032, decisión 2).
+(TASK-032, decisión 2). En móvil el breadcrumb hace wrap y queda lejos del pulgar; un objetivo
+de 48px fijo arriba es la salida más rápida, y el pedido vino del desarrollador (TASK-050). Lo que
+sigue prohibido es el duplicado al pie.
 
 ## Patrón 1: listado paginado
 
@@ -80,7 +82,8 @@ con `router.replace`, conservando los demás parámetros (`setPage(1)` quita `pa
 error con Reintentar (o `notFoundAction` ante un 404), vacío y paginación. La pantalla no tiene
 ramas de estado propias. `resetKey` nombra lo que se lista (si cambia, el listado vuelve a
 cargar); el `action` del vacío es la salida (volver al panel) o lo que lo resuelve (cargar el
-primero). Ejemplo: `components/admin/UsuariosList.tsx`.
+primero). Después de crear o editar desde un modal, el padre incrementa `refreshKey`; no se
+remonta con `key` ni se navega. Ejemplo: `components/admin/UsuariosList.tsx`.
 
 ```tsx
 const { page, setPage } = useUrlPagination();
@@ -145,6 +148,17 @@ español ([validacion-con-zod.md](./validacion-con-zod.md#frontend)).
 **Por qué:** cada formulario reimplementaba el anti doble envío, el foco y el manejo de errores.
 Los nombres tipados evitan que un error de tipeo compile y falle recién en ejecución.
 
+### Alta en modal
+
+| Cuándo | Cómo |
+|---|---|
+| Modal (`Dialog`) | Formulario corto que, al guardar, vuelve al mismo listado desde el que se abrió. `busy` del formulario va al `busy` del `Dialog`, y el padre lo cierra en el éxito. |
+| Página propia | Formulario largo, con pasos, o que al guardar lleva a otra pantalla. Es el `AltaForm` de arriba. |
+
+**Por qué:** el modal conserva el contexto del listado (filtros, página) sin navegar, pero un
+formulario largo en un modal se corta en móvil y no tiene URL a la que volver
+([TASK-038](../tasks/pendient/TASK-038-front-primitiva-dialog.md)).
+
 ## Datos
 
 Todo servicio de `services/` valida la respuesta con su esquema de `services/schemas.ts`
@@ -178,8 +192,8 @@ Para copiar en la descripción del PR y tildar:
 - [ ] La página no se envuelve en guards ni en `<main>`. Si es solo para ADMIN, vive bajo
   `/home/admin/**`.
 - [ ] `<section aria-labelledby>` con `useId` y `PageHeader`; un solo `h1`, con foco al montar.
-- [ ] Breadcrumb solo si hay nivel padre, eyebrow solo si es informativa, sin "Volver" que
-  repita el breadcrumb.
+- [ ] Breadcrumb solo si hay nivel padre, con "Volver" arriba (`back`) en pantallas de detalle;
+  sin "Volver" al pie que repita el breadcrumb. Eyebrow solo si es informativa.
 - [ ] Listado: `useUrlPagination` + `PaginatedListView`, sin ramas propias de carga o error.
 - [ ] Carga, error (Reintentar, o Volver ante un 404) y vacío (`EmptyState`) cubiertos.
 - [ ] Alta: `AltaForm` con nombres de campo literales; errores por campo con foco al primero y

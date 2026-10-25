@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 afterEach(cleanup);
 
 describe("Badge", () => {
-  it.each(["role", "upcoming"] as const)("renders the %s tone as a span with its class", (tone) => {
+  it.each(["role", "upcoming", "solid", "soft", "outline"] as const)("renders the %s tone as a span with its class", (tone) => {
     render(<Badge tone={tone}>Label</Badge>);
     const badge = screen.getByText("Label");
     expect(badge.tagName).toBe("SPAN");

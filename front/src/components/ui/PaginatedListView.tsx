@@ -11,10 +11,11 @@ import { Pagination } from "./Pagination";
  * the heading and the page (usually from `useUrlPagination`). On a 404, `notFoundAction` replaces
  * "Reintentar". `children` renders the items of a non-empty page.
  */
-export function PaginatedListView<T>({ fetchPage, resetKey, page, onPageChange, loadingMessage, errorMessage, notFoundAction, empty, children }: {
+export function PaginatedListView<T>({ fetchPage, resetKey, page, refreshKey, onPageChange, loadingMessage, errorMessage, notFoundAction, empty, children }: {
   fetchPage: (page: number) => Promise<PaginatedResult<T>>;
   resetKey: string;
   page: number;
+  refreshKey?: number;
   onPageChange: (page: number) => void;
   loadingMessage: string;
   errorMessage?: ReactNode;
@@ -22,7 +23,7 @@ export function PaginatedListView<T>({ fetchPage, resetKey, page, onPageChange, 
   empty: ReactNode;
   children: (result: PaginatedResult<T>) => ReactNode;
 }) {
-  const { state, retry } = usePaginatedFetch(resetKey, fetchPage, page);
+  const { state, retry } = usePaginatedFetch(resetKey, fetchPage, page, refreshKey);
   if (state.status === "loading") return <p role="status">{loadingMessage}</p>;
   if (state.status === "error") return <Notice tone="error">
     {errorMessage ? <>{errorMessage} <span>{state.error}</span></> : state.error}{" "}

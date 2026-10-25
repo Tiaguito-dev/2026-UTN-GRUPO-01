@@ -22,18 +22,36 @@ import { CrearCursada } from "./application/crear-cursada.js";
 import { CrearComision } from "./application/crear-comision.js";
 import { ObtenerMateria } from "./application/obtener-materia.js";
 import { ObtenerCursada } from "./application/obtener-cursada.js";
+import { ObtenerComision } from "./application/obtener-comision.js";
 import { ActualizarMateria } from "./application/actualizar-materia.js";
 import { ListarHistorialMateria } from "./application/listar-historial-materia.js";
+import { AsignarProfesorComision } from "./application/asignar-profesor-comision.js";
+import { QuitarProfesorComision } from "./application/quitar-profesor-comision.js";
 
 @Module({
   imports: [PrismaModule, AuthModule, SharedModule],
   controllers: [AcademicController],
   providers: [
-    ...[ObtenerMateria, ActualizarMateria, ListarHistorialMateria].map((provide) => ({
+    ...[ObtenerMateria, ListarHistorialMateria].map((provide) => ({
       provide,
       useFactory: (materias: MateriaRepository) => new provide(materias),
       inject: [MATERIA_REPOSITORY],
     })),
+    {
+      provide: ActualizarMateria,
+      useFactory: (materias: MateriaRepository, comisiones: ComisionRepository) => new ActualizarMateria(materias, comisiones),
+      inject: [MATERIA_REPOSITORY, COMISION_REPOSITORY],
+    },
+    ...[AsignarProfesorComision, QuitarProfesorComision].map((provide) => ({
+      provide,
+      useFactory: (comisiones: ComisionRepository, profesores: ProfesorRepository) => new provide(comisiones, profesores),
+      inject: [COMISION_REPOSITORY, PROFESOR_REPOSITORY],
+    })),
+    {
+      provide: ObtenerComision,
+      useFactory: (comisiones: ComisionRepository) => new ObtenerComision(comisiones),
+      inject: [COMISION_REPOSITORY],
+    },
     {
       provide: MATERIA_REPOSITORY,
       useFactory: (prisma: PrismaService) => new PrismaMateriaRepository(prisma),
@@ -61,15 +79,15 @@ import { ListarHistorialMateria } from "./application/listar-historial-materia.j
     },
     {
       provide: ListarCursadasPorMateria,
-      useFactory: (materias: MateriaRepository, cursadas: CursadaRepository, profesores: ProfesorRepository) =>
-        new ListarCursadasPorMateria(materias, cursadas, profesores),
-      inject: [MATERIA_REPOSITORY, CURSADA_REPOSITORY, PROFESOR_REPOSITORY],
+      useFactory: (materias: MateriaRepository, cursadas: CursadaRepository) =>
+        new ListarCursadasPorMateria(materias, cursadas),
+      inject: [MATERIA_REPOSITORY, CURSADA_REPOSITORY],
     },
     {
       provide: ObtenerCursada,
-      useFactory: (cursadas: CursadaRepository, materias: MateriaRepository, profesores: ProfesorRepository) =>
-        new ObtenerCursada(cursadas, materias, profesores),
-      inject: [CURSADA_REPOSITORY, MATERIA_REPOSITORY, PROFESOR_REPOSITORY],
+      useFactory: (cursadas: CursadaRepository, materias: MateriaRepository) =>
+        new ObtenerCursada(cursadas, materias),
+      inject: [CURSADA_REPOSITORY, MATERIA_REPOSITORY],
     },
     {
       provide: ListarComisionesPorCursada,
@@ -94,14 +112,15 @@ import { ListarHistorialMateria } from "./application/listar-historial-materia.j
     },
     {
       provide: CrearCursada,
-      useFactory: (materias: MateriaRepository, profesores: ProfesorRepository, cursadas: CursadaRepository) =>
-        new CrearCursada(materias, profesores, cursadas),
-      inject: [MATERIA_REPOSITORY, PROFESOR_REPOSITORY, CURSADA_REPOSITORY],
+      useFactory: (materias: MateriaRepository, cursadas: CursadaRepository) =>
+        new CrearCursada(materias, cursadas),
+      inject: [MATERIA_REPOSITORY, CURSADA_REPOSITORY],
     },
     {
       provide: CrearComision,
-      useFactory: (cursadas: CursadaRepository, comisiones: ComisionRepository) => new CrearComision(cursadas, comisiones),
-      inject: [CURSADA_REPOSITORY, COMISION_REPOSITORY],
+      useFactory: (cursadas: CursadaRepository, comisiones: ComisionRepository, materias: MateriaRepository) =>
+        new CrearComision(cursadas, comisiones, materias),
+      inject: [CURSADA_REPOSITORY, COMISION_REPOSITORY, MATERIA_REPOSITORY],
     },
   ],
 })

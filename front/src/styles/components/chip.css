@@ -1,0 +1,59 @@
+@layer components {
+  .filter-chips {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .filter-chips-label {
+    margin: 0;
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+  }
+
+  .filter-chips-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .chip {
+    font: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    background: var(--surface);
+    color: var(--muted);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    line-height: 1.4;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+  }
+
+  .chip:hover {
+    border-color: var(--primary);
+    background: var(--soft-blue);
+    color: var(--primary);
+  }
+
+  .chip[aria-pressed="true"] {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: var(--surface);
+  }
+
+  .chip[aria-pressed="true"]:hover {
+    background: var(--primary-hover);
+  }
+
+  .chip:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+}

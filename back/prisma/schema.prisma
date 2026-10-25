@@ -87,18 +87,39 @@ enum Cuatrimestre {
   SEGUNDO
 }
 
+enum Carrera {
+  S
+  C
+  Q
+  I
+  M
+}
+
+enum CargoDocente {
+  TITULAR
+  ADJUNTO
+  JTP
+}
+
 model Materia {
   id        String    @id @default(uuid()) @db.Uuid
   nombre    String    @unique @db.VarChar(150)
-  anioCarrera String? @db.VarChar(8)
-  nivelElectiva String? @db.VarChar(1)
   createdAt DateTime  @default(now()) @db.Timestamptz(3)
   deletedAt DateTime? @db.Timestamptz(3)
   cursadas  Cursada[]
   historial MateriaHistorial[]
+  carreras  MateriaCarrera[]
+}
 
-  @@index([deletedAt, anioCarrera, nombre, id])
-  @@index([deletedAt, anioCarrera, nivelElectiva, nombre, id])
+model MateriaCarrera {
+  materiaId     String  @db.Uuid
+  carrera       Carrera
+  anioCarrera   String  @db.VarChar(8)
+  nivelElectiva String? @db.VarChar(1)
+  materia       Materia @relation(fields: [materiaId], references: [id], onDelete: Restrict)
+
+  @@id([materiaId, carrera])
+  @@index([carrera, anioCarrera, nivelElectiva])
 }
 
 model MateriaHistorial {
@@ -118,34 +139,45 @@ model Profesor {
   nombreCompleto String    @db.VarChar(150)
   createdAt      DateTime  @default(now()) @db.Timestamptz(3)
   deletedAt      DateTime? @db.Timestamptz(3)
-  cursadas       Cursada[]
+  comisiones     ComisionProfesor[]
 }
 
 model Cursada {
   id           String       @id @default(uuid()) @db.Uuid
   materiaId    String       @db.Uuid
-  profesorId   String       @db.Uuid
   anio         Int
   cuatrimestre Cuatrimestre
   createdAt    DateTime     @default(now()) @db.Timestamptz(3)
   deletedAt    DateTime?    @db.Timestamptz(3)
   materia      Materia      @relation(fields: [materiaId], references: [id], onDelete: Restrict)
-  profesor     Profesor     @relation(fields: [profesorId], references: [id], onDelete: Restrict)
   comisiones   Comision[]
 
   @@unique([materiaId, anio, cuatrimestre])
-  @@index([profesorId])
 }
 
 model Comision {
   id        String    @id @default(uuid()) @db.Uuid
   cursadaId String    @db.Uuid
-  nombre    String    @db.VarChar(100)
   activa    Boolean   @default(true)
+  carrera   Carrera
+  numero    Int
   createdAt DateTime  @default(now()) @db.Timestamptz(3)
   deletedAt DateTime? @db.Timestamptz(3)
   cursada   Cursada   @relation(fields: [cursadaId], references: [id], onDelete: Restrict)
+  profesores ComisionProfesor[]
 
-  @@unique([cursadaId, nombre])
+  @@unique([cursadaId, carrera, numero])
   @@index([cursadaId])
+}
+
+model ComisionProfesor {
+  comisionId String       @db.Uuid
+  profesorId String       @db.Uuid
+  cargo      CargoDocente
+  createdAt  DateTime     @default(now()) @db.Timestamptz(3)
+  comision   Comision     @relation(fields: [comisionId], references: [id], onDelete: Restrict)
+  profesor   Profesor     @relation(fields: [profesorId], references: [id], onDelete: Restrict)
+
+  @@id([comisionId, profesorId])
+  @@index([profesorId])
 }
