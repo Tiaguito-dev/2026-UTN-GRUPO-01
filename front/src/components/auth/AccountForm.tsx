@@ -65,10 +65,11 @@ export function AccountForm({ mode }: { mode: Mode }) {
         try {
           await auth.resetPassword({ token: resetToken.current!, newPassword: values.newPassword });
         } catch (failure) {
-          if (typeof failure === "object" && failure !== null && "status" in failure && failure.status === 400) resetToken.current = null;
+          if (typeof failure === "object" && failure !== null && "status" in failure && failure.status === 400) { resetToken.current = null; setTokenReady(false); }
           throw failure;
         }
         resetToken.current = null;
+        setTokenReady(false);
         form.reset();
         router.replace("/login?notice=reset");
       } else {
@@ -89,7 +90,7 @@ export function AccountForm({ mode }: { mode: Mode }) {
       resetToken.current = tokens.length === 1 && /^[A-Za-z0-9_-]{43}$/.test(tokens[0] ?? "") ? tokens[0]! : null;
       // Preserve the credential only in memory. Also remove fragments and unrelated query data.
       window.history.replaceState(window.history.state, "", url.pathname);
-      setTokenReady(true);
+      setTokenReady(resetToken.current !== null);
       if (!resetToken.current) setError("El enlace de recuperación no es válido. Solicitá uno nuevo.");
     }
     if (mode === "login") {
@@ -114,7 +115,7 @@ export function AccountForm({ mode }: { mode: Mode }) {
       {["login", "register"].includes(mode) ? <FormField name="password" label="Contraseña" input={{ type: "password", autoComplete: mode === "login" ? "current-password" : "new-password" }} error={errors.password} hint={mode === "register" ? passwordHint : undefined} /> : null}
       {mode === "change" ? <FormField name="currentPassword" label="Contraseña actual" input={{ type: "password", autoComplete: "current-password" }} error={errors.currentPassword} /> : null}
       {["reset", "change"].includes(mode) ? <><FormField name="newPassword" label="Nueva contraseña" input={{ type: "password", autoComplete: "new-password" }} error={errors.newPassword} hint={passwordHint} /><FormField name="confirmPassword" label="Confirmar contraseña" input={{ type: "password", autoComplete: "new-password" }} error={errors.confirmPassword} /></> : null}
-      <button className="button submit" disabled={busy || !tokenReady || (mode === "reset" && !resetToken.current)}>{busy ? "Enviando…" : actions[mode]}</button>
+      <button className="button submit" disabled={busy || !tokenReady}>{busy ? "Enviando…" : actions[mode]}</button>
     </form>
     {mode === "change" ? <div className="form-links"><Link href="/account">Volver a mi perfil</Link></div> : null}
     <div className="form-links">{mode === "login" ? <><Link href="/register">Crear una cuenta</Link><Link href="/forgot-password">¿Olvidaste tu contraseña?</Link></> : null}{["forgot", "register", "reset"].includes(mode) ? <Link href="/login">Volver al login</Link> : null}{mode === "reset" ? <Link href="/forgot-password">Solicitar un nuevo enlace de recuperación</Link> : null}</div>

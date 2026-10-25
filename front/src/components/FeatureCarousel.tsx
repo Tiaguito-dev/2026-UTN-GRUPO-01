@@ -21,6 +21,7 @@ export function FeatureCarousel() {
     else return;
     event.preventDefault();
   }
+  // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex -- WAI-ARIA carousel pattern: the focusable region handles arrow, Home and End keys.
   return <div className="feature-carousel" role="region" aria-roledescription="carrusel" aria-label="Próximas funcionalidades" tabIndex={0} onKeyDown={navigate}>
     <p className="carousel-help">Explorá con las flechas o los botones.</p>
     <div className="carousel-stage">

@@ -16,11 +16,12 @@ function setAuth(status: string, role = "USER", temporaryError?: string, coordin
 }
 function render(status: string, role = "USER", temporaryError?: string) {
   setAuth(status, role, temporaryError);
-  return renderToStaticMarkup(createElement(RequireAuth, { children: content }));
+  return renderToStaticMarkup(createElement(RequireAuth, null, content));
 }
 function renderRole(role: string) {
   // Web Locks unavailable: RequireRole must still not repeat the notice that RequireAuth shows.
   setAuth("authenticated", role, undefined, false);
+  // eslint-disable-next-line react/no-children-prop -- RequireRole types children as required, so createElement only type-checks with children inside the props object.
   return renderToStaticMarkup(createElement(RequireRole, { roles: ["ADMIN"], children: content }));
 }
 describe("Navegación protegida sin rutas administrativas ficticias", () => {
