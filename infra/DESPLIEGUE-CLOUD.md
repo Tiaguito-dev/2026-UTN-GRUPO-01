@@ -20,11 +20,10 @@ incrustan durante `next build`: cambiarlas exige volver a desplegar el front, no
 
 1. Cuenta de GitHub con acceso a este repositorio (Neon y Render se registran con ella).
 2. La URL pública del front en Vercel, por ejemplo `https://<proyecto>.vercel.app`.
-3. Una casilla de correo para SMTP. El back **no arranca** sin `SMTP_USERNAME` y
-   `SMTP_PASSWORD` cuando `NODE_ENV=production` (`back/src/auth/smtp.config.ts:46`).
-   Lo más rápido es Gmail con contraseña de aplicación: requiere verificación en dos pasos
-   activa en la cuenta, y se genera en <https://myaccount.google.com/apppasswords>.
-   Host `smtp.gmail.com`, puerto `465`, `SMTP_SECURE=true`.
+3. Cuenta Brevo con remitente verificado y envío transaccional habilitado. Generar una
+   **clave API**, distinta de la clave SMTP. Render Free bloquea los puertos SMTP
+   25/465/587: se usa HTTPS con `EMAIL_PROVIDER=brevo` (TASK-028).
+   La clave queda solo en el entorno privado del backend; nunca en Git ni en el frontend.
 
 ## Paso 1 — Neon
 
@@ -105,11 +104,16 @@ historial de la sesión.
    | `AUTH_PUBLIC_URL` | `https://utn-grupo-01-back.onrender.com` |
    | `AUTH_ALLOWED_ORIGINS` | La URL del front en Vercel, sin barra final |
    | `AUTH_PASSWORD_RESET_URL` | Esa misma URL + `/reset-password` |
-   | `SMTP_HOST` | `smtp.gmail.com` |
-   | `SMTP_PORT` | `465` |
-   | `SMTP_FROM` | La casilla remitente |
-   | `SMTP_USERNAME` | La misma casilla |
-   | `SMTP_PASSWORD` | La contraseña de aplicación, sin espacios |
+   | `EMAIL_PROVIDER` | `brevo` |
+   | `EMAIL_FROM` | La dirección remitente verificada en Brevo |
+   | `EMAIL_FROM_NAME` | `Profesor Butchery` |
+   | `BREVO_API_KEY` | Clave API privada de Brevo, no la clave SMTP |
+   | `SMTP_TIMEOUT_MS` | `8000` (deadline también para HTTPS) |
+   | `AUTH_PASSWORD_RESET_MIN_RESPONSE_MS` | `8500` |
+
+   Con `EMAIL_PROVIDER=brevo` no se requieren variables SMTP de conexión. Si Brevo limita
+   IPs, autorizar los rangos de salida del servicio Render según su panel; la IP pública
+   de la computadora solo habilita las pruebas locales. No desactivar esta protección.
 
    El secreto, en una terminal local:
 
@@ -129,7 +133,7 @@ historial de la sesión.
    `{"status":"ok","service":"back"}`. Un `503` es base inalcanzable; revisar `DATABASE_URL`.
 
 Si el servicio no arranca, el log dice exactamente qué variable falta: el back valida
-autenticación y SMTP antes de escuchar, y aborta sin quedar a medias.
+autenticación y el proveedor de correo seleccionado antes de escuchar, y aborta sin quedar a medias.
 
 ## Paso 4 — Vercel
 
@@ -149,7 +153,9 @@ autenticación y SMTP antes de escuchar, y aborta sin quedar a medias.
 1. `https://<render>/health/ready` responde 200.
 2. Abrir el front, **Registrarse** con un email `@alu.frlp.utn.edu.ar` — el registro público
    exige ese dominio (`back/src/auth/domain/institutional-domain.ts:3`).
-3. Iniciar sesión. Si el login devuelve 403, el origen del front no coincide con
+3. Confirmar que la cuenta pendiente no permite iniciar sesión, recibir el correo y abrir
+   su enlace HTTPS de verificación hacia el frontend público. Después iniciar sesión.
+   El enlace no debe apuntar a localhost. Si el login devuelve 403, el origen del front no coincide con
    `AUTH_ALLOWED_ORIGINS`; si entra pero la sesión se pierde al recargar, la cookie no viajó:
    revisar que `AUTH_COOKIE_SAME_SITE` siga en `none`.
 4. Probar **Olvidé mi contraseña** y confirmar que llega el correo.
@@ -158,6 +164,9 @@ autenticación y SMTP antes de escuchar, y aborta sin quedar a medias.
 
 - **Render duerme el servicio tras 15 minutos sin tráfico.** El siguiente pedido tarda cerca
   de un minuto en levantar el proceso. En una defensa o demo, despertalo antes.
+- Render Free bloquea SMTP; Brevo HTTPS evita ese bloqueo. Ver
+  [limitaciones oficiales](https://render.com/docs/free). Aceptación por Brevo no acredita
+  recepción en la casilla: comprobar el correo y la activación real.
 - Ese reinicio también **reinicia los contadores del rate limiter**, que viven en memoria
   (`back/src/auth/presentation/http-security.ts:42`). Con un único proceso persistente el
   límite es correcto mientras el servicio está vivo; no sobrevive al reinicio.

@@ -2,6 +2,14 @@
 
 ## [Sin publicar]
 
+### Correo por Brevo HTTPS (TASK-028)
+
+- Selección de proveedor SMTP o Brevo para verificación institucional y recuperación de
+  contraseña; SMTP permanece como opción predeterminada compatible con Mailpit.
+- Adaptadores HTTPS sin dependencias nuevas, con deadline y errores sin secretos.
+- Blueprint de Render Free y guía de configuración para API de Brevo, evitando los puertos
+  SMTP bloqueados. Cambio verificado localmente; despliegue productivo pendiente.
+
 ### Presentación de filtros de materias (TASK-026)
 
 - Etapa aprobada por el usuario el 2026-10-22; pruebas frontend completas aprobadas.
