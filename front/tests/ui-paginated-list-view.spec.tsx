@@ -56,4 +56,74 @@ describe("PaginatedListView", () => {
     expect(screen.getByRole("link", { name: "Volver" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Reintentar" })).toBeNull();
   });
+
+  it("cambiar refreshKey vuelve a llamar a fetchPage con la misma página y muestra los datos nuevos", async () => {
+    let callCount = 0;
+    const fetchPage = vi.fn().mockImplementation(async () => {
+      callCount++;
+      return pageOf([`item-${callCount}`]);
+    });
+    const { rerender } = render(
+      <PaginatedListView<string> resetKey="r" page={1} refreshKey={0} onPageChange={vi.fn()} fetchPage={fetchPage} loadingMessage="Cargando ítems…" empty={<p>No hay ítems.</p>}>
+        {(res) => <ul>{res.items.map((i) => <li key={i}>{i}</li>)}</ul>}
+      </PaginatedListView>
+    );
+    expect(await screen.findByText("item-1")).toBeTruthy();
+    expect(fetchPage).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <PaginatedListView<string> resetKey="r" page={1} refreshKey={1} onPageChange={vi.fn()} fetchPage={fetchPage} loadingMessage="Cargando ítems…" empty={<p>No hay ítems.</p>}>
+        {(res) => <ul>{res.items.map((i) => <li key={i}>{i}</li>)}</ul>}
+      </PaginatedListView>
+    );
+    expect(await screen.findByText("item-2")).toBeTruthy();
+    expect(fetchPage).toHaveBeenCalledTimes(2);
+  });
+
+  it("re-renderizar con el mismo refreshKey no vuelve a pedir datos", async () => {
+    const fetchPage = vi.fn().mockResolvedValue(pageOf(["item-a"]));
+    const { rerender } = render(
+      <PaginatedListView<string> resetKey="r" page={1} refreshKey={0} onPageChange={vi.fn()} fetchPage={fetchPage} loadingMessage="Cargando ítems…" empty={<p>No hay ítems.</p>}>
+        {(res) => <ul>{res.items.map((i) => <li key={i}>{i}</li>)}</ul>}
+      </PaginatedListView>
+    );
+    expect(await screen.findByText("item-a")).toBeTruthy();
+    expect(fetchPage).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <PaginatedListView<string> resetKey="r" page={1} refreshKey={0} onPageChange={vi.fn()} fetchPage={fetchPage} loadingMessage="Cargando ítems…" empty={<p>No hay ítems.</p>}>
+        {(res) => <ul>{res.items.map((i) => <li key={i}>{i}</li>)}</ul>}
+      </PaginatedListView>
+    );
+    expect(fetchPage).toHaveBeenCalledTimes(1);
+  });
+
+  it("una respuesta vieja que llega después de un refreshKey nuevo se descarta", async () => {
+    let resolveFirst!: (value: ReturnType<typeof pageOf>) => void;
+    let resolveSecond!: (value: ReturnType<typeof pageOf>) => void;
+
+    const fetchPage = vi.fn()
+      .mockImplementationOnce(() => new Promise((res) => { resolveFirst = res; }))
+      .mockImplementationOnce(() => new Promise((res) => { resolveSecond = res; }));
+
+    const { rerender } = render(
+      <PaginatedListView<string> resetKey="r" page={1} refreshKey={0} onPageChange={vi.fn()} fetchPage={fetchPage} loadingMessage="Cargando ítems…" empty={<p>No hay ítems.</p>}>
+        {(res) => <ul>{res.items.map((i) => <li key={i}>{i}</li>)}</ul>}
+      </PaginatedListView>
+    );
+
+    rerender(
+      <PaginatedListView<string> resetKey="r" page={1} refreshKey={1} onPageChange={vi.fn()} fetchPage={fetchPage} loadingMessage="Cargando ítems…" empty={<p>No hay ítems.</p>}>
+        {(res) => <ul>{res.items.map((i) => <li key={i}>{i}</li>)}</ul>}
+      </PaginatedListView>
+    );
+
+    resolveSecond(pageOf(["dato-nuevo"]));
+    expect(await screen.findByText("dato-nuevo")).toBeTruthy();
+
+    resolveFirst(pageOf(["dato-viejo"]));
+
+    expect(screen.queryByText("dato-viejo")).toBeNull();
+    expect(screen.getByText("dato-nuevo")).toBeTruthy();
+  });
 });

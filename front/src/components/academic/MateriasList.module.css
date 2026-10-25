@@ -78,45 +78,6 @@
   font-weight: var(--weight-semibold);
 }
 
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.filters .chip {
-  min-height: 2.75rem;
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  background: var(--surface);
-  color: var(--muted);
-  font-size: var(--text-sm);
-  line-height: 1.4;
-}
-
-.filters .chip:hover {
-  border-color: var(--primary);
-  background: var(--soft-blue);
-  color: var(--primary);
-}
-
-.filters .chip[aria-pressed="true"] {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: var(--surface);
-  box-shadow: 0 2px 4px rgb(var(--primary-rgb) / 14%);
-}
-
-.filters .chip[aria-pressed="true"]:hover {
-  background: var(--primary-hover);
-}
-
-.filters button:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
-}
-
 .electiveGroup {
   margin-top: var(--space-5);
   padding: var(--space-4);
@@ -137,5 +98,148 @@
 
   .filters .chip {
     padding-inline: .85rem;
+  }
+}
+
+/* TASK-043: header with "Nueva materia", career grid and year groups (MateriasAdmin artboard). */
+.header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  column-gap: var(--space-4);
+  max-width: 50rem;
+}
+
+.header > :not(.newButton) {
+  grid-column: 1;
+}
+
+.header > :global(.system-description) {
+  margin-bottom: var(--space-6);
+}
+
+.newButton {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: end;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+}
+
+.careerGroup {
+  margin-bottom: var(--space-6);
+}
+
+.careers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.filters .career {
+  justify-content: flex-start;
+  gap: var(--space-3);
+  min-height: 3.25rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: var(--text-md);
+  text-align: left;
+}
+
+.filters .career:hover {
+  border-color: var(--primary);
+  background: var(--soft-blue);
+  color: var(--primary);
+}
+
+.filters .career[aria-pressed="true"] {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+  background: var(--soft-blue);
+  color: var(--primary);
+}
+
+.careerInitial {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  flex: 0 0 1.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--soft-blue);
+  color: var(--primary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-heavy);
+}
+
+.career[aria-pressed="true"] .careerInitial {
+  background: var(--primary);
+  color: var(--surface);
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 50rem;
+}
+
+.rows {
+  padding: var(--space-2);
+}
+
+.groupHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--border);
+  background: var(--background);
+}
+
+.groupHeader h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: var(--text-base);
+}
+
+.groupBadge {
+  display: grid;
+  place-items: center;
+  width: var(--space-8);
+  height: var(--space-8);
+  flex: 0 0 var(--space-8);
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--surface);
+  font-size: var(--text-md);
+  font-weight: var(--weight-heavy);
+}
+
+.groupCount {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 600px) {
+  .header {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .newButton {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+  }
+
+  .careers {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

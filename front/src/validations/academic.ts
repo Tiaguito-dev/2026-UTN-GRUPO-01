@@ -26,6 +26,17 @@ export function validateAnio(value: string): string | undefined {
   }
 }
 
+export const NUMERO_COMISION_MINIMO = 1;
+export const NUMERO_COMISION_MAXIMO = 999;
+
+export function validateNumeroComision(value: string): string | undefined {
+  const texto = value.trim();
+  const numero = Number(texto);
+  if (!/^[0-9]+$/u.test(texto) || numero < NUMERO_COMISION_MINIMO || numero > NUMERO_COMISION_MAXIMO) {
+    return `El número de comisión debe ser un número entero entre ${NUMERO_COMISION_MINIMO} y ${NUMERO_COMISION_MAXIMO}.`;
+  }
+}
+
 export function validateSeleccion(value: string): string | undefined {
   if (!value) return "Elegí una opción de la lista.";
 }

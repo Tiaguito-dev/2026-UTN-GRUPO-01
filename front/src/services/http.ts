@@ -19,7 +19,7 @@ function apiOrigin(): string {
 
 /** No credentials are available to JavaScript: the browser owns both HttpOnly cookies.
  *  Returns the raw body; callers validate it with a schema from `schemas.ts` before using it. */
-export async function requestJson(path: string, options: { method?: "GET" | "POST" | "PATCH"; body?: unknown } = {}): Promise<unknown> {
+export async function requestJson(path: string, options: { method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE"; body?: unknown } = {}): Promise<unknown> {
   const method = options.method ?? "GET";
   let response: Response;
   try {

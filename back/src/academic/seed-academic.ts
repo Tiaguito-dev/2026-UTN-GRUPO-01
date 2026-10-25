@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 import { resolve } from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient, type Cuatrimestre } from "../generated/prisma/client.js";
+import { PrismaClient, type CargoDocente, type Carrera, type Cuatrimestre } from "../generated/prisma/client.js";
 
 config({
   path: [resolve(process.cwd(), ".env"), resolve(process.cwd(), "../.env")],
@@ -17,29 +17,47 @@ config({
  * El seed es aditivo e idempotente: puede correrse más de una vez sin duplicar y nunca borra
  * ni modifica nada preexistente.
  */
-interface ComisionSeed { nombre: string; activa?: boolean }
-interface CursadaSeed { anio: number; cuatrimestre: Cuatrimestre; profesor: string; comisiones: ComisionSeed[] }
-interface MateriaSeed { nombre: string; cursadas: CursadaSeed[] }
+interface ComisionSeed { carrera: Carrera; numero: number; activa?: boolean; profesores: [string, CargoDocente][] }
+interface CursadaSeed { anio: number; cuatrimestre: Cuatrimestre; comisiones: ComisionSeed[] }
+interface MateriaSeed { nombre: string; carreras: { carrera: Carrera; anioCarrera: string }[]; cursadas: CursadaSeed[] }
+
+const TODAS: Carrera[] = ["S", "C", "Q", "I", "M"];
 
 const MATERIAS: MateriaSeed[] = [
   {
     nombre: "Análisis Matemático II",
+    carreras: TODAS.map((carrera) => ({ carrera, anioCarrera: "2" })),
     cursadas: [
-      { anio: 2026, cuatrimestre: "PRIMERO", profesor: "Mariana Rivas", comisiones: [{ nombre: "Comisión 1 - Mañana" }, { nombre: "Comisión 2 - Noche" }] },
-      { anio: 2025, cuatrimestre: "SEGUNDO", profesor: "Héctor Balcedo", comisiones: [{ nombre: "Comisión 1 - Tarde" }] },
+      { anio: 2026, cuatrimestre: "PRIMERO", comisiones: [
+        { carrera: "S", numero: 1, profesores: [["Mariana Rivas", "TITULAR"], ["Héctor Balcedo", "JTP"]] },
+        { carrera: "Q", numero: 1, profesores: [["Mariana Rivas", "TITULAR"]] },
+      ] },
+      { anio: 2025, cuatrimestre: "SEGUNDO", comisiones: [
+        { carrera: "S", numero: 1, profesores: [["Héctor Balcedo", "TITULAR"]] },
+      ] },
     ],
   },
   {
     nombre: "Algoritmos y Estructuras de Datos",
+    carreras: [{ carrera: "S", anioCarrera: "1" }],
     cursadas: [
-      { anio: 2026, cuatrimestre: "PRIMERO", profesor: "Lucía Ferreyra", comisiones: [{ nombre: "Comisión 1 - Mañana" }, { nombre: "Comisión 2 - Tarde" }] },
-      { anio: 2026, cuatrimestre: "SEGUNDO", profesor: "Lucía Ferreyra", comisiones: [{ nombre: "Comisión 1 - Noche" }] },
+      { anio: 2026, cuatrimestre: "PRIMERO", comisiones: [
+        { carrera: "S", numero: 1, profesores: [["Lucía Ferreyra", "TITULAR"], ["Pablo Quiroga", "ADJUNTO"], ["Sofía Medina", "JTP"]] },
+        { carrera: "S", numero: 2, profesores: [["Lucía Ferreyra", "TITULAR"]] },
+      ] },
+      { anio: 2026, cuatrimestre: "SEGUNDO", comisiones: [
+        { carrera: "S", numero: 1, profesores: [["Lucía Ferreyra", "TITULAR"], ["Pablo Quiroga", "JTP"]] },
+      ] },
     ],
   },
   {
     nombre: "Sistemas Operativos",
+    carreras: [{ carrera: "S", anioCarrera: "3" }],
     cursadas: [
-      { anio: 2026, cuatrimestre: "PRIMERO", profesor: "Daniel Ocampo", comisiones: [{ nombre: "Comisión 1 - Noche" }, { nombre: "Comisión 2 - Mañana", activa: false }] },
+      { anio: 2026, cuatrimestre: "PRIMERO", comisiones: [
+        { carrera: "S", numero: 1, profesores: [["Daniel Ocampo", "TITULAR"]] },
+        { carrera: "S", numero: 2, activa: false, profesores: [["Daniel Ocampo", "TITULAR"], ["Sofía Medina", "JTP"]] },
+      ] },
     ],
   },
 ];
@@ -54,33 +72,45 @@ async function seed(): Promise<void> {
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
   try {
     let materiasCreadas = 0, cursadasCreadas = 0, comisionesCreadas = 0;
+    // Profesor.nombreCompleto no es único a propósito (puede haber homónimos reales),
+    // así que la idempotencia se resuelve buscando por nombre antes de crear.
+    const profesorId = async (nombreCompleto: string): Promise<string> =>
+      (await prisma.profesor.findFirst({ where: { nombreCompleto, deletedAt: null } })
+        ?? await prisma.profesor.create({ data: { nombreCompleto } })).id;
+
     for (const materiaSeed of MATERIAS) {
       const existente = await prisma.materia.findUnique({ where: { nombre: materiaSeed.nombre } });
-      const materia = existente ?? await prisma.materia.create({ data: { nombre: materiaSeed.nombre } });
+      const materia = existente ?? await prisma.materia.create({
+        data: { nombre: materiaSeed.nombre },
+      });
       if (!existente) materiasCreadas += 1;
+      await prisma.materiaCarrera.createMany({
+        data: materiaSeed.carreras.map((fila) => ({ materiaId: materia.id, ...fila })),
+        skipDuplicates: true,
+      });
 
       for (const cursadaSeed of materiaSeed.cursadas) {
-        // Profesor.nombreCompleto no es único a propósito (puede haber homónimos reales),
-        // así que la idempotencia se resuelve buscando por nombre antes de crear.
-        const profesorExistente = await prisma.profesor.findFirst({ where: { nombreCompleto: cursadaSeed.profesor, deletedAt: null } });
-        const profesor = profesorExistente ?? await prisma.profesor.create({ data: { nombreCompleto: cursadaSeed.profesor } });
-
         const cursadaExistente = await prisma.cursada.findUnique({
           where: { materiaId_anio_cuatrimestre: { materiaId: materia.id, anio: cursadaSeed.anio, cuatrimestre: cursadaSeed.cuatrimestre } },
         });
         const cursada = cursadaExistente ?? await prisma.cursada.create({
-          data: { materiaId: materia.id, profesorId: profesor.id, anio: cursadaSeed.anio, cuatrimestre: cursadaSeed.cuatrimestre },
+          data: { materiaId: materia.id, anio: cursadaSeed.anio, cuatrimestre: cursadaSeed.cuatrimestre },
         });
         if (!cursadaExistente) cursadasCreadas += 1;
 
         for (const comisionSeed of cursadaSeed.comisiones) {
           const comisionExistente = await prisma.comision.findUnique({
-            where: { cursadaId_nombre: { cursadaId: cursada.id, nombre: comisionSeed.nombre } },
+            where: { cursadaId_carrera_numero: { cursadaId: cursada.id, carrera: comisionSeed.carrera, numero: comisionSeed.numero } },
           });
-          if (!comisionExistente) {
-            await prisma.comision.create({ data: { cursadaId: cursada.id, nombre: comisionSeed.nombre, activa: comisionSeed.activa ?? true } });
-            comisionesCreadas += 1;
+          const comision = comisionExistente ?? await prisma.comision.create({
+            data: { cursadaId: cursada.id, carrera: comisionSeed.carrera, numero: comisionSeed.numero, activa: comisionSeed.activa ?? true },
+          });
+          if (!comisionExistente) comisionesCreadas += 1;
+          const asignaciones = [];
+          for (const [nombreCompleto, cargo] of comisionSeed.profesores) {
+            asignaciones.push({ comisionId: comision.id, profesorId: await profesorId(nombreCompleto), cargo });
           }
+          await prisma.comisionProfesor.createMany({ data: asignaciones, skipDuplicates: true });
         }
       }
     }

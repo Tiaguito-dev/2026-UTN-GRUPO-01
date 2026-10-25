@@ -19,11 +19,13 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/services/academic", () => ({ listarMaterias: vi.fn(), listarProfesores: vi.fn() }));
 vi.mock("@/services/materias", () => ({ listarMaterias: vi.fn() }));
 vi.mock("@/services/users", () => ({ listarUsuarios: vi.fn() }));
+// TASK-043: MateriasList reads the role (useIsAdmin → useAuth) for "Nueva materia".
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ account: { role: "USER" } }) }));
 
 afterEach(cleanup);
 
 const usuario = (id: string) => ({ id, email: `${id}@alu.frlp.utn.edu.ar`, displayName: `Cuenta ${id}`, role: "USER" as const, createdAt: "2026-01-02T00:00:00.000Z" });
-const materia = (id: string) => ({ id, anioCarrera: null, nombre: `Materia ${id}`, createdAt: "2026-01-02T00:00:00.000Z", nivelElectiva: null, deletedAt: null });
+const materia = (id: string) => ({ id, nombre: `Materia ${id}`, carreras: [], createdAt: "2026-01-02T00:00:00.000Z", deletedAt: null });
 const profesor = (id: string) => ({ id, nombreCompleto: `Profesor ${id}`, createdAt: "2026-01-02T00:00:00.000Z", deletedAt: null });
 
 describe.each([
@@ -46,7 +48,7 @@ describe.each([
     setup();
     expect(screen.getByRole("status")).toHaveProperty("textContent", loading);
     expect(await screen.findByText(itemText)).toBeTruthy();
-    expect(fetch).toHaveBeenCalledWith(name === "MateriasList" ? { page: 1, anioCarrera: undefined } : { page: 1 });
+    expect(fetch).toHaveBeenCalledWith(name === "MateriasList" ? { page: 1, carrera: undefined, anioCarrera: undefined } : { page: 1 });
   });
 
   it("ante un error, Reintentar vuelve a pedir la página", async () => {
@@ -69,16 +71,13 @@ describe.each([
     const view = setup();
     await userEvent.click(await screen.findByRole("button", { name: "Página siguiente" }));
     expect(router.replace).toHaveBeenCalledWith(`${pathname}?page=2`, { scroll: false });
-    // TASK-027 decision 3: the page is read from the URL, so the new page is requested once the
-    // URL changes (here, on the re-render after `replace`), not from state kept by the list.
     view.rerender(<Component />);
-    await waitFor(() => expect(fetch).toHaveBeenLastCalledWith(name === "MateriasList" ? { page: 2, anioCarrera: undefined } : { page: 2 }));
+    await waitFor(() => expect(fetch).toHaveBeenLastCalledWith(name === "MateriasList" ? { page: 2, carrera: undefined, anioCarrera: undefined } : { page: 2 }));
   });
 
   it("lleva el foco al h1 al montar", () => {
     fetch.mockReturnValue(new Promise(() => {}));
     setup();
-    // MateriasList: the results area (which holds the loading status) takes focus after the h1.
     if (name === "MateriasList") expect(document.activeElement).toBe(screen.getByRole("status").parentElement);
     else expect(document.activeElement).toBe(screen.getByRole("heading", { level: 1, name: heading }));
   });

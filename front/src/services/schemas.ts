@@ -1,8 +1,17 @@
 import { z } from "zod";
 import { HttpError } from "./http";
-import type { Materia, MateriaHistorial } from "@/types/materias";
+import type { Materia, MateriaCarrera, MateriaHistorial } from "@/types/materias";
 import type { PublicAccount } from "@/types/auth";
-import type { Comision, Cursada, CursadaDetalle, CursadaResumen, Profesor } from "./academic";
+import type {
+  CargoDocente,
+  Comision,
+  ComisionDetalle,
+  Cursada,
+  CursadaDetalle,
+  CursadaResumen,
+  Profesor,
+  ProfesorAsignado,
+} from "./academic";
 import type { UsuarioRegistrado } from "./users";
 import type { PaginatedResult } from "./pagination";
 
@@ -23,43 +32,100 @@ export function paginatedSchema<T>(item: z.ZodType<T>): z.ZodType<PaginatedResul
 }
 
 const cuatrimestre = z.enum(["PRIMERO", "SEGUNDO"]);
+const carrera = z.enum(["S", "C", "Q", "I", "M"]);
+const cargo: z.ZodType<CargoDocente> = z.enum(["TITULAR", "ADJUNTO", "JTP"]);
+
+export const materiaCarreraSchema: z.ZodType<MateriaCarrera> = z.object({
+  carrera,
+  anioCarrera: z.enum(["1", "2", "3", "4", "5", "ELECTIVA"]),
+  nivelElectiva: z.enum(["3", "4", "5"]).nullable(),
+});
 
 export const materiaSchema: z.ZodType<Materia> = z.object({
   id: z.string(),
   nombre: z.string(),
-  anioCarrera: z.enum(["1", "2", "3", "4", "5", "ELECTIVA"]).nullable(),
-  nivelElectiva: z.enum(["3", "4", "5"]).nullable(),
+  carreras: z.array(materiaCarreraSchema),
   createdAt: z.string(),
   deletedAt: z.string().nullable(),
 });
+
 export const materiaHistorialSchema: z.ZodType<MateriaHistorial> = z.object({
   id: z.string(),
   materiaId: z.string(),
-  actorId: z.string(),
+  actor: z.object({
+    id: z.string(),
+    displayName: z.string(),
+  }),
   createdAt: z.string(),
-  cambios: z.array(z.object({ campo: z.enum(["nombre", "anioCarrera", "nivelElectiva"]), anterior: z.string().nullable(), nuevo: z.string().nullable() })),
+  cambios: z.array(
+    z.object({
+      campo: z.enum(["nombre", "anioCarrera", "nivelElectiva", "carreras"]),
+      anterior: z.string().nullable(),
+      nuevo: z.string().nullable(),
+    })
+  ),
 });
-export const profesorSchema: z.ZodType<Profesor> = z.object({ id: z.string(), nombreCompleto: z.string(), createdAt: z.string(), deletedAt: z.string().nullable() });
+
+export const profesorSchema: z.ZodType<Profesor> = z.object({
+  id: z.string(),
+  nombreCompleto: z.string(),
+  createdAt: z.string(),
+  deletedAt: z.string().nullable(),
+});
+
 export const cursadaSchema: z.ZodType<Cursada> = z.object({
   id: z.string(),
   materiaId: z.string(),
-  profesorId: z.string(),
   anio: z.number(),
   cuatrimestre,
   createdAt: z.string(),
   deletedAt: z.string().nullable(),
 });
-const cursadaResumenFields = { id: z.string(), anio: z.number(), cuatrimestre, profesor: z.string() };
-export const cursadaResumenSchema: z.ZodType<CursadaResumen> = z.object(cursadaResumenFields);
-export const cursadaDetalleSchema: z.ZodType<CursadaDetalle> = z.object({ ...cursadaResumenFields, materia: z.object({ id: z.string(), nombre: z.string() }) });
-export const comisionSchema: z.ZodType<Comision> = z.object({
+
+export const cursadaResumenSchema: z.ZodType<CursadaResumen> = z.object({
+  id: z.string(),
+  anio: z.number(),
+  cuatrimestre,
+  comisiones: z.number(),
+  profesores: z.number(),
+  carreras: z.array(carrera),
+});
+
+export const cursadaDetalleSchema: z.ZodType<CursadaDetalle> = z.object({
+  id: z.string(),
+  anio: z.number(),
+  cuatrimestre,
+  materia: z.object({ id: z.string(), nombre: z.string() }),
+});
+
+export const profesorAsignadoSchema: z.ZodType<ProfesorAsignado> = z.object({
+  id: z.string(),
+  nombreCompleto: z.string(),
+  cargo,
+});
+
+const comisionRawSchema = z.object({
   id: z.string(),
   cursadaId: z.string(),
+  carrera,
+  numero: z.number(),
   nombre: z.string(),
   activa: z.boolean(),
+  profesores: z.array(profesorAsignadoSchema),
   createdAt: z.string(),
   deletedAt: z.string().nullable(),
 });
+export const comisionSchema: z.ZodType<Comision> = comisionRawSchema;
+
+export const comisionDetalleSchema: z.ZodType<ComisionDetalle> = comisionRawSchema.extend({
+  cursada: z.object({
+    id: z.string(),
+    anio: z.number(),
+    cuatrimestre,
+    materia: z.object({ id: z.string(), nombre: z.string() }),
+  }),
+});
+
 export const usuarioRegistradoSchema: z.ZodType<UsuarioRegistrado> = z.object({
   id: z.string(),
   email: z.string(),
@@ -67,6 +133,7 @@ export const usuarioRegistradoSchema: z.ZodType<UsuarioRegistrado> = z.object({
   role: z.enum(["ADMIN", "USER"]),
   createdAt: z.string(),
 });
+
 /** `createdAt` is optional on purpose: a non-string value is dropped, not rejected. */
 export const publicAccountSchema: z.ZodType<PublicAccount> = z.object({
   id: z.string().min(1),
@@ -75,4 +142,5 @@ export const publicAccountSchema: z.ZodType<PublicAccount> = z.object({
   role: z.enum(["ADMIN", "USER"]),
   createdAt: z.string().optional().catch(undefined),
 });
+
 export const messageSchema = z.object({ message: z.string() });

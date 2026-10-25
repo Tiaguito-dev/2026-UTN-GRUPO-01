@@ -26,11 +26,11 @@ Contrato HTTP (siempre requiere sesión; escrituras solo ADMIN):
 - `PATCH /materias/:materiaId`: cuerpo estricto con diferencias de `nombre` y/o
   `anioCarrera` y/o `nivelElectiva`. Rechaza clasificación nula y años fuera de catálogo. Retorna el detalle
   actualizado; los valores idénticos no generan escritura ni historial.
-- `GET /materias/:materiaId/historial?page=1&pageSize=3`: tamaño por defecto y máximo 3,
-  más reciente primero con desempate por id. Cada elemento contiene `id`, `materiaId`,
-  `actorId`, `createdAt` y `cambios: [{campo, anterior, nuevo}]`; `campo` es `nombre`,
-  `anioCarrera` o `nivelElectiva`. Los valores anterior y nuevo admiten null.
-  No se publican correos ni otros datos del actor.
+- `GET /materias/:materiaId/historial?page=1&pageSize=3`: exclusivo para rol ADMIN (`@Roles("ADMIN")`,
+  403 para otros roles); tamaño por defecto y máximo 3, más reciente primero con desempate por id.
+  Cada elemento contiene `id`, `materiaId`, `actorId`, `actor: { id, displayName }`, `createdAt` y
+  `cambios: [{campo, anterior, nuevo}]`; `campo` es `nombre`, `anioCarrera`, `nivelElectiva` o `carreras`.
+  Los valores anterior y nuevo admiten null. No se publican correos ni otros datos sensibles del actor.
 
 Ambos listados retornan `{items,total,page,pageSize}`. Validación inválida devuelve 400,
 sesión ausente 401, rol insuficiente 403, materia inexistente/inactiva 404 y nombre
@@ -77,6 +77,63 @@ La migración aditiva `20261022010000_materia_nivel_electiva` agrega columna nul
 restricción de catálogo y consistencia con Electiva, e índice de listado con nivel.
 Los registros existentes conservan null sin inferir el plan de estudios. No requiere
 nuevas variables ni dependencias y utiliza el proceso habitual de migración en Docker.
+
+### Carreras, comisiones nuevas y profesores por comisión (TASK-040)
+
+Doble escritura: la API escribe el modelo nuevo y sigue aceptando las formas legadas, que se
+retiran en TASK-044. Enviar las dos formas a la vez es 400.
+
+- Materia: `{nombre, carreras: [{carrera, anioCarrera, nivelElectiva?}]}` (mínimo 1, sin carrera
+  repetida) o la legada `{nombre, anioCarrera, nivelElectiva?}`, que se guarda como carrera `S`.
+  Con `carreras`, las columnas legadas toman la primera fila tal como llega.
+- Comisión: `{cursadaId, carrera, numero}` (número 1-999, carrera de la materia; nombre
+  `S-1`) o la legada `{cursadaId, nombre}` con `carrera`/`numero` null.
+- Cursada: `profesorId` opcional.
+- `PUT /comisiones/:comisionId/profesores/:profesorId {cargo}` (upsert, devuelve
+  `{id, nombreCompleto, cargo}`) y `DELETE` (204), ambos ADMIN. 404: `ComisionNotFoundError`,
+  `ProfesorNotFoundError`, `ProfesorNoAsignadoError`.
+- Historial: un `PATCH` con `carreras` registra un solo cambio `campo: "carreras"` serializado
+  como `S:2,Q:ELECTIVA:4` (orden S, C, Q, I, M; nivel solo si existe), con `serializarCarreras`.
+- Quitar una carrera con comisiones no borradas es 409 `CarreraConComisionesError`. El chequeo
+  corre fuera del lock de la materia: una comisión creada en simultáneo puede pasar.
+- La migración `20261027000000_materia_carrera_backfill` crea la fila `S` de cada materia con año.
+
+### Lecturas con carreras y comisiones (TASK-041)
+
+Las respuestas suman campos sin quitar ninguno. Los legados (`anioCarrera`/`nivelElectiva` de
+materia, `profesor` del resumen de cursada, `nombre` de comisión) se retiran en TASK-044.
+
+- Materia: toda respuesta suma `carreras: [{carrera, anioCarrera, nivelElectiva}]` (orden S, C, Q, I, M).
+- `GET /materias?carrera=Q`: parte de `MateriaCarrera`; año, nivel y `q` filtran sobre esa fila y se
+  ordena por año, nivel (nulos al final), nombre e id. Sin `carrera`, filtros y orden legados.
+  Materias sin fila de carrera no aparecen con ningún `?carrera=`.
+- Resumen de cursada (`GET /materias/:id/cursadas`, `GET /cursadas/:id`): suma `comisiones` y
+  `profesores` (cantidades sobre comisiones activas y no borradas; profesores distintos y no
+  borrados) y `carreras` (letras de esas comisiones, sin nulos, por enum).
+- Comisión (listado y alta): suma `carrera`, `numero` (null en legadas) y
+  `profesores: [{id, nombreCompleto, cargo}]` por cargo y nombre. El listado ordena por carrera,
+  número (nulos al final) y nombre, e incluye inactivas.
+- `GET /comisiones/:comisionId` (sesión): comisión + `cursada {id, anio, cuatrimestre, materia {id, nombre}}`.
+  404 `ComisionNotFoundError` si la comisión, su cursada o su materia están borradas; las inactivas se devuelven.
+
+### Contracción del modelo legado (TASK-044)
+
+Cierre de la migración expand-contract de carreras y comisiones:
+
+- **Modelo y Base de Datos**:
+  - `Comision`: `carrera` y `numero` obligatorios (`NOT NULL`, check `numero BETWEEN 1 AND 999`), índice único `[cursadaId, carrera, numero]`. Columna `nombre` eliminada; el nombre se deriva dinámicamente como `${carrera}-${numero}`.
+  - `Cursada`: columna `profesorId` y su clave foránea/índice eliminados. El resumen y detalle no consultan `ProfesorRepository` (sin N+1).
+  - `Materia`: columnas `anioCarrera` y `nivelElectiva` y sus checks e índices eliminados.
+  - Migración `20261101000000_contraer_modelo_legado`.
+- **Contratos HTTP y Validación**:
+  - `POST /materias`: exige `{ nombre, carreras: [...] }`. `anioCarrera` y `nivelElectiva` en el body devuelven 400 `CAMPOS_NO_PERMITIDOS`.
+  - `PATCH /materias/:id`: solo `{ nombre?, carreras? }`. Campos legados devuelven 400 `CAMPOS_NO_PERMITIDOS`.
+  - `POST /cursadas`: exige `{ materiaId, anio, cuatrimestre }`. `profesorId` devuelve 400 `CAMPOS_NO_PERMITIDOS`.
+  - `POST /comisiones`: exige `{ cursadaId, carrera, numero }`. `nombre` devuelve 400 `CAMPOS_NO_PERMITIDOS`.
+  - `GET /materias`: sin filtro de `carrera`, ordena por `nombre ASC, id ASC`. Enviar `anioCarrera` o `nivelElectiva` sin `carrera` devuelve 400.
+  - `GET /materias/:id/historial`: omite `actorId` en la respuesta (conserva `actor: { id, displayName }`), y mantiene `anioCarrera` y `nivelElectiva` en el enum `campo` para auditoría histórica.
+- **Despliegue (orden invertido)**:
+  - Al eliminar columnas de la base de datos, el código nuevo (que ya no las referencia) debe desplegarse en Render ANTES de correr `db:deploy` en Neon, para evitar caídas por columnas faltantes mientras la versión anterior esté atendiendo tráfico.
 
 ## Contenedor
 

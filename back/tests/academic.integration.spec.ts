@@ -38,8 +38,6 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     expect(response.status).toBe(201);
     // Fixture authenticated explicitly; registration itself remains pending.
     await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
-    // Authenticated fixtures explicitly verify their accounts.
-    await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
     return user as { id: string; email: string };
   }
   async function sessionCookie() {
@@ -60,10 +58,26 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     profesorIds.add(profesor.id);
     return profesor;
   }
-  async function createCursada(materiaId: string, profesorId: string, anio = 2026) {
-    const cursada = await prisma.cursada.create({ data: { materiaId, profesorId, anio, cuatrimestre: "PRIMERO" } });
+  async function createCursada(materiaId: string, anio = 2026) {
+    const cursada = await prisma.cursada.create({ data: { materiaId, anio, cuatrimestre: "PRIMERO" } });
     cursadaIds.add(cursada.id);
     return cursada;
+  }
+  type CarreraFila = { carrera: "S" | "C" | "Q" | "I" | "M"; anioCarrera: string; nivelElectiva?: string | null };
+  /** Materia con filas de MateriaCarrera creadas en el orden recibido (no en el del enum). */
+  async function createMateriaConCarreras(nombre: string, carreras: CarreraFila[]) {
+    const materia = await prisma.materia.create({ data: { nombre } });
+    materiaIds.add(materia.id);
+    for (const fila of carreras) await prisma.materiaCarrera.create({ data: { materiaId: materia.id, nivelElectiva: null, ...fila } });
+    return materia;
+  }
+  async function createComision(cursadaId: string, data: { carrera: CarreraFila["carrera"]; numero: number; activa?: boolean; deletedAt?: Date }) {
+    const comision = await prisma.comision.create({ data: { cursadaId, ...data } });
+    comisionIds.add(comision.id);
+    return comision;
+  }
+  async function asignar(comisionId: string, profesorId: string, cargo: "TITULAR" | "ADJUNTO" | "JTP") {
+    await prisma.comisionProfesor.create({ data: { comisionId, profesorId, cargo } });
   }
 
   beforeAll(async () => {
@@ -80,6 +94,8 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
 
   afterAll(async () => {
     if (prisma) {
+      if (comisionIds.size) await prisma.comisionProfesor.deleteMany({ where: { comisionId: { in: [...comisionIds] } } });
+      if (materiaIds.size) await prisma.materiaCarrera.deleteMany({ where: { materiaId: { in: [...materiaIds] } } });
       if (comisionIds.size) await prisma.comision.deleteMany({ where: { id: { in: [...comisionIds] } } });
       if (cursadaIds.size) await prisma.cursada.deleteMany({ where: { id: { in: [...cursadaIds] } } });
       if (materiaIds.size) await prisma.materia.deleteMany({ where: { id: { in: [...materiaIds] } } });
@@ -104,19 +120,18 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     const nombreBase = randomUUID();
     const first = await createMateria(`A-${nombreBase}`);
     const second = await createMateria(`B-${nombreBase}`);
-    await prisma.materia.updateMany({ where: { id: { in: [first.id, second.id] } }, data: { anioCarrera: "5" } });
+    await prisma.materiaCarrera.createMany({ data: [{ materiaId: first.id, carrera: "S", anioCarrera: "5" }, { materiaId: second.id, carrera: "S", anioCarrera: "5" }] });
 
-    const page1 = await get(`/materias?anioCarrera=5&page=1&pageSize=1`, cookie);
+    const page1 = await get(`/materias?carrera=S&anioCarrera=5&page=1&pageSize=1`, cookie);
     expect(page1.status).toBe(200);
     const body1 = await page1.json();
     expect(body1).toMatchObject({ page: 1, pageSize: 1 });
     expect(body1.items).toHaveLength(1);
     expect(body1.items[0].id).toBe(first.id);
 
-    const page2 = await get(`/materias?anioCarrera=5&page=2&pageSize=1`, cookie);
+    const page2 = await get(`/materias?carrera=S&anioCarrera=5&page=2&pageSize=1`, cookie);
     const body2 = await page2.json();
     expect(body2.items[0].id).toBe(second.id);
-    await prisma.materia.updateMany({ where: { id: { in: [first.id, second.id] } }, data: { deletedAt: new Date() } });
   });
 
   it("una materia soft-deleted no aparece en los resultados", async () => {
@@ -138,45 +153,35 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     expect(ids).not.toContain(deleted.id);
   });
 
-  it("filtra y ordena en PostgreSQL antes de paginar, dejando Electiva y heredadas al final", async () => {
+  it("filtra y ordena en PostgreSQL antes de paginar", async () => {
     const cookie = await sessionCookie();
     const prefix = randomUUID();
     const rows = [];
-    for (const anioCarrera of [null, "ELECTIVA", "5", "2", "1"]) {
-      const row = await prisma.materia.create({ data: { nombre: `A-${prefix}-${anioCarrera}`, anioCarrera } });
-      materiaIds.add(row.id); rows.push(row);
+    for (const anioCarrera of ["ELECTIVA", "5", "2", "1"]) {
+      const row = await createMateriaConCarreras(`A-${prefix}-${anioCarrera}`, [{ carrera: "S", anioCarrera }]);
+      rows.push(row);
     }
     const yearFive = [];
     for (let i = 11; i >= 0; i--) {
-      const row = await prisma.materia.create({ data: { nombre: `Z-${prefix}-${String(i).padStart(2, "0")}`, anioCarrera: "5" } });
-      materiaIds.add(row.id); yearFive.push(row);
+      const row = await createMateriaConCarreras(`Z-${prefix}-${String(i).padStart(2, "0")}`, [{ carrera: "S", anioCarrera: "5" }]);
+      yearFive.push(row);
     }
-    const first = await (await get(`/materias?anioCarrera=5&q=${prefix}`, cookie)).json();
-    const second = await (await get(`/materias?anioCarrera=5&page=2&q=${prefix}`, cookie)).json();
+    const first = await (await get(`/materias?carrera=S&anioCarrera=5&q=${prefix}`, cookie)).json();
+    const second = await (await get(`/materias?carrera=S&anioCarrera=5&page=2&q=${prefix}`, cookie)).json();
     expect(first).toMatchObject({ page: 1, pageSize: 9, total: 13 });
     expect(second).toMatchObject({ page: 2, pageSize: 9, total: 13 });
-    const optionsResponse = await get(`/materias?anioCarrera=5&pageSize=100&q=${prefix}`, cookie);
+    const optionsResponse = await get(`/materias?carrera=S&anioCarrera=5&pageSize=100&q=${prefix}`, cookie);
     expect(optionsResponse.status).toBe(200);
     const options = await optionsResponse.json();
     expect(options).toMatchObject({ page: 1, pageSize: 100, total: 13 });
     expect(options.items).toHaveLength(13);
     expect((await get("/materias?pageSize=101", cookie)).status).toBe(400);
     const filtered = [...first.items, ...second.items];
-    expect(filtered.every(item => item.anioCarrera === "5")).toBe(true);
-    expect(filtered.map(item => item.nombre)).toEqual([rows[2]!.nombre, ...yearFive.map(row => row.nombre).sort()]);
-    const ids: string[] = [];
-    let page = 1;
-    while (true) {
-      const body = await (await get(`/materias?page=${page}`, cookie)).json();
-      ids.push(...body.items.map((item: { id: string }) => item.id));
-      if (ids.length >= body.total) break;
-      page++;
-    }
-    const ordered = [...rows].reverse().map(row => ids.indexOf(row.id));
-    expect(ordered.every(index => index >= 0)).toBe(true);
-    expect(ordered).toEqual([...ordered].sort((a, b) => a - b));
-    expect((await get("/materias?anioCarrera=6", cookie)).status).toBe(400);
-    expect((await get("/materias?anioCarrera=1&anioCarrera=2", cookie)).status).toBe(400);
+    expect(filtered.map(item => item.nombre)).toEqual([rows[1]!.nombre, ...yearFive.map(row => row.nombre).sort()]);
+    // Sin carrera, anioCarrera da 400
+    expect((await get("/materias?anioCarrera=5", cookie)).status).toBe(400);
+    expect((await get("/materias?carrera=S&anioCarrera=6", cookie)).status).toBe(400);
+    expect((await get("/materias?carrera=S&anioCarrera=1&anioCarrera=2", cookie)).status).toBe(400);
   });
 
   it("combina búsqueda literal sin distinguir mayúsculas, año y nivel antes de paginar", async () => {
@@ -184,8 +189,10 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     const prefix = randomUUID();
     const expected: string[] = [];
     async function seed(nombre: string, nivelElectiva = "4", deletedAt: Date | null = null) {
-      const row = await prisma.materia.create({ data: { nombre, anioCarrera: "ELECTIVA", nivelElectiva, deletedAt } });
-      materiaIds.add(row.id); return row;
+      const row = await prisma.materia.create({ data: { nombre, deletedAt } });
+      materiaIds.add(row.id);
+      await prisma.materiaCarrera.create({ data: { materiaId: row.id, carrera: "S", anioCarrera: "ELECTIVA", nivelElectiva } });
+      return row;
     }
     for (let i = 0; i < 12; i++) expected.push((await seed(`${prefix} Plan%_${String(i).padStart(2, "0")}`)).id);
     await seed(`${prefix} PlanXY`);
@@ -193,14 +200,14 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     await seed(`${prefix} PlanY_`);
     await seed(`${prefix} Plan%_nivel3`, "3");
     await seed(`${prefix} Plan%_deleted`, "4", new Date());
-    const query = new URLSearchParams({ q: `  ${prefix} PLAN%_  `, anioCarrera: "ELECTIVA", nivelElectiva: "4" });
+    const query = new URLSearchParams({ carrera: "S", q: `  ${prefix} PLAN%_  `, anioCarrera: "ELECTIVA", nivelElectiva: "4" });
     const first = await (await get(`/materias?${query}`, cookie)).json();
     const second = await (await get(`/materias?${query}&page=2`, cookie)).json();
     expect(first).toMatchObject({ total: 12, pageSize: 9 });
     expect(first.items).toHaveLength(9);
     expect(second.items).toHaveLength(3);
     expect([...first.items, ...second.items].map((item: { id: string }) => item.id)).toEqual(expected);
-    expect((await get("/materias?anioCarrera=2&nivelElectiva=4", cookie)).status).toBe(400);
+    expect((await get("/materias?carrera=S&anioCarrera=2&nivelElectiva=4", cookie)).status).toBe(400);
   });
 
   it("GET /materias/:id/cursadas con UUID inexistente devuelve 404 con el mensaje de MateriaNotFoundError", async () => {
@@ -217,16 +224,17 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     expect(response.status).toBe(400);
   });
 
-  it("GET /materias/:id/cursadas devuelve el nombre del profesor para una materia existente", async () => {
+  it("GET /materias/:id/cursadas devuelve el resumen para una materia existente", async () => {
     const cookie = await sessionCookie();
     const materia = await createMateria();
-    const profesor = await createProfesor();
-    const cursada = await createCursada(materia.id, profesor.id);
+    const cursada = await createCursada(materia.id);
 
     const response = await get(`/materias/${materia.id}/cursadas`, cookie);
     const body = await response.json();
     expect(response.status).toBe(200);
-    expect(body.items).toEqual([{ id: cursada.id, anio: cursada.anio, cuatrimestre: cursada.cuatrimestre, profesor: profesor.nombreCompleto }]);
+    expect(body.items).toEqual([{
+      id: cursada.id, anio: cursada.anio, cuatrimestre: cursada.cuatrimestre, comisiones: 0, profesores: 0, carreras: [],
+    }]);
   });
 
   it("GET /materias/:id exige sesión y devuelve la misma forma que un ítem del listado", async () => {
@@ -237,7 +245,7 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     const response = await get(`/materias/${materia.id}`, cookie);
     expect(response.status).toBe(200);
     expect(await response.json()).toStrictEqual({
-      id: materia.id, nombre: materia.nombre, anioCarrera: null, nivelElectiva: null, createdAt: materia.createdAt.toISOString(), deletedAt: null,
+      id: materia.id, nombre: materia.nombre, carreras: [], createdAt: materia.createdAt.toISOString(), deletedAt: null,
     });
     const listado = await (await get(`/materias?q=${encodeURIComponent(materia.nombre)}`, cookie)).json();
     expect(listado.items).toEqual([await (await get(`/materias/${materia.id}`, cookie)).json()]);
@@ -254,27 +262,165 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
 
   it("GET /cursadas/:id exige sesión y devuelve el resumen con la materia", async () => {
     const materia = await createMateria();
-    const profesor = await createProfesor();
-    const cursada = await createCursada(materia.id, profesor.id, 2025);
+    const cursada = await createCursada(materia.id, 2025);
     expect((await get(`/cursadas/${cursada.id}`)).status).toBe(401);
 
     const cookie = await sessionCookie();
     const response = await get(`/cursadas/${cursada.id}`, cookie);
     expect(response.status).toBe(200);
     expect(await response.json()).toStrictEqual({
-      id: cursada.id, anio: 2025, cuatrimestre: "PRIMERO", profesor: profesor.nombreCompleto, materia: { id: materia.id, nombre: materia.nombre },
+      id: cursada.id, anio: 2025, cuatrimestre: "PRIMERO", comisiones: 0, profesores: 0, carreras: [],
+      materia: { id: materia.id, nombre: materia.nombre },
     });
   });
 
   it("GET /cursadas/:id responde 400 con id inválido y 404 si no existe o está dada de baja", async () => {
     const cookie = await sessionCookie();
     const materia = await createMateria();
-    const cursada = await createCursada(materia.id, (await createProfesor()).id);
+    const cursada = await createCursada(materia.id);
     await prisma.cursada.update({ where: { id: cursada.id }, data: { deletedAt: new Date() } });
     expect((await get(`/cursadas/not-a-uuid`, cookie)).status).toBe(400);
     const missing = await get(`/cursadas/${randomUUID()}`, cookie);
     expect(missing.status).toBe(404);
     expect((await missing.json()).message).toBe("La cursada solicitada no existe.");
     expect((await get(`/cursadas/${cursada.id}`, cookie)).status).toBe(404);
+  });
+
+  describe("lecturas con carreras y comisiones (TASK-041)", () => {
+    const iso = (fecha: Date) => fecha.toISOString();
+
+    it("GET /materias?carrera=Q incluye comunes, respeta año/nivel/q y ordena por año, nivel (nulos al final) y nombre", async () => {
+      const cookie = await sessionCookie();
+      const prefix = randomUUID();
+      const soloS = await createMateriaConCarreras(`${prefix} A solo S`, [{ carrera: "S", anioCarrera: "1" }]);
+      // Filas creadas Q antes que S: la respuesta igual las ordena por el enum.
+      const comun = await createMateriaConCarreras(`${prefix} B común`, [{ carrera: "Q", anioCarrera: "2" }, { carrera: "S", anioCarrera: "3" }]);
+      const q1d = await createMateriaConCarreras(`${prefix} D Q1`, [{ carrera: "Q", anioCarrera: "1" }]);
+      const q1c = await createMateriaConCarreras(`${prefix} C Q1`, [{ carrera: "Q", anioCarrera: "1" }]);
+      const e4 = await createMateriaConCarreras(`${prefix} A electiva 4`, [{ carrera: "Q", anioCarrera: "ELECTIVA", nivelElectiva: "4" }]);
+      const e3 = await createMateriaConCarreras(`${prefix} Z electiva 3`, [{ carrera: "Q", anioCarrera: "ELECTIVA", nivelElectiva: "3" }]);
+      const eSinNivel = await createMateriaConCarreras(`${prefix} B electiva sin nivel`, [{ carrera: "Q", anioCarrera: "ELECTIVA" }]);
+      const borrada = await createMateriaConCarreras(`${prefix} E borrada`, [{ carrera: "Q", anioCarrera: "2" }]);
+      await prisma.materia.update({ where: { id: borrada.id }, data: { deletedAt: new Date() } });
+      const ids = async (query: string) => {
+        const response = await get(`/materias?q=${prefix}&${query}`, cookie);
+        expect(response.status).toBe(200);
+        return ((await response.json()).items as { id: string }[]).map((item) => item.id);
+      };
+
+      await expect(ids("carrera=Q&pageSize=100")).resolves.toEqual([q1c.id, q1d.id, comun.id, e3.id, e4.id, eSinNivel.id]);
+      await expect(ids("carrera=Q&anioCarrera=2")).resolves.toEqual([comun.id]);
+      await expect(ids("carrera=Q&anioCarrera=ELECTIVA&nivelElectiva=4")).resolves.toEqual([e4.id]);
+      await expect(ids("carrera=S")).resolves.toEqual([soloS.id, comun.id]);
+      const pagina = await (await get(`/materias?q=${prefix}&carrera=Q&pageSize=2&page=2`, cookie)).json();
+      expect(pagina).toMatchObject({ total: 6, page: 2, pageSize: 2 });
+      expect(pagina.items.map((item: { id: string }) => item.id)).toEqual([comun.id, e3.id]);
+      expect((await get("/materias?carrera=X", cookie)).status).toBe(400);
+      expect((await get("/materias?carrera=Q&carrera=S", cookie)).status).toBe(400);
+
+      // Sin carrera, anioCarrera da 400
+      expect((await get("/materias?anioCarrera=3", cookie)).status).toBe(400);
+
+      const esperado = {
+        id: comun.id, nombre: comun.nombre,
+        carreras: [{ carrera: "S", anioCarrera: "3", nivelElectiva: null }, { carrera: "Q", anioCarrera: "2", nivelElectiva: null }],
+        createdAt: iso(comun.createdAt), deletedAt: null,
+      };
+      expect((await (await get(`/materias?q=${prefix}&carrera=Q&anioCarrera=2`, cookie)).json()).items).toStrictEqual([esperado]);
+      expect(await (await get(`/materias/${comun.id}`, cookie)).json()).toStrictEqual(esperado);
+    });
+
+    it("toda materia devuelve carreras en el orden del enum S, C, Q, I, M", async () => {
+      const cookie = await sessionCookie();
+      const materia = await createMateriaConCarreras(`Materia ${randomUUID()}`, ["M", "I", "C", "Q", "S"].map((carrera) =>
+        ({ carrera: carrera as CarreraFila["carrera"], anioCarrera: "1" })));
+      const body = await (await get(`/materias/${materia.id}`, cookie)).json();
+      expect(body.carreras.map((fila: { carrera: string }) => fila.carrera)).toEqual(["S", "C", "Q", "I", "M"]);
+      expect(body).not.toHaveProperty("anioCarrera");
+    });
+
+    it("el resumen de cursada cuenta comisiones activas y profesores distintos, con las carreras en orden del enum", async () => {
+      const cookie = await sessionCookie();
+      const materia = await createMateria();
+      const [p1, p2, p3, p4] = await Promise.all([createProfesor(), createProfesor(), createProfesor(), createProfesor()]);
+      const cursada = await createCursada(materia.id, 2025);
+      const q1 = await createComision(cursada.id, { carrera: "Q", numero: 1 });
+      const s1 = await createComision(cursada.id, { carrera: "S", numero: 1 });
+      const inactiva = await createComision(cursada.id, { carrera: "M", numero: 1, activa: false });
+      const borrada = await createComision(cursada.id, { carrera: "I", numero: 1, deletedAt: new Date() });
+      await asignar(q1.id, p1.id, "TITULAR");
+      await asignar(s1.id, p1.id, "ADJUNTO");
+      await asignar(s1.id, p2.id, "JTP");
+      await asignar(inactiva.id, p3.id, "TITULAR");
+      await asignar(borrada.id, p4.id, "TITULAR");
+      const resumen = { id: cursada.id, anio: 2025, cuatrimestre: "PRIMERO", comisiones: 2, profesores: 2, carreras: ["S", "Q"] };
+
+      expect((await (await get(`/materias/${materia.id}/cursadas`, cookie)).json()).items).toStrictEqual([resumen]);
+      expect(await (await get(`/cursadas/${cursada.id}`, cookie)).json()).toStrictEqual({ ...resumen, materia: { id: materia.id, nombre: materia.nombre } });
+    });
+
+    it("GET /cursadas/:id/comisiones ordena por carrera y número, con profesores por cargo y nombre", async () => {
+      const cookie = await sessionCookie();
+      const prefix = randomUUID();
+      const cursada = await createCursada((await createMateria()).id);
+      const q1 = await createComision(cursada.id, { carrera: "Q", numero: 1 });
+      const s10 = await createComision(cursada.id, { carrera: "S", numero: 10 });
+      const s2 = await createComision(cursada.id, { carrera: "S", numero: 2 });
+      const m1 = await createComision(cursada.id, { carrera: "M", numero: 1, activa: false });
+      await createComision(cursada.id, { carrera: "S", numero: 3, deletedAt: new Date() });
+      const [zoe, ana, bruno, abel] = await Promise.all(["Zoe", "Ana", "Bruno", "Abel"].map((nombre) => createProfesor(`${prefix} ${nombre}`)));
+      await asignar(s2.id, zoe!.id, "JTP");
+      await asignar(s2.id, ana!.id, "ADJUNTO");
+      await asignar(s2.id, bruno!.id, "TITULAR");
+      await asignar(s2.id, abel!.id, "JTP");
+
+      const body = await (await get(`/cursadas/${cursada.id}/comisiones`, cookie)).json();
+      expect(body).toMatchObject({ total: 4 });
+      expect(body.items.map((item: { id: string }) => item.id)).toEqual([s2.id, s10.id, q1.id, m1.id]);
+      expect(body.items[0]).toStrictEqual({
+        id: s2.id, cursadaId: cursada.id, nombre: "S-2", activa: true, carrera: "S", numero: 2,
+        profesores: [bruno, ana, abel, zoe].map((p) => ({ id: p!.id, nombreCompleto: p!.nombreCompleto, cargo: p === bruno ? "TITULAR" : p === ana ? "ADJUNTO" : "JTP" })),
+        createdAt: iso(s2.createdAt), deletedAt: null,
+      });
+    });
+
+    it("GET /comisiones/:id exige sesión y devuelve la comisión con la cursada y su materia, aunque esté inactiva", async () => {
+      const materia = await createMateria();
+      const profesor = await createProfesor();
+      const cursada = await createCursada(materia.id, 2025);
+      const comision = await createComision(cursada.id, { carrera: "S", numero: 31, activa: false });
+      await asignar(comision.id, profesor.id, "TITULAR");
+      expect((await get(`/comisiones/${comision.id}`)).status).toBe(401);
+
+      const cookie = await sessionCookie();
+      const response = await get(`/comisiones/${comision.id}`, cookie);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toStrictEqual({
+        id: comision.id, cursadaId: cursada.id, nombre: "S-31", activa: false, carrera: "S", numero: 31,
+        profesores: [{ id: profesor.id, nombreCompleto: profesor.nombreCompleto, cargo: "TITULAR" }],
+        createdAt: iso(comision.createdAt), deletedAt: null,
+        cursada: { id: cursada.id, anio: 2025, cuatrimestre: "PRIMERO", materia: { id: materia.id, nombre: materia.nombre } },
+      });
+    });
+
+    it("GET /comisiones/:id responde 400 con id inválido y 404 si no existe o están borradas la comisión, su cursada o su materia", async () => {
+      const cookie = await sessionCookie();
+      expect((await get("/comisiones/not-a-uuid", cookie)).status).toBe(400);
+      const missing = await get(`/comisiones/${randomUUID()}`, cookie);
+      expect(missing.status).toBe(404);
+      expect((await missing.json()).message).toBe("La comisión solicitada no existe.");
+      for (const borrar of ["comision", "cursada", "materia"] as const) {
+        const materia = await createMateria();
+        const cursada = await createCursada(materia.id);
+        const comision = await createComision(cursada.id, { carrera: "S", numero: 1 });
+        const data = { deletedAt: new Date() };
+        if (borrar === "comision") await prisma.comision.update({ where: { id: comision.id }, data });
+        if (borrar === "cursada") await prisma.cursada.update({ where: { id: cursada.id }, data });
+        if (borrar === "materia") await prisma.materia.update({ where: { id: materia.id }, data });
+        const response = await get(`/comisiones/${comision.id}`, cookie);
+        expect(response.status, borrar).toBe(404);
+        expect((await response.json()).message).toBe("La comisión solicitada no existe.");
+      }
+    });
   });
 });
