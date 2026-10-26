@@ -162,6 +162,13 @@ ya corriendo del stack de desarrollo (misma imagen `axllent/mailpit:v1.29.2` que
 
 ### Hallazgos de lint (4, los cuatro justificados)
 
+Seguimiento del 2026-10-26 (TASK-055): `back/src/auth/email.config.ts` incorporó
+otra validación deliberada de caracteres de control para la configuración de
+correo. Se agregó la misma excepción puntual `no-control-regex` con motivo.
+Lint de ambos workspaces: exit 0, sin errores ni advertencias; pruebas de
+configuración del proveedor de correo: 13/13 aprobadas. Este seguimiento no
+cierra las verificaciones pendientes de CI de TASK-036.
+
 Los cuatro son la misma regla, `no-control-regex`, sobre regex de validación de entrada que
 rechazan caracteres de control deliberadamente (NUL, DEL, C0/C1): no son errores de tipeo, son el
 comportamiento buscado. Se agregó `// eslint-disable-next-line no-control-regex -- <motivo>` en

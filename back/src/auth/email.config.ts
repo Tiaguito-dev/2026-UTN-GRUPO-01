@@ -19,6 +19,7 @@ export function readEmailConfig(env: NodeJS.ProcessEnv): EmailConfig {
   if (provider !== "brevo") return fail("EMAIL_PROVIDER");
   const required = (name: string, fallback?: string): string => {
     const value = (env[name] ?? fallback)?.trim();
+    // eslint-disable-next-line no-control-regex -- rechaza caracteres de control deliberadamente, no es un error de tipeo
     if (!value || /[\u0000-\u001f\u007f]/u.test(value)) return fail(name);
     return value;
   };

@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### Validación de lint en ambos workspaces (TASK-055)
+
+- Excepción puntual y justificada de `no-control-regex` en la configuración de
+  correo: conserva el rechazo deliberado de caracteres de control.
+- Lint de backend y frontend sin errores ni advertencias; 13 pruebas de
+  configuración del proveedor de correo aprobadas en el entorno local disponible.
+
 ### Correo por Brevo HTTPS (TASK-028)
 
 - Selección de proveedor SMTP o Brevo para verificación institucional y recuperación de
