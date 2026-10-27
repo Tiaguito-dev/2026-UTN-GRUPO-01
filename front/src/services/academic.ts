@@ -16,7 +16,7 @@ import type { Carrera } from "@/types/materias";
 
 export type { Materia, Carrera, MateriaCarrera } from "@/types/materias";
 export interface Profesor { id: string; nombreCompleto: string; createdAt: string; deletedAt: string | null }
-export type Cuatrimestre = "PRIMERO" | "SEGUNDO";
+export type Cuatrimestre = "PRIMERO" | "SEGUNDO" | "ANUAL";
 export const CARGOS = ["TITULAR", "ADJUNTO", "JTP"] as const;
 export type CargoDocente = typeof CARGOS[number];
 export interface ProfesorAsignado { id: string; nombreCompleto: string; cargo: CargoDocente }

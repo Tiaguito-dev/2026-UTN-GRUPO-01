@@ -22,6 +22,37 @@ const mockMateria: Materia = {
 };
 
 describe("MateriaForm", () => {
+  it("usa un selector multiple de carreras, precarga dos y conserva su oferta al guardar", async () => {
+    const existing: Materia = { ...mockMateria, carreras: [{ carrera: "S", anioCarrera: "3", nivelElectiva: null }, { carrera: "Q", anioCarrera: "3", nivelElectiva: null }] };
+    vi.mocked(actualizarMateria).mockResolvedValue(existing);
+    render(<MateriaForm materia={existing} onSuccess={vi.fn()} />);
+    const select = screen.getByRole("listbox", { name: "Carreras" }) as HTMLSelectElement;
+    expect(select.multiple).toBe(true);
+    expect(Array.from(select.selectedOptions, (option) => option.value)).toEqual(["S", "Q"]);
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    await userEvent.clear(screen.getByLabelText("Nombre de la materia"));
+    await userEvent.type(screen.getByLabelText("Nombre de la materia"), "Nombre nuevo");
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(actualizarMateria).toHaveBeenCalledWith("m-1", { nombre: "Nombre nuevo" });
+  });
+  it("selecciona dos carreras para alta y envía ambas con el año elegido", async () => {
+    vi.mocked(crearMateria).mockResolvedValue(mockMateria);
+    render(<MateriaForm onSuccess={vi.fn()} />);
+    await userEvent.type(screen.getByLabelText("Nombre de la materia"), "Álgebra");
+    await userEvent.selectOptions(screen.getByRole("listbox", { name: "Carreras" }), ["S", "Q"]);
+    await userEvent.selectOptions(screen.getByLabelText("Año de la carrera"), "2");
+    await userEvent.click(screen.getByRole("button", { name: "Crear materia" }));
+    expect(crearMateria).toHaveBeenCalledWith({ nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "2", nivelElectiva: null }, { carrera: "Q", anioCarrera: "2", nivelElectiva: null }] });
+  });
+  it("enfoca el selector de carreras ante selección vacía", async () => {
+    render(<MateriaForm onSuccess={vi.fn()} />);
+    await userEvent.type(screen.getByLabelText("Nombre de la materia"), "Álgebra");
+    await userEvent.selectOptions(screen.getByLabelText("Año de la carrera"), "2");
+    await userEvent.click(screen.getByRole("button", { name: "Crear materia" }));
+    const select = screen.getByRole("listbox", { name: "Carreras" });
+    expect(document.activeElement).toBe(select);
+    expect(select.getAttribute("aria-invalid")).toBe("true");
+  });
   it("el cuerpo no renderiza h1", () => {
     render(<MateriaForm onSuccess={vi.fn()} />);
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
@@ -34,7 +65,7 @@ describe("MateriaForm", () => {
     render(<MateriaForm onSuccess={onSuccess} />);
 
     await userEvent.type(screen.getByLabelText("Nombre de la materia"), "Sistemas Operativos");
-    await userEvent.click(screen.getByLabelText(/S — Ingeniería en Sistemas/));
+    await userEvent.selectOptions(screen.getByRole("listbox", { name: "Carreras" }), "S");
     await userEvent.selectOptions(screen.getByLabelText("Año de la carrera"), "3");
     await userEvent.click(screen.getByRole("button", { name: "Crear materia" }));
 
@@ -52,7 +83,7 @@ describe("MateriaForm", () => {
     render(<MateriaForm onSuccess={onSuccess} />);
 
     await userEvent.type(screen.getByLabelText("Nombre de la materia"), "Sistemas Operativos");
-    await userEvent.click(screen.getByLabelText(/S — Ingeniería en Sistemas/));
+    await userEvent.selectOptions(screen.getByRole("listbox", { name: "Carreras" }), "S");
     await userEvent.selectOptions(screen.getByLabelText("Año de la carrera"), "3");
     await userEvent.click(screen.getByRole("button", { name: "Crear materia" }));
 

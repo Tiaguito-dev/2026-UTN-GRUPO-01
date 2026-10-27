@@ -2,6 +2,19 @@
 
 ## [Sin publicar]
 
+### Administración académica HU-11 (TASK-055)
+
+- Cursadas anuales en alta, edición y navegación, mediante ampliación aditiva del enum de
+  período; selector múltiple de carreras en formularios de materia en lugar de checkbox.
+- Tablas paginadas de materias, profesores, cursadas, comisiones y usuarios, conservando
+  la portada administrativa actual; usuarios permanece como consulta.
+- Edición administrativa de profesores, cursadas y comisiones sobre el modelo vigente,
+  con validación estricta y preservación de docentes, cargos y relaciones.
+- Bloqueo de movimientos de cursada y cambios de carrera incompatibles, también ante
+  operaciones simultáneas; sin bajas, cambios de activa, roles ni auditoría nueva.
+- Altas reutilizadas y retorno seguro a filtros/página del listado. Implementación
+  verificada con datos locales aislados y aprobada por el desarrollador.
+
 ### Correo por Brevo HTTPS (TASK-028)
 
 - Selección de proveedor SMTP o Brevo para verificación institucional y recuperación de

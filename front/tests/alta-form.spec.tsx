@@ -7,6 +7,7 @@ import { AltaForm, type AltaField } from "@/components/admin/AltaForm";
 import { bloqueoDeOpciones, type RecursoDeOpciones } from "@/components/admin/opciones";
 
 vi.mock("next/link", () => import("./support/next-link"));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
 
 afterEach(cleanup);
 

@@ -1,19 +1,10 @@
 "use client";
-
 import { crearProfesor } from "@/services/academic";
 import { MAX_NOMBRE_PROFESOR, validateNombre } from "@/validations/academic";
-import { AltaForm } from "./AltaForm";
-
-export function AltaProfesor() {
-  return <AltaForm
-    breadcrumb={[{ label: "Administración", href: "/home/admin" }, { label: "Nuevo profesor" }]}
-    heading="Nuevo profesor"
-    description="El profesor queda disponible para asignarlo a las cursadas de cualquier materia."
-    submitLabel="Crear profesor"
-    fields={[{ name: "nombreCompleto", label: "Nombre completo", hint: `Hasta ${MAX_NOMBRE_PROFESOR} caracteres.`, validate: (value) => validateNombre(value, MAX_NOMBRE_PROFESOR) }]}
-    onSubmit={async (values) => {
-      const profesor = await crearProfesor({ nombreCompleto: values.nombreCompleto.trim() });
-      return `Profesor creado: ${profesor.nombreCompleto}.`;
-    }}
-  />;
+import { AltaForm, AltaFormFields } from "./AltaForm";
+export function AltaProfesor({ onSuccess, onCancel, onBusyChange }: { onSuccess?: (message: string) => void; onCancel?: () => void; onBusyChange?: (busy: boolean) => void } = {}) {
+  const fields = [{ name: "nombreCompleto" as const, label: "Nombre completo", hint: `Hasta ${MAX_NOMBRE_PROFESOR} caracteres.`, validate: (value: string) => validateNombre(value, MAX_NOMBRE_PROFESOR) }];
+  const onSubmit = async (values: { nombreCompleto: string }) => { const profesor = await crearProfesor({ nombreCompleto: values.nombreCompleto.trim() }); return `Profesor creado: ${profesor.nombreCompleto}.`; };
+  if (onSuccess) return <AltaFormFields fields={fields} submitLabel="Crear profesor" onSubmit={onSubmit} onSuccess={onSuccess} onCancel={onCancel} onBusyChange={onBusyChange} />;
+  return <AltaForm breadcrumb={[{ label: "Administración", href: "/home/admin" }, { label: "Nuevo profesor" }]} heading="Nuevo profesor" description="El profesor queda disponible para asignarlo a las comisiones." fields={fields} submitLabel="Crear profesor" onSubmit={onSubmit} />;
 }
