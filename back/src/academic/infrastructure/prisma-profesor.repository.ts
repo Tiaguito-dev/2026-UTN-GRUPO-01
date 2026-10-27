@@ -1,3 +1,4 @@
+import { ProfesorNotFoundError } from "../application/errors.js";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import type { Pagination, PaginatedResult } from "../../shared/domain/pagination.js";
 import type { Profesor } from "../domain/profesor.js";
@@ -11,7 +12,7 @@ export class PrismaProfesorRepository implements ProfesorRepository {
     const [items, total] = await Promise.all([
       this.prisma.profesor.findMany({
         where,
-        orderBy: { nombreCompleto: "asc" },
+        orderBy: [{ nombreCompleto: "asc" }, { id: "asc" }],
         skip: (pagination.page - 1) * pagination.pageSize,
         take: pagination.pageSize,
       }),
@@ -22,6 +23,14 @@ export class PrismaProfesorRepository implements ProfesorRepository {
 
   async findById(id: string): Promise<Profesor | null> {
     return this.prisma.profesor.findFirst({ where: { id, deletedAt: null } });
+  }
+
+  async update(id: string, input: Partial<CreateProfesorInput>): Promise<Profesor> {
+    return this.prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT "id" FROM "Profesor" WHERE "id" = ${id}::uuid FOR UPDATE`;
+      if (!await tx.profesor.findFirst({ where: { id, deletedAt: null } })) throw new ProfesorNotFoundError();
+      return tx.profesor.update({ where: { id }, data: input });
+    });
   }
 
   // Sin traducción de P2002: Profesor.nombreCompleto no tiene restricción única (homónimos).

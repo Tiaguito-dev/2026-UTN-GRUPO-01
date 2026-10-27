@@ -15,7 +15,7 @@ export class ActualizarMateria {
     if (input.carreras) {
       const nuevas = new Set(input.carreras.map((fila) => fila.carrera));
       for (const carrera of await this.materias.findCarreras(id)) {
-        // ponytail: chequeo fuera del lock de update; una comisión creada en paralelo puede colarse.
+        // Early check; persistence revalidates while holding the Materia lock.
         if (!nuevas.has(carrera) && await this.comisiones.existsByMateriaAndCarrera(id, carrera)) throw new CarreraConComisionesError();
       }
     }

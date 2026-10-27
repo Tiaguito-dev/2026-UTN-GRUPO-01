@@ -11,5 +11,6 @@ export interface ProfesorRepository {
   findAll(pagination: Pagination): Promise<PaginatedResult<Profesor>>;
   findById(id: string): Promise<Profesor | null>;
   // Sin findByNombreCompleto a propósito: los homónimos son válidos (no hay restricción única).
+  update(id: string, input: Partial<CreateProfesorInput>): Promise<Profesor>;
   create(input: CreateProfesorInput): Promise<Profesor>;
 }

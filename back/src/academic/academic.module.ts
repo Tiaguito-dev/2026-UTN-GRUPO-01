@@ -1,3 +1,7 @@
+import { ObtenerProfesor } from "./application/obtener-profesor.js";
+import { ActualizarProfesor } from "./application/actualizar-profesor.js";
+import { ActualizarCursada } from "./application/actualizar-cursada.js";
+import { ActualizarComision } from "./application/actualizar-comision.js";
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module.js";
 import { PrismaModule } from "../infrastructure/prisma/prisma.module.js";
@@ -32,6 +36,10 @@ import { QuitarProfesorComision } from "./application/quitar-profesor-comision.j
   imports: [PrismaModule, AuthModule, SharedModule],
   controllers: [AcademicController],
   providers: [
+    { provide: ObtenerProfesor, useFactory: (profesores: ProfesorRepository) => new ObtenerProfesor(profesores), inject: [PROFESOR_REPOSITORY] },
+    { provide: ActualizarProfesor, useFactory: (profesores: ProfesorRepository) => new ActualizarProfesor(profesores), inject: [PROFESOR_REPOSITORY] },
+    { provide: ActualizarCursada, useFactory: (materias: MateriaRepository, cursadas: CursadaRepository) => new ActualizarCursada(materias, cursadas), inject: [MATERIA_REPOSITORY, CURSADA_REPOSITORY] },
+    { provide: ActualizarComision, useFactory: (cursadas: CursadaRepository, comisiones: ComisionRepository, materias: MateriaRepository) => new ActualizarComision(cursadas, comisiones, materias), inject: [CURSADA_REPOSITORY, COMISION_REPOSITORY, MATERIA_REPOSITORY] },
     ...[ObtenerMateria, ListarHistorialMateria].map((provide) => ({
       provide,
       useFactory: (materias: MateriaRepository) => new provide(materias),

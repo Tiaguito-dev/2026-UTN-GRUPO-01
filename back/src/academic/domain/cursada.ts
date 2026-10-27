@@ -1,6 +1,6 @@
 import type { Carrera } from "./materia.js";
 
-export type Cuatrimestre = "PRIMERO" | "SEGUNDO";
+export type Cuatrimestre = "PRIMERO" | "SEGUNDO" | "ANUAL";
 
 export interface Cursada {
   id: string;

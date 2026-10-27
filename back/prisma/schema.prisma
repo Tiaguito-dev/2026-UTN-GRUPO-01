@@ -85,6 +85,7 @@ model RefreshCredential {
 enum Cuatrimestre {
   PRIMERO
   SEGUNDO
+  ANUAL
 }
 
 enum Carrera {
