@@ -783,3 +783,8 @@ aceptación) en [CHANGELOG.md](../CHANGELOG.md) y en cada `TASK-NNN` bajo
 configuración en [eslint.config.mjs](./eslint.config.mjs). CI propio en
 [.github/workflows/back.yml](../.github/workflows/back.yml), con check de deriva de
 migraciones (`prisma migrate diff`) además de typecheck/lint/test/build.
+El job `backend-ci` se ejecuta en cada PR hacia `desarrollo` o `main`, sin filtros
+por archivos ni ejecución adicional al hacer push tras el merge. PostgreSQL 17,
+la base shadow y Mailpit se preparan en el runner para las pruebas de integración.
+DoD, protección de ramas y evidencia de aceptación en
+[CONTRIBUTING.md](../CONTRIBUTING.md#integración-continua-y-definition-of-done).

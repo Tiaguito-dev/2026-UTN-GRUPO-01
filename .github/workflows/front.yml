@@ -4,24 +4,12 @@ name: front
 on:
   pull_request:
     branches: [desarrollo, main]
-    paths:
-      - "front/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/front.yml"
-  push:
-    branches: [desarrollo]
-    paths:
-      - "front/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/front.yml"
 
 permissions:
   contents: read
 
 jobs:
-  verify:
+  frontend-ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

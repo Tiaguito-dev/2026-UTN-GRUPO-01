@@ -3,6 +3,31 @@
 Estado: En curso.
 Fecha: 2026-10-25
 
+## Seguimiento con TASK-002 (2026-10-26)
+
+La implementación descrita abajo ya existe; el contexto original se conserva como
+registro histórico. TASK-002 reutiliza este pipeline y el de frontend para validar
+ambos módulos en cada PR a `desarrollo` y `main`. Sustituye los filtros por rutas y
+el trigger push originales por ejecución exclusiva en PR, y cambia `verify` por
+`backend-ci` para ofrecer un check obligatorio único. Conserva los servicios y
+todos los pasos de verificación de esta tarea.
+
+La configuración de checks obligatorios, excluida originalmente aquí, y la
+actualización del DoD pertenecen a TASK-002. Compartir la evidencia de una PR verde
+del backend entre ambas tareas; mantener la prueba negativa de lint de TASK-036
+y la prueba de test fallido con bloqueo de merge de TASK-002 (diferida por el
+desarrollador hasta un fallo durante el desarrollo). Ambas tareas siguen
+abiertas hasta completar su aceptación remota; los cambios locales no la sustituyen.
+
+Revisión remota durante TASK-002: existe una
+[PR histórica con backend verde](https://github.com/Tiaguito-dev/2026-UTN-GRUPO-01/actions/runs/40235366580).
+La [PR posterior de correo](https://github.com/Tiaguito-dev/2026-UTN-GRUPO-01/actions/runs/40237412336)
+falló por `no-control-regex` en `email.config.ts:22`, con migraciones y typecheck
+aprobados, según sus pasos y logs; ese hallazgo fue resuelto por TASK-055.
+TASK-002 registra además una nueva corrida local completa: 651 tests backend sin
+omitidos, typecheck/lint/build y deriva de migraciones en verde. Falta ejecutar
+en una PR los cambios actuales y completar la aceptación de TASK-002.
+
 ## 1. Contexto y objetivo
 
 Un 500 en login reciente se debió a que `schema.prisma` había cambiado sin que se generara/aplicara

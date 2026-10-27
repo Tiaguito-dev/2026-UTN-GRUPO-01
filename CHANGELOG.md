@@ -2,6 +2,18 @@
 
 ## [Sin publicar]
 
+### CI para cada PR a desarrollo y main (TASK-002, aceptación remota pendiente)
+
+- Los workflows existentes ejecutan ambos módulos en cada PR, incluidos cambios
+  de documentación, con checks únicos `backend-ci` y `frontend-ci`.
+- Se retiran los triggers push para evitar repetir las verificaciones tras el merge;
+  se conservan lint, typecheck, tests, builds y servicios de integración backend.
+- DoD y guía del equipo actualizados con el procedimiento de checks obligatorios
+  y comprobación del bloqueo, diferida hasta un fallo durante el desarrollo por
+  decisión del desarrollador. Protección de ramas y aceptación en PR real pendientes.
+- Validación local: lint, typecheck y builds de ambos módulos en verde, 651 tests
+  backend sin omitidos y 281 frontend aprobados, 11 migraciones aplicadas y sin deriva.
+
 ### Validación de lint en ambos workspaces (TASK-055)
 
 - Excepción puntual y justificada de `no-control-regex` en la configuración de
