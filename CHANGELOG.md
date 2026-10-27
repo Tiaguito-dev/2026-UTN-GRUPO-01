@@ -2,14 +2,14 @@
 
 ## [Sin publicar]
 
-### Instalación del frontend aislada en CI (TASK-056)
+### Instalación de dependencias del check frontend (TASK-056)
 
-- El check `frontend-ci` instala solo el workspace `front` con el lockfile raíz,
-  evitando las descargas de motores Prisma del backend durante su instalación.
-- Se conservan typecheck, lint, tests y build. Validación local: los cuatro checks
-  aprobados y 281 tests en verde; dry-run aislado sin dependencias Prisma.
-- Instalación limpia offline limitada por falta de Zod en caché; ejecución y
-  aceptación en PR pendientes. Evidencia en la tarea.
+- Se restaura `npm ci` raíz: las pruebas de contrato del frontend importan filtros
+  del backend y necesitan NestJS. La instalación aislada falló en typecheck remoto.
+- Hasta tres intentos de instalación con cinco segundos entre fallos para tolerar
+  cortes transitorios de descarga de Prisma, conservando el fallo del job si se
+  agotan los intentos. No se omiten scripts ni verificaciones.
+- Evidencia local y limitaciones en la tarea; ejecución y aceptación en PR pendientes.
 
 ### CI para cada PR a desarrollo y main (TASK-002, aceptación remota pendiente)
 
