@@ -2,6 +2,15 @@
 
 ## [Sin publicar]
 
+### Instalación del frontend aislada en CI (TASK-056)
+
+- El check `frontend-ci` instala solo el workspace `front` con el lockfile raíz,
+  evitando las descargas de motores Prisma del backend durante su instalación.
+- Se conservan typecheck, lint, tests y build. Validación local: los cuatro checks
+  aprobados y 281 tests en verde; dry-run aislado sin dependencias Prisma.
+- Instalación limpia offline limitada por falta de Zod en caché; ejecución y
+  aceptación en PR pendientes. Evidencia en la tarea.
+
 ### CI para cada PR a desarrollo y main (TASK-002, aceptación remota pendiente)
 
 - Los workflows existentes ejecutan ambos módulos en cada PR, incluidos cambios

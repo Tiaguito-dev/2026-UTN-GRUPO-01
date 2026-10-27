@@ -17,7 +17,8 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      # This job does not use the backend or its Prisma engine downloads.
+      - run: npm ci --workspace=front --include-workspace-root=false
       - run: npm run typecheck --workspace=front
       - run: npm run lint --workspace=front
       - run: npm run test --workspace=front
