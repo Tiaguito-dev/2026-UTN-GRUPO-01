@@ -6,48 +6,47 @@ import { MateriaAlreadyExistsError, MateriaNotFoundError } from "../application/
 import type { CreateMateriaInput, MateriaFilters, MateriaRepository } from "../application/ports/materia.repository.js";
 
 const conCarreras = { carreras: { orderBy: { carrera: "asc" } } } satisfies Prisma.MateriaInclude;
+// NFD separates Spanish accents/diacritics; translate removes the same combining marks on
+// both SQL names and the search term, without requiring an extension or changing stored names.
+const combiningMarks = Array.from({ length: 0x70 }, (_, index) => String.fromCodePoint(0x300 + index)).join("");
 
 export class PrismaMateriaRepository implements MateriaRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(pagination: Pagination, filters: MateriaFilters = {}): Promise<PaginatedResult<Materia>> {
-    // PostgreSQL LIKE metacharacters must be escaped for a literal substring search.
-    const q = filters.q?.replace(/[\\%_]/g, "\\$&");
-    const nombre: Prisma.StringFilter | undefined = q ? { contains: q, mode: "insensitive" } : undefined;
-    const skip = (pagination.page - 1) * pagination.pageSize;
-    if (filters.carrera) {
-      const where: Prisma.MateriaCarreraWhereInput = { carrera: filters.carrera,
-        ...(filters.anioCarrera ? { anioCarrera: filters.anioCarrera } : {}),
-        ...(filters.nivelElectiva ? { nivelElectiva: filters.nivelElectiva } : {}),
-        materia: { deletedAt: null, ...(nombre ? { nombre } : {}) },
-      };
-      const [filas, total] = await Promise.all([
-        this.prisma.materiaCarrera.findMany({
-          where,
-          include: { materia: { include: conCarreras } },
-          orderBy: [{ anioCarrera: "asc" }, { nivelElectiva: { sort: "asc", nulls: "last" } },
-            { materia: { nombre: "asc" } }, { materiaId: "asc" }],
-          skip,
-          take: pagination.pageSize,
-        }),
-        this.prisma.materiaCarrera.count({ where }),
-      ]);
-      return { items: filas.map((fila) => toMateria(fila.materia)), total, page: pagination.page, pageSize: pagination.pageSize };
+    const normalizedNombre = Prisma.sql`lower(translate(normalize(m."nombre", NFD), ${combiningMarks}, ''))`;
+    const predicates: Prisma.Sql[] = [Prisma.sql`m."deletedAt" IS NULL`];
+    const associations: Prisma.Sql[] = [];
+    if (filters.carrera) associations.push(Prisma.sql`mc."carrera" = ${filters.carrera}::"Carrera"`);
+    if (filters.anioCarrera) associations.push(Prisma.sql`mc."anioCarrera" = ${filters.anioCarrera}`);
+    if (filters.nivelElectiva) associations.push(Prisma.sql`mc."nivelElectiva" = ${filters.nivelElectiva}`);
+    if (associations.length) {
+      // EXISTS keeps each subject unique, and all criteria must match the same association.
+      predicates.push(Prisma.sql`EXISTS (SELECT 1 FROM "MateriaCarrera" mc
+        WHERE mc."materiaId" = m."id" AND ${Prisma.join(associations, " AND ")})`);
     }
-    const where: Prisma.MateriaWhereInput = { deletedAt: null,
-      ...(nombre ? { nombre } : {}),
-    };
-    const [items, total] = await Promise.all([
-      this.prisma.materia.findMany({
-        where,
-        include: conCarreras,
-        orderBy: [{ nombre: "asc" }, { id: "asc" }],
-        skip,
-        take: pagination.pageSize,
-      }),
-      this.prisma.materia.count({ where }),
-    ]);
-    return { items: items.map(toMateria), total, page: pagination.page, pageSize: pagination.pageSize };
+    if (filters.q) {
+      const term = filters.q.normalize("NFD").replace(/[\u0300-\u036f]/gu, "").toLowerCase();
+      // Escape AFTER normalization: %, _ and backslash must remain literal input.
+      const pattern = `%${term.replace(/[\\%_]/g, "\\$&")}%`;
+      predicates.push(Prisma.sql`${normalizedNombre} LIKE ${pattern}`);
+    }
+    const where = Prisma.join(predicates, " AND ");
+    const skip = (pagination.page - 1) * pagination.pageSize;
+    return this.prisma.$transaction(async (tx) => {
+      const [ids, counts] = await Promise.all([
+        tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT m."id" FROM "Materia" m
+          WHERE ${where} ORDER BY ${normalizedNombre}, m."nombre", m."id"
+          LIMIT ${pagination.pageSize} OFFSET ${skip}`),
+        tx.$queryRaw<{ total: bigint }[]>(Prisma.sql`SELECT COUNT(*) AS total FROM "Materia" m WHERE ${where}`),
+      ]);
+      // Hydrate only the requested page, retaining every career association for detail/grouping.
+      const rows = ids.length ? await tx.materia.findMany({
+        where: { id: { in: ids.map(({ id }) => id) } }, include: conCarreras,
+      }) : [];
+      const byId = new Map(rows.map((row) => [row.id, row]));
+      return { items: ids.map(({ id }) => toMateria(byId.get(id)!)), total: Number(counts[0]!.total), ...pagination };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
   }
 
   async findById(id: string): Promise<Materia | null> {
@@ -88,6 +87,10 @@ export class PrismaMateriaRepository implements MateriaRepository {
         if (input.nombre !== undefined && input.nombre !== current.nombre) {
           data.nombre = input.nombre;
           cambios.push({ campo: "nombre", anterior: current.nombre, nuevo: input.nombre });
+        }
+        if (input.modalidad !== undefined && input.modalidad !== current.modalidad) {
+          data.modalidad = input.modalidad;
+          cambios.push({ campo: "modalidad", anterior: current.modalidad, nuevo: input.modalidad });
         }
         let reemplazarCarreras = false;
         if (input.carreras) {
@@ -142,7 +145,7 @@ export class PrismaMateriaRepository implements MateriaRepository {
 }
 
 function toMateria(row: Prisma.MateriaGetPayload<{ include: typeof conCarreras }>): Materia {
-  return { id: row.id, nombre: row.nombre, carreras: row.carreras.map(toMateriaCarrera),
+  return { id: row.id, nombre: row.nombre, modalidad: row.modalidad, carreras: row.carreras.map(toMateriaCarrera),
     createdAt: row.createdAt, deletedAt: row.deletedAt };
 }
 

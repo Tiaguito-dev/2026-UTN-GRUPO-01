@@ -1,5 +1,4 @@
-import type { Cuatrimestre } from "./cursada.js";
-import type { Carrera } from "./materia.js";
+import type { Carrera, ModalidadMateria } from "./materia.js";
 
 export type CargoDocente = "TITULAR" | "ADJUNTO" | "JTP";
 
@@ -23,5 +22,5 @@ export interface Comision {
 }
 
 export interface ComisionDetalle extends Comision {
-  cursada: { id: string; anio: number; cuatrimestre: Cuatrimestre; materia: { id: string; nombre: string } };
+  cursada: { id: string; anio: number; materia: { id: string; nombre: string; modalidad: ModalidadMateria | null } };
 }

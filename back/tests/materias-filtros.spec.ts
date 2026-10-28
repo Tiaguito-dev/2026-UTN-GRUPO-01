@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { validateCrearMateriaInput } from "../src/academic/application/crear-materia-input.js";
 import { ListarHistorialMateria } from "../src/academic/application/listar-historial-materia.js";
 import { CAMPOS_NO_PERMITIDOS, InvalidAcademicInputError, MateriaAlreadyExistsError, MateriaNotFoundError } from "../src/academic/application/errors.js";
@@ -8,27 +8,30 @@ import { fixture } from "./academic-fixture.js";
 
 describe("Materias: contrato de carreras y filtros", () => {
   it.each(["3", "4", "5"])("acepta electiva de nivel %s", nivelElectiva => {
-    expect(validateCrearMateriaInput({ nombre: "Electiva", carreras: [{ carrera: "S", anioCarrera: "ELECTIVA", nivelElectiva }] }))
+    expect(validateCrearMateriaInput({ modalidad: "ANUAL", nombre: "Electiva", carreras: [{ carrera: "S", anioCarrera: "ELECTIVA", nivelElectiva }] }))
       .toMatchObject({ carreras: [{ nivelElectiva }] });
   });
 
   it.each(["1", "2", "3", "4", "5"])("acepta %s al crear", anioCarrera => {
-    expect(validateCrearMateriaInput({ nombre: "Materia", carreras: [{ carrera: "S", anioCarrera }] }))
+    expect(validateCrearMateriaInput({ modalidad: "ANUAL", nombre: "Materia", carreras: [{ carrera: "S", anioCarrera }] }))
       .toMatchObject({ nombre: "Materia", carreras: [{ carrera: "S", anioCarrera, nivelElectiva: null }] });
   });
 
   it("rechaza formas de entrada legadas al crear con 400 CAMPOS_NO_PERMITIDOS", () => {
-    expect(() => validateCrearMateriaInput({ nombre: "Materia", anioCarrera: "1" })).toThrow(CAMPOS_NO_PERMITIDOS);
+    expect(() => validateCrearMateriaInput({ modalidad: "ANUAL", nombre: "Materia", anioCarrera: "1" })).toThrow(CAMPOS_NO_PERMITIDOS);
   });
 
   it.each([undefined, null, "", "0", "6", "2026", "Electiva", 1, [], ["1"]])("rechaza año inválido %j en carrera", async anioCarrera => {
-    expect(() => validateCrearMateriaInput({ nombre: "Materia", carreras: [{ carrera: "S", anioCarrera }] }))
+    expect(() => validateCrearMateriaInput({ modalidad: "ANUAL", nombre: "Materia", carreras: [{ carrera: "S", anioCarrera }] }))
       .toThrow(InvalidAcademicInputError);
   });
 
-  it("rechaza filtro de año o nivel sin carrera", async () => {
+  // TASK-060: academic year is independent from career; elective level still requires Electiva.
+  it("acepta año sin carrera y rechaza nivel sin año Electiva", async () => {
     const f = fixture();
-    await expect(f.listarMaterias.execute({ anioCarrera: "ELECTIVA" })).rejects.toBeInstanceOf(InvalidAcademicInputError);
+    await f.listarMaterias.execute({ anioCarrera: "ELECTIVA", nivelElectiva: "4" });
+    expect(f.materiaRepository.findAll).toHaveBeenCalledWith({ page: 1, pageSize: 9 }, { anioCarrera: "ELECTIVA", nivelElectiva: "4", q: undefined });
+    vi.mocked(f.materiaRepository.findAll).mockClear();
     await expect(f.listarMaterias.execute({ nivelElectiva: "4" })).rejects.toBeInstanceOf(InvalidAcademicInputError);
     expect(f.materiaRepository.findAll).not.toHaveBeenCalled();
   });

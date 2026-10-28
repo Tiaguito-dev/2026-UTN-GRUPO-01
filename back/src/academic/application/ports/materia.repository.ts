@@ -1,15 +1,16 @@
-import type { AnioCarrera, Carrera, NivelElectiva, Materia, MateriaCarrera, MateriaHistorial } from "../../domain/materia.js";
+import type { AnioCarrera, Carrera, NivelElectiva, Materia, MateriaCarrera, MateriaHistorial, ModalidadMateria } from "../../domain/materia.js";
 import type { Pagination, PaginatedResult } from "../../../shared/domain/pagination.js";
 
 export const MATERIA_REPOSITORY = Symbol("MATERIA_REPOSITORY");
 
 export interface CreateMateriaInput {
   nombre: string;
+  modalidad: ModalidadMateria;
   carreras: MateriaCarrera[];
 }
 
 export interface MateriaFilters {
-  /** Con carrera, año y nivel se filtran sobre MateriaCarrera; sin carrera, año o nivel dan 400. */
+  /** Filtros opcionales combinados sobre una misma MateriaCarrera; año no requiere carrera. */
   carrera?: Carrera;
   anioCarrera?: AnioCarrera;
   nivelElectiva?: NivelElectiva;

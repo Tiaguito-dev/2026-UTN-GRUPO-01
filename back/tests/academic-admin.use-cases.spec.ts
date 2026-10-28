@@ -19,7 +19,7 @@ import { fixture } from "./academic-fixture.js";
 describe("CrearMateria", () => {
   it("crea la materia y la delega al puerto con el nombre recortado", async () => {
     const { crearMateria, materiaRepository } = fixture();
-    const materia = await crearMateria.execute({ nombre: "  Álgebra  ", carreras: [{ carrera: "S", anioCarrera: "1" }] });
+    const materia = await crearMateria.execute({ modalidad: "ANUAL", nombre: "  Álgebra  ", carreras: [{ carrera: "S", anioCarrera: "1" }] });
     expect(materia).toMatchObject({ nombre: "Álgebra", deletedAt: null });
     expect(materia.id).toEqual(expect.any(String));
     expect(materiaRepository.create).toHaveBeenCalledWith(expect.objectContaining({
@@ -29,19 +29,19 @@ describe("CrearMateria", () => {
   it("nombre duplicado tira MateriaAlreadyExistsError sin volver a crear", async () => {
     const { crearMateria, materiaRepository, addMateria } = fixture();
     addMateria("Álgebra");
-    await expect(crearMateria.execute({ nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "1" }] })).rejects.toBeInstanceOf(MateriaAlreadyExistsError);
+    await expect(crearMateria.execute({ modalidad: "ANUAL", nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "1" }] })).rejects.toBeInstanceOf(MateriaAlreadyExistsError);
     expect(materiaRepository.create).not.toHaveBeenCalled();
   });
 
   it("detecta el duplicado después del trim, no sobre el texto crudo", async () => {
     const { crearMateria, addMateria } = fixture();
     addMateria("Álgebra");
-    await expect(crearMateria.execute({ nombre: "  Álgebra  ", carreras: [{ carrera: "S", anioCarrera: "1" }] })).rejects.toBeInstanceOf(MateriaAlreadyExistsError);
+    await expect(crearMateria.execute({ modalidad: "ANUAL", nombre: "  Álgebra  ", carreras: [{ carrera: "S", anioCarrera: "1" }] })).rejects.toBeInstanceOf(MateriaAlreadyExistsError);
   });
 
   it("input inválido no toca el repositorio", async () => {
     const { crearMateria, materiaRepository } = fixture();
-    await expect(crearMateria.execute({ nombre: "   ", carreras: [{ carrera: "S", anioCarrera: "1" }] })).rejects.toBeInstanceOf(InvalidAcademicInputError);
+    await expect(crearMateria.execute({ modalidad: "ANUAL", nombre: "   ", carreras: [{ carrera: "S", anioCarrera: "1" }] })).rejects.toBeInstanceOf(InvalidAcademicInputError);
     expect(materiaRepository.findByNombre).not.toHaveBeenCalled();
     expect(materiaRepository.create).not.toHaveBeenCalled();
   });
@@ -80,7 +80,7 @@ describe("CrearCursada", () => {
 
   it("crea la cursada y la delega al puerto con los datos validados", async () => {
     const { crearCursada, cursadaRepository, materia } = conJerarquia();
-    const datos = { materiaId: materia.id, anio: 2026, cuatrimestre: "PRIMERO" as const };
+    const datos = { materiaId: materia.id, anio: 2026 };
     const cursada = await crearCursada.execute(datos);
     expect(cursada).toMatchObject(datos);
     expect(cursadaRepository.create).toHaveBeenCalledWith(datos);
@@ -88,31 +88,31 @@ describe("CrearCursada", () => {
 
   it("materia inexistente tira MateriaNotFoundError", async () => {
     const { crearCursada, cursadaRepository } = conJerarquia();
-    const promesa = crearCursada.execute({ materiaId: randomUUID(), anio: 2026, cuatrimestre: "PRIMERO" });
+    const promesa = crearCursada.execute({ materiaId: randomUUID(), anio: 2026 });
     await expect(promesa).rejects.toBeInstanceOf(MateriaNotFoundError);
     expect(cursadaRepository.create).not.toHaveBeenCalled();
   });
 
-  it("misma materia, año y cuatrimestre tira CursadaAlreadyExistsError", async () => {
+  it("misma materia, año tira CursadaAlreadyExistsError", async () => {
     const { crearCursada, cursadaRepository, addCursada, materia } = conJerarquia();
     addCursada(materia.id, 2026);
-    const promesa = crearCursada.execute({ materiaId: materia.id, anio: 2026, cuatrimestre: "PRIMERO" });
+    const promesa = crearCursada.execute({ materiaId: materia.id, anio: 2026 });
     await expect(promesa).rejects.toBeInstanceOf(CursadaAlreadyExistsError);
     expect(cursadaRepository.create).not.toHaveBeenCalled();
   });
 
-  it("el otro cuatrimestre de la misma materia y año es una cursada distinta", async () => {
+  it("otro año de la misma materia es una cursada distinta", async () => {
     const { crearCursada, addCursada, materia } = conJerarquia();
     addCursada(materia.id, 2026);
-    const cursada = await crearCursada.execute({ materiaId: materia.id, anio: 2026, cuatrimestre: "SEGUNDO" });
-    expect(cursada.cuatrimestre).toBe("SEGUNDO");
+    const cursada = await crearCursada.execute({ materiaId: materia.id, anio: 2027 });
+    expect(cursada.anio).toBe(2027);
   });
 
   it("el mismo período con otra materia es una cursada distinta", async () => {
     const { crearCursada, addMateria, addCursada, materia } = conJerarquia();
     addCursada(materia.id, 2026);
     const otra = addMateria("Análisis Matemático");
-    const cursada = await crearCursada.execute({ materiaId: otra.id, anio: 2026, cuatrimestre: "PRIMERO" });
+    const cursada = await crearCursada.execute({ materiaId: otra.id, anio: 2026 });
     expect(cursada.materiaId).toBe(otra.id);
   });
 });
@@ -184,13 +184,13 @@ describe("ListarProfesores", () => {
 
 describe("validateCrearMateriaInput", () => {
   it("recorta el nombre", () => {
-    expect(validateCrearMateriaInput({ nombre: "  Álgebra  ", carreras: [{ carrera: "S", anioCarrera: "1" }] }))
+    expect(validateCrearMateriaInput({ modalidad: "ANUAL", nombre: "  Álgebra  ", carreras: [{ carrera: "S", anioCarrera: "1" }] }))
       .toMatchObject({ nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "1", nivelElectiva: null }] });
   });
 
   it("acepta 150 caracteres, el límite exacto del VarChar", () => {
     const nombre = "a".repeat(150);
-    expect(validateCrearMateriaInput({ nombre, carreras: [{ carrera: "S", anioCarrera: "1" }] }))
+    expect(validateCrearMateriaInput({ modalidad: "ANUAL", nombre, carreras: [{ carrera: "S", anioCarrera: "1" }] }))
       .toMatchObject({ nombre, carreras: [{ carrera: "S", anioCarrera: "1", nivelElectiva: null }] });
   });
 
@@ -204,11 +204,11 @@ describe("validateCrearMateriaInput", () => {
     ["no string", 42],
     ["faltante", undefined],
   ])("rechaza el nombre %s", (_caso, nombre) => {
-    expect(() => validateCrearMateriaInput({ nombre, carreras: [{ carrera: "S", anioCarrera: "1" }] })).toThrow(InvalidAcademicInputError);
+    expect(() => validateCrearMateriaInput({ modalidad: "ANUAL", nombre, carreras: [{ carrera: "S", anioCarrera: "1" }] })).toThrow(InvalidAcademicInputError);
   });
 
   it("rechaza un cuerpo con campos de más", () => {
-    expect(() => validateCrearMateriaInput({ nombre: "Álgebra", id: randomUUID(), carreras: [{ carrera: "S", anioCarrera: "1" }] })).toThrow(CAMPOS_NO_PERMITIDOS);
+    expect(() => validateCrearMateriaInput({ modalidad: "ANUAL", nombre: "Álgebra", id: randomUUID(), carreras: [{ carrera: "S", anioCarrera: "1" }] })).toThrow(CAMPOS_NO_PERMITIDOS);
   });
 });
 
@@ -238,7 +238,7 @@ describe("validateCrearProfesorInput", () => {
 });
 
 describe("validateCrearCursadaInput", () => {
-  const base = { materiaId: randomUUID(), cuatrimestre: "PRIMERO" as const };
+  const base = { materiaId: randomUUID() };
 
   it.each([ANIO_MINIMO, anioMaximo()])("acepta el año %i, límite exacto del rango", (anio) => {
     expect(validateCrearCursadaInput({ ...base, anio })).toEqual({ ...base, anio });
@@ -258,11 +258,7 @@ describe("validateCrearCursadaInput", () => {
     expect(anioMaximo(new Date("2031-06-15T00:00:00Z"))).toBe(2032);
   });
 
-  it.each(["PRIMERO", "SEGUNDO"])("acepta el cuatrimestre %s", (cuatrimestre) => {
-    expect(validateCrearCursadaInput({ ...base, cuatrimestre, anio: 2026 })).toMatchObject({ cuatrimestre });
-  });
-
-  it.each(["TERCERO", "primero", "", 1, undefined])("rechaza el cuatrimestre %s", (cuatrimestre) => {
+  it.each(["PRIMERO", "SEGUNDO", "TERCERO", "primero", "", 1, undefined])("rechaza el campo legado cuatrimestre %s", (cuatrimestre) => {
     expect(() => validateCrearCursadaInput({ ...base, cuatrimestre, anio: 2026 })).toThrow(InvalidAcademicInputError);
   });
 

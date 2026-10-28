@@ -1,5 +1,6 @@
 export type AnioCarrera = "1" | "2" | "3" | "4" | "5" | "ELECTIVA";
 export type NivelElectiva = "3" | "4" | "5";
+export type ModalidadMateria = "ANUAL" | "PRIMERO" | "SEGUNDO";
 /** Orden del enum de Prisma: es también el orden de serialización del historial. */
 export const CARRERAS = ["S", "C", "Q", "I", "M"] as const;
 export type Carrera = (typeof CARRERAS)[number];
@@ -13,6 +14,7 @@ export interface MateriaCarrera {
 export interface Materia {
   id: string;
   nombre: string;
+  modalidad: ModalidadMateria | null;
   /** Ordenadas por el enum (S, C, Q, I, M). */
   carreras: MateriaCarrera[];
   createdAt: Date;
@@ -20,7 +22,7 @@ export interface Materia {
 }
 
 export interface MateriaCambio {
-  campo: "nombre" | "anioCarrera" | "nivelElectiva" | "carreras";
+  campo: "nombre" | "modalidad" | "anioCarrera" | "nivelElectiva" | "carreras";
   anterior: string | null;
   nuevo: string | null;
 }

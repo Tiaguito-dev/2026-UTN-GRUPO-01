@@ -17,18 +17,18 @@ import { fixture } from "./academic-fixture.js";
 
 describe("validateCrearMateriaInput: forma con carreras", () => {
   it("acepta carreras y completa el nivel nulo de las que no son electivas", () => {
-    const input = { nombre: " Análisis II ", carreras: [{ carrera: "S", anioCarrera: "2" }, { carrera: "Q", anioCarrera: "ELECTIVA", nivelElectiva: "4" }] };
+    const input = { modalidad: "ANUAL", nombre: " Análisis II ", carreras: [{ carrera: "S", anioCarrera: "2" }, { carrera: "Q", anioCarrera: "ELECTIVA", nivelElectiva: "4" }] };
     expect(validateCrearMateriaInput(input)).toMatchObject({ nombre: "Análisis II",
       carreras: [{ carrera: "S", anioCarrera: "2", nivelElectiva: null }, { carrera: "Q", anioCarrera: "ELECTIVA", nivelElectiva: "4" }] });
   });
 
   it.each(["S", "C", "Q", "I", "M"])("acepta la carrera %s", (carrera) => {
-    expect(validateCrearMateriaInput({ nombre: "Materia", carreras: [{ carrera, anioCarrera: "1" }] })).toMatchObject({ carreras: [{ carrera }] });
+    expect(validateCrearMateriaInput({ modalidad: "ANUAL", nombre: "Materia", carreras: [{ carrera, anioCarrera: "1" }] })).toMatchObject({ carreras: [{ carrera }] });
   });
 
   // resolveNivelElectiva por fila: igual que la forma legada, el nivel se descarta si el año no es Electiva.
   it("descarta el nivel de una fila que no es Electiva", () => {
-    expect(validateCrearMateriaInput({ nombre: "Materia", carreras: [{ carrera: "S", anioCarrera: "2", nivelElectiva: "3" }] }))
+    expect(validateCrearMateriaInput({ modalidad: "ANUAL", nombre: "Materia", carreras: [{ carrera: "S", anioCarrera: "2", nivelElectiva: "3" }] }))
       .toMatchObject({ carreras: [{ carrera: "S", anioCarrera: "2", nivelElectiva: null }] });
   });
 
@@ -50,7 +50,7 @@ describe("validateCrearMateriaInput: forma con carreras", () => {
   });
 
   it("rechaza claves de más junto a carreras", () => {
-    expect(() => validateCrearMateriaInput({ nombre: "Materia", carreras: [{ carrera: "S", anioCarrera: "1" }], id: randomUUID() }))
+    expect(() => validateCrearMateriaInput({ modalidad: "ANUAL", nombre: "Materia", carreras: [{ carrera: "S", anioCarrera: "1" }], id: randomUUID() }))
       .toThrow(CAMPOS_NO_PERMITIDOS);
   });
 });
@@ -111,12 +111,12 @@ describe("validateCrearComisionInput: forma con carrera y número", () => {
 
 describe("validateCrearCursadaInput: sin profesor", () => {
   it("acepta una cursada sin profesorId", () => {
-    const datos = { materiaId: randomUUID(), anio: 2026, cuatrimestre: "PRIMERO" as const };
+    const datos = { materiaId: randomUUID(), anio: 2026 };
     expect(validateCrearCursadaInput(datos)).toEqual(datos);
   });
 
   it("si llega profesorId se rechaza con CAMPOS_NO_PERMITIDOS", () => {
-    expect(() => validateCrearCursadaInput({ materiaId: randomUUID(), profesorId: randomUUID(), anio: 2026, cuatrimestre: "PRIMERO" }))
+    expect(() => validateCrearCursadaInput({ materiaId: randomUUID(), profesorId: randomUUID(), anio: 2026 }))
       .toThrow(CAMPOS_NO_PERMITIDOS);
   });
 });
@@ -142,20 +142,20 @@ describe("CrearMateria con carreras", () => {
   it("delega las carreras al puerto", async () => {
     const { crearMateria, materiaRepository } = fixture();
     const carreras = [{ carrera: "S", anioCarrera: "2", nivelElectiva: null }, { carrera: "Q", anioCarrera: "ELECTIVA", nivelElectiva: "4" }];
-    await crearMateria.execute({ nombre: "Análisis II", carreras });
+    await crearMateria.execute({ modalidad: "ANUAL", nombre: "Análisis II", carreras });
     expect(materiaRepository.create).toHaveBeenCalledWith(expect.objectContaining({ nombre: "Análisis II", carreras }));
   });
 
   it("la forma legada se rechaza con 400 CAMPOS_NO_PERMITIDOS", async () => {
     const { crearMateria, materiaRepository } = fixture();
-    await expect(crearMateria.execute({ nombre: "Electiva", anioCarrera: "ELECTIVA", nivelElectiva: "5" }))
+    await expect(crearMateria.execute({ modalidad: "ANUAL", nombre: "Electiva", anioCarrera: "ELECTIVA", nivelElectiva: "5" }))
       .rejects.toThrow(CAMPOS_NO_PERMITIDOS);
     expect(materiaRepository.create).not.toHaveBeenCalled();
   });
 
   it("input con ambas formas se rechaza con CAMPOS_NO_PERMITIDOS", async () => {
     const { crearMateria, materiaRepository } = fixture();
-    await expect(crearMateria.execute({ nombre: "Materia", anioCarrera: "1", carreras: [{ carrera: "S", anioCarrera: "1" }] }))
+    await expect(crearMateria.execute({ modalidad: "ANUAL", nombre: "Materia", anioCarrera: "1", carreras: [{ carrera: "S", anioCarrera: "1" }] }))
       .rejects.toThrow(CAMPOS_NO_PERMITIDOS);
     expect(materiaRepository.create).not.toHaveBeenCalled();
   });
@@ -271,7 +271,7 @@ describe("CrearCursada sin profesor", () => {
   it("crea la cursada sin consultar profesores", async () => {
     const { crearCursada, cursadaRepository, profesorRepository, addMateria } = fixture();
     const materia = addMateria("Álgebra");
-    const datos = { materiaId: materia.id, anio: 2026, cuatrimestre: "PRIMERO" as const };
+    const datos = { materiaId: materia.id, anio: 2026 };
     await expect(crearCursada.execute(datos)).resolves.toMatchObject(datos);
     expect(profesorRepository.findById).not.toHaveBeenCalled();
     expect(cursadaRepository.create).toHaveBeenCalledWith(datos);
@@ -280,7 +280,7 @@ describe("CrearCursada sin profesor", () => {
   it("con profesorId se rechaza con 400 CAMPOS_NO_PERMITIDOS", async () => {
     const { crearCursada, cursadaRepository, addMateria } = fixture();
     const materia = addMateria("Álgebra");
-    await expect(crearCursada.execute({ materiaId: materia.id, profesorId: randomUUID(), anio: 2026, cuatrimestre: "PRIMERO" }))
+    await expect(crearCursada.execute({ materiaId: materia.id, profesorId: randomUUID(), anio: 2026 }))
       .rejects.toThrow(CAMPOS_NO_PERMITIDOS);
     expect(cursadaRepository.create).not.toHaveBeenCalled();
   });

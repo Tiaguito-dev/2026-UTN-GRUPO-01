@@ -47,7 +47,7 @@ export class PrismaComisionRepository implements ComisionRepository {
   async findDetalleById(id: string): Promise<ComisionDetalle | null> {
     const row = await this.prisma.comision.findFirst({
       where: { id, deletedAt: null, cursada: { deletedAt: null, materia: { deletedAt: null } } },
-      include: { ...conProfesores, cursada: { select: { id: true, anio: true, cuatrimestre: true, materia: { select: { id: true, nombre: true } } } } },
+      include: { ...conProfesores, cursada: { select: { id: true, anio: true, materia: { select: { id: true, nombre: true, modalidad: true } } } } },
     });
     return row ? { ...toComision(row), cursada: row.cursada } : null;
   }

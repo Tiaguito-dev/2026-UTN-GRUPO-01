@@ -1,7 +1,7 @@
 import { Prisma } from "../../generated/prisma/client.js";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import type { Pagination, PaginatedResult } from "../../shared/domain/pagination.js";
-import type { Cuatrimestre, Cursada, CursadaResumen } from "../domain/cursada.js";
+import type { Cursada, CursadaResumen } from "../domain/cursada.js";
 import { CARRERAS } from "../domain/materia.js";
 import { CursadaAlreadyExistsError } from "../application/errors.js";
 import type { CreateCursadaInput, CursadaRepository } from "../application/ports/cursada.repository.js";
@@ -23,7 +23,7 @@ export class PrismaCursadaRepository implements CursadaRepository {
       this.prisma.cursada.findMany({
         where,
         include: conResumen,
-        orderBy: [{ anio: "desc" }, { cuatrimestre: "desc" }],
+        orderBy: [{ anio: "desc" }, { id: "asc" }],
         skip: (pagination.page - 1) * pagination.pageSize,
         take: pagination.pageSize,
       }),
@@ -46,13 +46,14 @@ export class PrismaCursadaRepository implements CursadaRepository {
     return row ? toResumen(row) : null;
   }
 
-  async findByPeriodo(materiaId: string, anio: number, cuatrimestre: Cuatrimestre): Promise<Cursada | null> {
-    return this.prisma.cursada.findFirst({ where: { materiaId, anio, cuatrimestre, deletedAt: null } });
+  async findByPeriodo(materiaId: string, anio: number): Promise<Cursada | null> {
+    const row = await this.prisma.cursada.findFirst({ where: { materiaId, anio, deletedAt: null } });
+    return row ? toCursada(row) : null;
   }
 
   async create(input: CreateCursadaInput): Promise<Cursada> {
     try {
-      return await this.prisma.cursada.create({ data: input });
+      return toCursada(await this.prisma.cursada.create({ data: input }));
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         throw new CursadaAlreadyExistsError();
@@ -67,9 +68,12 @@ function toResumen({ comisiones, ...cursada }: Prisma.CursadaGetPayload<{ includ
     id: cursada.id,
     materiaId: cursada.materiaId,
     anio: cursada.anio,
-    cuatrimestre: cursada.cuatrimestre as Cuatrimestre,
     comisiones: comisiones.length,
     profesores: new Set(comisiones.flatMap((comision) => comision.profesores.map((fila) => fila.profesorId))).size,
     carreras: CARRERAS.filter((carrera) => comisiones.some((comision) => comision.carrera === carrera)),
   };
+}
+
+function toCursada(row: Cursada): Cursada {
+  return { id: row.id, materiaId: row.materiaId, anio: row.anio, createdAt: row.createdAt, deletedAt: row.deletedAt };
 }

@@ -28,7 +28,7 @@ describe("ObtenerComision", () => {
         { id: zoe.id, nombreCompleto: "Zoe Jtp", cargo: "JTP" },
       ],
       createdAt: comision.createdAt, deletedAt: null,
-      cursada: { id: cursada.id, anio: 2025, cuatrimestre: "PRIMERO", materia: { id: materia.id, nombre: "Análisis II" } },
+      cursada: { id: cursada.id, anio: 2025, materia: { id: materia.id, nombre: "Análisis II", modalidad: "ANUAL" } },
     });
     expect(comisionRepository.findDetalleById).toHaveBeenCalledWith(comision.id);
   });

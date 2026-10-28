@@ -13,7 +13,7 @@ export class CrearCursada {
   async execute(input: unknown): Promise<Cursada> {
     const datos = validateCrearCursadaInput(input);
     if (!(await this.materias.findById(datos.materiaId))) throw new MateriaNotFoundError();
-    const existente = await this.cursadas.findByPeriodo(datos.materiaId, datos.anio, datos.cuatrimestre);
+    const existente = await this.cursadas.findByPeriodo(datos.materiaId, datos.anio);
     if (existente) throw new CursadaAlreadyExistsError();
     return this.cursadas.create(datos);
   }

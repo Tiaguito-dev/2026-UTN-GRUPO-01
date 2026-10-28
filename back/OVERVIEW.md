@@ -1,5 +1,153 @@
 # Backend
 
+## Modalidad de materia y cursadas por año (TASK-062)
+
+Este es el contrato vigente para materias/cursadas; reemplaza las descripciones históricas
+de TASK-024/040/041/044 en las secciones inferiores.
+
+- `Materia.modalidad` es `ANUAL`, `PRIMERO` o `SEGUNDO`; los dos últimos representan dictado
+  cuatrimestral. Es independiente de carrera, año de carrera y condición de electiva.
+  Lecturas existentes pueden devolver `null` si no existe evidencia suficiente para deducirla.
+- `POST /materias` exige `{nombre, modalidad, carreras:[{carrera,anioCarrera,nivelElectiva?}]}`.
+  `PATCH /materias/:id` admite `{nombre?,modalidad?,carreras?}`; si recibe modalidad debe
+  ser una de las tres opciones. Se registran únicamente diferencias reales, con
+  `campo:"modalidad"` en el historial y valores anteriores/nuevos (incluido null anterior).
+- `POST /cursadas` exige únicamente `{materiaId,anio}`. Una materia tiene una cursada por
+  año calendario, protegida por índice único también bajo concurrencia. Cuatrimestre y otros
+  campos ajenos se rechazan con 400. Un duplicado anual devuelve 409.
+- Las altas y lecturas de cursada omiten `cuatrimestre`: alta `{id,materiaId,anio,createdAt,
+  deletedAt}`, resumen `{id,anio,comisiones,profesores,carreras}`, detalle añade
+  `materia:{id,nombre,modalidad}`. El detalle de comisión contiene
+  `cursada:{id,anio,materia:{id,nombre,modalidad}}`. La lista de cursadas ordena año descendente
+  e id, conserva paginación y cuenta equipos docentes/comisiones según las reglas actuales.
+- El campo antiguo `Cursada.cuatrimestre` se conserva nullable solo como legado interno; no se
+  propaga mediante filas Prisma crudas ni se usa en nuevas altas, unicidad o etiquetas.
+- El snapshot de Feedback agrega `contexto.modalidad`; nuevas publicaciones capturan el
+  valor vigente de Materia en la consulta MVCC de contexto. El cuatrimestre histórico se
+  conserva nullable por compatibilidad: ANUAL o modalidad desconocida usan null. Editar la
+  materia o su modalidad no cambia comentarios previamente publicados.
+
+Aplicar `20261103000000_modalidad_materia_cursada_anual` antes de iniciar el backend nuevo.
+La migración es transaccional, no elimina filas ni reemplaza IDs, y bloquea/aborta ante
+cursadas duplicadas por materia/año (incluidas bajas) para no fusionar comisiones o comentarios
+sin revisión. Solo deduce modalidad de materias con cuatrimestres legados completamente
+consistentes; materias sin cursadas o con evidencia contradictoria quedan null. Feedback se
+completa desde su propio cuatrimestre guardado, nunca desde la configuración actual.
+El seed de demostración usa modalidad explícita y cursadas solo por año, sin modificar
+contenido existente. Sin dependencias ni variables de entorno nuevas.
+
+## Feedback textual por comisión (TASK-057)
+
+El módulo `reviews` permite publicar experiencias de una comisión y, opcionalmente, de uno
+de sus docentes. No incorpora búsqueda de docentes, puntuaciones, reportes, moderación ni
+controles nuevos del estado académico. No acredita inscripción: verifica la sesión y el correo
+mediante los guards existentes. ADMIN y USER tienen las mismas reglas de publicación.
+
+### Contratos
+
+Todos los endpoints requieren sesión y responden con `Cache-Control: no-store`. Las escrituras
+conservan Origin/CSRF del transporte existente. La autoría se obtiene exclusivamente de la sesión.
+
+| Método y ruta | Contrato |
+|---|---|
+| `GET /feedback?page=1&pageSize=9` (TASK-061) | Lista transversal autenticada de comentarios vigentes, más recientes primero (`createdAt DESC, id DESC`). |
+| `GET /comisiones/:id/feedback?page=1&pageSize=9` | Lista los comentarios vigentes más recientes, con desempate por id. |
+| `GET /comisiones/:id/feedback/propio` | Devuelve el comentario vigente del usuario o `null`. |
+| `POST /comisiones/:id/feedback` | `{texto, anonimo, profesorId?}`; responde 201 con el comentario. |
+| `GET /feedback/:id` | Detalle vigente exclusivo del autor (403 para otras cuentas, incluido ADMIN), sin email ni identificador del autor. |
+| `PATCH /feedback/:id` | Solo autor; `{texto?, anonimo?}`. No permite cambiar comisión ni docente. |
+| `DELETE /feedback/:id` | Solo autor; baja lógica y revisión en transacción, responde 204. |
+| `GET /feedback/:id/historial?page=1&pageSize=3` | Solo autor, incluso tras eliminación; creación, edición y eliminación. |
+
+Listados: `{items,total,page,pageSize}`; máximo nueve comentarios por página y tres revisiones.
+Comentario: `{id,texto,anonimo,autor:{displayName}|null,propio,profesor,contexto,createdAt,updatedAt}`.
+`profesor` es `null` o `{id,nombreCompleto,cargo}`. `contexto` contiene `comisionId`, `nombre`
+de comisión, `materiaId`, `materiaNombre`, `cursadaId`, `anio`, `modalidad` y el
+`cuatrimestre` histórico nullable.
+Revisión: `{id,accion,texto,anonimo,createdAt}`, con acción CREACION, EDICION o ELIMINACION.
+Las fechas se serializan como ISO. El anonimato oculta la identidad incluso al propio autor
+en la proyección pública; `propio` habilita sus acciones sin exponer identificadores.
+El historial es privado del autor: un ADMIN ajeno tampoco accede a él.
+
+La consulta general de Experiencias (TASK-061) reutiliza los mismos comentarios, proyección
+pública y paginación: nueve por defecto y máximo nueve. Devuelve `{items,total,page,pageSize}`,
+excluye publicaciones eliminadas y conserva los datos académicos/docentes copiados al publicar,
+incluidos períodos anteriores y comisiones inactivas. No reconstruye el contexto desde las
+asignaciones actuales. El anonimato continúa ocultando al autor y `propio` se calcula para la
+sesión que consulta; no se incluyen `autorId`, email ni historial. No crea otra clase de contenido
+ni habilita el detalle privado de comentarios ajenos. Sin sesión responde 401; paginación
+inválida o filtros no contemplados responden 400. No requiere migraciones ni nuevas variables.
+El método `listGeneral` recorre controller, service y puerto del módulo existente y delega en
+la misma consulta transaccional/proyección que `listComision`; los permisos del detalle y las
+escrituras permanecen independientes de esta lectura transversal.
+
+### Reglas, persistencia e historial
+
+Texto plano: trim de bordes, 1–3000 puntos de código Unicode; rechaza controles C0/C1 salvo
+tabulación y saltos de línea LF/CR. Los cuerpos son estrictos y no aceptan `autorId`.
+Un usuario tiene como máximo un comentario vigente por comisión, también bajo anonimato o
+para docentes distintos. Puede eliminarlo y publicar otro; la baja conserva la trazabilidad.
+La comisión debe estar activa y ella, su cursada y su materia sin baja lógica para publicar
+o editar. Retirar y consultar comentarios históricos sigue permitido tras una baja académica.
+
+Sin docentes, la referencia es general. Con uno, se lo asocia automáticamente. Con varios,
+se acepta uno asignado o una referencia general. Un docente ajeno se rechaza con 400.
+El contexto y el docente/cargo se copian en el alta: una reasignación o cambio de nombre posterior
+no reatribuye comentarios anteriores. Editar texto o anonimato conserva esas instantáneas.
+
+`FeedbackService` valida las entradas antes de llamar al puerto `FeedbackRepository`;
+`application/feedback-policy.ts` concentra las reglas de autoría, vigencia y selección docente.
+`PrismaFeedbackRepository` ejecuta los bloqueos y las transacciones. Alta, edición y baja
+bloquean la fila de comisión; el alta obtiene contexto y asignaciones en una única consulta SQL
+con una instantánea MVCC consistente. Las escrituras posteriores no reconstruyen el pasado.
+El índice parcial UNIQUE `(autorId,comisionId) WHERE deletedAt IS NULL` protege también altas
+concurrentes. Los cambios y su revisión se guardan en una transacción; sin diferencias no se
+escribe ni genera revisión. Las relaciones de autor, comisión y docente usan borrado restringido.
+
+Errores: 400 datos/campos/paginación inválidos, 401 sin sesión, 403 autoría insuficiente,
+404 comentario/comisión inexistente, 409 publicación duplicada o comisión inactiva.
+El controlador nunca devuelve filas Prisma ni credenciales de identidad interna.
+
+Aplicar `20261102000000_feedback_comisiones` con el flujo habitual `db:deploy` antes de iniciar
+el código nuevo. Es aditiva, utiliza `DATABASE_URL` y no requiere dependencias ni variables
+nuevas; conserva Docker, PostgreSQL y el contrato de despliegue existente.
+
+## Catálogo de materias: filtros independientes y orden alfabético (TASK-060)
+
+Contrato vigente de `GET /materias`; prevalece sobre las descripciones de listado históricas
+de TASK-024, TASK-025, TASK-041 y TASK-044 que aparecen más abajo. No cambia autenticación,
+permisos, escrituras, detalle ni el historial de materias.
+
+- `carrera` y `anioCarrera` son filtros opcionales e independientes. Por ejemplo,
+  `?anioCarrera=2` encuentra materias de segundo año de cualquier carrera; `?carrera=Q`
+  encuentra materias de Química de cualquier año. Juntos deben coincidir sobre la misma
+  asociación `MateriaCarrera`, evitando mezclar el año de una carrera con otra carrera.
+- `nivelElectiva` sigue requiriendo `anioCarrera=ELECTIVA`, con o sin carrera. Filtros fuera
+  del catálogo, parámetros repetidos y nivel sin Electiva continúan devolviendo 400.
+- `q` busca una subcadena literal del nombre sin distinguir mayúsculas ni diacríticos:
+  `algebra` encuentra `Álgebra`, y ambas direcciones con tildes funcionan. `%`, `_` y barra
+  inversa son caracteres literales, nunca comodines aportados por el usuario. Se conserva
+  el límite de 150 puntos de código, trim y rechazo de controles.
+- La respuesta conserva `{items,total,page,pageSize}` y todas las asociaciones `carreras`
+  de cada materia, aunque solo una asociación haya coincidido con los filtros. Cada materia
+  cuenta una vez en `total` y en el corte de página. El frontend puede mostrarla en varios
+  grupos sin duplicarla en el conteo del backend.
+- El orden se calcula antes de paginar sobre el nombre en minúsculas sin diacríticos, con
+  nombre original e id como desempates. No se ordena por año ni nivel. Página predeterminada
+  de nueve materias; se mantiene el máximo de 100 para opciones administrativas existentes.
+
+El adaptador usa SQL parametrizado con `EXISTS` sobre una única asociación y la misma
+condición de filtro para IDs de página y conteo. Solo esos IDs se hidratan con Prisma;
+no se descarga el catálogo completo. Las consultas comparten una transacción de lectura
+`RepeatableRead` para conservar el mismo estado al contar, cortar e hidratar las asociaciones.
+Se preserva el orden de los IDs de la consulta incluso si la hidratación devuelve otro orden.
+
+La búsqueda y el orden usan PostgreSQL UTF-8 `normalize(..., NFD)`, `translate` para eliminar
+marcas combinadas U+0300–U+036F y `lower`; el término utiliza la misma normalización antes
+de escapar los metacaracteres. Incluye tildes, diéresis y la tilde de ñ. No altera nombres
+guardados ni necesita extensiones `unaccent`, migraciones, dependencias o variables nuevas.
+Continúa usando el PostgreSQL existente en Docker y producción.
+
 ## Materias: clasificación, filtros e historial (TASK-024)
 
 Casos de contrato, permisos, consulta PostgreSQL e historial verificados:
