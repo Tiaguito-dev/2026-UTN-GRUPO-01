@@ -34,7 +34,7 @@ export class PrismaUserAdministrationRepository implements UserAdministrationRep
         await tx.emailVerificationCredential.updateMany({ where: { userId: id, consumedAt: null, invalidatedAt: null }, data: { invalidatedAt: changedAt } });
       }
       const updated = await tx.user.update({ where: { id }, data: { disabledAt: activo ? null : changedAt }, select: fields });
-      await tx.administracionHistorial.create({ data: { entidad: "usuario", entidadId: id, actorId, accion: activo ? "ACTIVACION" : "DESACTIVACION",
+      await tx.administracionHistorial.create({ data: { entidad: "usuario", entidadId: id, actorId, accion: activo ? "REACTIVACION" : "DESACTIVACION",
         cambios: [{ campo: "estado", anterior: current.disabledAt ? "INACTIVO" : "ACTIVO", nuevo: activo ? "ACTIVO" : "INACTIVO" }], createdAt: changedAt } });
       return updated;
     }, { isolationLevel: "ReadCommitted" });

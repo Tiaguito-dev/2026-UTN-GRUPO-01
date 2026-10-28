@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### Gestión del acceso de usuarios
+
+- Confirmaciones de desactivación y reactivación identifican nombre y email; acciones Lucide accesibles en listado y detalle, estado y resultados filtrados actualizados tras operar.
+- El detalle vuelve a los eventos más recientes tras cambiar el estado. Se explicita que reactivar requiere iniciar sesión nuevamente y conserva las revocaciones anteriores.
+- Verificada protección backend de cuentas inactivas, sesiones existentes, permisos y administradores concurrentes; comentarios anónimos y snapshots permanecen intactos. Nuevos eventos de reactivación usan REACTIVACION.
+- Migración aditiva del CHECK de historial para admitir eventos de comentarios y evitar el error 500 detectado durante las pruebas. Documentación de contratos y pruebas ampliadas. Sin commits.
+
 ### Detalle administrativo y trazabilidad
 
 - Accesos Eye a detalles administrativos de usuarios y comentarios; Experiencias conserva filtros y página al regresar.

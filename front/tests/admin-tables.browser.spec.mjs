@@ -36,6 +36,66 @@ const lists = [
   ["Usuarios registrados", "/home/admin/usuarios", null],
 ];
 
+test("acceso de usuarios: confirmación, filtros, detalle e historial tras reactivación", async ({ page }) => {
+  const target = { ...usuario, id: "u2", displayName: "Ana de prueba", email: "ana@alu.frlp.utn.edu.ar", role: "USER" };
+  let disabledAt = null;
+  const events = [];
+  let writes = 0;
+  await page.route((url) => /^\/(?:users(?:\/|$)|admin\/users\/)/.test(url.pathname), async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const headers = { "Access-Control-Allow-Origin": new URL(page.url()).origin, "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Methods": "GET, PATCH, OPTIONS", "Access-Control-Allow-Headers": "Content-Type, X-CSRF-Protection" };
+    if (request.method() === "OPTIONS") { await route.fulfill({ status: 204, headers }); return; }
+    let body;
+    if (url.pathname === "/users/u2/estado") {
+      writes++;
+      const { activo } = request.postDataJSON();
+      disabledAt = activo ? null : date;
+      events.unshift({ id: `h${writes}`, actorId: usuario.id, accion: activo ? "ACTIVACION" : "DESACTIVACION", createdAt: date, cambios: [{ campo: "estado", anterior: activo ? "INACTIVO" : "ACTIVO", nuevo: activo ? "ACTIVO" : "INACTIVO" }] });
+      body = { ...target, disabledAt };
+    } else if (url.pathname === "/admin/users/u2/detalle") {
+      body = { registro: { ...target, disabledAt }, auditoria: { id: target.id, createdAt: date, createdBy: null, updatedAt: date, updatedBy: usuario.id, deletedAt: disabledAt, deletedBy: disabledAt ? usuario.id : null }, historial: pageOf(events, url.searchParams) };
+    } else if (url.pathname === "/users") {
+      const state = url.searchParams.get("estado");
+      body = pageOf(!state || (state === "ACTIVO") === (disabledAt === null) ? [{ ...target, disabledAt }] : [], url.searchParams);
+    } else throw new Error(`Sin fixture: ${url.pathname}`);
+    await route.fulfill({ json: body, headers });
+  });
+  await page.goto("/home/admin/usuarios?estado=ACTIVO");
+  await expect(page.getByRole("cell", { name: "Activo", exact: true })).toBeVisible();
+  const deactivate = page.getByRole("button", { name: `Desactivar usuario ${target.displayName} (${target.email})`, exact: true });
+  await expect(deactivate.locator("svg.lucide-user-x")).toHaveCount(1);
+  await deactivate.click();
+  let dialog = page.getByRole("dialog", { name: "Desactivar usuario" });
+  await expect(dialog).toContainText(`${target.displayName} (${target.email})`);
+  await dialog.getByRole("button", { name: "Cancelar", exact: true }).click();
+  expect(writes).toBe(0);
+  await deactivate.click();
+  await page.getByRole("dialog").getByRole("button", { name: "Confirmar desactivación" }).click();
+  await expect(page.getByRole("cell", { name: target.email, exact: true })).toHaveCount(0);
+  await expect(page.getByText("Usuario desactivado correctamente.", { exact: true })).toBeVisible();
+  await page.getByRole("combobox", { name: "Estado", exact: true }).selectOption("INACTIVO");
+  await expect(page.getByRole("cell", { name: "Inactivo", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: `Ver detalle de ${target.displayName} (${target.email})`, exact: true }).click();
+  await expect(page).toHaveURL(/\/home\/admin\/usuarios\/u2\?returnTo=/);
+  await expect(page.getByText("Desactivación", { exact: true })).toBeVisible();
+  await expect(page.getByText(`Actor: ${usuario.id}`, { exact: true })).toBeVisible();
+  const reactivate = page.getByRole("button", { name: `Reactivar usuario ${target.displayName} (${target.email})`, exact: true });
+  await expect(reactivate.locator("svg.lucide-user-check")).toHaveCount(1);
+  await reactivate.click();
+  dialog = page.getByRole("dialog", { name: "Reactivar usuario" });
+  await expect(dialog).toContainText("sesiones revocadas no se restaurarán");
+  await dialog.getByRole("button", { name: "Confirmar reactivación" }).click();
+  await expect(page.getByRole("button", { name: `Desactivar usuario ${target.displayName} (${target.email})`, exact: true })).toBeVisible();
+  await expect(page.getByText("Activación", { exact: true })).toBeVisible();
+  expect(writes).toBe(2);
+  const violations = (await new AxeBuilder({ page }).analyze()).violations.filter((item) => ["serious", "critical"].includes(item.impact));
+  expect(violations.map((item) => item.id)).toEqual([]);
+  await page.getByRole("link", { name: "Volver a listado", exact: true }).click();
+  await expect(page).toHaveURL(/estado=INACTIVO/);
+  await expect(page.getByText("No hay registros que coincidan con los filtros.", { exact: true })).toBeVisible();
+});
+
 for (const width of [390, 1280]) {
   test.describe(`${width}px`, () => {
     test.use({ viewport: { width, height: 1000 } });

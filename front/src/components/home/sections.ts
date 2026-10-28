@@ -37,7 +37,7 @@ export const SYSTEM_SECTIONS: SystemSection[] = [
   },
   {
     id: "admin", title: "Administración", symbol: "A", href: "/home/admin",
-    description: "Alta de materias, profesores, cursadas y comisiones, y consulta de las cuentas registradas.",
+    description: "Gestión de la oferta académica y del acceso de las cuentas registradas.",
     role: "ADMIN",
   },
 ];
