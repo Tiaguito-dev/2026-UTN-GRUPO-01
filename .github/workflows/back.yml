@@ -4,24 +4,12 @@ name: back
 on:
   pull_request:
     branches: [desarrollo, main]
-    paths:
-      - "back/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/back.yml"
-  push:
-    branches: [desarrollo]
-    paths:
-      - "back/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/back.yml"
 
 permissions:
   contents: read
 
 jobs:
-  verify:
+  backend-ci:
     runs-on: ubuntu-latest
     services:
       postgres:

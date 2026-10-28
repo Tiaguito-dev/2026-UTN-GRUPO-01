@@ -2,6 +2,34 @@
 
 ## [Sin publicar]
 
+### Instalación de dependencias del check frontend (TASK-056)
+
+- Se restaura `npm ci` raíz: las pruebas de contrato del frontend importan filtros
+  del backend y necesitan NestJS. La instalación aislada falló en typecheck remoto.
+- Hasta tres intentos de instalación con cinco segundos entre fallos para tolerar
+  cortes transitorios de descarga de Prisma, conservando el fallo del job si se
+  agotan los intentos. No se omiten scripts ni verificaciones.
+- Evidencia local y limitaciones en la tarea; ejecución y aceptación en PR pendientes.
+
+### CI para cada PR a desarrollo y main (TASK-002, aceptación remota pendiente)
+
+- Los workflows existentes ejecutan ambos módulos en cada PR, incluidos cambios
+  de documentación, con checks únicos `backend-ci` y `frontend-ci`.
+- Se retiran los triggers push para evitar repetir las verificaciones tras el merge;
+  se conservan lint, typecheck, tests, builds y servicios de integración backend.
+- DoD y guía del equipo actualizados con el procedimiento de checks obligatorios
+  y comprobación del bloqueo, diferida hasta un fallo durante el desarrollo por
+  decisión del desarrollador. Protección de ramas y aceptación en PR real pendientes.
+- Validación local: lint, typecheck y builds de ambos módulos en verde, 651 tests
+  backend sin omitidos y 281 frontend aprobados, 11 migraciones aplicadas y sin deriva.
+
+### Validación de lint en ambos workspaces (TASK-055)
+
+- Excepción puntual y justificada de `no-control-regex` en la configuración de
+  correo: conserva el rechazo deliberado de caracteres de control.
+- Lint de backend y frontend sin errores ni advertencias; 13 pruebas de
+  configuración del proveedor de correo aprobadas en el entorno local disponible.
+
 ### Correo por Brevo HTTPS (TASK-028)
 
 - Selección de proveedor SMTP o Brevo para verificación institucional y recuperación de
