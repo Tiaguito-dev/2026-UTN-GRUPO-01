@@ -30,11 +30,13 @@ describe("AdminPanel (TASK-043)", () => {
     }
   });
 
-  it("Cuentas y moderación: Usuarios registrados con Ver todos, sin Revisar reportes (fuera de alcance)", () => {
+  // TASK-068: panel inicia el recorrido administrativo; comentarios son consulta, sin inventar moderación.
+  it("Cuentas y experiencias: enlaza usuarios y comentarios administrativos sin inventar reportes", () => {
     render(<AdminPanel />);
-    const cuentas = regionOf(screen.getByRole("heading", { level: 2, name: "Cuentas y moderación" }));
+    const cuentas = regionOf(screen.getByRole("heading", { level: 2, name: "Cuentas y experiencias" }));
     const usuarios = regionOf(within(cuentas).getByRole("heading", { level: 3, name: "Usuarios registrados" }));
     expect(href(usuarios, /^Ver todos/)).toBe("/home/admin/usuarios");
+    expect(href(cuentas, /^Ver experiencias/)).toBe("/home/admin/experiencias");
     expect(screen.queryByText(/Revisar reportes/)).toBeNull();
   });
 });

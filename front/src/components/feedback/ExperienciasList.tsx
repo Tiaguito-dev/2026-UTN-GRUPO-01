@@ -20,7 +20,7 @@ import { ExperienceCard } from "./ExperienceCard";
 import { ExperienciasMateriaSelector } from "./ExperienciasMateriaSelector";
 import styles from "./feedback.module.css";
 
-export function ExperienciasList() {
+export function ExperienciasList({ administrative = false }: { administrative?: boolean }) {
   const headingId = useId();
   const careerId = useId();
   const router = useRouter();
@@ -28,6 +28,7 @@ export function ExperienciasList() {
   const { carrera, materiaId } = experienciasFilters(params);
   const { page, setPage } = useUrlPagination();
   const origin = experienciasOrigin(params);
+  const listHref = experienciasHref(carrera, materiaId, page).replace("/home/experiencias", administrative ? "/home/admin/experiencias" : "/home/experiencias");
   const selected = useFeedbackResource(`materia-experiencias:${materiaId ?? ""}`, () => materiaId ? obtenerMateria(materiaId) : Promise.resolve(null));
   const [changing, setChanging] = useState(false);
   const [filterError, setFilterError] = useState("");
@@ -35,7 +36,7 @@ export function ExperienciasList() {
   const { state, retry } = usePaginatedFetch(`experiencias:${carrera ?? ""}:${materiaId ?? ""}`, (next) => listarFeedback({ page: next, pageSize: 9, carrera, materiaId }), page);
   const active = Boolean(carrera || materiaId);
   function navigate(nextCareer?: Carrera, nextSubject?: string) {
-    router.replace(experienciasHref(nextCareer, nextSubject), { scroll: false });
+    router.replace(experienciasHref(nextCareer, nextSubject).replace("/home/experiencias", administrative ? "/home/admin/experiencias" : "/home/experiencias"), { scroll: false });
   }
   async function changeCareer(next?: Carrera) {
     if (pending.current) return;
@@ -50,8 +51,8 @@ export function ExperienciasList() {
   const clear = () => { setFilterError(""); navigate(); };
   return <section className={styles.feedPage} aria-labelledby={headingId}>
     <div className={styles.feedHeader}>
-      <PageHeader id={headingId} title="Experiencias" description="Comentarios de la comunidad sobre materias, comisiones y docentes, del más reciente al más antiguo." />
-      <p className={styles.meta}>Para compartir tu experiencia, elegí una comisión desde <Link href="/home/materias">Materias</Link>.</p>
+      <PageHeader id={headingId} title="Experiencias" description="Comentarios de la comunidad sobre materias, comisiones y docentes, del más reciente al más antiguo." breadcrumb={administrative ? [{ label: "Administración", href: "/home/admin" }, { label: "Experiencias" }] : undefined} back={administrative ? { href: "/home/admin", label: "Administración" } : undefined} />
+      {!administrative ? <p className={styles.meta}>Para compartir tu experiencia, elegí una comisión desde <Link href="/home/materias">Materias</Link>.</p> : null}
     </div>
     <div className={styles.feedFilters}>
       <div className={styles.feedCareer}><label htmlFor={careerId}>Carrera</label><div className={styles.feedSelect}><select id={careerId} value={carrera ?? ""} disabled={changing} onChange={(event) => void changeCareer(isCarrera(event.target.value) ? event.target.value : undefined)}><option value="">Todas las carreras</option>{CARRERAS.map((value) => <option key={value} value={value}>{carreraLabel(value)}</option>)}</select><ChevronDown size={18} aria-hidden="true" /></div></div>
@@ -63,7 +64,7 @@ export function ExperienciasList() {
     {materiaId && selected.error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la materia seleccionada. <button className="button button-secondary" type="button" onClick={selected.retry}>Reintentar materia</button></Notice> : null}
     {state.status === "loading" ? <p role="status">Cargando experiencias…</p> : state.status === "error" ? <Notice tone="error">Lo sentimos. No pudimos recuperar las experiencias. Intentá nuevamente. <button className="button" type="button" onClick={retry}>Reintentar</button></Notice> : <>
       <p className={styles.feedSummary}>{state.data.total === 1 ? "1 comentario" : `${state.data.total} comentarios`}{state.data.items.length ? ` · Mostrando ${(state.data.page - 1) * state.data.pageSize + 1}–${Math.min(state.data.total, (state.data.page - 1) * state.data.pageSize + state.data.items.length)}` : ""}</p>
-      {state.data.items.length ? <ul className={styles.experienceList}>{state.data.items.map((feedback) => <li key={feedback.id}><ExperienceCard feedback={feedback} showContext origin={origin} onManage={() => router.push(feedbackDetalleHref(feedback.id, origin))} /></li>)}</ul> : state.data.total ? <p>No hay comentarios en esta página. <button className="button button-secondary" type="button" onClick={() => setPage(1)}>Volver a la primera página</button></p> : <div className={styles.experienceEmpty}><p>{active ? "No hay experiencias para estos filtros." : "Todavía no hay experiencias publicadas."}</p><button className="button button-secondary" type="button" onClick={clear}>Limpiar filtros</button></div>}
+      {state.data.items.length ? <ul className={styles.experienceList}>{state.data.items.map((feedback) => <li key={feedback.id}><ExperienceCard feedback={feedback} showContext origin={origin} administrative={administrative} returnTo={listHref} onManage={() => router.push(feedbackDetalleHref(feedback.id, origin))} /></li>)}</ul> : state.data.total ? <p>No hay comentarios en esta página. <button className="button button-secondary" type="button" onClick={() => setPage(1)}>Volver a la primera página</button></p> : <div className={styles.experienceEmpty}><p>{active ? "No hay experiencias para estos filtros." : "Todavía no hay experiencias publicadas."}</p><button className="button button-secondary" type="button" onClick={clear}>Limpiar filtros</button></div>}
       <Pagination page={page} pageSize={state.data.pageSize} total={state.data.total} onChange={setPage} />
     </>}
   </section>;

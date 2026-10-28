@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { roleHome } from "@/lib/navigation";
 
 export function SiteHeader() {
-  const { status } = useAuth();
+  const { status, account } = useAuth();
   const panelId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -27,7 +28,7 @@ export function SiteHeader() {
 
   function close() { setOpen(false); }
   return <header className={`site-header${status === "authenticated" ? " site-header-auth" : ""}`}>
-    <Link href={status === "authenticated" ? "/home" : "/"} className="brand"><span className="brand-mark" aria-hidden="true">PB</span><span>Profesor Butchery</span></Link>
+    <Link href={status === "authenticated" ? roleHome(account?.role) : "/"} className="brand"><span className="brand-mark" aria-hidden="true">PB</span><span>Profesor Butchery</span></Link>
     {status === "authenticated" ? <div className="account-menu" ref={containerRef} onBlur={(event) => {
       if (!event.currentTarget.contains(event.relatedTarget)) close();
     }}>

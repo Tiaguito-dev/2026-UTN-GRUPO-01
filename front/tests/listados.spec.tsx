@@ -86,7 +86,13 @@ describe.each([
     if (name === "UsuariosList") {
       expect(screen.queryByRole("button", { name: /eliminar|rol|editar/i })).toBeNull();
       expect(screen.queryByRole("link", { name: /crear|editar/i })).toBeNull();
-    } else expect(screen.getByRole("link", { name: /editar/i })).toBeTruthy();
+    } else {
+      expect(screen.getByRole("link", { name: /editar/i })).toBeTruthy();
+      // TASK-068: los detalles de tablas administrativas conservan su origen y nunca abren el recorrido público.
+      const detail = new URL(screen.getByRole("link", { name: /^Ver detalle de/ }).getAttribute("href")!, "https://local.test");
+      expect(detail.pathname).toBe(`${pathname}/a`);
+      expect(detail.searchParams.get("returnTo")).toBe(`${pathname}${search ? `?${search}` : ""}`);
+    }
   });
 
   it("Siguiente reemplaza la URL con ?page=2 y pide esa página", async () => {
@@ -96,6 +102,10 @@ describe.each([
     expect(router.replace).toHaveBeenCalledWith(`${pathname}?${search ? `${search}&` : ""}page=2`, { scroll: false });
     view.rerender(<Component />);
     await waitFor(() => expect(fetch).toHaveBeenLastCalledWith(...fetchArgs(2)));
+    if (name !== "MateriasList" && name !== "UsuariosList") {
+      const detail = new URL((await screen.findByRole("link", { name: /^Ver detalle de/ })).getAttribute("href")!, "https://local.test");
+      expect(detail.searchParams.get("returnTo")).toBe(`${pathname}?${search ? `${search}&` : ""}page=2`);
+    }
   });
 
   function fetchArgs(page: number) {

@@ -38,8 +38,10 @@ describe("MateriaFormPage", () => {
   it("TASK055 guarda y cancela conservando la página del listado administrativo", async () => {
     search = new URLSearchParams({ returnTo: "/home/admin/materias?page=3" }).toString();
     vi.mocked(actualizarMateria).mockResolvedValue({ ...mockMateria, nombre: "Sistemas II" });
-    render(<MateriaFormPage materia={mockMateria} detailHref="/home/materias/m-1" />);
-    expect(screen.getByRole("link", { name: /Volver a listado administrativo/ }).getAttribute("href")).toBe("/home/admin/materias?page=3");
+    render(<MateriaFormPage materia={mockMateria} />);
+    // TASK-068: Volver conserva el origen y el breadcrumb comienza siempre en Administración.
+    expect(screen.getByRole("link", { name: /Volver a contexto administrativo/ }).getAttribute("href")).toBe("/home/admin/materias?page=3");
+    expect(screen.getByRole("link", { name: "Administración" }).getAttribute("href")).toBe("/home/admin");
     const input = screen.getByLabelText("Nombre de la materia");
     await userEvent.clear(input); await userEvent.type(input, "Sistemas II");
     await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
@@ -50,7 +52,7 @@ describe("MateriaFormPage", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Nueva materia" })).toBeTruthy();
   });
 
-  it("crear navega a /home/materias?successMessage=Materia%20creada…", async () => {
+  it("crear navega al listado administrativo con mensaje de éxito", async () => {
     vi.mocked(crearMateria).mockResolvedValue(mockMateria);
 
     render(<MateriaFormPage />);
@@ -62,22 +64,19 @@ describe("MateriaFormPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Crear materia" }));
 
     expect(push).toHaveBeenCalledWith(
-      "/home/materias?successMessage=Materia%20creada%3A%20Sistemas%20Operativos."
+      "/home/admin/materias?successMessage=Materia%20creada%3A%20Sistemas%20Operativos."
     );
   });
 
-  it("editar navega a detailHref con & si ya tiene query", async () => {
+  // TASK-068: los retornos al recorrido público no se aceptan desde administración.
+  it("editar conserva el recurso en administración aunque reciba un retorno público con filtros", async () => {
     vi.mocked(actualizarMateria).mockResolvedValue({
       ...mockMateria,
       nombre: "Sistemas Operativos II",
     });
 
-    render(
-      <MateriaFormPage
-        materia={mockMateria}
-        detailHref="/home/materias/m-1?carrera=S&anioCarrera=3"
-      />
-    );
+    search = new URLSearchParams({ returnTo: "/home/materias/m-1?carrera=S&anioCarrera=3" }).toString();
+    render(<MateriaFormPage materia={mockMateria} />);
 
     const input = screen.getByLabelText("Nombre de la materia");
     await userEvent.clear(input);
@@ -85,22 +84,17 @@ describe("MateriaFormPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
     expect(push).toHaveBeenCalledWith(
-      "/home/materias/m-1?carrera=S&anioCarrera=3&successMessage=Materia%20actualizada%20correctamente."
+      "/home/admin/materias/m-1?successMessage=Materia%20actualizada%20correctamente."
     );
   });
 
-  it("editar navega a detailHref con ? si no tiene query", async () => {
+  it("editar sin origen usa el detalle administrativo del recurso", async () => {
     vi.mocked(actualizarMateria).mockResolvedValue({
       ...mockMateria,
       nombre: "Sistemas Operativos II",
     });
 
-    render(
-      <MateriaFormPage
-        materia={mockMateria}
-        detailHref="/home/materias/m-1"
-      />
-    );
+    render(<MateriaFormPage materia={mockMateria} />);
 
     const input = screen.getByLabelText("Nombre de la materia");
     await userEvent.clear(input);
@@ -108,7 +102,7 @@ describe("MateriaFormPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
     expect(push).toHaveBeenCalledWith(
-      "/home/materias/m-1?successMessage=Materia%20actualizada%20correctamente."
+      "/home/admin/materias/m-1?successMessage=Materia%20actualizada%20correctamente."
     );
   });
 });

@@ -13,6 +13,14 @@ export function safeAdminReturnTo(raw: string | null | undefined): string | unde
   for (const character of raw) { const code = character.charCodeAt(0); if (code < 32 || code === 127) return undefined; }
   try {
     const url = new URL(raw, "https://local.invalid");
+    if (url.pathname === "/home/admin/experiencias" && url.origin === "https://local.invalid" && !url.hash) {
+      for (const key of url.searchParams.keys()) if (!["page", "carrera", "materiaId"].includes(key) || url.searchParams.getAll(key).length !== 1) return undefined;
+      const page = Number(url.searchParams.get("page") ?? 1);
+      const carrera = url.searchParams.get("carrera");
+      const materiaId = url.searchParams.get("materiaId");
+      if (!Number.isSafeInteger(page) || page < 1 || (carrera !== null && !["S", "C", "Q", "I", "M"].includes(carrera)) || (materiaId !== null && !/^[a-zA-Z0-9_-]+$/.test(materiaId))) return undefined;
+      return `${url.pathname}${url.search}`;
+    }
     const seccion = ADMIN_SECTIONS.find((section) => url.pathname === `/home/admin/${section}`);
     if (!seccion || url.origin !== "https://local.invalid" || url.hash) return undefined;
     const allowed = seccion === "comisiones" ? ["page", "materiaId", "cursadaId"] : seccion === "cursadas" ? ["page", "materiaId"] : ["page"];

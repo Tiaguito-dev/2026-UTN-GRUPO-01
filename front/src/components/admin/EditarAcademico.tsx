@@ -19,7 +19,7 @@ import { bloqueoDeOpciones, opcionesListas } from "./opciones";
 function useReturnTo(section: AdminSection) { const params = useSearchParams(); return safeAdminReturnTo(params.get("returnTo")) ?? adminListHref({ seccion: section, page: 1 }); }
 function EditorPage({ title, returnTo, children }: { title: string; returnTo: string; children: ReactNode }) {
   const headingId = useId();
-  return <section aria-labelledby={headingId}><PageHeader id={headingId} title={title} breadcrumb={[{ label: "Administración", href: returnTo }, { label: title }]} back={{ href: returnTo, label: "listado administrativo" }} /><Card variant="panel">{children}</Card></section>;
+  return <section aria-labelledby={headingId}><PageHeader id={headingId} title={title} breadcrumb={[{ label: "Administración", href: "/home/admin" }, { label: title }]} back={{ href: returnTo, label: "listado administrativo" }} /><Card variant="panel">{children}</Card></section>;
 }
 function DetailEditor<T>({ id, load, children }: { id: string; load: (id: string) => Promise<T>; children: (value: T) => ReactNode }) {
   const [attempt, setAttempt] = useState(0); const [result, setResult] = useState<{ key: string; data?: T; error?: string }>(); const key = `${id}:${attempt}`;

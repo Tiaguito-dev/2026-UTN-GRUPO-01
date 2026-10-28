@@ -673,3 +673,25 @@ usa Dialog, conserva prevención de duplicados, cancelación con foco al activad
 de error para reintentar sin perder contenido. Una respuesta sin propio tampoco renderiza
 contenido/acciones/versiones; esto complementa la autorización obligatoria del servidor.
 Estilos limitados al módulo, con los tokens vigentes y sin nuevas dependencias.
+
+### Recorridos por rol (TASK-068)
+
+`lib/navigation.ts` centraliza inicio por rol, destinos internos seguros y equivalencias entre
+rutas estudiantiles y administrativas. Login usa el rol de la cuenta devuelta por el servidor;
+la sesión recuperada usa el mismo criterio. `RoleRouteBoundary`, dentro del guard de sesión,
+resuelve ADMIN antes de montar contenido estudiantil. `/account` conserva perfil y contraseña.
+El menú y la marca utilizan el mismo inicio; el menú administrativo incluye Inicio, Materias,
+Profesores, Usuarios y Experiencias. Mantiene la distribución responsive existente.
+
+Las nuevas rutas `/home/admin/materias/[materiaId]`, `/profesores/[profesorId]`,
+`/cursadas/[cursadaId]` y `/comisiones/[comisionId]` (todas bajo `/home/admin`) reutilizan
+consultas, edición, historial de materia y gestión de equipo existentes. Los enlaces del
+catálogo administrativo y sus relaciones usan estas rutas. Breadcrumb compartido comienza
+en Administración; `returnTo` valida un origen interno administrativo y conserva filtros.
+
+`/home/admin/experiencias` reutiliza `ExperienciasList` y `ExperienceCard` con presentación
+administrativa: filtros/paginación existentes, enlaces administrativos y anonimato público;
+sin publicación ni gestión privada del autor. `ComisionFeedback` usa el mismo modo de consulta
+y evita consultar el comentario propio. No se agregan endpoints ni capacidades de moderación.
+El guard ADMIN del layout y las comprobaciones backend permanecen obligatorios. USER conserva
+sus rutas y no monta contenido administrativo cuando el guard rechaza su rol.

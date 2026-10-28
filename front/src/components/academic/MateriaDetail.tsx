@@ -77,7 +77,7 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
 }
 
 // TASK-045: history is only rendered for ADMIN (and only ADMIN fetches it).
-function MateriaHistory({ materiaId, materiaCreatedAt }: { materiaId: string; materiaCreatedAt: string }) {
+export function MateriaHistory({ materiaId, materiaCreatedAt }: { materiaId: string; materiaCreatedAt: string }) {
   const headingId = useId();
   const [page, setPage] = useState(1);
   const { state, retry } = usePaginatedFetch(`historial:${materiaId}`, (next) => listarHistorialMateria(materiaId, { page: next }), page);

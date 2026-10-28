@@ -18,6 +18,8 @@ import { periodoLabel } from "@/lib/format/periodo";
 import { iniciales } from "./detalle";
 import styles from "./ComisionDetail.module.css";
 import { experienciasBack, feedbackOriginParams } from "@/validations/feedback";
+import { adminReturnTo } from "@/lib/navigation";
+import { adminFormHref } from "@/validations/admin";
 
 interface Resource<T> { key: string; data: T | null; error: string }
 
@@ -32,7 +34,7 @@ async function loadOptions<T>(fetchPage: (page: number) => Promise<PaginatedResu
   return items;
 }
 
-export function ComisionDetail({ materiaId, cursadaId, comisionId }: { materiaId: string; cursadaId: string; comisionId: string }) {
+export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, administrative = false }: { materiaId?: string; cursadaId?: string; comisionId: string; administrative?: boolean }) {
   const headingId = useId();
   const selectorId = useId();
   const assignmentId = useId();
@@ -122,7 +124,9 @@ export function ComisionDetail({ materiaId, cursadaId, comisionId }: { materiaId
   const returnQuery = new URLSearchParams(materiaBaseHref.split("?")[1]);
   returnQuery.set("cursadaId", realCursadaId);
   if (comisionesPage > 1) returnQuery.set("comisionesPage", String(comisionesPage));
-  const materiaHref = `${materiaBaseHref.split("?")[0]}?${returnQuery}`;
+  const adminBack = adminReturnTo(params.get("returnTo"), "/home/admin/comisiones");
+  const adminContext = new URLSearchParams({ returnTo: adminBack });
+  const materiaHref = administrative ? `/home/admin/materias/${encodeURIComponent(realMateriaId)}?${adminContext}` : `${materiaBaseHref.split("?")[0]}?${returnQuery}`;
   const contextQuery = feedbackOriginParams(params);
   if (carrera) contextQuery.set("carrera", carrera);
   if (anio) contextQuery.set("anioCarrera", anio);
@@ -162,8 +166,9 @@ export function ComisionDetail({ materiaId, cursadaId, comisionId }: { materiaId
 
   return <section className={styles.page} aria-labelledby={headingId}>
     <div className={styles.header}>
-      <PageHeader id={headingId} title={materiaLabel} eyebrow={eyebrow} back={experienciasBack(params) ?? { href: materiaHref, label: "Comisiones de la materia" }}
-        breadcrumb={[{ label: "Materias", href: materiasHref }, { label: comision?.cursada.materia.nombre ?? "Materia", href: materiaHref }, { label: comision ? `Comisión ${comision.nombre}` : "Comisión" }]} focusKey={comisionId} />
+      <PageHeader id={headingId} title={materiaLabel} eyebrow={eyebrow} back={administrative ? { href: adminBack, label: "contexto administrativo" } : experienciasBack(params) ?? { href: materiaHref, label: "Comisiones de la materia" }}
+        breadcrumb={[...(administrative ? [{ label: "Administración", href: "/home/admin" }] : []), { label: "Materias", href: administrative ? "/home/admin/materias" : materiasHref }, { label: comision?.cursada.materia.nombre ?? "Materia", href: materiaHref }, { label: comision ? `Comisión ${comision.nombre}` : "Comisión" }]} focusKey={comisionId} />
+      {administrative && comision ? <Link className="button button-secondary" href={adminFormHref(`/home/admin/comisiones/${encodeURIComponent(comision.id)}/editar`, adminBack)}>Editar comisión</Link> : null}
       {comision ? <div className={styles.contextRow}>
         <div className={styles.context}>
           <span className={styles.commissionLabel}>Comisión {comision.nombre}</span>
@@ -175,7 +180,7 @@ export function ComisionDetail({ materiaId, cursadaId, comisionId }: { materiaId
           : options.error ? <p className={styles.secondary}>{options.error} <button className={styles.retry} type="button" onClick={() => setOptionsRetry((value) => value + 1)}>Reintentar comisiones</button></p>
           : (options.data?.length ?? 0) > 1 ? <div className={styles.selector}>
             <label htmlFor={selectorId}>Comisión del período</label>
-            <div className={styles.selectorControl}><select id={selectorId} value={comision.id} onChange={(event) => { if (event.target.value !== comision.id) router.push(`/home/materias/${encodeURIComponent(realMateriaId)}/cursadas/${encodeURIComponent(realCursadaId)}/comisiones/${encodeURIComponent(event.target.value)}${queryString}`); }}>
+            <div className={styles.selectorControl}><select id={selectorId} value={comision.id} onChange={(event) => { if (event.target.value !== comision.id) router.push(administrative ? `/home/admin/comisiones/${encodeURIComponent(event.target.value)}?${adminContext}` : `/home/materias/${encodeURIComponent(realMateriaId)}/cursadas/${encodeURIComponent(realCursadaId)}/comisiones/${encodeURIComponent(event.target.value)}${queryString}`); }}>
               {!options.data?.some((item) => item.id === comision.id) ? <option value={comision.id}>Comisión {comision.nombre} (actual)</option> : null}
               {options.data?.map((item) => <option key={item.id} value={item.id}>Comisión {item.nombre}{item.id === comision.id ? " (actual)" : ""}{!item.activa ? " · Inactiva" : ""}</option>)}
             </select><ChevronDown size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" /></div>
@@ -187,13 +192,13 @@ export function ComisionDetail({ materiaId, cursadaId, comisionId }: { materiaId
     {error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la comisión. {error} {current?.notFound ? back : <button className="button" type="button" onClick={() => setRetryToken((value) => value + 1)}>Reintentar</button>}</Notice> : null}
     {!comision && !error ? <p role="status">Cargando comisión…</p> : null}
     {comision ? <div className={styles.content}>
-      <div className={styles.main}><ComisionFeedback comision={comision} /></div>
+      <div className={styles.main}><ComisionFeedback comision={comision} administrative={administrative} /></div>
         <section className={styles.team} aria-labelledby={`${headingId}-equipo`}>
           <h2 id={`${headingId}-equipo`}>Equipo docente</h2>
           {comision.profesores.length === 0 ? <p className={styles.secondary}>No hay profesores asignados a esta comisión.</p> : <ul className={styles.teamList}>
             {comision.profesores.map((profesor) => <li key={profesor.id} className={styles.person}>
               <span className={styles.avatar} aria-hidden="true">{iniciales(profesor.nombreCompleto)}</span>
-              <div className={styles.personText}><span className={styles.personName}>{profesor.nombreCompleto}</span><span className={styles.personRole}>{cargoLabel(profesor.cargo)}</span></div>
+              <div className={styles.personText}>{administrative ? <Link className={styles.personName} href={`/home/admin/profesores/${encodeURIComponent(profesor.id)}?${adminContext}`}>{profesor.nombreCompleto}</Link> : <span className={styles.personName}>{profesor.nombreCompleto}</span>}<span className={styles.personRole}>{cargoLabel(profesor.cargo)}</span></div>
             </li>)}
           </ul>}
           {isAdmin ? <>

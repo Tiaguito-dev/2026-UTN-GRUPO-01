@@ -2,6 +2,17 @@
 
 ## [Sin publicar]
 
+### Recorrido administrativo por rol (TASK-068)
+
+- Inicio de sesión, marca y menú resuelven el panel administrativo para ADMIN. Perfil y
+  cierre de sesión se conservan, con menú estudiantil intacto para USER y guard administrativo.
+- Detalles administrativos de materia, profesor, cursada y comisión reutilizan consultas y
+  edición existentes. Los listados y relaciones permanecen en administración y conservan origen.
+- Experiencias administrativa reutiliza filtros y paginación sin invitar a publicar ni abrir
+  gestión privada del comentario. Anonimato y autorizaciones del backend se conservan.
+- Breadcrumb compartido comienza en Administración; traducción central de rutas evita montar
+  contenido estudiantil para ADMIN. Sin dependencias, migraciones ni operaciones backend nuevas.
+
 ### Administración del comentario propio (TASK-066)
 
 - Detalle privado Tu comentario con breadcrumb compartido y regreso contextual con filtros.

@@ -6,16 +6,58 @@ import { ExperienciasList } from "@/components/feedback/ExperienciasList";
 import { listarFeedback } from "@/services/feedback";
 import type { Feedback } from "@/types/feedback";
 import { listarMaterias, obtenerMateria } from "@/services/materias";
-const { replace, push, route } = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn(), route: { query: "" } }));
+const { replace, push, route } = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn(), route: { query: "", pathname: "/home/experiencias" } }));
 vi.mock("next/link", () => import("./support/next-link"));
-vi.mock("next/navigation", () => ({ usePathname: () => "/home/experiencias", useSearchParams: () => new URLSearchParams(route.query), useRouter: () => ({ replace, push }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => route.pathname, useSearchParams: () => new URLSearchParams(route.query), useRouter: () => ({ replace, push }) }));
 vi.mock("@/services/feedback", () => ({ listarFeedback: vi.fn() }));
 vi.mock("@/services/materias", () => ({ listarMaterias: vi.fn(), obtenerMateria: vi.fn() }));
 const materia = { id: "mat1", nombre: "Álgebra", modalidad: null, carreras: [{ carrera: "S" as const, anioCarrera: "1" as const, nivelElectiva: null }], createdAt: "2026-01-01", deletedAt: null };
 const item: Feedback = { id: "f1", texto: "Buena experiencia\ncon ejemplos", anonimo: true, autor: null, propio: false, profesor: null, contexto: { comisionId: "com1", nombre: "S-21", materiaId: "mat1", materiaNombre: "Álgebra", cursadaId: "cur1", anio: 2026, cuatrimestre: "SEGUNDO" }, createdAt: "2026-01-01", updatedAt: "2026-01-01" };
-beforeEach(() => { vi.clearAllMocks(); route.query = ""; vi.mocked(obtenerMateria).mockResolvedValue(materia); vi.mocked(listarMaterias).mockResolvedValue({ items: [materia], total: 1, page: 1, pageSize: 9 }); vi.mocked(listarFeedback).mockResolvedValue({ items: [item], total: 10, page: 1, pageSize: 9 }); });
+beforeEach(() => { vi.clearAllMocks(); route.query = ""; route.pathname = "/home/experiencias"; vi.mocked(obtenerMateria).mockResolvedValue(materia); vi.mocked(listarMaterias).mockResolvedValue({ items: [materia], total: 1, page: 1, pageSize: 9 }); vi.mocked(listarFeedback).mockResolvedValue({ items: [item], total: 10, page: 1, pageSize: 9 }); });
 afterEach(cleanup);
 describe("Experiencias generales", () => {
+  it("administración consulta el feed público sin invitar a participar ni revelar identidades anónimas", async () => {
+    route.pathname = "/home/admin/experiencias";
+    route.query = "carrera=S&materiaId=mat1&page=2";
+    vi.mocked(listarFeedback).mockResolvedValue({ items: [{ ...item, propio: true, autor: { displayName: "Autor confidencial" } }], total: 10, page: 2, pageSize: 9 });
+    render(<ExperienciasList administrative />);
+    expect(await screen.findByText(/Buena experiencia/)).toBeTruthy();
+    expect(listarFeedback).toHaveBeenCalledWith({ page: 2, pageSize: 9, carrera: "S", materiaId: "mat1" });
+    expect(screen.getByText("Anónimo")).toBeTruthy();
+    expect(screen.queryByText("Autor confidencial")).toBeNull();
+    expect(screen.queryByText(/Para compartir tu experiencia/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Administrar mi comentario" })).toBeNull();
+    expect(document.querySelector('a[href^="/home/feedback"]')).toBeNull();
+    const breadcrumb = screen.getByRole("navigation", { name: "Ubicación actual" });
+    expect(breadcrumb.textContent).toMatch(/Administración.*Experiencias/);
+    for (const [name, expected] of [["Álgebra", "/home/admin/materias/mat1"], [/Ver comisión/, "/home/admin/comisiones/com1"]] as const) {
+      const target = new URL(screen.getByRole("link", { name }).getAttribute("href")!, "https://local.test");
+      expect(target.pathname).toBe(expected);
+      expect(target.searchParams.get("returnTo")).toBe("/home/admin/experiencias?carrera=S&materiaId=mat1&page=2");
+    }
+  });
+
+  it("los filtros, la paginación y su limpieza permanecen en administración", async () => {
+    route.pathname = "/home/admin/experiencias";
+    route.query = "carrera=S&materiaId=mat1";
+    render(<ExperienciasList administrative />);
+    await screen.findByText(/Buena experiencia/);
+    await userEvent.click(screen.getByRole("button", { name: "Página siguiente" }));
+    expect(replace).toHaveBeenLastCalledWith("/home/admin/experiencias?carrera=S&materiaId=mat1&page=2", { scroll: false });
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Carrera" }), "I");
+    await waitFor(() => expect(replace).toHaveBeenLastCalledWith("/home/admin/experiencias?carrera=I", { scroll: false }));
+    await userEvent.click(screen.getByRole("button", { name: "Limpiar filtros" }));
+    expect(replace).toHaveBeenLastCalledWith("/home/admin/experiencias", { scroll: false });
+  });
+
+  it("seleccionar materia sin carrera también conserva la ruta administrativa", async () => {
+    route.pathname = "/home/admin/experiencias";
+    render(<ExperienciasList administrative />);
+    await userEvent.click(screen.getByText("Todas las materias"));
+    await userEvent.click(await screen.findByRole("button", { name: "Álgebra" }));
+    expect(replace).toHaveBeenLastCalledWith("/home/admin/experiencias?materiaId=mat1", { scroll: false });
+  });
+
   it("combina filtros desde URL, conserva página y regreso en enlaces y administración", async () => {
     route.query = "carrera=S&materiaId=mat1&page=2";
     vi.mocked(listarFeedback).mockResolvedValue({ items: [{ ...item, propio: true }], total: 10, page: 2, pageSize: 9 });

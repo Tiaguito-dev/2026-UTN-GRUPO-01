@@ -47,7 +47,7 @@ export function AdminPanel() {
       </div>
     </section>
     <section id="cuentas-m" className={styles.group} aria-labelledby={cuentasId}>
-      <h2 id={cuentasId} className={styles.groupTitle}>Cuentas y moderación</h2>
+      <h2 id={cuentasId} className={styles.groupTitle}>Cuentas y experiencias</h2>
       <div className={styles.accounts}>
         <article className={styles.card}>
           <div className={styles.cardHead}><span className={styles.symbol} aria-hidden="true">U</span><h3>Usuarios registrados</h3></div>
@@ -55,6 +55,11 @@ export function AdminPanel() {
           <div className={styles.actions}>
             <Link className="button button-secondary" href="/home/admin/usuarios" aria-label="Ver todos los usuarios registrados">Ver todos</Link>
           </div>
+        </article>
+        <article className={styles.card}>
+          <div className={styles.cardHead}><h3>Experiencias</h3></div>
+          <p className={styles.detail}>Consulta de los comentarios publicados, respetando su identidad pública.</p>
+          <div className={styles.actions}><Link className="button button-secondary" href="/home/admin/experiencias">Ver experiencias</Link></div>
         </article>
       </div>
     </section>

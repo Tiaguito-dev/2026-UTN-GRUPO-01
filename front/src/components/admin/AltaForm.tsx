@@ -119,7 +119,7 @@ export function AltaForm<K extends string>({ breadcrumb, heading, description, f
   const returnTo = safeAdminReturnTo(params.get("returnTo"));
 
   return <section aria-labelledby={headingId}>
-    <PageHeader id={headingId} title={heading} description={description} breadcrumb={returnTo ? breadcrumb.map((item) => item.href === "/home/admin" ? { ...item, href: returnTo } : item) : breadcrumb} back={returnTo ? { href: returnTo, label: "listado administrativo" } : undefined} />
+    <PageHeader id={headingId} title={heading} description={description} breadcrumb={breadcrumb} back={returnTo ? { href: returnTo, label: "listado administrativo" } : undefined} />
     <Card variant="panel">
       <AltaFormFields
         fields={fields}

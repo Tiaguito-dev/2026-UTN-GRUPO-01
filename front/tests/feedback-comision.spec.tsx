@@ -30,6 +30,21 @@ beforeEach(() => {
 afterEach(cleanup);
 // TASK-059: public list shows full text; only the author can open the management detail.
 describe("Experiencias en detalle de comisión", () => {
+  it.each([true, false])("administración lee experiencias sin consultar comentario propio ni ofrecer participación, activa=%s", async (activa) => {
+    vi.mocked(listarFeedbackComision).mockResolvedValue({ items: [{ ...feedback, propio: true, autor: { displayName: "Identidad privada" } }], total: 1, page: 1, pageSize: 9 });
+    render(<ComisionFeedback comision={{ ...comision, activa }} administrative />);
+    expect(await screen.findByText("Buena experiencia")).toBeTruthy();
+    expect(listarFeedbackComision).toHaveBeenCalledWith("c1", { page: 1, pageSize: 9 });
+    expect(obtenerFeedbackPropio).not.toHaveBeenCalled();
+    expect(screen.getByText("Anónimo")).toBeTruthy();
+    expect(screen.queryByText("Identidad privada")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Compartir mi experiencia" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Administrar mi comentario" })).toBeNull();
+    expect(screen.queryByText("¿Cómo funcionan los comentarios?")).toBeNull();
+    expect(screen.queryByText(/retirar tu comentario/)).toBeNull();
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it("muestra total real, texto completo y anonimato sin habilitar detalle ajeno", async () => {
     const user = userEvent.setup();
     const texto = "Explica con ejemplos y ejercicios. ".repeat(35);

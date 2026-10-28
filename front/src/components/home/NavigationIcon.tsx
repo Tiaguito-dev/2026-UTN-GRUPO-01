@@ -6,6 +6,7 @@ const icons: Record<string, LucideIcon> = {
   materias: BookOpen,
   experiencias: MessageSquare,
   comunidad: UsersRound,
+  usuarios: UsersRound,
   admin: LayoutGrid,
 };
 

@@ -9,7 +9,7 @@ const { authState, push, origin } = vi.hoisted(() => ({ authState: { role: "USER
 vi.mock("next/link", () => import("./support/next-link"));
 // TASK-057: feedback interactions are covered separately; this suite checks academic context.
 vi.mock("@/components/feedback/ComisionFeedback", () => ({
-  ComisionFeedback: ({ comision }: { comision: { id: string } }) => <div data-testid="feedback-comision" data-comision-id={comision.id} />,
+  ComisionFeedback: ({ comision, administrative }: { comision: { id: string }; administrative?: boolean }) => <div data-testid="feedback-comision" data-comision-id={comision.id} data-administrative={String(Boolean(administrative))} />,
 }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(`carrera=S&anioCarrera=ELECTIVA&listadoPage=2&q=Plan&nivelElectiva=4&cursadaId=cur1&comisionesPage=3${origin.extra}`),
@@ -46,6 +46,30 @@ beforeEach(() => {
 afterEach(cleanup);
 // TASK-059 intentionally changes the former commission-title/sidebar-list presentation.
 describe("Detalle de comisión centrado en experiencias", () => {
+  it("el detalle administrativo conserva el origen filtrado y abre solo entidades administrativas", async () => {
+    authState.role = "ADMIN";
+    const returnTo = "/home/admin/experiencias?carrera=S&materiaId=mat1&page=3";
+    origin.extra = `&${new URLSearchParams({ returnTo })}`;
+    render(<ComisionDetail comisionId="com1" administrative />);
+    await screen.findByRole("heading", { name: "Álgebra" });
+    const breadcrumb = within(screen.getByRole("navigation", { name: "Ubicación actual" }));
+    expect(breadcrumb.getAllByRole("link")[0]!.textContent).toBe("Administración");
+    expect(breadcrumb.getByRole("link", { name: "Álgebra" }).getAttribute("href")).toContain("/home/admin/materias/mat1?");
+    expect(screen.getByRole("link", { name: /Volver a contexto administrativo/ }).getAttribute("href")).toBe(returnTo);
+    const teacher = new URL(screen.getByRole("link", { name: "Prof. Rossi" }).getAttribute("href")!, "https://local.test");
+    expect(teacher.pathname).toBe("/home/admin/profesores/p1");
+    expect(teacher.searchParams.get("returnTo")).toBe(returnTo);
+    const edit = new URL(screen.getByRole("link", { name: "Editar comisión" }).getAttribute("href")!, "https://local.test");
+    expect(edit.pathname).toBe("/home/admin/comisiones/com1/editar");
+    expect(edit.searchParams.get("returnTo")).toBe(returnTo);
+    expect(screen.getByTestId("feedback-comision").getAttribute("data-administrative")).toBe("true");
+    await userEvent.selectOptions(await screen.findByRole("combobox", { name: "Comisión del período" }), "com2");
+    const destination = new URL(String(push.mock.calls.at(-1)?.[0]), "https://local.test");
+    expect(destination.pathname).toBe("/home/admin/comisiones/com2");
+    expect(destination.searchParams.get("returnTo")).toBe(returnTo);
+    expect(document.querySelector('a[href^="/home/materias"]')).toBeNull();
+  });
+
   it("regresa a Experiencias con sus filtros y conserva el origen al cambiar comisión", async () => {
     origin.extra = "&origen=experiencias&experienciasCarrera=I&experienciasMateriaId=mat1&experienciasPage=3";
     render(<ComisionDetail materiaId="mat1" cursadaId="cur1" comisionId="com1" />);

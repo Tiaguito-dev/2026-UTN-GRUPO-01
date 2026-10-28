@@ -1,9 +1,9 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useId, type ReactNode } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { safeReturnPath } from "@/validations/auth";
+import { internalDestination } from "@/lib/navigation";
 import { COORDINATION_NOTICE } from "@/services/session-coordinator";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -29,9 +29,11 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const { status, coordinationAvailable } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const params = useSearchParams();
+  const origin = `${pathname}${params.size ? `?${params}` : ""}`;
   useEffect(() => {
-    if (status === "anonymous") router.replace(`/login?returnTo=${encodeURIComponent(safeReturnPath(pathname))}`);
-  }, [status, router, pathname]);
+    if (status === "anonymous") router.replace(`/login?returnTo=${encodeURIComponent(internalDestination(origin) ?? "/home")}`);
+  }, [status, router, origin]);
   if (status === "checking") return <p role="status">Comprobando sesión…</p>;
   if (status === "anonymous") return <p role="status">Necesitás <Link href="/login">iniciar sesión</Link> para continuar.</p>;
   if (status === "temporary-error") return <SessionCheckFailed>{!coordinationAvailable && <Notice tone="warning">{COORDINATION_NOTICE}</Notice>}</SessionCheckFailed>;

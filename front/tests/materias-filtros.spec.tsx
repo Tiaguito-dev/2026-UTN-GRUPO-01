@@ -226,12 +226,13 @@ describe("Formulario de materia", () => {
       modalidad: "ANUAL",
       carreras: [{ carrera: "S", anioCarrera: "ELECTIVA", nivelElectiva: "4" }],
     });
-    expect(navigation.push.mock.calls[0][0]).toMatch(/^\/home\/materias\?successMessage=/);
+    // TASK-068: las altas administrativas regresan a su listado, sin entrar al recorrido estudiantil.
+    expect(navigation.push.mock.calls[0][0]).toMatch(/^\/home\/admin\/materias\?successMessage=/);
   });
 
   it("no envía una edición sin cambios y luego envía carreras modificadas", async () => {
     vi.mocked(actualizarMateria).mockResolvedValue(materia);
-    render(<MateriaFormPage materia={materia} detailHref="/home/materias/m1?carrera=S&anioCarrera=2" />);
+    render(<MateriaFormPage materia={materia} />);
     await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
     expect(actualizarMateria).not.toHaveBeenCalled();
     expect(screen.getByRole("status").textContent).toContain("No hay cambios");
@@ -240,6 +241,7 @@ describe("Formulario de materia", () => {
     expect(actualizarMateria).toHaveBeenCalledWith("m1", {
       carreras: [{ carrera: "S", anioCarrera: "3", nivelElectiva: null }],
     });
-    expect(navigation.push.mock.calls[0][0]).toMatch(/^\/home\/materias\/m1\?carrera=S&anioCarrera=2&successMessage=/);
+    // TASK-068: la edición utiliza el detalle administrativo, conservando el identificador.
+    expect(navigation.push.mock.calls[0][0]).toMatch(/^\/home\/admin\/materias\/m1\?successMessage=/);
   });
 });

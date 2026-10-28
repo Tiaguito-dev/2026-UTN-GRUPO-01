@@ -47,3 +47,15 @@ export function findSection(id: string): SystemSection {
   if (!section) throw new Error(`Sección desconocida: ${id}`);
   return section;
 }
+
+const ADMIN_NAVIGATION: SystemSection[] = [
+  { id: "inicio", title: "Inicio", href: "/home/admin", symbol: "", description: "Panel administrativo" },
+  { id: "materias", title: "Materias", href: "/home/admin/materias", symbol: "", description: "Oferta académica" },
+  { id: "profesores", title: "Profesores", href: "/home/admin/profesores", symbol: "", description: "Equipo docente" },
+  { id: "usuarios", title: "Usuarios", href: "/home/admin/usuarios", symbol: "", description: "Cuentas registradas" },
+  { id: "experiencias", title: "Experiencias", href: "/home/admin/experiencias", symbol: "", description: "Consulta de comentarios" },
+];
+
+export function sectionsForRole(role?: Role): SystemSection[] {
+  return role === "ADMIN" ? ADMIN_NAVIGATION : SYSTEM_SECTIONS.filter((item) => !item.role);
+}
