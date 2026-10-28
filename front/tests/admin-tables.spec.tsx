@@ -30,7 +30,7 @@ describe("Tablas administrativas TASK-069", () => {
     const edit = screen.getByRole("link", { name: "Editar Ana García" });
     expect(new URL(edit.getAttribute("href")!, "http://local").searchParams.get("returnTo")).toBe("/home/admin/profesores?q=Garc%C3%ADa");
     await userEvent.tab();
-    expect(screen.getByRole("button", { name: "Eliminar Ana García" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Dar de baja Ana García" })).toBeTruthy();
     expect(listarProfesores).toHaveBeenCalledExactlyOnceWith({ page: 1, pageSize: 9, q: "García" });
     expect(screen.getByRole("button", { name: "Nuevo profesor" })).toBeTruthy();
   });

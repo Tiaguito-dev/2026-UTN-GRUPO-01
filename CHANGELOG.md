@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### Bajas administrativas académicas
+
+- Acciones Trash2 y confirmaciones de baja lógica en listados y detalles de materias, profesores, comisiones y períodos. Se identifica el registro y se explican dependencias y conservación de relaciones, experiencias e historial.
+- Listados recalculan resultados y ajustan automáticamente la página cuando desaparece su última fila; el detalle conserva estado y auditoría tras una baja o un bloqueo.
+- Auditoría de bajas exitosas y bloqueadas con resultado, actor, fecha y motivo; los bloqueos no se presentan como modificaciones del registro. Materia conserva su contrato histórico sin duplicar eventos.
+- Se distingue quitar una asignación de dar de baja al profesor y se impide desvincular asignaciones de una comisión dada de baja ante solicitudes concurrentes. Sin cascadas, borrado definitivo ni migraciones nuevas.
+
 ### Gestión del acceso de usuarios
 
 - Confirmaciones de desactivación y reactivación identifican nombre y email; acciones Lucide accesibles en listado y detalle, estado y resultados filtrados actualizados tras operar.

@@ -12,6 +12,11 @@ import { VERIFICATION_EMAIL } from "../src/auth/domain/email-verification.js";
 import { Argon2PasswordHasher } from "../src/auth/infrastructure/argon2-password-hasher.js";
 import { configureAuthHttp } from "../src/auth/presentation/http-security.js";
 import { csrfHeaders, testAuthConfig } from "./auth-test.config.js";
+import { Login } from "../src/auth/application/login.js";
+import { PrismaUserRepository } from "../src/users/infrastructure/prisma-user.repository.js";
+import { PrismaRefreshCredentialRepository } from "../src/auth/infrastructure/prisma-refresh-credential.repository.js";
+import { CryptoRefreshTokenService } from "../src/auth/infrastructure/crypto-refresh-token.service.js";
+import { JoseAccessTokenService } from "../src/auth/infrastructure/jose-access-token.js";
 
 const databaseUrl = process.env["TEST_DATABASE_URL"];
 
@@ -120,6 +125,77 @@ describe.skipIf(!databaseUrl)("Administración remota, estados y bajas reales TA
     expect(JSON.stringify(first)).not.toMatch(/passwordHash|tokenHash|contraseña|credential/i);
   });
 
+  it("un login que leyó la cuenta antes de su desactivación no consigue crear una sesión después", async () => {
+    const user = await account();
+    let beginVerification!: () => void; let finishVerification!: () => void;
+    const started = new Promise<void>((resolve) => { beginVerification = resolve; });
+    const release = new Promise<void>((resolve) => { finishVerification = resolve; });
+    const database = prisma as unknown as PrismaService;
+    const loginUseCase = new Login(new PrismaUserRepository(database), {
+      hash: async () => passwordHash,
+      verify: async () => { beginVerification(); await release; return true; },
+    }, new PrismaRefreshCredentialRepository(database), new JoseAccessTokenService(config),
+    new CryptoRefreshTokenService(), passwordHash, config.accessTtlSeconds, config.sessionTtlSeconds);
+    const pending = loginUseCase.execute({ email: user.email, password });
+    const rejected = expect(pending).rejects.toMatchObject({ httpStatus: 401 });
+    try {
+      await started;
+      expect((await request("PATCH", `/users/${user.id}/estado`, adminCookie, { activo: false })).status).toBe(200);
+    } finally { finishVerification(); }
+    await rejected;
+    expect(await prisma.session.count({ where: { userId: user.id } })).toBe(0);
+  });
+
+  it("refresh concurrente no deja acceso vigente ni revive sus cookies después de reactivar", async () => {
+    const user = await account(); const original = await login(user); const secondSession = await login(user);
+    const [refresh, disabled] = await Promise.all([
+      request("POST", "/auth/refresh", original, {}),
+      request("PATCH", `/users/${user.id}/estado`, adminCookie, { activo: false }),
+    ]);
+    expect(disabled.status).toBe(200); expect([200, 401]).toContain(refresh.status);
+    const rotated = refresh.status === 200 ? cookies(refresh) : original;
+    expect(await prisma.session.count({ where: { userId: user.id, revokedAt: null } })).toBe(0);
+    expect(await prisma.refreshCredential.count({ where: { session: { userId: user.id }, consumedAt: null, invalidatedAt: null } })).toBe(0);
+    for (const cookie of [original, rotated, secondSession]) {
+      expect((await get("/auth/me", cookie)).status).toBe(401);
+      expect((await request("POST", `/comisiones/${randomUUID()}/feedback`, cookie, { texto: "No debe publicarse", anonimo: true })).status).toBe(401);
+    }
+    expect((await request("PATCH", `/users/${user.id}/estado`, adminCookie, { activo: true })).status).toBe(200);
+    for (const cookie of [original, rotated, secondSession]) {
+      expect((await get("/auth/me", cookie)).status).toBe(401);
+      expect((await request("POST", "/auth/refresh", cookie, {})).status).toBe(401);
+    }
+    expect((await get("/auth/me", await login(user))).status).toBe(200);
+  });
+
+  it("desactivar y reactivar conserva comentarios anónimos, sus snapshots y la identidad pública", async () => {
+    const author = await account(); const authorCookie = await login(author);
+    const m = await materia(); const c = await cursada(m.id); const co = await comision(c.id);
+    const created = await request("POST", `/comisiones/${co.id}/feedback`, authorCookie, { texto: "Comentario anónimo que se conserva", anonimo: true });
+    expect(created.status).toBe(201); const feedback = await created.json();
+    const originalRecord = await prisma.feedback.findUniqueOrThrow({ where: { id: feedback.id } });
+    const originalHistory = await prisma.feedbackHistorial.findMany({ where: { feedbackId: feedback.id } });
+    expect(originalHistory).toHaveLength(1);
+    const publicRecord = (await (await get(`/feedback?materiaId=${m.id}`)).json()).items[0];
+    expect(publicRecord.autor).toBeNull();
+    for (const activo of [false, true]) {
+      expect((await request("PATCH", `/users/${author.id}/estado`, adminCookie, { activo })).status).toBe(200);
+      expect(await prisma.feedback.findUniqueOrThrow({ where: { id: feedback.id } })).toEqual(originalRecord);
+      expect(await prisma.feedbackHistorial.findMany({ where: { feedbackId: feedback.id } })).toEqual(originalHistory);
+      expect((await (await get(`/feedback?materiaId=${m.id}`)).json()).items[0]).toEqual(publicRecord);
+    }
+    const response = await get(`/admin/users/${author.id}/detalle`);
+    expect(response.status).toBe(200); expect(response.headers.get("cache-control")).toBe("no-store");
+    const detail = await response.json();
+    expect(detail.registro).toMatchObject({ id: author.id, email: author.email, disabledAt: null });
+    expect(detail.historial).toMatchObject({ total: 2, pageSize: 3 });
+    expect(detail.historial.items.map((entry: { accion: string }) => entry.accion)).toEqual(["REACTIVACION", "DESACTIVACION"]);
+    expect(detail.historial.items.every((entry: { actorId: string; createdAt: string }) => entry.actorId === admin.id && Number.isFinite(Date.parse(entry.createdAt)))).toBe(true);
+    expect(JSON.stringify(detail)).not.toMatch(/passwordHash|tokenHash|refreshToken|accessToken|credential|session/i);
+    expect((await get(`/admin/users/${author.id}/detalle`, "")).status).toBe(401);
+    expect((await get(`/admin/users/${author.id}/detalle`, await login(author))).status).toBe(403);
+  });
+
   it("rechaza autodesactivación, payloads adicionales e identificadores inválidos", async () => {
     expect((await request("PATCH", `/users/${admin.id}/estado`, adminCookie, { activo: false })).status).toBe(409);
     expect((await get("/auth/me")).status).toBe(200);
@@ -175,6 +251,7 @@ describe.skipIf(!databaseUrl)("Administración remota, estados y bajas reales TA
     await prisma.comisionProfesor.create({ data: { comisionId: co.id, profesorId: p.id, cargo: "TITULAR" } });
     const author = await account();
     const feedback = await prisma.feedback.create({ data: { autorId: author.id, comisionId: co.id, profesorId: p.id, texto: "El comentario histórico se conserva.", anonimo: true, comisionNombre: "S-41", materiaId: m.id, materiaNombre: m.nombre, cursadaId: c.id, anio: 2026, cuatrimestre: "ANUAL", modalidad: "ANUAL", profesorNombre: p.nombreCompleto, profesorCargo: "TITULAR" } });
+    const snapshot = await prisma.feedbackHistorial.create({ data: { feedbackId: feedback.id, accion: "CREACION", texto: feedback.texto, anonimo: feedback.anonimo } });
     for (const path of [`/materias/${m.id}`, `/cursadas/${c.id}`, `/profesores/${p.id}`]) expect((await request("DELETE", path)).status).toBe(409);
     expect((await request("DELETE", `/comisiones/${co.id}`)).status).toBe(204);
     expect((await prisma.comision.findUniqueOrThrow({ where: { id: co.id } })).deletedAt).toBeInstanceOf(Date);
@@ -187,11 +264,108 @@ describe.skipIf(!databaseUrl)("Administración remota, estados y bajas reales TA
     expect((await prisma.profesor.findUniqueOrThrow({ where: { id: p.id } })).deletedAt).toBeInstanceOf(Date);
     expect((await prisma.cursada.findUniqueOrThrow({ where: { id: c.id } })).deletedAt).toBeInstanceOf(Date);
     expect((await prisma.materia.findUniqueOrThrow({ where: { id: m.id } })).deletedAt).toBeInstanceOf(Date);
+    expect((await request("DELETE", `/comisiones/${co.id}/profesores/${p.id}`)).status).toBe(404);
+    expect(await prisma.comisionProfesor.findUnique({ where: { comisionId_profesorId: { comisionId: co.id, profesorId: p.id } } })).toMatchObject({ cargo: "TITULAR" });
+    expect(await prisma.feedback.findUniqueOrThrow({ where: { id: feedback.id } })).toEqual(feedback);
+    expect(await prisma.feedbackHistorial.findUniqueOrThrow({ where: { id: snapshot.id } })).toEqual(snapshot);
+    const historical = await (await get(`/admin/comisiones/${co.id}/detalle`)).json();
+    expect(historical.registro).toMatchObject({ id: co.id, deletedAt: expect.any(String), activa: false, profesores: [{ id: p.id, nombreCompleto: p.nombreCompleto, cargo: "TITULAR" }] });
+    expect((await (await get(`/feedback?materiaId=${m.id}`)).json()).items[0]).toMatchObject({ id: feedback.id, texto: feedback.texto, autor: null, profesor: { nombreCompleto: p.nombreCompleto, cargo: "TITULAR" } });
     for (const path of [`/profesores/${p.id}/historial`, `/cursadas/${c.id}/historial`, `/comisiones/${co.id}/historial`, `/materias/${m.id}/historial`]) {
       const response = await get(path); expect(response.status).toBe(200); const history = await response.json();
-      expect(history).toMatchObject({ pageSize: 3, total: 1 }); expect(history.items[0].cambios).toContainEqual(expect.objectContaining({ campo: "deletedAt", anterior: null, nuevo: expect.any(String) }));
+      // Los intentos bloqueados se agregan al ledger, pero MateriaHistorial conserva cambios de datos.
+      expect(history).toMatchObject({ pageSize: 3, total: path.startsWith("/profesores/") || path.startsWith("/cursadas/") ? 2 : 1 });
+      expect(history.items[0].cambios).toContainEqual(expect.objectContaining({ campo: "deletedAt", anterior: null, nuevo: expect.any(String) }));
     }
     expect((await request("DELETE", `/comisiones/${co.id}`)).status).toBe(404);
+  });
+
+  it("las cuatro bajas exigen ADMIN y no registran resultados ficticios por falta de permisos", async () => {
+    const ordinary = await account(); const cookie = await login(ordinary);
+    const m = await materia(); const p = await profesor(); const c = await cursada(m.id); const co = await comision(c.id);
+    for (const path of [`/materias/${m.id}`, `/profesores/${p.id}`, `/cursadas/${c.id}`, `/comisiones/${co.id}`]) {
+      expect((await request("DELETE", path, "")).status).toBe(401);
+      expect((await request("DELETE", path, cookie)).status).toBe(403);
+    }
+    expect(await prisma.administracionHistorial.count({ where: { entidadId: { in: [m.id, p.id, c.id, co.id] } } })).toBe(0);
+    expect((await prisma.comision.findUniqueOrThrow({ where: { id: co.id } })).deletedAt).toBeNull();
+  });
+
+  it("persiste bloqueos con motivo, actor y fecha sin falsear la última modificación ni la baja", async () => {
+    const m = await materia(); const c = await cursada(m.id); const co = await comision(c.id); const p = await profesor();
+    await prisma.comisionProfesor.create({ data: { comisionId: co.id, profesorId: p.id, cargo: "TITULAR" } });
+    const cases = [["materias", "materia", m.id], ["cursadas", "cursada", c.id], ["profesores", "profesor", p.id]] as const;
+    for (const [kind, entity, id] of cases) {
+      const before = await (await get(`/admin/${kind}/${id}/detalle`)).json();
+      const response = await request("DELETE", `/${kind}/${id}`);
+      expect(response.status).toBe(409);
+      const body = await response.json();
+      expect(body.message).toMatch(/períodos|cursadas|comisiones|asignad|desvincul/i);
+      expect(body.message).not.toMatch(/constraint|foreign key|internal server/i);
+      const event = await prisma.administracionHistorial.findFirstOrThrow({ where: { entidad: entity, entidadId: id } });
+      expect(event).toMatchObject({ actorId: admin.id, accion: "BAJA_BLOQUEADA", createdAt: expect.any(Date) });
+      expect(event.cambios).toEqual(expect.arrayContaining([{ campo: "resultado", anterior: null, nuevo: "BLOQUEADA" }, { campo: "motivo", anterior: null, nuevo: body.message }]));
+      const after = await (await get(`/admin/${kind}/${id}/detalle`)).json();
+      expect(after.registro.deletedAt).toBeNull();
+      expect(after.auditoria).toEqual(before.auditoria);
+      expect(after.historial).toMatchObject({ total: 1, pageSize: 3 });
+      expect(after.historial.items[0]).toMatchObject({ actorId: admin.id, accion: "BAJA_BLOQUEADA", cambios: event.cambios });
+    }
+    expect(await prisma.comisionProfesor.count({ where: { comisionId: co.id, profesorId: p.id } })).toBe(1);
+  });
+
+  it("bajas sin dependencias registran éxito y excluyen los registros de nuevas operaciones", async () => {
+    const m = await materia(); const p = await profesor(); const parent = await materia();
+    const c = await cursada(parent.id); const active = await cursada(m.id); const co = await comision(active.id);
+    // La materia a eliminar debe carecer de períodos vigentes: usamos otra materia independiente.
+    const empty = await materia();
+    for (const [kind, entity, id] of [["materias", "materia", empty.id], ["profesores", "profesor", p.id], ["cursadas", "cursada", c.id], ["comisiones", "comision", co.id]] as const) {
+      expect((await request("DELETE", `/${kind}/${id}`)).status).toBe(204);
+      const detailResponse = await get(`/admin/${kind}/${id}/detalle`);
+      expect(detailResponse.status).toBe(200);
+      const detail = await detailResponse.json();
+      expect(detail.registro).toMatchObject({ id, deletedAt: expect.any(String) });
+      expect(detail.auditoria).toMatchObject({ deletedAt: detail.registro.deletedAt, deletedBy: admin.id });
+      expect(detail.historial).toMatchObject({ total: 1, pageSize: 3 });
+      expect(detail.historial.items[0]).toMatchObject({ actorId: admin.id, accion: "ELIMINACION" });
+      expect(detail.historial.items[0].cambios).toContainEqual({ campo: "resultado", anterior: null, nuevo: "EXITOSA" });
+      expect(await prisma.administracionHistorial.count({ where: { entidad: entity, entidadId: id, accion: "ELIMINACION" } })).toBe(1);
+      expect((await request("PATCH", `/${kind}/${id}`, adminCookie, kind === "materias" ? { nombre: "No se cambia" } : kind === "profesores" ? { nombreCompleto: "No se cambia" } : kind === "cursadas" ? { anio: 2027 } : { numero: 42 })).status).toBe(404);
+    }
+    expect((await (await get(`/materias?q=${encodeURIComponent(empty.nombre)}`)).json()).total).toBe(0);
+    expect((await (await get(`/profesores?q=${encodeURIComponent(p.nombreCompleto)}`)).json()).total).toBe(0);
+    expect((await (await get(`/materias/${parent.id}/cursadas`)).json()).total).toBe(0);
+    expect((await (await get(`/cursadas/${active.id}/comisiones`)).json()).total).toBe(0);
+    expect((await request("POST", "/cursadas", adminCookie, { materiaId: empty.id, anio: 2027, cuatrimestre: "ANUAL" })).status).toBe(404);
+    expect((await request("POST", "/comisiones", adminCookie, { cursadaId: c.id, carrera: "S", numero: 42 })).status).toBe(404);
+    const fresh = await comision(active.id);
+    expect((await request("PUT", `/comisiones/${fresh.id}/profesores/${p.id}`, adminCookie, { cargo: "TITULAR" })).status).toBe(404);
+    const author = await account(); const authorCookie = await login(author);
+    expect((await request("POST", `/comisiones/${co.id}/feedback`, authorCookie, { texto: "No debe publicarse bajo una comisión de baja", anonimo: true })).status).toBe(404);
+  });
+
+  it("quitar una asignación conserva al profesor activo y registra una desvinculación independiente", async () => {
+    const m = await materia(); const c = await cursada(m.id); const co = await comision(c.id); const p = await profesor();
+    await prisma.comisionProfesor.create({ data: { comisionId: co.id, profesorId: p.id, cargo: "ADJUNTO" } });
+    expect((await request("DELETE", `/comisiones/${co.id}/profesores/${p.id}`)).status).toBe(204);
+    expect((await prisma.profesor.findUniqueOrThrow({ where: { id: p.id } })).deletedAt).toBeNull();
+    expect(await prisma.comisionProfesor.count({ where: { comisionId: co.id, profesorId: p.id } })).toBe(0);
+    expect(await prisma.administracionHistorial.findFirst({ where: { entidad: "comision", entidadId: co.id } })).toMatchObject({ accion: "DESVINCULACION", actorId: admin.id });
+    expect(await prisma.administracionHistorial.count({ where: { entidad: "profesor", entidadId: p.id } })).toBe(0);
+  });
+
+  it("asignación y baja concurrentes no dejan un profesor dado de baja en una comisión vigente", async () => {
+    const m = await materia(); const c = await cursada(m.id); const co = await comision(c.id); const p = await profesor();
+    const [assignment, deletion] = await Promise.all([
+      request("PUT", `/comisiones/${co.id}/profesores/${p.id}`, adminCookie, { cargo: "TITULAR" }),
+      request("DELETE", `/profesores/${p.id}`),
+    ]);
+    expect([200, 404]).toContain(assignment.status); expect([204, 409]).toContain(deletion.status);
+    const stored = await prisma.profesor.findUniqueOrThrow({ where: { id: p.id } });
+    const links = await prisma.comisionProfesor.count({ where: { profesorId: p.id, comision: { deletedAt: null } } });
+    expect(stored.deletedAt === null || links === 0).toBe(true);
+    const event = await prisma.administracionHistorial.findFirstOrThrow({ where: { entidad: "profesor", entidadId: p.id } });
+    expect(event.accion).toBe(deletion.status === 204 ? "ELIMINACION" : "BAJA_BLOQUEADA");
   });
 
   it("audita únicamente ediciones reales y permite reutilizar claves tras una baja", async () => {

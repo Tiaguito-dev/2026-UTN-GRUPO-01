@@ -15,6 +15,7 @@ import { anioCarreraLabel, modalidadLabel, nivelElectivaLabel } from "@/validati
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Notice } from "@/components/ui/Notice";
 import { AdminAudit } from "./AdminAudit";
+import { AcademicDeleteAction } from "./AcademicDeleteAction";
 import styles from "./AdminAcademicDetail.module.css";
 
 async function loadMateria(id: string) { return materiaSchema.parse((await obtenerDetalleAdministrativo("materias", id)).registro); }
@@ -52,10 +53,13 @@ function useAdminResource<T>(id: string, load: (id: string) => Promise<T>) {
 }
 
 export function AdminMateriaDetail({ materiaId }: { materiaId: string }) {
+  const [message, setMessage] = useState("");
+  const [auditVersion, setAuditVersion] = useState(0);
   const params = useSearchParams();
   const back = adminReturnTo(params.get("returnTo"), "/home/admin/materias");
   const { data: materia, error, retry } = useAdminResource<Materia>(materiaId, loadMateria);
   return <DetailPage title={materia?.nombre ?? "Materia"} section="materias" back={back}>
+    {message ? <Notice tone="success">{message}</Notice> : null}
     {!materia ? <LoadState error={error} retry={retry} /> : <>
       <div className={styles.surface}>
         <dl className={styles.data}><div><dt>Modalidad</dt><dd>{modalidadLabel(materia.modalidad)}</dd></div><div><dt>Estado</dt><dd>{materia.deletedAt ? "Inactiva" : "Activa"}</dd></div></dl>
@@ -64,36 +68,43 @@ export function AdminMateriaDetail({ materiaId }: { materiaId: string }) {
         <div className={styles.actions}>
           <Link className="button button-secondary" href={adminListHref({ seccion: "cursadas", materiaId, page: 1 })}>Ver cursadas</Link>
           {!materia.deletedAt ? <Link className="button button-secondary" href={adminFormHref(`/home/admin/materias/${encodeURIComponent(materiaId)}/editar`, safeAdminReturnTo(back) ?? "/home/admin/materias")}>Editar materia</Link> : null}
+          {!materia.deletedAt ? <AcademicDeleteAction kind="materias" id={materiaId} label={materia.nombre} onAttempt={() => setAuditVersion(value => value + 1)} onSuccess={() => { setMessage("La materia se dio de baja correctamente."); setAuditVersion(value => value + 1); retry(); }} /> : null}
         </div>
       </div>
-      <AdminAudit key={materiaId} kind="materias" id={materiaId} />
+      <AdminAudit key={`${materiaId}:${auditVersion}`} kind="materias" id={materiaId} />
     </>}
   </DetailPage>;
 }
 
 export function AdminProfesorDetail({ profesorId }: { profesorId: string }) {
+  const [message, setMessage] = useState("");
+  const [auditVersion, setAuditVersion] = useState(0);
   const params = useSearchParams();
   const back = adminReturnTo(params.get("returnTo"), "/home/admin/profesores");
   const { data: profesor, error, retry } = useAdminResource<Profesor>(profesorId, loadProfesor);
   return <DetailPage title={profesor?.nombreCompleto ?? "Profesor"} section="profesores" back={back}>
+    {message ? <Notice tone="success">{message}</Notice> : null}
     {!profesor ? <LoadState error={error} retry={retry} /> : <div className={styles.surface}>
       <dl className={styles.data}><div><dt>Nombre completo</dt><dd>{profesor.nombreCompleto}</dd></div><div><dt>Estado</dt><dd>{profesor.deletedAt ? "Inactivo" : "Activo"}</dd></div></dl>
-      {!profesor.deletedAt ? <div className={styles.actions}><Link className="button button-secondary" href={adminFormHref(`/home/admin/profesores/${encodeURIComponent(profesorId)}/editar`, safeAdminReturnTo(back) ?? "/home/admin/profesores")}>Editar profesor</Link></div> : null}
+      {!profesor.deletedAt ? <div className={styles.actions}><Link className="button button-secondary" href={adminFormHref(`/home/admin/profesores/${encodeURIComponent(profesorId)}/editar`, safeAdminReturnTo(back) ?? "/home/admin/profesores")}>Editar profesor</Link><AcademicDeleteAction kind="profesores" id={profesorId} label={profesor.nombreCompleto} onAttempt={() => setAuditVersion(value => value + 1)} onSuccess={() => { setMessage("El profesor se dio de baja correctamente."); setAuditVersion(value => value + 1); retry(); }} /></div> : null}
     </div>}
-    {profesor ? <AdminAudit key={profesorId} kind="profesores" id={profesorId} /> : null}
+    {profesor ? <AdminAudit key={`${profesorId}:${auditVersion}`} kind="profesores" id={profesorId} /> : null}
   </DetailPage>;
 }
 
 export function AdminCursadaDetail({ cursadaId }: { cursadaId: string }) {
+  const [message, setMessage] = useState("");
+  const [auditVersion, setAuditVersion] = useState(0);
   const params = useSearchParams();
   const { data: cursada, error, retry } = useAdminResource<CursadaDetalle & { deletedAt: string | null }>(cursadaId, loadCursada);
   const fallback = adminListHref({ seccion: "cursadas", materiaId: cursada?.materia.id, page: 1 });
   const back = adminReturnTo(params.get("returnTo"), fallback);
   return <DetailPage title={cursada ? `Cursada ${periodoLabel(cursada.anio, cursada.cuatrimestre)}` : "Cursada"} section="cursadas" back={back} listHref={fallback}>
+    {message ? <Notice tone="success">{message}</Notice> : null}
     {!cursada ? <LoadState error={error} retry={retry} /> : <div className={styles.surface}>
       <dl className={styles.data}><div><dt>Materia</dt><dd><Link href={`/home/admin/materias/${encodeURIComponent(cursada.materia.id)}?${new URLSearchParams({ returnTo: back })}`}>{cursada.materia.nombre}</Link></dd></div><div><dt>Período</dt><dd>{periodoLabel(cursada.anio, cursada.cuatrimestre)}</dd></div><div><dt>Estado</dt><dd>{cursada.deletedAt ? "Inactiva" : "Activa"}</dd></div></dl>
-      <div className={styles.actions}><Link className="button button-secondary" href={adminListHref({ seccion: "comisiones", materiaId: cursada.materia.id, cursadaId, page: 1 })}>Ver comisiones</Link>{!cursada.deletedAt ? <><Link className="button button-secondary" href={adminFormHref(`/home/admin/cursadas/${encodeURIComponent(cursadaId)}/editar`, safeAdminReturnTo(back) ?? fallback)}>Editar cursada</Link></> : null}</div>
+      <div className={styles.actions}><Link className="button button-secondary" href={adminListHref({ seccion: "comisiones", materiaId: cursada.materia.id, cursadaId, page: 1 })}>Ver comisiones</Link>{!cursada.deletedAt ? <><Link className="button button-secondary" href={adminFormHref(`/home/admin/cursadas/${encodeURIComponent(cursadaId)}/editar`, safeAdminReturnTo(back) ?? fallback)}>Editar cursada</Link><AcademicDeleteAction kind="cursadas" id={cursadaId} label={`${periodoLabel(cursada.anio, cursada.cuatrimestre)} de ${cursada.materia.nombre}`} onAttempt={() => setAuditVersion(value => value + 1)} onSuccess={() => { setMessage("El período se dio de baja correctamente."); setAuditVersion(value => value + 1); retry(); }} /></> : null}</div>
     </div>}
-    {cursada ? <AdminAudit key={cursadaId} kind="cursadas" id={cursadaId} /> : null}
+    {cursada ? <AdminAudit key={`${cursadaId}:${auditVersion}`} kind="cursadas" id={cursadaId} /> : null}
   </DetailPage>;
 }

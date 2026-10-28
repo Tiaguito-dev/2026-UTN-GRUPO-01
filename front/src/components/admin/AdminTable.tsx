@@ -27,7 +27,7 @@ export function AdminRowActions({ row, kind, returnTo, onDelete }: { row: AdminR
   const path = `/home/admin/${kind}/${encodeURIComponent(row.id)}`;
   return <><ActionLink href={`${path}?${new URLSearchParams({ returnTo })}`} label={`Ver detalle de ${row.cells[0]}`} icon="view" />
     {row.editable !== false ? <ActionLink href={adminFormHref(`${path}/editar`, returnTo)} label={`Editar ${row.cells[0]}`} icon="edit" /> : null}
-    {onDelete && row.deletable !== false ? <AdminActionButton label={`Eliminar ${row.cells[0]}`} icon={Trash2} onClick={onDelete} /> : null}</>;
+    {onDelete && row.deletable !== false ? <AdminActionButton label={`Dar de baja ${row.cells[0]}`} icon={Trash2} onClick={onDelete} /> : null}</>;
 }
 
 export function AdminActionButton({ label, icon: Icon, onClick, disabled = false }: { label: string; icon: LucideIcon; onClick: () => void; disabled?: boolean }) {

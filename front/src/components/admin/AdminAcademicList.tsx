@@ -2,12 +2,13 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { listarMaterias, listarProfesores, listarCursadasPorMateria, listarComisionesPorCursada, obtenerCursada } from "@/services/academic";
 import type { PaginatedResult } from "@/services/pagination";
 import { useUrlPagination } from "@/hooks/useUrlPagination";
 import { obtenerMateria } from "@/services/materias";
-import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
+import { usePaginatedFetch, type AsyncState } from "@/hooks/usePaginatedFetch";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Notice } from "@/components/ui/Notice";
 import { Dialog } from "@/components/ui/Dialog";
@@ -15,8 +16,7 @@ import { adminListHref, adminFormHref, readAdminFilters, type AdminSection, type
 import { ANIOS_CARRERA, CARRERAS, NIVELES_ELECTIVA, anioCarreraLabel, carreraLabel, nivelElectivaLabel } from "@/validations/materias";
 import { periodoLabel } from "@/lib/format/periodo";
 import { cargoLabel } from "@/lib/format/cargo";
-import { eliminarAcademico } from "@/services/admin-academic";
-import { AdminConfirmDialog } from "./AdminConfirmDialog";
+import { AcademicDeleteDialog } from "./AcademicDeleteAction";
 import { MateriaForm } from "./MateriaForm";
 import { AltaCursada } from "./AltaCursada";
 import { AltaProfesor } from "./AltaProfesor";
@@ -53,7 +53,7 @@ export function AdminAcademicList({ kind }: { kind: Kind }) {
       {active ? <button className="button button-secondary" type="button" onClick={() => changeFilters({ q: undefined, carrera: undefined, anioCarrera: undefined, nivelElectiva: undefined })}>Limpiar filtros</button> : null}
     </div>{kind === "comisiones" ? <Link className={`button ${styles.create}`} href={`${adminFormHref("/home/admin/comisiones/nueva", href)}${cursadaId ? `&cursadaId=${encodeURIComponent(cursadaId)}` : ""}`}><Plus size={18} aria-hidden="true" />{NEW[kind]}</Link> : <button className={`button ${styles.create}`} type="button" disabled={kind === "cursadas" && !materiaId} onClick={() => setCreating(true)}><Plus size={18} aria-hidden="true" />{NEW[kind]}</button>}</div>
     {parentReady ? kind === "materias" ? <MateriasResults context={context} href={href} refreshKey={refreshKey} onPageChange={setPage} onDelete={setDeleting} /> : <CatalogResults kind={kind} context={context} href={href} refreshKey={refreshKey} onPageChange={setPage} onDelete={setDeleting} /> : <div className={styles.empty}>Elegí {kind === "cursadas" ? "una materia para ver sus cursadas." : "una materia y un período para ver sus comisiones."}</div>}
-    {deleting ? <AdminConfirmDialog key={deleting.id} title="Eliminar registro" confirmLabel="Confirmar eliminación" onClose={() => setDeleting(null)} onConfirm={async () => { await eliminarAcademico(kind, deleting.id); setDeleting(null); setMessage("Registro eliminado correctamente."); setRefreshKey((value) => value + 1); }}><p>¿Querés eliminar {deleting.cells[0]}? Dejará de aparecer en los listados. Se conservará su historial y las experiencias registradas.</p></AdminConfirmDialog> : null}
+    {deleting ? <AcademicDeleteDialog key={deleting.id} kind={kind} id={deleting.id} label={deleting.cells[0]} onClose={() => setDeleting(null)} onSuccess={() => { setDeleting(null); setMessage("El registro se dio de baja correctamente."); setRefreshKey((value) => value + 1); }} /> : null}
     {kind !== "comisiones" ? <Dialog open={creating} onClose={() => setCreating(false)} title={NEW[kind]} busy={saving}>
       {creating ? kind === "materias" ? <MateriaForm onCancel={() => setCreating(false)} onBusyChange={setSaving} onSuccess={(materia) => created(`Materia creada: ${materia.nombre}.`)} /> : kind === "profesores" ? <AltaProfesor onCancel={() => setCreating(false)} onBusyChange={setSaving} onSuccess={created} /> : materiaId ? <AltaCursada materiaId={materiaId} onCancel={() => setCreating(false)} onBusyChange={setSaving} onSuccess={created} /> : null : null}
     </Dialog> : null}
@@ -63,17 +63,24 @@ function AdminParentFilters({ kind, materiaId, cursadaId, onChange }: { kind: "c
   return <><AdminParentSelector label="Materia" resourceKey="admin-materias" value={materiaId} searchable fetchPage={async (page, q) => { const result = await listarMaterias({ page, pageSize: 9, q }); return { ...result, items: result.items.map((m) => ({ id: m.id, label: m.nombre })) }; }} fetchSelected={async (id) => { const materia = await obtenerMateria(id); return { id: materia.id, label: materia.nombre }; }} onChange={(id) => onChange(id)} />{kind === "comisiones" ? <AdminParentSelector label="Período" resourceKey={`admin-periodos:${materiaId}`} value={cursadaId} disabled={!materiaId} fetchPage={async (page) => { const result = await listarCursadasPorMateria(materiaId, { page, pageSize: 9 }); return { ...result, items: result.items.map((c) => ({ id: c.id, label: periodoLabel(c.anio, c.cuatrimestre) })) }; }} fetchSelected={async (id) => { const cursada = await obtenerCursada(id); return { id: cursada.id, label: periodoLabel(cursada.anio, cursada.cuatrimestre) }; }} onChange={(id) => onChange(materiaId, id)} /> : null}</>;
 }
 interface ResultsProps { context: AdminContext; href: string; refreshKey: number; onPageChange: (page: number) => void; onDelete: (row: AdminRow) => void }
+function useAcademicPage<T>(state: AsyncState<PaginatedResult<T>>, page: number, onPageChange: (page: number) => void) {
+  const lastPage = state.status === "ready" ? Math.max(1, Math.ceil(state.data.total / state.data.pageSize)) : undefined;
+  useEffect(() => { if (lastPage !== undefined && page > lastPage) onPageChange(lastPage); }, [lastPage, page, onPageChange]);
+}
 function MateriasResults({ context, href, refreshKey, onPageChange, onDelete }: ResultsProps) {
   const filters = readAdminFilters(new URLSearchParams(href.split("?")[1]));
   const { state, retry } = usePaginatedFetch(JSON.stringify(filters), (page) => listarMaterias({ page, pageSize: 9, q: filters.q, carrera: filters.carrera, anioCarrera: filters.anioCarrera, nivelElectiva: filters.nivelElectiva }), context.page, refreshKey);
+  useAcademicPage(state, context.page, onPageChange);
   return <AdminListResult loadingMessage="Cargando materias…" state={state} retry={retry} page={context.page} onPageChange={onPageChange}>{(result) => <AcademicTable kind="materias" href={href} onDelete={onDelete} rows={result.items.map((m) => ({ id: m.id, cells: [m.nombre, m.carreras.length ? m.carreras.map((c) => <div key={c.carrera}>{carreraLabel(c.carrera)} · {anioCarreraLabel(c.anioCarrera)}{c.nivelElectiva ? ` · ${nivelElectivaLabel(c.nivelElectiva)}` : ""}</div>) : "Sin carreras asignadas"], editable: !m.deletedAt, deletable: !m.deletedAt }))} />}</AdminListResult>;
 }
 function CatalogResults({ kind, context, href, refreshKey, onPageChange, onDelete }: ResultsProps & { kind: Exclude<Kind, "materias"> }) {
   const { state, retry } = usePaginatedFetch(`${kind}:${context.materiaId}:${context.cursadaId}:${context.q}:${context.carrera}`, (page) => fetchCatalogRows(kind, context, page), context.page, refreshKey);
+  useAcademicPage(state, context.page, onPageChange);
   return <AdminListResult loadingMessage={`Cargando ${kind}…`} state={state} retry={retry} page={context.page} onPageChange={onPageChange}>{(data) => <AcademicTable kind={kind} href={href} rows={data.items} onDelete={onDelete} />}</AdminListResult>;
 }
 function AcademicTable({ kind, href, rows, onDelete }: { kind: Kind; href: string; rows: AdminRow[]; onDelete: (row: AdminRow) => void }) {
-  return <AdminTable title={LABELS[kind]} columns={COLUMNS[kind]} rows={rows} actions={(row) => <AdminRowActions row={row} kind={kind} returnTo={href} onDelete={() => onDelete(row)} />} />;
+  const isAdmin = useIsAdmin();
+  return <AdminTable title={LABELS[kind]} columns={COLUMNS[kind]} rows={rows} actions={(row) => <AdminRowActions row={row} kind={kind} returnTo={href} onDelete={isAdmin ? () => onDelete(row) : undefined} />} />;
 }
 async function fetchCatalogRows(kind: Exclude<Kind, "materias">, context: AdminContext, page: number): Promise<PaginatedResult<AdminRow>> {
   if (kind === "profesores") { const result = await listarProfesores({ page, pageSize: 9, q: context.q }); return { ...result, items: result.items.map((p) => ({ id: p.id, cells: [p.nombreCompleto], editable: !p.deletedAt, deletable: !p.deletedAt })) }; }

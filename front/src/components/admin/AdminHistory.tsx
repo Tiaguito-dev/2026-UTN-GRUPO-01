@@ -6,8 +6,8 @@ import { Notice } from "@/components/ui/Notice";
 import { Pagination } from "@/components/ui/Pagination";
 import styles from "./AdminTables.module.css";
 
-const FIELDS: Record<string, string> = { nombreCompleto: "Nombre completo", materiaId: "Materia", anio: "Año", cuatrimestre: "Período", carrera: "Carrera", numero: "Número", deletedAt: "Fecha de baja", disabledAt: "Fecha de desactivación", activa: "Estado", estado: "Estado" };
-const ACTIONS: Record<string, string> = { EDICION: "Edición", ELIMINACION: "Eliminación", DESACTIVACION: "Desactivación", REACTIVACION: "Reactivación", ACTIVACION: "Activación" };
+const FIELDS: Record<string, string> = { resultado: "Resultado de la operación", motivo: "Motivo del bloqueo", nombreCompleto: "Nombre completo", materiaId: "Materia", anio: "Año", cuatrimestre: "Período", carrera: "Carrera", numero: "Número", deletedAt: "Fecha de baja", disabledAt: "Fecha de desactivación", activa: "Estado", estado: "Estado" };
+const ACTIONS: Record<string, string> = { BAJA_BLOQUEADA: "Baja bloqueada", EDICION: "Edición", ELIMINACION: "Eliminación", DESACTIVACION: "Desactivación", REACTIVACION: "Reactivación", ACTIVACION: "Activación" };
 export function AdminHistory({ kind, id }: { kind: AdminHistoryKind; id: string }) {
   const headingId = useId(); const [page, setPage] = useState(1);
   const { state, retry } = usePaginatedFetch(`${kind}:${id}:historial`, (next) => listarHistorialAdministrativo(kind, id, { page: next, pageSize: 3 }), page);

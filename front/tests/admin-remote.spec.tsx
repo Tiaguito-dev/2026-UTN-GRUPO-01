@@ -40,15 +40,15 @@ describe("Administración remota TASK-070", () => {
     vi.mocked(listarProfesores).mockResolvedValue({ items: [profesor], total: 1, page: 1, pageSize: 9 });
     vi.mocked(eliminarAcademico).mockRejectedValueOnce(new Error("Quitá primero las asignaciones vigentes.")).mockResolvedValue(undefined);
     render(<AdminAcademicList kind="profesores" />);
-    await userEvent.click(await screen.findByRole("button", { name: "Eliminar Ana García" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Dar de baja Ana García" }));
     expect(eliminarAcademico).not.toHaveBeenCalled();
-    const dialog = screen.getByRole("dialog", { name: "Eliminar registro" });
-    await userEvent.click(within(dialog).getByRole("button", { name: "Confirmar eliminación" }));
+    const dialog = screen.getByRole("dialog", { name: "Dar de baja profesor" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Confirmar baja" }));
     expect(await within(dialog).findByRole("alert")).toHaveProperty("textContent", expect.stringContaining("asignaciones"));
-    await userEvent.click(within(dialog).getByRole("button", { name: "Confirmar eliminación" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Confirmar baja" }));
     await waitFor(() => expect(eliminarAcademico).toHaveBeenCalledTimes(2));
     expect(eliminarAcademico).toHaveBeenLastCalledWith("profesores", "p1");
-    expect(await screen.findByText(/Registro eliminado correctamente/)).toBeTruthy();
+    expect(await screen.findByText(/El registro se dio de baja correctamente/)).toBeTruthy();
   });
   it("consulta usuarios con filtros remotos y no permite autodesactivarse", async () => {
     nav.path = "/home/admin/usuarios"; nav.query = "q=utn&rol=USER&estado=ACTIVO&page=2";
@@ -56,8 +56,8 @@ describe("Administración remota TASK-070", () => {
     render(<UsuariosList />);
     await screen.findByRole("cell", { name: "Ana" });
     expect(listarUsuarios).toHaveBeenCalledExactlyOnceWith({ page: 2, pageSize: 9, q: "utn", rol: "USER", estado: "ACTIVO" });
-    expect(screen.queryByRole("button", { name: "Desactivar Mi cuenta" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Desactivar Ana" }));
+    expect(screen.queryByRole("button", { name: /Desactivar usuario Mi cuenta/ })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Desactivar usuario Ana (ana@utn.edu)" }));
     expect(cambiarEstadoUsuario).not.toHaveBeenCalled();
     await userEvent.click(within(screen.getByRole("dialog", { name: "Desactivar usuario" })).getByRole("button", { name: "Confirmar desactivación" }));
     await waitFor(() => expect(cambiarEstadoUsuario).toHaveBeenCalledWith("u1", false));

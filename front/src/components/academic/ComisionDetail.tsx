@@ -23,6 +23,7 @@ import { experienciasBack, feedbackOriginParams } from "@/validations/feedback";
 import { adminReturnTo } from "@/lib/navigation";
 import { adminFormHref } from "@/validations/admin";
 import { AdminAudit } from "@/components/admin/AdminAudit";
+import { AcademicDeleteAction } from "@/components/admin/AcademicDeleteAction";
 
 interface Resource<T> { key: string; data: T | null; error: string }
 
@@ -53,6 +54,7 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
   const [detail, setDetail] = useState<(Resource<ComisionDetalle> & { notFound: boolean }) | null>(null);
   const [retryToken, setRetryToken] = useState(0);
   const [auditVersion, setAuditVersion] = useState(0);
+  const [deleteMessage, setDeleteMessage] = useState("");
   const current = detail?.key === comisionId ? detail : null;
   const comision = current?.data ?? null;
   const error = current?.error ?? "";
@@ -173,7 +175,7 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
     <div className={styles.header}>
       <PageHeader id={headingId} title={materiaLabel} eyebrow={eyebrow} back={administrative ? { href: adminBack, label: "contexto administrativo" } : experienciasBack(params) ?? { href: materiaHref, label: "Comisiones de la materia" }}
         breadcrumb={administrative ? [{ label: "Administración", href: "/home/admin" }, { label: "Comisiones", href: "/home/admin/comisiones" }, { label: comision ? `Comisión ${comision.nombre}` : "Comisión" }] : [...(administrative ? [{ label: "Administración", href: "/home/admin" }] : []), { label: "Materias", href: administrative ? "/home/admin/materias" : materiasHref }, { label: comision?.cursada.materia.nombre ?? "Materia", href: materiaHref }, { label: comision ? `Comisión ${comision.nombre}` : "Comisión" }]} focusKey={comisionId} />
-      {administrative && isAdmin && comision && !comision.deletedAt ? <><Link className="button button-secondary" href={adminFormHref(`/home/admin/comisiones/${encodeURIComponent(comision.id)}/editar`, adminBack)}>Editar comisión</Link></> : null}
+      {administrative && isAdmin && comision && !comision.deletedAt ? <><Link className="button button-secondary" href={adminFormHref(`/home/admin/comisiones/${encodeURIComponent(comision.id)}/editar`, adminBack)}>Editar comisión</Link><AcademicDeleteAction kind="comisiones" id={comision.id} label={`${comision.nombre} de ${comision.cursada.materia.nombre} (${periodoLabel(comision.cursada.anio, comision.cursada.cuatrimestre)})`} onAttempt={() => setAuditVersion(value => value + 1)} onSuccess={() => { setDeleteMessage("La comisión se dio de baja correctamente."); setRetryToken(value => value + 1); setAuditVersion(value => value + 1); setOptionsRetry(value => value + 1); }} /></> : null}
       {comision ? <div className={styles.contextRow}>
         <div className={styles.context}>
           <span className={styles.commissionLabel}>Comisión {comision.nombre}</span>
@@ -193,6 +195,7 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
       </div> : null}
       {comision && materia?.error ? <div className={styles.secondary} role="note"><span>{materia.error}</span> <button className={styles.retry} type="button" onClick={() => setMateriaRetry((value) => value + 1)}>Reintentar datos de materia</button></div> : null}
     </div>
+    {deleteMessage ? <Notice tone="success">{deleteMessage}</Notice> : null}
     {params.get("successMessage") ? <Notice tone="success">{params.get("successMessage")}</Notice> : null}
     {error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la comisión. {error} {current?.notFound ? back : <button className="button" type="button" onClick={() => setRetryToken((value) => value + 1)}>Reintentar</button>}</Notice> : null}
     {!comision && !error ? <p role="status">Cargando comisión…</p> : null}
