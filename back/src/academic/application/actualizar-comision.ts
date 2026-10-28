@@ -9,8 +9,9 @@ const schema = z.strictObject({ carrera: carreraSchema.optional(), numero: z.num
   .refine(value => Object.values(value).some(v => v !== undefined));
 export class ActualizarComision {
   constructor(private readonly cursadas: CursadaRepository, private readonly comisiones: ComisionRepository, private readonly materias: MateriaRepository) {}
-  async execute(idInput: unknown, body: unknown) {
+  async execute(idInput: unknown, body: unknown, actorIdInput?: unknown) {
     const id = validateId(idInput);
+    const actorId = actorIdInput === undefined ? undefined : validateId(actorIdInput);
     const result = schema.safeParse(body);
     if (!result.success) throw new InvalidAcademicInputError(result.error.issues.some(i => i.code === "unrecognized_keys") ? CAMPOS_NO_PERMITIDOS : "Indique carrera y numero validos.");
     const current = await this.comisiones.findById(id);
@@ -21,6 +22,6 @@ export class ActualizarComision {
     if (!(await this.materias.findCarreras(cursada.materiaId)).includes(effective.carrera)) throw new InvalidAcademicInputError("La carrera no corresponde a la materia de la cursada.");
     const duplicate = await this.comisiones.findByCursadaIdCarreraNumero(current.cursadaId, effective.carrera, effective.numero);
     if (duplicate && duplicate.id !== id) throw new ComisionAlreadyExistsError();
-    return this.comisiones.update(id, result.data);
+    return actorId ? this.comisiones.update(id, result.data, actorId) : this.comisiones.update(id, result.data);
   }
 }

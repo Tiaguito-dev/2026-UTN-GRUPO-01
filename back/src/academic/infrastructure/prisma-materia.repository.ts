@@ -4,6 +4,7 @@ import type { Pagination, PaginatedResult } from "../../shared/domain/pagination
 import { serializarCarreras, type AnioCarrera, type Carrera, type NivelElectiva, type Materia, type MateriaCambio, type MateriaCarrera, type MateriaHistorial } from "../domain/materia.js";
 import { CarreraConComisionesError, MateriaAlreadyExistsError, MateriaNotFoundError } from "../application/errors.js";
 import type { CreateMateriaInput, MateriaFilters, MateriaRepository } from "../application/ports/materia.repository.js";
+import { parseMateriaHistoryChanges } from "../application/academic-history.js";
 
 const conCarreras = { carreras: { orderBy: { carrera: "asc" } } } satisfies Prisma.MateriaInclude;
 // NFD separates Spanish accents/diacritics; translate removes the same combining marks on
@@ -128,8 +129,9 @@ export class PrismaMateriaRepository implements MateriaRepository {
   }
 
   async findHistorial(id: string, pagination: Pagination): Promise<PaginatedResult<MateriaHistorial>> {
+    if (!await this.prisma.materia.findUnique({ where: { id }, select: { id: true } })) throw new MateriaNotFoundError();
     const where = { materiaId: id };
-    const [rows, total] = await Promise.all([
+    const [rows, total] = await this.prisma.$transaction([
       this.prisma.materiaHistorial.findMany({
         where,
         include: { actor: { select: { id: true, displayName: true } } },
@@ -138,13 +140,13 @@ export class PrismaMateriaRepository implements MateriaRepository {
         take: pagination.pageSize,
       }),
       this.prisma.materiaHistorial.count({ where }),
-    ]);
+    ], { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
     const items = rows.map((row) => ({
       id: row.id,
       materiaId: row.materiaId,
       actor: row.actor,
       createdAt: row.createdAt,
-      cambios: row.cambios as unknown as MateriaCambio[],
+      cambios: parseMateriaHistoryChanges(row.cambios),
     }));
     return { items, total, ...pagination };
   }

@@ -13,7 +13,7 @@ export class PrismaRefreshCredentialRepository implements RefreshCredentialRepos
     this.validateReplacement(session, credential);
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${session.userId}::uuid FOR UPDATE`;
-      const user = await tx.user.findUnique({ where: { id: session.userId }, select: { passwordHash: true, role: true, emailVerifiedAt: true } });
+      const user = await tx.user.findUnique({ where: { id: session.userId }, select: { passwordHash: true, role: true, emailVerifiedAt: true, disabledAt: true } });
       if (!user || user.passwordHash !== expectedPasswordHash || !canAuthenticate(user)) return false;
       await tx.session.create({ data: session });
       await tx.refreshCredential.create({ data: credential });
@@ -46,7 +46,7 @@ export class PrismaRefreshCredentialRepository implements RefreshCredentialRepos
       // Use the transaction's connection: an external user lookup while holding the
       // session lock could exhaust the pool when concurrent transactions wait for it.
       const user = await tx.user.findUnique({ where: { id: session.userId },
-        select: { id: true, email: true, displayName: true, role: true, createdAt: true, emailVerifiedAt: true } });
+        select: { id: true, email: true, displayName: true, role: true, createdAt: true, emailVerifiedAt: true, disabledAt: true } });
       const replacement = await prepareReplacement(session, user);
       this.validateReplacement(session, replacement);
       checkedAt = this.checkedAt(now);

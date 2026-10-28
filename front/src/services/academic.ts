@@ -27,8 +27,10 @@ export interface Comision { id: string; cursadaId: string; carrera: Carrera; num
 export interface ComisionDetalle extends Comision { cursada: { id: string; anio: number; cuatrimestre?: Cuatrimestre | null; materia: { id: string; nombre: string; modalidad?: ModalidadMateria | null } } }
 
 export { listarMaterias, obtenerMateria, crearMateria } from "./materias";
-export function listarProfesores(pagination: PaginationInput = {}): Promise<PaginatedResult<Profesor>> {
-  return getAuthService().protectedGet(`/profesores${toQuery(pagination)}`, paginatedSchema(profesorSchema));
+export function listarProfesores(input: PaginationInput & { q?: string } = {}): Promise<PaginatedResult<Profesor>> {
+  const query = new URLSearchParams(toQuery(input).slice(1));
+  if (input.q?.trim()) query.set("q", input.q.trim());
+  return getAuthService().protectedGet(`/profesores${query.size ? `?${query}` : ""}`, paginatedSchema(profesorSchema));
 }
 export function listarCursadasPorMateria(materiaId: string, pagination: PaginationInput = {}): Promise<PaginatedResult<CursadaResumen>> {
   return getAuthService().protectedGet(`/materias/${encodeURIComponent(materiaId)}/cursadas${toQuery(pagination)}`, paginatedSchema(cursadaResumenSchema));

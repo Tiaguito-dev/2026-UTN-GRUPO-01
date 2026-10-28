@@ -5,6 +5,7 @@ import type { Cuatrimestre, Cursada, CursadaResumen } from "../domain/cursada.js
 import { CARRERAS } from "../domain/materia.js";
 import { CursadaAlreadyExistsError, CursadaNotFoundError, MateriaNotFoundError, InvalidAcademicInputError } from "../application/errors.js";
 import type { CreateCursadaInput, CursadaRepository } from "../application/ports/cursada.repository.js";
+import { registrarEdicionAcademica } from "./registrar-edicion-academica.js";
 
 // Solo para contar: comisiones activas y no borradas, con sus profesores no borrados.
 const conResumen = {
@@ -19,7 +20,7 @@ export class PrismaCursadaRepository implements CursadaRepository {
 
   async findByMateriaId(materiaId: string, pagination: Pagination): Promise<PaginatedResult<CursadaResumen>> {
     const where = { materiaId, deletedAt: null };
-    const [items, total] = await Promise.all([
+    const [items, total] = await this.prisma.$transaction([
       this.prisma.cursada.findMany({
         where,
         include: conResumen,
@@ -28,7 +29,7 @@ export class PrismaCursadaRepository implements CursadaRepository {
         take: pagination.pageSize,
       }),
       this.prisma.cursada.count({ where }),
-    ]);
+    ], { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
     return {
       items: items.map((item) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars -- descarta materiaId, no viaja en el resumen paginado
@@ -50,7 +51,7 @@ export class PrismaCursadaRepository implements CursadaRepository {
     return this.prisma.cursada.findFirst({ where: { materiaId, anio, cuatrimestre, deletedAt: null } });
   }
 
-  async update(id: string, input: Partial<CreateCursadaInput>): Promise<Cursada> {
+  async update(id: string, input: Partial<CreateCursadaInput>, actorId?: string): Promise<Cursada> {
     try {
       return await this.prisma.$transaction(async tx => {
         await tx.$queryRaw`SELECT "id" FROM "Cursada" WHERE "id" = ${id}::uuid FOR UPDATE`;
@@ -66,7 +67,9 @@ export class PrismaCursadaRepository implements CursadaRepository {
         if (await tx.comision.count({ where: { cursadaId: id, deletedAt: null, carrera: { notIn: carreras.map(c => c.carrera) } } })) {
           throw new InvalidAcademicInputError("La materia destino no admite las carreras de todas las comisiones de la cursada.");
         }
-        return tx.cursada.update({ where: { id }, data: input });
+        const updated = await tx.cursada.update({ where: { id }, data: input });
+        if (actorId) await registrarEdicionAcademica(tx, "cursada", id, actorId, current, updated, ["materiaId", "anio", "cuatrimestre"]);
+        return updated;
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") throw new CursadaAlreadyExistsError();
@@ -76,7 +79,11 @@ export class PrismaCursadaRepository implements CursadaRepository {
 
   async create(input: CreateCursadaInput): Promise<Cursada> {
     try {
-      return await this.prisma.cursada.create({ data: input });
+      return await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "Materia" WHERE "id" = ${input.materiaId}::uuid FOR SHARE`;
+        if (!await tx.materia.findFirst({ where: { id: input.materiaId, deletedAt: null } })) throw new MateriaNotFoundError();
+        return tx.cursada.create({ data: input });
+      });
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         throw new CursadaAlreadyExistsError();

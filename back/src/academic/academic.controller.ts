@@ -27,6 +27,7 @@ import type { Materia } from "./domain/materia.js";
 import type { Profesor } from "./domain/profesor.js";
 import type { Cursada, CursadaResumen } from "./domain/cursada.js";
 import type { Comision, ComisionDetalle, ProfesorAsignado } from "./domain/comision.js";
+import { validateId } from "./application/academic-id.js";
 
 // Las lecturas exigen sesión; las altas exigen además rol ADMIN vía @Roles + RolesGuard.
 // Sin @Roles, RolesGuard solo confirma que haya usuario autenticado.
@@ -64,20 +65,20 @@ export class AcademicController {
 
   @Patch("profesores/:profesorId")
   @Roles("ADMIN")
-  editarProfesor(@Param("profesorId") id: string, @Body() body: unknown) {
-    return this.actualizarProfesor.execute(id, body);
+  editarProfesor(@Param("profesorId") id: string, @Body() body: unknown, @Req() request: AuthenticatedRequest) {
+    return this.actualizarProfesor.execute(id, body, validateId(request.authUser?.id));
   }
 
   @Patch("cursadas/:cursadaId")
   @Roles("ADMIN")
-  editarCursada(@Param("cursadaId") id: string, @Body() body: unknown) {
-    return this.actualizarCursada.execute(id, body);
+  editarCursada(@Param("cursadaId") id: string, @Body() body: unknown, @Req() request: AuthenticatedRequest) {
+    return this.actualizarCursada.execute(id, body, validateId(request.authUser?.id));
   }
 
   @Patch("comisiones/:comisionId")
   @Roles("ADMIN")
-  editarComision(@Param("comisionId") id: string, @Body() body: unknown) {
-    return this.actualizarComision.execute(id, body);
+  editarComision(@Param("comisionId") id: string, @Body() body: unknown, @Req() request: AuthenticatedRequest) {
+    return this.actualizarComision.execute(id, body, validateId(request.authUser?.id));
   }
 
   @Get("materias")

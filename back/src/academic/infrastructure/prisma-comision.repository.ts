@@ -3,8 +3,9 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import type { Pagination, PaginatedResult } from "../../shared/domain/pagination.js";
 import type { CargoDocente, Comision, ComisionDetalle } from "../domain/comision.js";
 import type { Carrera } from "../domain/materia.js";
-import { ComisionAlreadyExistsError, ComisionNotFoundError, CursadaNotFoundError, MateriaNotFoundError, InvalidAcademicInputError } from "../application/errors.js";
+import { ComisionAlreadyExistsError, ComisionNotFoundError, CursadaNotFoundError, MateriaNotFoundError, InvalidAcademicInputError, ProfesorNotFoundError } from "../application/errors.js";
 import type { ComisionRepository, CreateComisionInput } from "../application/ports/comision.repository.js";
+import { registrarEdicionAcademica } from "./registrar-edicion-academica.js";
 
 const conProfesores = {
   profesores: {
@@ -57,10 +58,17 @@ export class PrismaComisionRepository implements ComisionRepository {
   }
 
   async asignarProfesor(comisionId: string, profesorId: string, cargo: CargoDocente): Promise<void> {
-    await this.prisma.comisionProfesor.upsert({
-      where: { comisionId_profesorId: { comisionId, profesorId } },
-      create: { comisionId, profesorId, cargo },
-      update: { cargo },
+    await this.prisma.$transaction(async (tx) => {
+      // Baja de comisión y baja de profesor toman respectivamente estos mismos bloqueos.
+      await tx.$queryRaw`SELECT "id" FROM "Comision" WHERE "id" = ${comisionId}::uuid FOR UPDATE`;
+      if (!await tx.comision.findFirst({ where: { id: comisionId, deletedAt: null } })) throw new ComisionNotFoundError();
+      await tx.$queryRaw`SELECT "id" FROM "Profesor" WHERE "id" = ${profesorId}::uuid FOR SHARE`;
+      if (!await tx.profesor.findFirst({ where: { id: profesorId, deletedAt: null } })) throw new ProfesorNotFoundError();
+      await tx.comisionProfesor.upsert({
+        where: { comisionId_profesorId: { comisionId, profesorId } },
+        create: { comisionId, profesorId, cargo },
+        update: { cargo },
+      });
     });
   }
 
@@ -68,7 +76,7 @@ export class PrismaComisionRepository implements ComisionRepository {
     return (await this.prisma.comisionProfesor.deleteMany({ where: { comisionId, profesorId } })).count > 0;
   }
 
-  async update(id: string, input: Partial<Pick<CreateComisionInput, "carrera" | "numero">>): Promise<Comision> {
+  async update(id: string, input: Partial<Pick<CreateComisionInput, "carrera" | "numero">>, actorId?: string): Promise<Comision> {
     try {
       return await this.prisma.$transaction(async tx => {
         const candidate = await tx.comision.findFirst({ where: { id, deletedAt: null } });
@@ -78,7 +86,9 @@ export class PrismaComisionRepository implements ComisionRepository {
         const current = await tx.comision.findFirst({ where: { id, deletedAt: null } });
         if (!current) throw new ComisionNotFoundError();
         await this.validateCarrera(tx, current.cursadaId, input.carrera ?? current.carrera);
-        return toComision(await tx.comision.update({ where: { id }, data: input, include: conProfesores }));
+        const updated = await tx.comision.update({ where: { id }, data: input, include: conProfesores });
+        if (actorId) await registrarEdicionAcademica(tx, "comision", id, actorId, current, updated, ["carrera", "numero"]);
+        return toComision(updated);
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") throw new ComisionAlreadyExistsError();

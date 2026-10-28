@@ -57,3 +57,8 @@ export class CarreraConComisionesError extends DomainError {
   readonly httpStatus = 409;
   constructor() { super("No se puede quitar una carrera que tiene comisiones."); this.name = "CarreraConComisionesError"; }
 }
+
+export class AcademicRelationshipsError extends DomainError {
+  readonly httpStatus = 409;
+  constructor(message: string) { super(message); this.name = "AcademicRelationshipsError"; }
+}

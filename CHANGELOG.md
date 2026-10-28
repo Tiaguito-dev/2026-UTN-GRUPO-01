@@ -2,6 +2,35 @@
 
 ## [Sin publicar]
 
+### Administración remota, estados y bajas lógicas (TASK-070)
+
+- Profesores y Usuarios filtran y paginan en PostgreSQL; los resultados y selectores
+  administrativos dejan de descargar catálogos completos. Las tablas mantienen nueve filas,
+  total filtrado y contexto en URL. Materias busca por nombre y los períodos se eligen por páginas.
+- Usuarios incorpora estado, activación/reactivación confirmada e historial. Desactivar
+  revoca sesiones y credenciales pendientes; login, refresh y acceso rechazan cuentas inactivas.
+  Se impiden autodesactivación y pérdida concurrente de administradores activos.
+- Materias, Profesores, Cursadas y Comisiones permiten baja lógica confirmada, protegida por
+  ADMIN y bloqueada por relaciones vigentes. Se conservan comentarios, snapshots e identidad
+  histórica. Índices únicos parciales permiten reutilizar claves de registros dados de baja.
+- Historial administrativo registra ediciones reales y bajas con actor y fecha, con páginas
+  de tres eventos. Edición regresa al detalle con éxito y retorno contextual al listado.
+- Migración aditiva de estado e historial; pruebas con PostgreSQL/Mailpit temporales y
+  recorridos funcionales sin capturas. Experiencias conserva sus tarjetas. Sin commits.
+
+### Tablas administrativas coherentes (TASK-069)
+
+- Materias, Profesores, Usuarios, Cursadas y Comisiones comparten tabla de ancho completo,
+  filas compactas, filtros y alta en una barra, y scroll contenido en móvil. Experiencias
+  mantiene sus tarjetas y filtros sin cambios.
+- Acciones reales Eye/Pencil con nombre accesible, tooltip por foco/hover y cierre con Escape.
+  Altas con Plus y texto explícito. No se agregan eliminación, gestión de cuentas ni roles.
+- Filtros antes de paginar nueve filas, total filtrado y retorno contextual en URL. Materias
+  filtra en backend; los catálogos sin búsqueda remota reutilizan la carga completa acotada
+  existente (hasta 2000 registros; error en vez de resultados parciales).
+- Usuarios permite buscar nombre/email y filtrar rol. Estado y activación quedan pendientes
+  porque el contrato actual no los expone. Sin dependencias ni cambios de endpoints.
+
 ### Recorrido administrativo por rol (TASK-068)
 
 - Inicio de sesión, marca y menú resuelven el panel administrativo para ADMIN. Perfil y
@@ -12,6 +41,18 @@
   gestión privada del comentario. Anonimato y autorizaciones del backend se conservan.
 - Breadcrumb compartido comienza en Administración; traducción central de rutas evita montar
   contenido estudiantil para ADMIN. Sin dependencias, migraciones ni operaciones backend nuevas.
+
+### Integración de desarrollo y comentarios (TASK-067)
+
+- Se integran los listados y editores administrativos del equipo hasta 1be4682, conservando
+  su contrato de cursadas por materia/año/período, incluidos períodos Anual, Primero y Segundo.
+- Se conservan los ajustes de breadcrumbs, materias/comisiones, filtros de Experiencias y
+  administración del comentario propio. Los períodos del mismo año mantienen sus IDs y
+  experiencias; los nuevos snapshots usan el período real de la cursada.
+- Se compatibiliza la migración de modalidad aún no publicada y se agrega corrección para
+  instalaciones de la variante anual anterior, sin fusionar filas ni inventar períodos nulos.
+- Regresión de frontend/backend y PostgreSQL efímero, sin modificar la base local. Cambios
+  del equipo, propios y de integración identificados en TASK-067 para aceptación manual.
 
 ### Administración del comentario propio (TASK-066)
 
@@ -36,6 +77,18 @@
   secundarias; anonimato y permisos privados conservados.
 - Sin dependencias ni migraciones nuevas. Verificación técnica sin navegador; aceptación
   visual pendiente y servicios locales apagados.
+
+### Identificación académica y selección de comisiones (TASK-064)
+
+- Denominaciones formales centralizadas, incluida Ingeniería en Sistemas de Información.
+  Materias compartidas se identifican como Básica según sus asociaciones completas; año y
+  nivel corresponden a la carrera elegida o indican cuándo dependen de la carrera.
+- Filtros de carrera asociada y año de cursada juntos, con selección conservada en URL.
+  Carrera única fija; materias compartidas sin selección no cargan todas las comisiones.
+- Consulta de comisiones filtrada por carrera antes de paginar y contar en backend. Nueve
+  por página, estado vacío estable y sin cambio automático a otra combinación.
+- Tarjetas completas como enlaces, código unido, carrera formal y docentes/cargos reales;
+  grilla responsive de ancho suficiente y sin alturas mínimas artificiales.
 
 ### Breadcrumbs compartidos (TASK-063)
 

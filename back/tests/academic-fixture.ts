@@ -9,6 +9,7 @@ import { CrearProfesor } from "../src/academic/application/crear-profesor.js";
 import { CrearCursada } from "../src/academic/application/crear-cursada.js";
 import { CrearComision } from "../src/academic/application/crear-comision.js";
 import { ActualizarMateria } from "../src/academic/application/actualizar-materia.js";
+import { MateriaNotFoundError } from "../src/academic/application/errors.js";
 import type { Pagination, PaginatedResult } from "../src/shared/domain/pagination.js";
 import { CARRERAS, type AnioCarrera, type Carrera, type NivelElectiva, type Materia, type MateriaCarrera } from "../src/academic/domain/materia.js";
 import type { Profesor } from "../src/academic/domain/profesor.js";
@@ -70,7 +71,8 @@ export function fixture() {
       const materia = { ...materias.get(id)!, ...input, ...(filas ? { carreras: porCarrera(filas) } : {}) }; materias.set(id, materia); return materia;
     }),
     findCarreras: vi.fn(async (materiaId) => (materias.get(materiaId)?.carreras ?? []).map((fila) => fila.carrera)),
-    findHistorial: vi.fn(async (_id, pagination) => paginate([], pagination)),
+    // TASK-070: historial reconoce también entidades dadas de baja; la existencia la verifica el puerto.
+    findHistorial: vi.fn(async (id, pagination) => { if (!materias.has(id)) throw new MateriaNotFoundError(); return paginate([], pagination); }),
     findById: vi.fn(async (id) => { const m = materias.get(id); return m && !m.deletedAt ? m : null; }),
     findByNombre: vi.fn(async (nombre) => [...materias.values()].find((m) => m.nombre === nombre) ?? null),
     create: vi.fn(async ({ nombre, modalidad, carreras: filas }) => {
@@ -123,7 +125,7 @@ export function fixture() {
       comisiones.set(id, result);
       return conProfesores(result);
     }),
-    findByCursadaId: vi.fn(async (cursadaId, pagination) => paginate([...comisiones.values()].filter((c) => c.cursadaId === cursadaId).map(conProfesores), pagination)),
+    findByCursadaId: vi.fn(async (cursadaId, pagination, carrera) => paginate([...comisiones.values()].filter((c) => c.cursadaId === cursadaId && !c.deletedAt && (!carrera || c.carrera === carrera)).map(conProfesores), pagination)),
     findByCursadaIdCarreraNumero: vi.fn(async (cursadaId, carrera, numero) =>
       [...comisiones.values()].find((c) => c.cursadaId === cursadaId && c.carrera === carrera && c.numero === numero) ?? null),
     findById: vi.fn(async (id) => { const c = comisiones.get(id); return c && !c.deletedAt ? conProfesores(c) : null; }),

@@ -22,7 +22,7 @@ export interface Materia {
 }
 
 export interface MateriaCambio {
-  campo: "nombre" | "modalidad" | "anioCarrera" | "nivelElectiva" | "carreras";
+  campo: "nombre" | "modalidad" | "anioCarrera" | "nivelElectiva" | "carreras" | "deletedAt";
   anterior: string | null;
   nuevo: string | null;
 }

@@ -22,11 +22,28 @@ model User {
   role         UserRole @default(USER)
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
   emailVerifiedAt DateTime? @db.Timestamptz(3)
+  disabledAt   DateTime? @db.Timestamptz(3)
   emailVerificationCredentials EmailVerificationCredential[]
   sessions     Session[]
   passwordResetCredentials PasswordResetCredential[]
   historialMaterias MateriaHistorial[]
   feedback Feedback[]
+  administracionHistorial AdministracionHistorial[]
+
+  @@index([role, disabledAt, createdAt, id])
+}
+
+model AdministracionHistorial {
+  id String @id @default(uuid()) @db.Uuid
+  entidad String @db.VarChar(16)
+  entidadId String @db.Uuid
+  actorId String @db.Uuid
+  accion String @db.VarChar(24)
+  cambios Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([entidad, entidadId, createdAt, id])
 }
 
 model EmailVerificationCredential {
@@ -111,7 +128,8 @@ enum CargoDocente {
 
 model Materia {
   id        String    @id @default(uuid()) @db.Uuid
-  nombre    String    @unique @db.VarChar(150)
+  // Unicidad solo de registros vigentes, definida en la migración SQL.
+  nombre    String    @db.VarChar(150)
   modalidad ModalidadMateria?
   createdAt DateTime  @default(now()) @db.Timestamptz(3)
   deletedAt DateTime? @db.Timestamptz(3)
@@ -163,7 +181,8 @@ model Cursada {
   materia      Materia      @relation(fields: [materiaId], references: [id], onDelete: Restrict)
   comisiones   Comision[]
 
-  @@unique([materiaId, anio, cuatrimestre])
+  // Índice único parcial (materiaId,anio,cuatrimestre) WHERE deletedAt IS NULL en SQL.
+  @@index([materiaId])
 }
 
 model Comision {
@@ -178,7 +197,7 @@ model Comision {
   profesores ComisionProfesor[]
   feedback Feedback[]
 
-  @@unique([cursadaId, carrera, numero])
+  // Índice único parcial (cursadaId,carrera,numero) WHERE deletedAt IS NULL en SQL.
   @@index([cursadaId])
 }
 

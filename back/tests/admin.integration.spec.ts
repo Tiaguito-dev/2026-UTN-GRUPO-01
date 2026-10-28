@@ -101,6 +101,8 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
 
   afterAll(async () => {
     if (prisma) {
+      // TASK-070: las ediciones administrativas ahora registran al actor.
+      if (userIds.size) await prisma.administracionHistorial.deleteMany({ where: { actorId: { in: [...userIds] } } });
       if (materiaIds.size) await prisma.materiaHistorial.deleteMany({ where: { materiaId: { in: [...materiaIds] } } });
       if (materiaIds.size) await prisma.materiaCarrera.deleteMany({ where: { materiaId: { in: [...materiaIds] } } });
       if (comisionIds.size) await prisma.comisionProfesor.deleteMany({ where: { comisionId: { in: [...comisionIds] } } });
@@ -571,7 +573,8 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
       expect(body).toMatchObject({ page: 1, pageSize: 100 });
       expect(body.items.length).toBeGreaterThan(0);
       for (const item of body.items) {
-        expect(Object.keys(item).sort()).toEqual(["createdAt", "displayName", "email", "id", "role"]);
+        // TASK-070: estado explícito solo en el contrato administrativo.
+        expect(Object.keys(item).sort()).toEqual(["createdAt", "disabledAt", "displayName", "email", "id", "role"]);
       }
       expect(JSON.stringify(body)).not.toContain("passwordHash");
       expect(JSON.stringify(body)).not.toContain("$argon2");

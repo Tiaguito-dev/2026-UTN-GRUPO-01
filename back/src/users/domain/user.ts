@@ -8,9 +8,10 @@ export interface User {
   role: UserRole;
   createdAt: Date;
   emailVerifiedAt?: Date | null;
+  disabledAt?: Date | null;
 }
 
-export type PublicUser = Omit<User, "passwordHash" | "emailVerifiedAt">;
+export type PublicUser = Omit<User, "passwordHash" | "emailVerifiedAt" | "disabledAt">;
 
 export function toPublicUser(user: User): PublicUser {
   return {
@@ -22,8 +23,8 @@ export function toPublicUser(user: User): PublicUser {
   };
 }
 
-export type AuthenticationUser = PublicUser & Pick<User, "emailVerifiedAt">;
+export type AuthenticationUser = PublicUser & Pick<User, "emailVerifiedAt" | "disabledAt">;
 
-export function canAuthenticate(user: { role: UserRole; emailVerifiedAt?: Date | null }): boolean {
-  return user.role === "ADMIN" || user.emailVerifiedAt instanceof Date;
+export function canAuthenticate(user: { role: UserRole; emailVerifiedAt?: Date | null; disabledAt?: Date | null }): boolean {
+  return !user.disabledAt && (user.role === "ADMIN" || user.emailVerifiedAt instanceof Date);
 }

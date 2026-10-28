@@ -79,7 +79,7 @@ async function seed(): Promise<void> {
         ?? await prisma.profesor.create({ data: { nombreCompleto } })).id;
 
     for (const materiaSeed of MATERIAS) {
-      const existente = await prisma.materia.findUnique({ where: { nombre: materiaSeed.nombre } });
+      const existente = await prisma.materia.findFirst({ where: { nombre: materiaSeed.nombre, deletedAt: null } });
       const materia = existente ?? await prisma.materia.create({
         data: { nombre: materiaSeed.nombre, modalidad: materiaSeed.modalidad },
       });
@@ -91,8 +91,8 @@ async function seed(): Promise<void> {
 
       for (const cursadaSeed of materiaSeed.cursadas) {
         const cuatrimestre = cursadaSeed.cuatrimestre ?? materiaSeed.modalidad;
-        const cursadaExistente = await prisma.cursada.findUnique({
-          where: { materiaId_anio_cuatrimestre: { materiaId: materia.id, anio: cursadaSeed.anio, cuatrimestre } },
+        const cursadaExistente = await prisma.cursada.findFirst({
+          where: { materiaId: materia.id, anio: cursadaSeed.anio, cuatrimestre, deletedAt: null },
         });
         const cursada = cursadaExistente ?? await prisma.cursada.create({
           data: { materiaId: materia.id, anio: cursadaSeed.anio, cuatrimestre },
@@ -100,8 +100,8 @@ async function seed(): Promise<void> {
         if (!cursadaExistente) cursadasCreadas += 1;
 
         for (const comisionSeed of cursadaSeed.comisiones) {
-          const comisionExistente = await prisma.comision.findUnique({
-            where: { cursadaId_carrera_numero: { cursadaId: cursada.id, carrera: comisionSeed.carrera, numero: comisionSeed.numero } },
+          const comisionExistente = await prisma.comision.findFirst({
+            where: { cursadaId: cursada.id, carrera: comisionSeed.carrera, numero: comisionSeed.numero, deletedAt: null },
           });
           const comision = comisionExistente ?? await prisma.comision.create({
             data: { cursadaId: cursada.id, carrera: comisionSeed.carrera, numero: comisionSeed.numero, activa: comisionSeed.activa ?? true },
