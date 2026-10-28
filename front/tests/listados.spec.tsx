@@ -19,8 +19,8 @@ vi.mock("next/navigation", () => ({
   usePathname: () => location.pathname,
   useSearchParams: () => new URLSearchParams(location.search),
 }));
-vi.mock("@/services/academic", () => ({ listarMaterias: vi.fn(), listarProfesores: vi.fn(), listarCursadasPorMateria: vi.fn(), listarComisionesPorCursada: vi.fn() }));
-vi.mock("@/services/materias", () => ({ listarMaterias: vi.fn() }));
+vi.mock("@/services/academic", () => ({ listarMaterias: vi.fn(), listarProfesores: vi.fn(), listarCursadasPorMateria: vi.fn(), listarComisionesPorCursada: vi.fn(), obtenerCursada: vi.fn(async () => ({ id: "c1", anio: 2026, cuatrimestre: "PRIMERO" })) }));
+vi.mock("@/services/materias", () => ({ listarMaterias: vi.fn(), obtenerMateria: vi.fn(async () => ({ id: "m1", nombre: "Materia seleccionada" })) }));
 vi.mock("@/services/users", () => ({ listarUsuarios: vi.fn() }));
 // TASK-043: MateriasList reads the role (useIsAdmin → useAuth) for "Nueva materia".
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ account: { role: "USER" } }) }));
@@ -36,10 +36,12 @@ describe.each([
   { name: "UsuariosList", Component: UsuariosList, fetch: vi.mocked(listarUsuarios) as Mock, pathname: "/home/admin/usuarios", heading: "Usuarios registrados", item: usuario, itemText: "Cuenta a", loading: "Cargando usuarios…", empty: /Todavía no hay cuentas registradas/ },
   { name: "ProfesoresList", Component: ProfesoresList, fetch: vi.mocked(listarProfesores) as Mock, pathname: "/home/admin/profesores", heading: "Profesores", item: profesor, itemText: "Profesor a", loading: "Cargando profesores…", empty: /No hay registros para mostrar/ },
   { name: "MateriasAdminList", Component: MateriasAdminList, fetch: vi.mocked(listarMateriasAdmin) as Mock, pathname: "/home/admin/materias", heading: "Materias", item: materia, itemText: "Materia a", loading: "Cargando materias…", empty: /No hay registros para mostrar/ },
-  { name: "CursadasAdminList", Component: CursadasAdminList, fetch: vi.mocked(listarCursadasPorMateria) as Mock, pathname: "/home/admin/cursadas", heading: "Cursadas", item: (id: string) => ({ id, anio: 2026, cuatrimestre: "PRIMERO", comisiones: 1, profesores: 1, carreras: ["S"] }), itemText: /2026/, loading: "Cargando cursadas…", empty: /No hay registros para mostrar/, search: "materiaId=m1" },
+  { name: "CursadasAdminList", Component: CursadasAdminList, fetch: vi.mocked(listarCursadasPorMateria) as Mock, pathname: "/home/admin/cursadas", heading: "Cursadas", item: (id: string) => ({ id, anio: 2026, cuatrimestre: "PRIMERO", comisiones: 1, profesores: 1, carreras: ["S"] }), itemText: "1er cuatrimestre 2026", loading: "Cargando cursadas…", empty: /No hay registros para mostrar/, search: "materiaId=m1" },
   { name: "ComisionesAdminList", Component: ComisionesAdminList, fetch: vi.mocked(listarComisionesPorCursada) as Mock, pathname: "/home/admin/comisiones", heading: "Comisiones", item: (id: string) => ({ id, nombre: "S-31", carrera: "S", numero: 31, profesores: [], activa: true }), itemText: "S-31", loading: "Cargando comisiones…", empty: /No hay registros para mostrar/, search: "materiaId=m1&cursadaId=c1" },
 ])("$name", ({ name, Component, fetch, pathname, heading, item, itemText, loading, empty, search }) => {
   const page = (ids: string[], total = ids.length) => ({ items: ids.map((id) => item(id)), total, page: 1, pageSize: 10 });
+  // TASK-069: los tooltips también nombran el registro; buscar la celda identifica el dato visible.
+  const visibleItem = () => name === "MateriasList" ? screen.findByText(itemText) : screen.findByRole("cell", { name: itemText });
 
   function setup() {
     location.pathname = pathname;
@@ -57,7 +59,7 @@ describe.each([
     fetch.mockResolvedValue(page(["a"]));
     setup();
     expect(screen.getAllByRole("status").some((status) => status.textContent === loading)).toBe(true);
-    expect(await screen.findByText(itemText)).toBeTruthy();
+    expect(await visibleItem()).toBeTruthy();
     expect(fetch).toHaveBeenCalledWith(...fetchArgs(1));
   });
 
@@ -66,21 +68,22 @@ describe.each([
     setup();
     expect((await screen.findByRole("alert")).textContent).toContain("Servicio no disponible");
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
-    expect(await screen.findByText(itemText)).toBeTruthy();
+    expect(await visibleItem()).toBeTruthy();
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it("muestra el estado vacío", async () => {
     fetch.mockResolvedValue(page([]));
     setup();
-    expect(await screen.findByText(empty)).toBeTruthy();
+    // TASK-069: las tablas distinguen resultados filtrados vacíos del catálogo estudiantil.
+    expect(await screen.findByText(name === "MateriasList" ? empty : /No hay registros que coincidan con los filtros/)).toBeTruthy();
   });
 
   it("los listados administrativos son tablas y usuarios no ofrece gestión", async () => {
     if (name === "MateriasList") return;
     fetch.mockResolvedValue(page(["a"]));
     setup();
-    await screen.findByText(itemText);
+    await visibleItem();
     expect(screen.getByRole("table")).toBeTruthy();
     expect(screen.getAllByRole("row")).toHaveLength(2);
     if (name === "UsuariosList") {
@@ -96,6 +99,7 @@ describe.each([
   });
 
   it("Siguiente reemplaza la URL con ?page=2 y pide esa página", async () => {
+    // TASK-070: todas las tablas piden únicamente la página remota solicitada.
     fetch.mockResolvedValue(page(["a"], 25));
     const view = setup();
     await userEvent.click(await screen.findByRole("button", { name: "Página siguiente" }));
@@ -103,18 +107,18 @@ describe.each([
     view.rerender(<Component />);
     await waitFor(() => expect(fetch).toHaveBeenLastCalledWith(...fetchArgs(2)));
     if (name !== "MateriasList" && name !== "UsuariosList") {
-      const detail = new URL((await screen.findByRole("link", { name: /^Ver detalle de/ })).getAttribute("href")!, "https://local.test");
+      const detail = new URL((await screen.findAllByRole("link", { name: /^Ver detalle de/ }))[0].getAttribute("href")!, "https://local.test");
       expect(detail.searchParams.get("returnTo")).toBe(`${pathname}?${search ? `${search}&` : ""}page=2`);
     }
   });
 
   function fetchArgs(page: number) {
     if (name === "MateriasList") return [{ page, carrera: undefined, anioCarrera: undefined }];
-    if (name === "MateriasAdminList") return [{ page, pageSize: 9 }];
-    if (name === "ProfesoresList") return [{ page, pageSize: 20 }];
-    if (name === "CursadasAdminList") return ["m1", { page, pageSize: 20 }];
-    if (name === "ComisionesAdminList") return ["c1", { page, pageSize: 20 }];
-    return [{ page }];
+    if (name === "MateriasAdminList") return [{ page, pageSize: 9, q: undefined, carrera: undefined, anioCarrera: undefined, nivelElectiva: undefined }];
+    if (name === "ProfesoresList") return [{ page, pageSize: 9, q: undefined }];
+    if (name === "CursadasAdminList") return ["m1", { page, pageSize: 9 }];
+    if (name === "ComisionesAdminList") return ["c1", { page, pageSize: 9, carrera: undefined }];
+    return [{ page, pageSize: 9, q: undefined, rol: undefined, estado: undefined }];
   }
 
   it("lleva el foco al h1 al montar", () => {

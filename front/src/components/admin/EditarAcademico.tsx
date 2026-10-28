@@ -16,6 +16,7 @@ import { carreraLabel, isCarrera } from "@/validations/materias";
 import { adminListHref, adminSuccessHref, safeAdminReturnTo, type AdminSection } from "@/validations/admin";
 import { bloqueoDeOpciones, opcionesListas } from "./opciones";
 
+function detailAfterEdit(section: "profesores" | "cursadas" | "comisiones", id: string, returnTo: string) { return `/home/admin/${section}/${encodeURIComponent(id)}?${new URLSearchParams({ returnTo })}`; }
 function useReturnTo(section: AdminSection) { const params = useSearchParams(); return safeAdminReturnTo(params.get("returnTo")) ?? adminListHref({ seccion: section, page: 1 }); }
 function EditorPage({ title, returnTo, children }: { title: string; returnTo: string; children: ReactNode }) {
   const headingId = useId();
@@ -40,7 +41,7 @@ function SaveActions({ busy, returnTo }: { busy: boolean; returnTo: string }) { 
 export function EditarProfesor({ profesorId }: { profesorId: string }) { const returnTo = useReturnTo("profesores"); return <EditorPage title="Editar profesor" returnTo={returnTo}><DetailEditor id={profesorId} load={obtenerProfesor}>{(profesor) => <ProfesorEditor key={profesor.id} profesor={profesor} returnTo={returnTo} />}</DetailEditor></EditorPage>; }
 function ProfesorEditor({ profesor, returnTo }: { profesor: Profesor; returnTo: string }) {
   const router = useRouter(); const ref = useInitialInputs({ nombreCompleto: profesor.nombreCompleto });
-  const { busy, errors, error, success, setSuccess, handleSubmit } = useFormSubmission({ fields: ["nombreCompleto"] as const, validate: (values) => definedIssues({ nombreCompleto: validateNombre(values.nombreCompleto, 150) }), fallbackError: "No pudimos guardar el profesor.", onSubmit: async (values) => { const nombreCompleto = values.nombreCompleto.trim(); if (nombreCompleto === profesor.nombreCompleto) { setSuccess("No hay cambios para guardar."); return; } await actualizarProfesor(profesor.id, { nombreCompleto }); router.push(adminSuccessHref(returnTo, "Profesor actualizado correctamente.")); } });
+  const { busy, errors, error, success, setSuccess, handleSubmit } = useFormSubmission({ fields: ["nombreCompleto"] as const, validate: (values) => definedIssues({ nombreCompleto: validateNombre(values.nombreCompleto, 150) }), fallbackError: "No pudimos guardar el profesor.", onSubmit: async (values) => { const nombreCompleto = values.nombreCompleto.trim(); if (nombreCompleto === profesor.nombreCompleto) { setSuccess("No hay cambios para guardar."); return; } await actualizarProfesor(profesor.id, { nombreCompleto }); router.push(adminSuccessHref(detailAfterEdit("profesores", profesor.id, returnTo), "Profesor actualizado correctamente.")); } });
   return <><SubmitState error={error} success={success} /><form ref={ref} onSubmit={handleSubmit} noValidate aria-busy={busy}><FormField name="nombreCompleto" label="Nombre completo" error={errors.nombreCompleto} /><SaveActions busy={busy} returnTo={returnTo} /></form></>;
 }
 export function EditarCursada({ cursadaId }: { cursadaId: string }) { const returnTo = useReturnTo("cursadas"); return <EditorPage title="Editar cursada" returnTo={returnTo}><DetailEditor id={cursadaId} load={obtenerCursada}>{(cursada) => <CursadaOptions key={cursada.id} cursada={cursada} returnTo={returnTo} />}</DetailEditor></EditorPage>; }
@@ -61,7 +62,7 @@ function CursadaEditor({ cursada, returnTo, materias }: { cursada: CursadaDetall
     if (!Object.keys(changes).length) { setSuccess("No hay cambios para guardar."); return; }
     await actualizarCursada(cursada.id, changes);
     const target = changes.materiaId ? adminListHref({ seccion: "cursadas", materiaId: changes.materiaId, page: 1 }) : returnTo;
-    router.push(adminSuccessHref(target, "Cursada actualizada correctamente."));
+    router.push(adminSuccessHref(detailAfterEdit("cursadas", cursada.id, target), "Cursada actualizada correctamente."));
   } });
   return <><Notice tone="warning">Las comisiones y sus profesores permanecen asociados a esta cursada. No se permite moverla a una materia que no ofrezca las carreras de sus comisiones.</Notice><SubmitState error={error} success={success} /><form ref={ref} onSubmit={handleSubmit} noValidate aria-busy={busy}><FormField name="materiaId" label="Materia" defaultValue={cursada.materia.id} options={materias.map((m) => ({ value: m.id, label: m.nombre }))} error={errors.materiaId} /><FormField name="anio" label="Año" input={{ numeric: { min: ANIO_MINIMO, max: anioMaximo() } }} error={errors.anio} /><FormField name="cuatrimestre" label="Período" defaultValue={cursada.cuatrimestre ?? ""} options={[{ value: "PRIMERO", label: "Primer cuatrimestre" }, { value: "SEGUNDO", label: "Segundo cuatrimestre" }, { value: "ANUAL", label: "Anual" }]} error={errors.cuatrimestre} /><SaveActions busy={busy} returnTo={returnTo} /></form></>;
 }
@@ -81,7 +82,7 @@ function ComisionEditor({ comision, returnTo, carreras }: { comision: ComisionDe
     if (values.carrera !== comision.carrera) changes.carrera = values.carrera;
     if (Number(values.numero) !== comision.numero) changes.numero = Number(values.numero);
     if (!Object.keys(changes).length) { setSuccess("No hay cambios para guardar."); return; }
-    await actualizarComision(comision.id, changes); router.push(adminSuccessHref(returnTo, "Comisión actualizada correctamente."));
+    await actualizarComision(comision.id, changes); router.push(adminSuccessHref(detailAfterEdit("comisiones", comision.id, returnTo), "Comisión actualizada correctamente."));
   } });
   return <><p>La cursada y los docentes asignados se conservan. El nombre se genera con la carrera y el número.</p><SubmitState error={error} success={success} /><form ref={ref} onSubmit={handleSubmit} noValidate aria-busy={busy}><FormField name="carrera" label="Carrera" defaultValue={comision.carrera} options={carreras.filter(isCarrera).map((carrera) => ({ value: carrera, label: `${carrera} — ${carreraLabel(carrera)}` }))} error={errors.carrera} /><FormField name="numero" label="Número de comisión" input={{ numeric: { min: NUMERO_COMISION_MINIMO, max: NUMERO_COMISION_MAXIMO } }} error={errors.numero} /><SaveActions busy={busy} returnTo={returnTo} /></form></>;
 }

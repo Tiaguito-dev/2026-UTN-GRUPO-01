@@ -378,9 +378,9 @@ Rutas del módulo bajo el shell autenticado existente:
 - `/home/feedback/nuevo?comisionId=...`: formulario contextual. Con un único docente se
   asocia automáticamente; con varios se elige uno o la comisión en general; sin docentes
   se comenta la comisión. El alta vuelve al detalle de comisión con `successMessage`.
-- `/home/feedback/[feedbackId]`: Tu comentario, contexto de comisión/período, metadatos,
-  edición propia si la comisión está activa y eliminación propia con confirmación.
-  El historial se muestra exclusivamente al autor y pagina de tres en tres.
+- `/home/feedback/[feedbackId]`: Tu comentario, tarjeta privada con materia/contexto,
+  texto, identidad pública y fechas; edición propia si la comisión está activa y
+  eliminación con confirmación. El historial privado es desplegable y pagina de tres en tres.
 - `/home/feedback/[feedbackId]/editar`: edición propia de texto y anonimato. Conserva la
   referencia docente original, envía solo diferencias y no llama al backend si no hay cambios.
   Vuelve al detalle del comentario con `successMessage`.
@@ -621,6 +621,30 @@ desde Experiencias, el regreso y la eliminación retornan a su página del lista
 ese origen se representa por un identificador permitido, nunca por una URL arbitraria.
 Sin origen explícito válido, Breadcrumb regresa al último ancestro enlazado o a `/home`.
 
+### Identidad académica y comisiones de materia (TASK-064)
+
+`lib/format/carrera.ts` centraliza las denominaciones formales; `validations/materias.ts`
+conserva sus exports para consumidores existentes de Materias, administración y contexto de
+Experiencias. Los nombres breves siguen disponibles para filtros compactos del catálogo.
+Detalle y metadatos del listado usan nombres formales. El detalle calcula Básica con las
+asociaciones completas cuando hay varias carreras; con una sola, muestra su denominación.
+`materiaAnioLabel` elige el año/nivel de la carrera seleccionada, o un año común; cuando difiere
+muestra Año según carrera. Electivas con niveles distintos informan Nivel según carrera.
+
+`ComisionesMateria` recibe las asociaciones completas desde MateriaDetail. Carrera única
+es contexto fijo; con varias, usa únicamente una carrera válida en la URL o espera selección,
+sin consultar todas las tarjetas. Carrera y Año de cursada se muestran juntos y actualizan
+`carrera`, `cursadaId` y `comisionesPage`; cambios de filtros reinician solo la página de
+comisiones. Un ID de cursada explícito inexistente informa el estado sin elegir otro año.
+Se conserva búsqueda y contexto del catálogo en los enlaces al detalle y su regreso.
+
+El service envía carrera al endpoint paginado por cursada, nueve resultados por página;
+el total y el vacío corresponden a esa combinación. Los períodos siguen identificados por
+su ID real, sin mezclar sus experiencias. La modalidad anual/cuatrimestral de materia se
+conserva. No hay filtrado local de comisiones. Las tarjetas completas son enlaces nativos
+con código unido, denominación formal, docentes/cargos y grilla de mínimo aproximado 300 px,
+adaptada al ancho disponible y sin altura mínima artificial. Solo usan los tokens actuales.
+
 ### Filtros y lectura de Experiencias (TASK-065)
 
 `ExperienciasList` consume GET /feedback con `carrera`, `materiaId`, `page` y nueve elementos.
@@ -674,6 +698,24 @@ de error para reintentar sin perder contenido. Una respuesta sin propio tampoco 
 contenido/acciones/versiones; esto complementa la autorización obligatoria del servidor.
 Estilos limitados al módulo, con los tokens vigentes y sin nuevas dependencias.
 
+### Compatibilidad con desarrollo (TASK-067)
+
+El contrato actual conserva año y período de Cursada: PRIMERO, SEGUNDO o ANUAL. Reemplaza la
+limitación por materia/año descripta en TASK-062. Materia conserva su campo de modalidad;
+para identificar una comisión o publicar, el período explícito de su cursada tiene prioridad.
+Los registros legados sin período no se reinterpretan. Se muestran Sin período definido y
+pueden corregirse desde el editor administrativo seleccionando un valor real.
+
+Los listados/editores de Administración incorporados desde desarrollo se mantienen, incluido
+el selector múltiple de carreras, retorno seguro al listado y sus filtros/página, y edición
+de profesor, cursada y comisión. MateriaFormPage conserva ese retorno junto al breadcrumb
+compartido. Los formularios de materia conservan el campo Modalidad de esta rama.
+
+ComisionesMateria diferencia las opciones del mismo año por período e ID, con orden estable;
+selección explícita de cursada y carrera se conserva en URL y se consulta en servidor. El
+flujo estudiantil sigue materia > comisión, con cursada como filtro. Experiencias conserva
+filtros, paginación, autoría y anonimato; el detalle privado mantiene historial bajo demanda.
+
 ### Recorridos por rol (TASK-068)
 
 `lib/navigation.ts` centraliza inicio por rol, destinos internos seguros y equivalencias entre
@@ -695,3 +737,83 @@ sin publicación ni gestión privada del autor. `ComisionFeedback` usa el mismo 
 y evita consultar el comentario propio. No se agregan endpoints ni capacidades de moderación.
 El guard ADMIN del layout y las comprobaciones backend permanecen obligatorios. USER conserva
 sus rutas y no monta contenido administrativo cuando el guard rechaza su rol.
+
+### Tablas administrativas (TASK-069)
+
+`admin/AdminTable.tsx` reúne superficie tabular, controles de búsqueda/selección, estados y
+acciones de los listados existentes. `AdminTables.module.css` controla ancho completo, radio
+de 8px, celdas de 14.4px con padding vertical de 8px y acciones de 40px al extremo derecho.
+En móvil se apilan filtros y el scroll horizontal se contiene en una región enfocable.
+Excepción local de ESLint `no-noninteractive-tabindex`: esa región necesita foco para scroll
+con teclado. No cambia Card, componentes globales, hooks compartidos ni el shell.
+
+`AdminAcademicList` conserva altas y enlaces administrativos reales; oculta edición en
+registros inactivos cuando el contrato expone ese estado. Usa Plus, Eye y Pencil de Lucide.
+Los tooltips aparecen por hover/foco, permiten mover el puntero a su texto y se cierran con
+Escape. `UsuariosList` permanece de consulta: no ofrece alta, edición de roles ni gestión
+de estado porque el backend no expone esas operaciones. Experiencias sigue usando tarjetas.
+
+Filtros permitidos por `validations/admin.ts`, con búsqueda validada hasta 150 caracteres:
+
+- Materias: `q`, `carrera`, `anioCarrera`, `nivelElectiva` (3, 4 o 5 solo en ELECTIVA).
+- Profesores: `q` por nombre, insensible a mayúsculas y tildes.
+- Usuarios: `q` por nombre/email y `rol` (ADMIN/USER).
+- Cursadas: `materiaId`; Comisiones: `materiaId`, `cursadaId` (período) y `carrera`.
+- `page` en todos los casos. Cambiar filtros reinicia la página; detalle/edición preservan
+  filtros y página mediante `returnTo` validado. Los parámetros desconocidos se rechazan.
+
+Materias consume filtros del servicio existente y páginas remotas de nueve registros. Los
+otros listados usan `useAllPages` con páginas de 100 y límite de 20 páginas; filtran el conjunto
+completo antes de dividirlo en páginas de nueve. Cambiar página/filtro no descarga otra vez
+ese catálogo. Si excede el límite o una solicitud falla, no se muestran resultados parciales.
+Para catálogos mayores queda pendiente búsqueda y filtros backend; no se infiere estado de
+usuario ni se simula activación. Los estados incluyen carga, error con Reintentar, total
+filtrado cero y recuperación hacia la primera página cuando la URL queda fuera de rango.
+
+Pruebas: `admin-tables.spec.tsx`, regresión `listados.spec.tsx` y
+`admin-tables.browser.spec.mjs`. La configuración `admin-tables.playwright.config.mjs`
+permite revisar los cinco listados a 390/1280px en Chrome con HTTP simulado, sin base de datos.
+Requiere build previo con `NEXT_PUBLIC_API_URL=http://127.0.0.1:3399` y
+`NEXT_PUBLIC_ALLOW_LOCAL_HTTP=true`; se ejecuta desde raíz con
+`npx playwright test --config=front/tests/admin-tables.playwright.config.mjs`.
+
+### Administración remota y operaciones reales (TASK-070)
+
+Esta actualización reemplaza las limitaciones de TASK-069. Todas las tablas administrativas
+consumen páginas remotas de nueve registros con filtros aplicados por backend. Profesores
+envía `q`; Usuarios envía `q`, `rol` y `estado=ACTIVO|INACTIVO`, junto a página y tamaño.
+Comisiones envía carrera y conserva materia/período en URL. No se usa `useAllPages` para
+resultados tabulares ni para sus selectores de contexto.
+
+`AdminParentSelector` carga opciones al abrir un diálogo: materias admite búsqueda remota
+por nombre y los períodos se recorren por páginas. La selección actual se obtiene por ID,
+incluso si está fuera de la página consultada. Cambiar materia limpia período y reinicia la
+página de resultados. La paginación interna de opciones es independiente de la del listado.
+No hay límite de 2000 resultados ni de opciones para operar estos listados.
+
+`AdminConfirmDialog` reutiliza Dialog, enfoca Cancelar inicialmente, impide cierre y doble
+envío mientras procesa y conserva errores para reintentar. `admin-academic.eliminarAcademico`
+ejecuta DELETE de materia/profesor/cursada/comisión; un 409 relacional se muestra en el diálogo
+sin simular éxito. Las tablas recargan resultados manteniendo filtros/página; una página vacía
+permite regresar al inicio. Trash2 tiene tooltip, nombre accesible y control de 40px; una
+comisión inactiva sigue permitiendo baja si no está eliminada, aunque no sea editable.
+
+`users.cambiarEstadoUsuario` envía PATCH `/users/:id/estado` con `{activo:boolean}`. El servicio
+valida `disabledAt:string|null` en las respuestas administrativas. Usuarios muestra Estado,
+UserX/UserCheck, confirmación e historial; la cuenta propia no ofrece autodesactivación.
+No se agrega creación de usuarios ni edición de roles. La autorización final siempre es backend.
+
+`AdminHistory` consulta `services/admin-history.ts` para profesor, cursada, comisión y usuario.
+Muestra cambios reales con fecha, acción, valor anterior/nuevo y páginas de tres. Los detalles
+académicos lo incorporan; Usuarios abre el historial en un diálogo. Materias mantiene su
+historial dedicado, ahora compatible con el cambio `deletedAt`. Los editores de profesor,
+cursada y comisión vuelven al detalle con `successMessage` y `returnTo` validado; si se cambia
+la materia de una cursada, el retorno apunta al listado de la nueva materia en página uno.
+
+Cobertura nueva: `admin-remote.spec.tsx`, `admin-parent-selector.spec.tsx`,
+`admin-operations-service.spec.ts` y `admin-limits.browser.spec.mjs`. Esta última comprueba
+operaciones reales contra el harness NestJS y PostgreSQL explícito, sin capturas ni análisis
+de imágenes. Requiere builds backend/frontend, `TEST_DATABASE_URL` exclusivo y el frontend
+compilado con `NEXT_PUBLIC_API_URL=http://localhost:3301`, `NEXT_PUBLIC_ALLOW_LOCAL_HTTP=true`.
+Ejecución desde raíz: `npx playwright test admin-limits.browser.spec.mjs --config=playwright.config.ts`.
+La revisión visual es responsabilidad del usuario.

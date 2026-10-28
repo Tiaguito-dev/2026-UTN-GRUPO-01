@@ -61,7 +61,7 @@ export const materiaHistorialSchema: z.ZodType<MateriaHistorial> = z.object({
   createdAt: z.string(),
   cambios: z.array(
     z.object({
-      campo: z.enum(["nombre", "anioCarrera", "nivelElectiva", "carreras", "modalidad"]),
+      campo: z.enum(["nombre", "anioCarrera", "nivelElectiva", "carreras", "modalidad", "deletedAt"]),
       anterior: z.string().nullable(),
       nuevo: z.string().nullable(),
     })
@@ -134,6 +134,7 @@ export const usuarioRegistradoSchema: z.ZodType<UsuarioRegistrado> = z.object({
   displayName: z.string(),
   role: z.enum(["ADMIN", "USER"]),
   createdAt: z.string(),
+  disabledAt: z.string().nullable(),
 });
 
 /** `createdAt` is optional on purpose: a non-string value is dropped, not rejected. */

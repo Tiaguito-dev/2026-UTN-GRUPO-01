@@ -14,6 +14,7 @@ import { anioCarreraLabel, modalidadLabel, nivelElectivaLabel } from "@/validati
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Notice } from "@/components/ui/Notice";
 import { MateriaHistory } from "@/components/academic/MateriaDetail";
+import { AdminHistory } from "./AdminHistory";
 import styles from "./AdminAcademicDetail.module.css";
 
 function DetailPage({ title, section, back, listHref, children }: { title: string; section: "materias" | "profesores" | "cursadas"; back: string; listHref?: string; children: ReactNode }) {
@@ -75,6 +76,7 @@ export function AdminProfesorDetail({ profesorId }: { profesorId: string }) {
       <dl className={styles.data}><div><dt>Nombre completo</dt><dd>{profesor.nombreCompleto}</dd></div><div><dt>Estado</dt><dd>{profesor.deletedAt ? "Inactivo" : "Activo"}</dd></div><div><dt>Fecha de alta</dt><dd><time dateTime={profesor.createdAt}>{new Date(profesor.createdAt).toLocaleString("es-AR")}</time></dd></div></dl>
       {!profesor.deletedAt ? <div className={styles.actions}><Link className="button button-secondary" href={adminFormHref(`/home/admin/profesores/${encodeURIComponent(profesorId)}/editar`, safeAdminReturnTo(back) ?? "/home/admin/profesores")}>Editar profesor</Link></div> : null}
     </div>}
+    {profesor ? <AdminHistory key={profesorId} kind="profesores" id={profesorId} /> : null}
   </DetailPage>;
 }
 
@@ -88,5 +90,6 @@ export function AdminCursadaDetail({ cursadaId }: { cursadaId: string }) {
       <dl className={styles.data}><div><dt>Materia</dt><dd><Link href={`/home/admin/materias/${encodeURIComponent(cursada.materia.id)}?${new URLSearchParams({ returnTo: back })}`}>{cursada.materia.nombre}</Link></dd></div><div><dt>Período</dt><dd>{periodoLabel(cursada.anio, cursada.cuatrimestre)}</dd></div></dl>
       <div className={styles.actions}><Link className="button button-secondary" href={adminListHref({ seccion: "comisiones", materiaId: cursada.materia.id, cursadaId, page: 1 })}>Ver comisiones</Link><Link className="button button-secondary" href={adminFormHref(`/home/admin/cursadas/${encodeURIComponent(cursadaId)}/editar`, safeAdminReturnTo(back) ?? fallback)}>Editar cursada</Link></div>
     </div>}
+    {cursada ? <AdminHistory key={cursadaId} kind="cursadas" id={cursadaId} /> : null}
   </DetailPage>;
 }

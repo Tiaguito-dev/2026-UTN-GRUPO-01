@@ -1,10 +1,20 @@
+import { isAnioCarrera, isCarrera, isNivelElectiva, validateMateriaSearch } from "./materias";
+
 export const ADMIN_SECTIONS = ["materias", "profesores", "cursadas", "comisiones", "usuarios"] as const;
 export type AdminSection = typeof ADMIN_SECTIONS[number];
-export interface AdminContext { seccion: AdminSection; page: number; materiaId?: string; cursadaId?: string }
+import type { AnioCarrera, Carrera, NivelElectiva } from "@/types/materias";
+
+export interface AdminContext { seccion: AdminSection; page: number; materiaId?: string; cursadaId?: string; q?: string; carrera?: string; anioCarrera?: string; nivelElectiva?: string; rol?: string; estado?: string }
 export function adminListHref(context: AdminContext): string {
   const query = new URLSearchParams();
   if ((context.seccion === "cursadas" || context.seccion === "comisiones") && context.materiaId) query.set("materiaId", context.materiaId);
   if (context.seccion === "comisiones" && context.materiaId && context.cursadaId) query.set("cursadaId", context.cursadaId);
+  if (["materias", "profesores", "usuarios"].includes(context.seccion) && context.q?.trim() && !validateMateriaSearch(context.q)) query.set("q", context.q.trim());
+  if (["materias", "comisiones"].includes(context.seccion) && isCarrera(context.carrera)) query.set("carrera", context.carrera);
+  if (context.seccion === "materias" && isAnioCarrera(context.anioCarrera)) query.set("anioCarrera", context.anioCarrera);
+  if (context.seccion === "materias" && context.anioCarrera === "ELECTIVA" && isNivelElectiva(context.nivelElectiva)) query.set("nivelElectiva", context.nivelElectiva);
+  if (context.seccion === "usuarios" && (context.rol === "ADMIN" || context.rol === "USER")) query.set("rol", context.rol);
+  if (context.seccion === "usuarios" && (context.estado === "ACTIVO" || context.estado === "INACTIVO")) query.set("estado", context.estado);
   if (Number.isSafeInteger(context.page) && context.page > 1) query.set("page", String(context.page));
   return `/home/admin/${context.seccion}${query.size ? `?${query}` : ""}`;
 }
@@ -23,12 +33,21 @@ export function safeAdminReturnTo(raw: string | null | undefined): string | unde
     }
     const seccion = ADMIN_SECTIONS.find((section) => url.pathname === `/home/admin/${section}`);
     if (!seccion || url.origin !== "https://local.invalid" || url.hash) return undefined;
-    const allowed = seccion === "comisiones" ? ["page", "materiaId", "cursadaId"] : seccion === "cursadas" ? ["page", "materiaId"] : ["page"];
+    const allowed = seccion === "comisiones" ? ["page", "materiaId", "cursadaId", "carrera"] : seccion === "cursadas" ? ["page", "materiaId"] : seccion === "materias" ? ["page", "q", "carrera", "anioCarrera", "nivelElectiva"] : seccion === "usuarios" ? ["page", "q", "rol", "estado"] : ["page", "q"];
     for (const key of url.searchParams.keys()) if (!allowed.includes(key) || url.searchParams.getAll(key).length !== 1) return undefined;
     const page = Number(url.searchParams.get("page") ?? 1);
     if (!Number.isSafeInteger(page) || page < 1) return undefined;
-    return adminListHref({ seccion, page, materiaId: url.searchParams.get("materiaId") ?? undefined, cursadaId: url.searchParams.get("cursadaId") ?? undefined });
+    const filters = readAdminFilters(url.searchParams);
+    for (const key of ["q", "carrera", "anioCarrera", "nivelElectiva", "rol", "estado"] as const) if (url.searchParams.has(key) && !filters[key]) return undefined;
+    return adminListHref({ seccion, page, ...filters, materiaId: url.searchParams.get("materiaId") ?? undefined, cursadaId: url.searchParams.get("cursadaId") ?? undefined });
   } catch { return undefined; }
+}
+export interface AdminFilters { q?: string; carrera?: Carrera; anioCarrera?: AnioCarrera; nivelElectiva?: NivelElectiva; rol?: "ADMIN" | "USER"; estado?: "ACTIVO" | "INACTIVO" }
+export function readAdminFilters(params: { get: (key: string) => string | null }): AdminFilters {
+  const carrera = params.get("carrera"); const anio = params.get("anioCarrera"); const nivel = params.get("nivelElectiva"); const rol = params.get("rol");
+  const estado = params.get("estado");
+  const q = params.get("q")?.trim() ?? "";
+  return { q: q && !validateMateriaSearch(q) ? q : undefined, carrera: isCarrera(carrera) ? carrera : undefined, anioCarrera: isAnioCarrera(anio) ? anio : undefined, nivelElectiva: anio === "ELECTIVA" && isNivelElectiva(nivel) ? nivel : undefined, rol: rol === "ADMIN" || rol === "USER" ? rol : undefined, estado: estado === "ACTIVO" || estado === "INACTIVO" ? estado : undefined };
 }
 export function adminFormHref(path: string, returnTo: string): string { return `${path}?${new URLSearchParams({ returnTo: safeAdminReturnTo(returnTo) ?? "/home/admin/materias" })}`; }
 export function adminSuccessHref(path: string, message: string): string {
