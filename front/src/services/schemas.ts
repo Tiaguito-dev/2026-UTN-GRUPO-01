@@ -31,7 +31,7 @@ export function paginatedSchema<T>(item: z.ZodType<T>): z.ZodType<PaginatedResul
   return z.object({ items: z.array(item), total: z.number(), page: z.number(), pageSize: z.number() });
 }
 
-const cuatrimestre = z.enum(["PRIMERO", "SEGUNDO"]);
+const cuatrimestre = z.enum(["PRIMERO", "SEGUNDO", "ANUAL"]);
 const carrera = z.enum(["S", "C", "Q", "I", "M"]);
 const cargo: z.ZodType<CargoDocente> = z.enum(["TITULAR", "ADJUNTO", "JTP"]);
 

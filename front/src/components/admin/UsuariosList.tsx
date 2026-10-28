@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ROLE_LABEL } from "@/lib/format/role";
+import styles from "./AdminTables.module.css";
 
 function fecha(valor: string): string {
   const date = new Date(valor);
@@ -25,12 +26,9 @@ export function UsuariosList() {
       empty={<EmptyState action={<Link href="/home/admin">Volver al panel de administración</Link>}>Todavía no hay cuentas registradas.</EmptyState>}>
       {(result) => <Card variant="panel">
         <p className="academic-list-detail">{result.total} {result.total === 1 ? "cuenta registrada" : "cuentas registradas"}.</p>
-        <ul className="academic-list">
-          {result.items.map((usuario) => <li key={usuario.id}>
-            <strong>{usuario.displayName}</strong> <Badge tone="role">{ROLE_LABEL[usuario.role]}</Badge>
-            <p className="academic-list-detail">{usuario.email} — alta {fecha(usuario.createdAt)}</p>
-          </li>)}
-        </ul>
+        <div className={styles.tableWrap}><table className={styles.table}><caption>Usuarios registrados</caption><thead><tr><th scope="col">Nombre visible</th><th scope="col">Email</th><th scope="col">Rol</th><th scope="col">Fecha de alta</th></tr></thead><tbody>
+          {result.items.map((usuario) => <tr key={usuario.id}><td>{usuario.displayName}</td><td>{usuario.email}</td><td><Badge tone="role">{ROLE_LABEL[usuario.role]}</Badge></td><td>{fecha(usuario.createdAt)}</td></tr>)}
+        </tbody></table></div>
       </Card>}
     </PaginatedListView>
   </section>;

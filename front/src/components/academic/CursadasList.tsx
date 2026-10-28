@@ -62,7 +62,7 @@ export function CursadasList({ materiaId, materiaNombre, materiasHref = "/home/m
       {nueva}
     </>}
     {created ? <Notice tone="success">{created}</Notice> : null}
-    {isAdmin ? <Dialog open={creating} onClose={() => setCreating(false)} title="Nueva cursada" description={`Una cursada es el dictado de ${materiaLabel} en un año y cuatrimestre.`} busy={saving}>
+    {isAdmin ? <Dialog open={creating} onClose={() => setCreating(false)} title="Nueva cursada" description={`Una cursada es el dictado de ${materiaLabel} en un año y período.`} busy={saving}>
       {creating ? <AltaCursada materiaId={materiaId} onCancel={() => setCreating(false)} onBusyChange={setSaving} onSuccess={(message) => {
         setCreating(false);
         setCreated(message);

@@ -7,8 +7,10 @@ import { crearMateria, actualizarMateria } from "@/services/materias";
 import type { Materia } from "@/types/materias";
 
 const push = vi.fn();
+let search = "";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
+  useSearchParams: () => new URLSearchParams(search),
 }));
 vi.mock("next/link", () => import("./support/next-link"));
 
@@ -20,6 +22,7 @@ vi.mock("@/services/materias", () => ({
 afterEach(() => {
   cleanup();
   push.mockReset();
+  search = "";
 });
 
 const mockMateria: Materia = {
@@ -31,6 +34,16 @@ const mockMateria: Materia = {
 };
 
 describe("MateriaFormPage", () => {
+  it("TASK055 guarda y cancela conservando la página del listado administrativo", async () => {
+    search = new URLSearchParams({ returnTo: "/home/admin/materias?page=3" }).toString();
+    vi.mocked(actualizarMateria).mockResolvedValue({ ...mockMateria, nombre: "Sistemas II" });
+    render(<MateriaFormPage materia={mockMateria} detailHref="/home/materias/m-1" />);
+    expect(screen.getByRole("link", { name: /Volver a listado administrativo/ }).getAttribute("href")).toBe("/home/admin/materias?page=3");
+    const input = screen.getByLabelText("Nombre de la materia");
+    await userEvent.clear(input); await userEvent.type(input, "Sistemas II");
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(push).toHaveBeenCalledWith("/home/admin/materias?page=3&successMessage=Materia%20actualizada%20correctamente.");
+  });
   it("renderiza PageHeader con h1", () => {
     render(<MateriaFormPage />);
     expect(screen.getByRole("heading", { level: 1, name: "Nueva materia" })).toBeTruthy();
@@ -42,7 +55,7 @@ describe("MateriaFormPage", () => {
     render(<MateriaFormPage />);
 
     await userEvent.type(screen.getByLabelText("Nombre de la materia"), "Sistemas Operativos");
-    await userEvent.click(screen.getByLabelText(/S — Ingeniería en Sistemas/));
+    await userEvent.selectOptions(screen.getByRole("listbox", { name: "Carreras" }), "S");
     await userEvent.selectOptions(screen.getByLabelText("Año de la carrera"), "3");
     await userEvent.click(screen.getByRole("button", { name: "Crear materia" }));
 

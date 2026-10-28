@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { AltaForm, AltaFormFields, type AltaField } from "@/components/admin/AltaForm";
 
 vi.mock("next/link", () => import("./support/next-link"));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
 
 afterEach(cleanup);
 

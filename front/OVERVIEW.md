@@ -366,3 +366,48 @@ Esta sección reemplaza la descripción de `MateriaDetail` de TASK-024. Lo omiti
   (materia ya fija, sin selector); al crear, el modal se cierra y el listado se recarga con
   `refreshKey`, sin navegar. `/home/admin/cursadas/nueva` sigue intacta como ruta directa, con
   `AltaCursada` leyendo `?materiaId` cuando no recibe la prop.
+
+## Administración HU-11 (TASK-055)
+
+La portada `/home/admin` conserva las tarjetas de oferta académica y cuentas. Sus enlaces
+Ver todas abren tablas administrativas en `/home/admin/materias`, `/profesores`, `/cursadas`,
+`/comisiones` y `/usuarios`. Las cuatro primeras muestran acciones Editar por fila y creación
+sobre la tabla; Usuarios es de consulta, sin edición ni gestión de roles. Materias pagina de
+a nueve y los otros listados de a veinte. Las rutas permanecen bajo el guard ADMIN existente.
+
+Cursadas requiere seleccionar materia; Comisiones requiere materia y cursada. Los listados
+usan las consultas anidadas existentes, `useUrlPagination` y `PaginatedListView`, sin endpoints
+globales nuevos. La selección se conserva mediante `materiaId`, `cursadaId` y `page` en la URL;
+cambiar materia limpia cursada y reinicia la página. Los catálogos de opciones usan páginas
+de hasta cien y el límite de recursos existente de `useAllPages`.
+
+Las altas cortas de materia, profesor y cursada se abren en `Dialog`, reutilizan los formularios
+actuales y refrescan mediante `refreshKey`, sin remontar el listado ni cambiar sus filtros.
+Comisión conserva su página de alta con carrera y número. Las páginas de alta/edición reciben
+`returnTo`, limitado por `validations/admin.ts` a los cinco listados y sus parámetros admitidos.
+Guardar y cancelar recuperan ese contexto. Sin `returnTo`, las altas conservan su recorrido
+anterior. Los modales y altas del recorrido académico permanecen disponibles.
+
+Nuevas rutas de edición: `/home/admin/profesores/:id/editar`, `/cursadas/:id/editar` y
+`/comisiones/:id/editar`. `EditarAcademico` usa los detalles actuales, campos precargados,
+`useFormSubmission`, `FormField` y `Notice`. Profesor edita su nombre; Cursada edita materia,
+año y cuatrimestre, sin profesor; Comisión edita carrera y número, sin cambiar cursada,
+profesores ni `activa`. Solo se envían diferencias. Cambiar materia en una cursada dirige al
+listado de la materia destino, página uno; las incompatibilidades de carreras se muestran
+como error del backend, preservando los datos ingresados. La edición/historial de materia
+conserva su implementación actual.
+
+`services/admin-academic.ts` valida GET/PATCH con los esquemas de respuesta existentes. Los
+PATCH comprueban sesión y no repiten escrituras ambiguas. Las tablas usan estilos locales
+`AdminTables.module.css` con tokens, sin cambios de layout, autenticación, hooks compartidos,
+primitivas globales ni estilos base. No se agregan bajas ni gestión de roles.
+
+La ampliación de TASK-055 admite `ANUAL` además de `PRIMERO` y `SEGUNDO`, manteniendo
+`cuatrimestre` como nombre del campo HTTP. En alta y edición la etiqueta visible es Período;
+los listados y detalles muestran, por ejemplo, «Anual 2026». Los esquemas Zod y formularios
+aceptan los tres valores, incluidas las altas dentro de modal.
+
+MateriaForm selecciona una o varias carreras mediante un selector nativo múltiple, controlado
+por `selectedCarreras`, con las cinco carreras disponibles, instrucciones para teclado y
+validación accesible. La edición conserva la selección existente; enviar sin carreras enfoca
+ese selector. Se mantienen las reglas actuales de año/nivel y el contrato `carreras` de la API.

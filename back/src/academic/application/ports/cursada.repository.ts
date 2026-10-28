@@ -13,5 +13,6 @@ export interface CursadaRepository {
   findByMateriaId(materiaId: string, pagination: Pagination): Promise<PaginatedResult<CursadaResumen>>;
   findById(id: string): Promise<(CursadaResumen & { materiaId: string }) | null>;
   findByPeriodo(materiaId: string, anio: number, cuatrimestre: Cuatrimestre): Promise<Cursada | null>;
+  update(id: string, input: Partial<CreateCursadaInput>): Promise<Cursada>;
   create(input: CreateCursadaInput): Promise<Cursada>;
 }

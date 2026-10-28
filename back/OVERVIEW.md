@@ -788,3 +788,30 @@ por archivos ni ejecución adicional al hacer push tras el merge. PostgreSQL 17,
 la base shadow y Mailpit se preparan en el runner para las pruebas de integración.
 DoD, protección de ramas y evidencia de aceptación en
 [CONTRIBUTING.md](../CONTRIBUTING.md#integración-continua-y-definition-of-done).
+
+
+## HU-11: edicion administrativa del modelo vigente (TASK-055)
+
+El campo API/DB `cuatrimestre` conserva su nombre y admite `PRIMERO`, `SEGUNDO` y
+`ANUAL`. La migración aditiva `20261102000000_cursadas_anuales` amplía el enum sin
+reinterpretar datos. Crear y editar admiten Anual; la unicidad sigue siendo por
+materia/año/período, permitiendo coexistencia de anual y cuatrimestrales.
+
+GET `/profesores/:id` y PATCH de profesores, cursadas y comisiones requieren ADMIN.
+PATCH es parcial, estricto y no vacio: profesor acepta `nombreCompleto`; cursada
+`materiaId`, `anio`, `cuatrimestre`; comision `carrera`, `numero` (entero 1 a 999).
+No acepta profesor en cursada, nombre libre, activa ni cambio de cursada en comision.
+Las respuestas PATCH mantienen las entidades actuales, con nombre derivado y docentes
+en comision. GET de cursada/comision conserva su proyeccion enriquecida y permisos.
+
+Mover cursada conserva ids, comisiones y asignaciones docentes; la materia destino debe
+ofrecer todas las carreras de sus comisiones no borradas, incluso inactivas. La edicion
+no agrega auditoria, bajas ni migraciones. Entradas/incompatibilidad dan 400,
+ausentes 404 y duplicados 409; siguen vigentes sesion, roles y proteccion CSRF.
+
+La escritura bloquea Cursada antes de Materia (SHARE, ids ordenados si son dos) y
+luego Comision al editarla. Crear comision tambien valida bajo esos bloqueos.
+ActualizarMateria revalida carreras con comisiones bajo su bloqueo UPDATE existente,
+sin bloquear Cursada. Las restricciones SQL respaldan unicidad y las escrituras
+parciales no reemplazan campos omitidos. Listados conservan paginacion; profesores y
+cursadas agregan id como desempate estable.

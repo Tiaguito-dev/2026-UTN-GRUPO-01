@@ -21,13 +21,13 @@ function schema(): z.ZodType<CrearCursadaInput> {
   return z.strictObject({
     materiaId: z.string().uuid(),
     anio: z.number().int().min(ANIO_MINIMO).max(anioMaximo()),
-    cuatrimestre: z.enum(["PRIMERO", "SEGUNDO"]),
+    cuatrimestre: z.enum(["PRIMERO", "SEGUNDO", "ANUAL"]),
   });
 }
 
 const MENSAJES: Record<string, string> = {
   materiaId: "El identificador de la materia no es válido.",
-  cuatrimestre: "El cuatrimestre debe ser PRIMERO o SEGUNDO.",
+  cuatrimestre: "El período debe ser PRIMERO, SEGUNDO o ANUAL.",
 };
 
 export function validateCrearCursadaInput(value: unknown): CrearCursadaInput {

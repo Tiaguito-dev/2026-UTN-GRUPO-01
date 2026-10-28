@@ -16,11 +16,11 @@ describe("AdminPanel (TASK-043)", () => {
     const oferta = regionOf(screen.getByRole("heading", { level: 2, name: "Oferta académica" }));
     expect(within(oferta).getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Materias", "Cursadas", "Comisiones", "Profesores"]);
 
-    // Decision 3: no global listing of cursadas or comisiones, "Ver todas" goes to the hierarchy entry.
+    // TASK-055: los accesos van a tablas administrativas con selección de contexto.
     const cards = [
-      { title: "Materias", nueva: /^Nueva/, nuevaHref: "/home/admin/materias/nueva", ver: /^Ver todas/, verHref: "/home/materias" },
-      { title: "Cursadas", nueva: /^Nueva/, nuevaHref: "/home/admin/cursadas/nueva", ver: /^Ver todas/, verHref: "/home/materias" },
-      { title: "Comisiones", nueva: /^Nueva/, nuevaHref: "/home/admin/comisiones/nueva", ver: /^Ver todas/, verHref: "/home/materias" },
+      { title: "Materias", nueva: /^Nueva/, nuevaHref: "/home/admin/materias/nueva", ver: /^Ver todas/, verHref: "/home/admin/materias" },
+      { title: "Cursadas", nueva: /^Nueva/, nuevaHref: "/home/admin/cursadas/nueva", ver: /^Ver todas/, verHref: "/home/admin/cursadas" },
+      { title: "Comisiones", nueva: /^Nueva/, nuevaHref: "/home/admin/comisiones/nueva", ver: /^Ver todas/, verHref: "/home/admin/comisiones" },
       { title: "Profesores", nueva: /^Nuevo/, nuevaHref: "/home/admin/profesores/nuevo", ver: /^Ver todos/, verHref: "/home/admin/profesores" },
     ];
     for (const card of cards) {

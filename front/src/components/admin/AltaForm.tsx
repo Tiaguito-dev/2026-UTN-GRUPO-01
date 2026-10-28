@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useId, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { adminSuccessHref, safeAdminReturnTo } from "@/validations/admin";
 import { useFormSubmission } from "@/hooks/useFormSubmission";
 import type { BreadcrumbItem } from "@/components/ui/Breadcrumb";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -112,9 +114,12 @@ export function AltaForm<K extends string>({ breadcrumb, heading, description, f
   onSuccess?: (message: string) => void;
 }) {
   const headingId = useId();
+  const router = useRouter();
+  const params = useSearchParams();
+  const returnTo = safeAdminReturnTo(params.get("returnTo"));
 
   return <section aria-labelledby={headingId}>
-    <PageHeader id={headingId} title={heading} description={description} breadcrumb={breadcrumb} />
+    <PageHeader id={headingId} title={heading} description={description} breadcrumb={returnTo ? breadcrumb.map((item) => item.href === "/home/admin" ? { ...item, href: returnTo } : item) : breadcrumb} back={returnTo ? { href: returnTo, label: "listado administrativo" } : undefined} />
     <Card variant="panel">
       <AltaFormFields
         fields={fields}
@@ -122,7 +127,7 @@ export function AltaForm<K extends string>({ breadcrumb, heading, description, f
         blocked={blocked}
         filter={filter}
         onSubmit={onSubmit}
-        onSuccess={onSuccess}
+        onSuccess={onSuccess ?? (returnTo ? (message) => router.push(adminSuccessHref(returnTo, message)) : undefined)}
       />
     </Card>
   </section>;

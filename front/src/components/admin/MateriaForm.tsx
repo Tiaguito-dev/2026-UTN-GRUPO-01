@@ -10,6 +10,7 @@ import {
   anioCarreraLabel,
   carreraLabel,
   isAnioCarrera,
+  isCarrera,
   NIVELES_ELECTIVA,
   isNivelElectiva,
   nivelElectivaLabel,
@@ -69,7 +70,7 @@ export function MateriaForm({
     setNotice("");
     if (Object.keys(nextErrors).length || !isAnioCarrera(anioCarrera)) {
       const firstKey = Object.keys(nextErrors)[0];
-      if (firstKey === "carreras") form.querySelector<HTMLElement>('input[name="carreras"]')?.focus();
+      if (firstKey === "carreras") form.querySelector<HTMLElement>('select[name="carreras"]')?.focus();
       else form.querySelector<HTMLElement>(`[name="${firstKey}"]`)?.focus();
       return;
     }
@@ -138,27 +139,14 @@ export function MateriaForm({
           />
           {errors.nombre ? <p id="nombre-error" className="field-error">{errors.nombre}</p> : null}
         </div>
-        <fieldset className="field">
-          <legend>Carreras</legend>
-          <div className="checkbox-group">
-            {CARRERAS.map((c) => (
-              <label key={c} className="checkbox-label">
-                <input
-                  type="checkbox"
-                  name="carreras"
-                  value={c}
-                  checked={selectedCarreras.includes(c)}
-                  onChange={(e) => {
-                    if (e.target.checked) setSelectedCarreras([...selectedCarreras, c]);
-                    else setSelectedCarreras(selectedCarreras.filter((x) => x !== c));
-                  }}
-                />
-                {c} — {carreraLabel(c)}
-              </label>
-            ))}
-          </div>
+        <div className="field">
+          <label htmlFor="carreras">Carreras</label>
+          <select id="carreras" name="carreras" multiple size={5} value={selectedCarreras} required aria-invalid={Boolean(errors.carreras)} aria-describedby={`carreras-hint${errors.carreras ? " carreras-error" : ""}`} onChange={(event) => setSelectedCarreras(Array.from(event.currentTarget.selectedOptions, (option) => option.value).filter(isCarrera))}>
+            {CARRERAS.map((carrera) => <option key={carrera} value={carrera}>{carrera} — {carreraLabel(carrera)}</option>)}
+          </select>
+          <p id="carreras-hint" className="hint">Podés seleccionar varias carreras con Ctrl (Windows), Comando (Mac) o Shift para un rango.</p>
           {errors.carreras ? <p id="carreras-error" className="field-error">{errors.carreras}</p> : null}
-        </fieldset>
+        </div>
         <div className="field">
           <label htmlFor="anioCarrera">Año de la carrera</label>
           <select

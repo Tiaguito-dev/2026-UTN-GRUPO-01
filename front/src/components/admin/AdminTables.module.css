@@ -1,0 +1,7 @@
+.tableWrap { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; }
+.table caption { text-align: left; padding: var(--space-3); color: var(--muted); }
+.table th, .table td { padding: var(--space-3); border-bottom: 1px solid var(--border); text-align: left; }
+.table .actions { text-align: right; white-space: nowrap; }
+.toolbar { display: flex; justify-content: flex-end; margin-bottom: var(--space-4); }
+.filters { max-width: 40rem; margin-bottom: var(--space-4); }
