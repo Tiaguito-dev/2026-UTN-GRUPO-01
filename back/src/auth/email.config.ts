@@ -19,7 +19,10 @@ export function readEmailConfig(env: NodeJS.ProcessEnv): EmailConfig {
   if (provider !== "brevo") return fail("EMAIL_PROVIDER");
   const required = (name: string, fallback?: string): string => {
     const value = (env[name] ?? fallback)?.trim();
-    if (!value || /[\u0000-\u001f\u007f]/u.test(value)) return fail(name);
+    if (!value || [...value].some((character) => {
+      const code = character.charCodeAt(0);
+      return code < 32 || code === 127;
+    })) return fail(name);
     return value;
   };
   const apiKey = required("BREVO_API_KEY");

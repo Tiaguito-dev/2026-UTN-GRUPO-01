@@ -165,3 +165,17 @@ El desarrollador aprobó el resultado y solicitó commit, push y PR hacia desarr
 La evidencia anterior corresponde a las validaciones previas a esa aprobación.
 Migración ANUAL incluida; debe ejecutarse en el backend destino antes de usar ANUAL.
 Permanece documentado el fallo previo de lint en email.config.ts, fuera del alcance.
+
+## Corrección de CI solicitada (2026-10-27)
+
+El desarrollador reporta backend verify job 122402444037: no-control-regex en email.config.ts22.
+Autoriza corregir el bloqueo de la PR30; alcance exclusivo validación de configuración de correo,
+sin modificar autenticación ni entrega. Sustituir regex de controles por comparación de códigos
+U+0000..U+001F/U+007F conservando trim/rechazo/mensajes y todos los proveedores. Caracterizar
+exhaustivamente controles incrustados y límites imprimibles antes del cambio; no hace falta RED
+funcional para equivalencia, el RED es lint existente. Validar lint completo y suite de correo,
+typecheck y publicar commit correctivo en misma rama/PR. Sin merge.
+
+Resultado corrección CI: 148/148 pruebas de proveedor/Brevo aprobadas tras el cambio;
+caracterización previa 118/118. Lint completo backend y typecheck aprobados.
+Validación equivalente sin deshabilitar reglas. Commit correctivo en PR30; sin merge.

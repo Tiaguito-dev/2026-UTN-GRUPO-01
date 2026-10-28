@@ -4,6 +4,8 @@
 
 ### Administración académica HU-11 (TASK-055)
 
+- Corrección del bloqueo de CI en configuración de correo: comprobación equivalente de
+  caracteres de control compatible con ESLint, con cobertura de regresión del proveedor.
 - Cursadas anuales en alta, edición y navegación, mediante ampliación aditiva del enum de
   período; selector múltiple de carreras en formularios de materia en lugar de checkbox.
 - Tablas paginadas de materias, profesores, cursadas, comisiones y usuarios, conservando
