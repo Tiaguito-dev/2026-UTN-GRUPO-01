@@ -65,9 +65,13 @@ export class PrismaMateriaRepository implements MateriaRepository {
     return filas.map((fila) => fila.carrera);
   }
 
-  async create({ carreras, ...input }: CreateMateriaInput): Promise<Materia> {
+  async create({ carreras, ...input }: CreateMateriaInput, actorId?: string): Promise<Materia> {
     try {
-      return toMateria(await this.prisma.materia.create({ data: { ...input, carreras: { create: carreras } }, include: conCarreras }));
+      return await this.prisma.$transaction(async tx => {
+        const row = await tx.materia.create({ data: { ...input, carreras: { create: carreras } }, include: conCarreras });
+        if (actorId) await tx.administracionHistorial.create({ data: { entidad: "materia", entidadId: row.id, actorId, accion: "CREACION", cambios: [] } });
+        return toMateria(row);
+      });
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         throw new MateriaAlreadyExistsError();

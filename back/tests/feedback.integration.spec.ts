@@ -99,10 +99,33 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
       await prisma.refreshCredential.deleteMany({ where: { session: { userId: { in: ids.users } } } });
       await prisma.session.deleteMany({ where: { userId: { in: ids.users } } });
       await prisma.emailVerificationCredential.deleteMany({ where: { userId: { in: ids.users } } });
+      await prisma.administracionHistorial.deleteMany({ where: { actorId: { in: ids.users } } });
       await prisma.user.deleteMany({ where: { id: { in: ids.users } } });
     }
     if (app) await app.close();
     if (prisma) await prisma.$disconnect();
+  });
+
+  it("protege detalle y auditoría administrativos aun frente al autor y no expone secretos", async () => {
+    const f = await fixture();
+    const created = await publish(f.path);
+    const path = `/admin/feedback/${created.id}/detalle`;
+    expect((await request(path)).status).toBe(401);
+    expect((await request(path, "GET", undefined, autor.cookie)).status).toBe(403);
+    expect((await request(path, "GET", undefined, otro.cookie)).status).toBe(403);
+    const response = await request(path, "GET", undefined, admin.cookie);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.registro.texto).toBe(created.texto);
+    expect(body.auditoria.id).toBe(created.id);
+    expect(body.historial.items.some((event: { accion: string }) => event.accion === "CREACION")).toBe(true);
+    expect(JSON.stringify(body)).not.toMatch(/passwordHash|refreshToken|accessToken|tokenHash|passwordResetCredentials|sessions/);
+    const userDetail = await request(`/admin/users/${autor.id}/detalle`, "GET", undefined, admin.cookie);
+    expect(userDetail.status).toBe(200);
+    expect(JSON.stringify(await userDetail.json())).not.toMatch(/password|Hash|token|credential|sessions/i);
+    expect((await request(`/feedback/${created.id}/historial`, "GET", undefined, otro.cookie)).status).toBe(403);
+    // El feed paginado posterior parte vacío; retirar sólo el comentario de este caso.
+    expect((await request(`/feedback/${created.id}`, "DELETE", undefined, autor.cookie)).status).toBe(204);
   });
 
   it("exige sesión, cuerpo válido y CSRF", async () => {

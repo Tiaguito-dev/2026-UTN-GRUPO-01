@@ -1,3 +1,4 @@
+// Administrative mutations now forward an optional actor for transactional audit.
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { validateCrearMateriaInput } from "../src/academic/application/crear-materia-input.js";
@@ -23,7 +24,7 @@ describe("CrearMateria", () => {
     expect(materia).toMatchObject({ modalidad: "ANUAL", nombre: "Álgebra", deletedAt: null });
     expect(materia.id).toEqual(expect.any(String));
     expect(materiaRepository.create).toHaveBeenCalledWith(expect.objectContaining({
-      nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "1", nivelElectiva: null }] }));
+      nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "1", nivelElectiva: null }] }), undefined);
   });
 
   it("nombre duplicado tira MateriaAlreadyExistsError sin volver a crear", async () => {
@@ -52,7 +53,7 @@ describe("CrearProfesor", () => {
     const { crearProfesor, profesorRepository } = fixture();
     const profesor = await crearProfesor.execute({ nombreCompleto: " Ada Lovelace " });
     expect(profesor).toMatchObject({ nombreCompleto: "Ada Lovelace", deletedAt: null });
-    expect(profesorRepository.create).toHaveBeenCalledWith({ nombreCompleto: "Ada Lovelace" });
+    expect(profesorRepository.create).toHaveBeenCalledWith({ nombreCompleto: "Ada Lovelace" }, undefined);
   });
 
   it("acepta dos profesores con el mismo nombre completo (los homónimos son válidos)", async () => {
@@ -83,7 +84,7 @@ describe("CrearCursada", () => {
     const datos = { materiaId: materia.id, anio: 2026, cuatrimestre: "PRIMERO" as const };
     const cursada = await crearCursada.execute(datos);
     expect(cursada).toMatchObject(datos);
-    expect(cursadaRepository.create).toHaveBeenCalledWith(datos);
+    expect(cursadaRepository.create).toHaveBeenCalledWith(datos, undefined);
   });
 
   it("materia inexistente tira MateriaNotFoundError", async () => {
@@ -129,7 +130,7 @@ describe("CrearComision", () => {
     const { crearComision, comisionRepository, cursada } = conCursada();
     const comision = await crearComision.execute({ cursadaId: cursada.id, carrera: "S", numero: 1 });
     expect(comision).toMatchObject({ cursadaId: cursada.id, carrera: "S", numero: 1, nombre: "S-1", activa: true });
-    expect(comisionRepository.create).toHaveBeenCalledWith({ cursadaId: cursada.id, carrera: "S", numero: 1 });
+    expect(comisionRepository.create).toHaveBeenCalledWith({ cursadaId: cursada.id, carrera: "S", numero: 1 }, undefined);
   });
 
   it("cursada inexistente tira CursadaNotFoundError sin buscar duplicados", async () => {

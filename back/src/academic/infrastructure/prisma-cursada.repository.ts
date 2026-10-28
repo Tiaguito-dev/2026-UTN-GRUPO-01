@@ -77,12 +77,14 @@ export class PrismaCursadaRepository implements CursadaRepository {
     }
   }
 
-  async create(input: CreateCursadaInput): Promise<Cursada> {
+  async create(input: CreateCursadaInput, actorId?: string): Promise<Cursada> {
     try {
       return await this.prisma.$transaction(async (tx) => {
         await tx.$queryRaw`SELECT "id" FROM "Materia" WHERE "id" = ${input.materiaId}::uuid FOR SHARE`;
         if (!await tx.materia.findFirst({ where: { id: input.materiaId, deletedAt: null } })) throw new MateriaNotFoundError();
-        return tx.cursada.create({ data: input });
+        const row = await tx.cursada.create({ data: input });
+        if (actorId) await tx.administracionHistorial.create({ data: { entidad: "cursada", entidadId: row.id, actorId, accion: "CREACION", cambios: [] } });
+        return row;
       });
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {

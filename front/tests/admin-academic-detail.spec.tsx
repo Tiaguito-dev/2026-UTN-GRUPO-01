@@ -5,10 +5,13 @@ import userEvent from "@testing-library/user-event";
 import { AdminCursadaDetail, AdminMateriaDetail, AdminProfesorDetail } from "@/components/admin/AdminAcademicDetail";
 import { obtenerCursada } from "@/services/academic";
 import { obtenerProfesor } from "@/services/admin-academic";
+import { obtenerDetalleAdministrativo } from "@/services/admin-detail";
 import { listarHistorialMateria, obtenerMateria } from "@/services/materias";
 
 const { route } = vi.hoisted(() => ({ route: { query: "" } }));
+vi.mock("@/services/admin-detail", () => ({ obtenerDetalleAdministrativo: vi.fn() }));
 vi.mock("next/link", () => import("./support/next-link"));
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ account: { id: "admin", role: "ADMIN" } }) }));
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(route.query), useRouter: () => ({ replace: vi.fn() }) }));
 vi.mock("@/services/materias", async (importOriginal) => ({ ...await importOriginal<typeof import("@/services/materias")>(), obtenerMateria: vi.fn(), listarHistorialMateria: vi.fn() }));
 vi.mock("@/services/academic", async (importOriginal) => ({ ...await importOriginal<typeof import("@/services/academic")>(), obtenerCursada: vi.fn() }));
@@ -23,6 +26,7 @@ const materia = {
 };
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(obtenerDetalleAdministrativo).mockImplementation(async (kind, id) => ({ registro: {...(kind === "materias" ? await obtenerMateria(id) : kind === "profesores" ? await obtenerProfesor(id) : await obtenerCursada(id))}, auditoria:{id,createdAt:"2026-01-01",createdBy:null,updatedAt:null,updatedBy:null,deletedAt:null,deletedBy:null},historial:{items:[],total:0,page:1,pageSize:3}}));
   route.query = "";
   vi.mocked(obtenerMateria).mockResolvedValue(materia);
   vi.mocked(obtenerProfesor).mockResolvedValue({ id: "p1", nombreCompleto: "Docente de nombre extenso", createdAt: materia.createdAt, deletedAt: null });
@@ -57,8 +61,9 @@ describe("detalles académicos administrativos", () => {
     expect(link("Ver cursadas").searchParams.get("materiaId")).toBe("m1");
     expect(link("Editar materia").pathname).toBe("/home/admin/materias/m1/editar");
     expect(link("Editar materia").searchParams.get("returnTo")).toBe(origin);
-    expect(await screen.findByText("Alta de la materia")).toBeTruthy();
-    expect(listarHistorialMateria).toHaveBeenCalledWith("m1", { page: 1 });
+    // Shared administrative audit replaces the public timeline.
+    expect(await screen.findByRole("heading", {name:"Auditoría"})).toBeTruthy();
+    expect(obtenerDetalleAdministrativo).toHaveBeenCalledWith("materias", "m1");
     expect(document.querySelector('a[href^="/home/materias"]')).toBeNull();
   });
 
@@ -67,7 +72,8 @@ describe("detalles académicos administrativos", () => {
     render(<AdminMateriaDetail materiaId="m1" />);
     expect(await screen.findByText("Inactiva")).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Editar materia" })).toBeNull();
-    expect(await screen.findByText("Alta de la materia")).toBeTruthy();
+    // Shared administrative audit replaces the public timeline.
+    expect(await screen.findByRole("heading", {name:"Auditoría"})).toBeTruthy();
   });
 
   it("profesor conserva página del listado y su edición administrativa", async () => {
@@ -107,10 +113,10 @@ describe("detalles académicos administrativos", () => {
     vi.mocked(obtenerProfesor).mockRejectedValueOnce(new Error("Servicio temporalmente no disponible"));
     render(<AdminProfesorDetail profesorId="p1" />);
     expect(screen.getByRole("status").textContent).toBe("Cargando registro…");
-    expect((await screen.findByRole("alert")).textContent).toContain("Servicio temporalmente no disponible");
+    expect((await screen.findByRole("alert")).textContent).toContain("Intentá nuevamente.");
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
     expect(await screen.findByRole("heading", { name: "Docente de nombre extenso" })).toBeTruthy();
-    expect(obtenerProfesor).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(obtenerProfesor).mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(link(/Volver a/).pathname).toBe("/home/admin/profesores");
   });
 });

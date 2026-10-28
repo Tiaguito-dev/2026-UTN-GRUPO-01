@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Prisma } from "../../generated/prisma/client.js";
 import type { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import type { PaginatedResult, Pagination } from "../../shared/domain/pagination.js";
@@ -97,6 +98,7 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
         assertFeedbackOpen(context.activa);
         if (await tx.feedback.findFirst({ where: { comisionId: id, autorId: viewer, deletedAt: null }, select: { id: true } })) throw new FeedbackDuplicateError();
         const docente = selectFeedbackProfesor(rows, input.profesorId);
+        const eventId = randomUUID();
         const row = await tx.feedback.create({ data: {
           autorId: viewer, comisionId: id, texto: input.texto, anonimo: input.anonimo,
           profesorId: docente?.profesorId ?? null, profesorNombre: docente?.profesorNombre ?? null,
@@ -105,8 +107,9 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
           materiaNombre: context.materiaNombre, cursadaId: context.cursadaId,
           anio: context.anio, modalidad: context.modalidad,
           cuatrimestre: context.modalidad === "ANUAL" ? null : context.modalidad,
-          historial: { create: { accion: "CREACION", texto: input.texto, anonimo: input.anonimo } },
+          historial: { create: { id: eventId, accion: "CREACION", texto: input.texto, anonimo: input.anonimo } },
         }, include: includeAutor });
+        await tx.administracionHistorial.create({ data: { id: eventId, entidad: "feedback", entidadId: row.id, actorId: viewer, accion: "CREACION", cambios: [] } });
         return present(row, viewer);
       });
     } catch (error) {
@@ -136,9 +139,11 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
       const texto = input.texto ?? row.texto;
       const anonimo = input.anonimo ?? row.anonimo;
       if (texto === row.texto && anonimo === row.anonimo) return present(row, viewer);
+      const eventId = randomUUID();
       const updated = await tx.feedback.update({ where: { id }, data: {
-        texto, anonimo, updatedAt: new Date(), historial: { create: { accion: "EDICION", texto, anonimo } },
+        texto, anonimo, updatedAt: new Date(), historial: { create: { id: eventId, accion: "EDICION", texto, anonimo } },
       }, include: includeAutor });
+      await tx.administracionHistorial.create({ data: { id: eventId, entidad: "feedback", entidadId: id, actorId: viewer, accion: "EDICION", cambios: [ { campo: "texto", anterior: row.texto, nuevo: texto }, { campo: "anonimo", anterior: String(row.anonimo), nuevo: String(anonimo) } ].filter(change => change.anterior !== change.nuevo) } });
       return present(updated, viewer);
     });
   }
@@ -149,10 +154,12 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
       await this.lockComision(tx, original.comisionId);
       const row = await this.owned(id, viewer, tx);
       const now = new Date();
+      const eventId = randomUUID();
       await tx.feedback.update({ where: { id }, data: {
         deletedAt: now, updatedAt: now,
-        historial: { create: { accion: "ELIMINACION", texto: row.texto, anonimo: row.anonimo } },
+        historial: { create: { id: eventId, accion: "ELIMINACION", texto: row.texto, anonimo: row.anonimo } },
       } });
+      await tx.administracionHistorial.create({ data: { id: eventId, entidad: "feedback", entidadId: id, actorId: viewer, accion: "ELIMINACION", cambios: [{ campo: "deletedAt", anterior: null, nuevo: now.toISOString() }] } });
     });
   }
 

@@ -20,14 +20,14 @@ export class AsignarProfesorComision {
     private readonly profesores: ProfesorRepository,
   ) {}
 
-  async execute(comisionIdInput: unknown, profesorIdInput: unknown, body: unknown): Promise<ProfesorAsignado> {
+  async execute(comisionIdInput: unknown, profesorIdInput: unknown, body: unknown, actorId?: string): Promise<ProfesorAsignado> {
     const comisionId = validateId(comisionIdInput);
     const profesorId = validateId(profesorIdInput);
     const { cargo } = validateAsignarProfesorInput(body);
     if (!(await this.comisiones.findById(comisionId))) throw new ComisionNotFoundError();
     const profesor = await this.profesores.findById(profesorId);
     if (!profesor) throw new ProfesorNotFoundError();
-    await this.comisiones.asignarProfesor(comisionId, profesorId, cargo);
+    await this.comisiones.asignarProfesor(comisionId, profesorId, cargo, actorId);
     return { id: profesor.id, nombreCompleto: profesor.nombreCompleto, cargo };
   }
 }

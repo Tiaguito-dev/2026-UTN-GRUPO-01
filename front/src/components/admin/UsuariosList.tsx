@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useId, useState } from "react";
-import { History, UserCheck, UserX } from "lucide-react";
+import { Eye, UserCheck, UserX } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cambiarEstadoUsuario, listarUsuarios, type UsuarioRegistrado } from "@/services/users";
 import { useUrlPagination } from "@/hooks/useUrlPagination";
@@ -10,12 +10,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Notice } from "@/components/ui/Notice";
-import { Dialog } from "@/components/ui/Dialog";
 import { ROLE_LABEL } from "@/lib/format/role";
 import { adminListHref, readAdminFilters } from "@/validations/admin";
 import { AdminTable, AdminListResult, AdminSearch, AdminSelect, AdminActionButton } from "./AdminTable";
 import { AdminConfirmDialog } from "./AdminConfirmDialog";
-import { AdminHistory } from "./AdminHistory";
 import styles from "./AdminTables.module.css";
 
 function fecha(valor: string): string {
@@ -28,7 +26,6 @@ export function UsuariosList() {
   const { account } = useAuth(); const { page, setPage } = useUrlPagination();
   const filters = readAdminFilters(params);
   const [selected, setSelected] = useState<UsuarioRegistrado | null>(null);
-  const [history, setHistory] = useState<UsuarioRegistrado | null>(null);
   const [refresh, setRefresh] = useState(0); const [message, setMessage] = useState("");
   const { state, retry } = usePaginatedFetch(`usuarios:${filters.q}:${filters.rol}:${filters.estado}`, (next) => listarUsuarios({ page: next, pageSize: 9, q: filters.q, rol: filters.rol, estado: filters.estado }), page, refresh);
   const navigate = (next: { q?: string; rol?: string; estado?: string }) => router.replace(adminListHref({ seccion: "usuarios", ...filters, ...next, page: 1 }), { scroll: false });
@@ -44,10 +41,9 @@ export function UsuariosList() {
     <AdminListResult loadingMessage="Cargando usuarios…" state={state} retry={retry} page={page} onPageChange={setPage}>
       {(data) => <AdminTable title="Usuarios registrados" columns={["Nombre visible", "Email", "Rol", "Estado", "Fecha de alta"]} rows={data.items.map((usuario) => ({ id: usuario.id, cells: [usuario.displayName, usuario.email, <Badge key="role" tone="role">{ROLE_LABEL[usuario.role]}</Badge>, usuario.disabledAt ? "Inactivo" : "Activo", fecha(usuario.createdAt)] }))} actions={(row) => {
         const usuario = data.items.find((user) => user.id === row.id)!;
-        return <><AdminActionButton label={`Ver historial de ${usuario.displayName}`} icon={History} onClick={() => setHistory(usuario)} />{usuario.id !== account?.id ? <AdminActionButton label={`${usuario.disabledAt ? "Reactivar" : "Desactivar"} ${usuario.displayName}`} icon={usuario.disabledAt ? UserCheck : UserX} onClick={() => setSelected(usuario)} /> : null}</>;
+        return <><AdminActionButton label={`Ver detalle de ${usuario.displayName} (${usuario.email})`} icon={Eye} onClick={() => router.push(`/home/admin/usuarios/${encodeURIComponent(usuario.id)}?${new URLSearchParams({ returnTo: adminListHref({ seccion: "usuarios", ...filters, page }) })}`)} />{account?.role === "ADMIN" && usuario.id !== account.id ? <AdminActionButton label={`${usuario.disabledAt ? "Reactivar" : "Desactivar"} usuario ${usuario.displayName} (${usuario.email})`} icon={usuario.disabledAt ? UserCheck : UserX} onClick={() => setSelected(usuario)} /> : null}</>;
       }} />}
     </AdminListResult>
-    {selected ? <AdminConfirmDialog key={selected.id} title={selected.disabledAt ? "Reactivar usuario" : "Desactivar usuario"} confirmLabel={selected.disabledAt ? "Confirmar reactivación" : "Confirmar desactivación"} onClose={() => setSelected(null)} onConfirm={async () => { await cambiarEstadoUsuario(selected.id, Boolean(selected.disabledAt)); setMessage(selected.disabledAt ? "Usuario reactivado correctamente." : "Usuario desactivado correctamente."); setSelected(null); setRefresh((value) => value + 1); }}><p>{selected.disabledAt ? `¿Querés permitir que ${selected.displayName} vuelva a iniciar sesión?` : `¿Querés desactivar a ${selected.displayName}? Se cerrarán sus sesiones y no podrá acceder hasta que se reactive su cuenta.`}</p></AdminConfirmDialog> : null}
-    {history ? <Dialog open onClose={() => setHistory(null)} title={`Historial de ${history.displayName}`}><AdminHistory key={history.id} kind="users" id={history.id} /></Dialog> : null}
+    {selected ? <AdminConfirmDialog key={selected.id} title={selected.disabledAt ? "Reactivar usuario" : "Desactivar usuario"} confirmLabel={selected.disabledAt ? "Confirmar reactivación" : "Confirmar desactivación"} onClose={() => setSelected(null)} onConfirm={async () => { await cambiarEstadoUsuario(selected.id, Boolean(selected.disabledAt)); setMessage(selected.disabledAt ? "Usuario reactivado correctamente." : "Usuario desactivado correctamente."); setSelected(null); setRefresh((value) => value + 1); }}><p>{selected.disabledAt ? `¿Querés reactivar a ${selected.displayName} (${selected.email})? Deberá iniciar sesión nuevamente; las sesiones revocadas no se restaurarán.` : `¿Querés desactivar a ${selected.displayName} (${selected.email})? Se cerrarán sus sesiones y no podrá acceder hasta que se reactive su cuenta. Se conservarán su cuenta, sus comentarios y su historial.`}</p></AdminConfirmDialog> : null}
   </section>;
 }

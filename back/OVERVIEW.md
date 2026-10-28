@@ -1093,3 +1093,13 @@ base exclusiva mediante `TEST_DATABASE_URL`, incluyendo más de 2000 profesores,
 de paginar, sesiones revocadas, reactivación, auditoría/no-op, conflictos relacionales,
 concurrencia y reutilización de claves tras baja. La prueba de navegador funcional está
 documentada en front/OVERVIEW.md y no produce capturas.
+
+## Detalle administrativo y auditoría
+
+`GET /admin/:kind/:id/detalle?page=1&pageSize=3` exige rol `ADMIN`, valida UUID y paginación y responde con `Cache-Control: no-store`. Entidades admitidas: `materias`, `profesores`, `cursadas`, `comisiones`, `users`, `feedback`. Devuelve `registro`, `auditoria` e `historial` paginado; incluye bajas lógicas. Usuarios se leen con una selección explícita de campos, sin credenciales ni sesiones.
+
+`AdministracionHistorial` conserva futuras altas académicas, modificaciones, bajas, asignaciones y desvinculaciones docentes. El actor se propaga desde la petición autenticada. La mutación y su evento comparten transacción Prisma y los bloqueos existentes; una operación sin diferencias no genera evento. Las altas de usuarios siguen siendo autorregistro: no se inventa actor administrativo.
+
+Materias reutiliza `MateriaHistorial` para cambios y bajas, sumando las nuevas altas del registro administrativo sin duplicar eventos. Comentarios reutiliza sus snapshots `FeedbackHistorial`; los nuevos eventos administrativos comparten identificador con el snapshot y registran el actor en `AdministracionHistorial`, dentro de la misma transacción. Los actores de snapshots antiguos permanecen no disponibles. El valor anterior procede del snapshot persistido anterior, nunca de una reconstrucción del contexto actual.
+
+Los metadatos ausentes son `null`. `updatedAt` es una fecha del registro cuando existe, o del último evento persistido disponible; no implica que exista un historial completo. La auditoría filtra campos mediante una lista permitida. Los endpoints privados del autor y las lecturas públicas mantienen sus permisos y selección originales.

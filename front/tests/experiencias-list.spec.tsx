@@ -7,6 +7,7 @@ import { listarFeedback } from "@/services/feedback";
 import type { Feedback } from "@/types/feedback";
 import { listarMaterias, obtenerMateria } from "@/services/materias";
 const { replace, push, route } = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn(), route: { query: "", pathname: "/home/experiencias" } }));
+vi.mock("@/hooks/useIsAdmin", () => ({ useIsAdmin: () => route.pathname.startsWith("/home/admin") }));
 vi.mock("next/link", () => import("./support/next-link"));
 vi.mock("next/navigation", () => ({ usePathname: () => route.pathname, useSearchParams: () => new URLSearchParams(route.query), useRouter: () => ({ replace, push }) }));
 vi.mock("@/services/feedback", () => ({ listarFeedback: vi.fn() }));

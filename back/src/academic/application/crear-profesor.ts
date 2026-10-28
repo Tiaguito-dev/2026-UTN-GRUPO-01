@@ -6,8 +6,8 @@ export class CrearProfesor {
   constructor(private readonly profesores: ProfesorRepository) {}
 
   // Sin chequeo de duplicado: los homónimos son reales y válidos (no hay restricción única).
-  async execute(input: unknown): Promise<Profesor> {
+  async execute(input: unknown, actorId?: string): Promise<Profesor> {
     const { nombreCompleto } = validateCrearProfesorInput(input);
-    return this.profesores.create({ nombreCompleto });
+    return this.profesores.create({ nombreCompleto }, actorId);
   }
 }

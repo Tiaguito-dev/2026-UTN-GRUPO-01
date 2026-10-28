@@ -817,3 +817,9 @@ de imágenes. Requiere builds backend/frontend, `TEST_DATABASE_URL` exclusivo y 
 compilado con `NEXT_PUBLIC_API_URL=http://localhost:3301`, `NEXT_PUBLIC_ALLOW_LOCAL_HTTP=true`.
 Ejecución desde raíz: `npx playwright test admin-limits.browser.spec.mjs --config=playwright.config.ts`.
 La revisión visual es responsabilidad del usuario.
+
+## Detalle administrativo y auditoría
+
+Los accesos Eye de materias, profesores, cursadas y comisiones abren detalles bajo `/home/admin`. Usuarios dispone de `/home/admin/usuarios/[usuarioId]` y comentarios de `/home/admin/experiencias/[feedbackId]`, separados del detalle privado del autor. Cada tarjeta de Experiencias ofrece al administrador Ver detalle y auditoría; `returnTo` conserva la URL con filtros y página, validada como destino interno. Los usuarios comunes no reciben esta acción.
+
+`services/admin-detail.ts` valida con Zod el contrato protegido `GET /admin/:kind/:id/detalle?page=1&pageSize=3`. `useAdminDetail` es un hook local al módulo. `AdminAudit`/`AdminAuditPanel` presentan metadatos y eventos reales con paginación de tres. Los datos ausentes se explicitan y la fecha de actualización se distingue del historial. Los campos de usuario/comentario visibles son una lista explícita; no se renderizan objetos de respuesta ni secretos. Usuarios permite confirmar cambios de estado excepto para la propia cuenta; el backend aplica la autorización definitiva. No se agrega moderación de comentarios.

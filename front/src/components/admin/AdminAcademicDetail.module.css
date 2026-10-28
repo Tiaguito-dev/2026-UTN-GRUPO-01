@@ -10,3 +10,4 @@
 .associations strong { font-weight: var(--weight-medium); }
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); }
 @media (max-width: 600px) { .surface { padding: var(--space-4); } }
+.content { white-space: pre-wrap; }

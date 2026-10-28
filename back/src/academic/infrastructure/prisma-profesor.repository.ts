@@ -48,7 +48,11 @@ export class PrismaProfesorRepository implements ProfesorRepository {
   }
 
   // Sin traducción de P2002: Profesor.nombreCompleto no tiene restricción única (homónimos).
-  async create(input: CreateProfesorInput): Promise<Profesor> {
-    return this.prisma.profesor.create({ data: input });
+  async create(input: CreateProfesorInput, actorId?: string): Promise<Profesor> {
+    return this.prisma.$transaction(async tx => {
+      const row = await tx.profesor.create({ data: input });
+      if (actorId) await tx.administracionHistorial.create({ data: { entidad: "profesor", entidadId: row.id, actorId, accion: "CREACION", cambios: [] } });
+      return row;
+    });
   }
 }

@@ -3,9 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ComisionDetail } from "@/components/academic/ComisionDetail";
+import { obtenerDetalleAdministrativo } from "@/services/admin-detail";
 import { obtenerMateria } from "@/services/materias";
 import { asignarProfesorComision, listarComisionesPorCursada, listarProfesores, obtenerComision, quitarProfesorComision } from "@/services/academic";
 const { authState, push, origin } = vi.hoisted(() => ({ authState: { role: "USER" }, push: vi.fn(), origin: { extra: "" } }));
+vi.mock("@/services/admin-detail", () => ({ obtenerDetalleAdministrativo: vi.fn() }));
 vi.mock("next/link", () => import("./support/next-link"));
 // TASK-057: feedback interactions are covered separately; this suite checks academic context.
 vi.mock("@/components/feedback/ComisionFeedback", () => ({
@@ -33,6 +35,7 @@ const alternativas = {
 };
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(obtenerDetalleAdministrativo).mockImplementation(async () => ({registro:{...comisionMock},auditoria:{id:comisionMock.id,createdAt:comisionMock.createdAt,createdBy:null,updatedAt:null,updatedBy:null,deletedAt:null,deletedBy:null},historial:{items:[],total:0,page:1,pageSize:3}}));
   authState.role = "USER";
   origin.extra = "";
   vi.mocked(obtenerComision).mockResolvedValue(comisionMock);
@@ -54,7 +57,8 @@ describe("Detalle de comisión centrado en experiencias", () => {
     await screen.findByRole("heading", { name: "Álgebra" });
     const breadcrumb = within(screen.getByRole("navigation", { name: "Ubicación actual" }));
     expect(breadcrumb.getAllByRole("link")[0]!.textContent).toBe("Administración");
-    expect(breadcrumb.getByRole("link", { name: "Álgebra" }).getAttribute("href")).toContain("/home/admin/materias/mat1?");
+    // Administrative breadcrumb follows Administration > section > record.
+    expect(breadcrumb.getByRole("link", { name: "Comisiones" }).getAttribute("href")).toBe("/home/admin/comisiones");
     expect(screen.getByRole("link", { name: /Volver a contexto administrativo/ }).getAttribute("href")).toBe(returnTo);
     const teacher = new URL(screen.getByRole("link", { name: "Prof. Rossi" }).getAttribute("href")!, "https://local.test");
     expect(teacher.pathname).toBe("/home/admin/profesores/p1");
@@ -151,7 +155,7 @@ describe("Detalle de comisión centrado en experiencias", () => {
     expect(summary.closest("details")?.open).toBe(true);
     await user.selectOptions(screen.getByLabelText("Cambiar cargo de Prof. Rossi"), "JTP");
     await waitFor(() => expect(asignarProfesorComision).toHaveBeenCalledWith("com1", "p1", "JTP"));
-    await user.click(screen.getByRole("button", { name: "Quitar" }));
+    await user.click(screen.getByRole("button", { name: "Quitar asignación de Prof. Rossi" }));
     expect(quitarProfesorComision).toHaveBeenCalledWith("com1", "p1");
     await user.selectOptions(screen.getByLabelText("Profesor"), "p2");
     await user.click(screen.getByRole("button", { name: "Asignar profesor" }));

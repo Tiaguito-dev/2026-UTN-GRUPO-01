@@ -7,6 +7,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { asignarProfesorComision, CARGOS, listarComisionesPorCursada, listarProfesores, obtenerComision, quitarProfesorComision, type CargoDocente, type Comision, type ComisionDetalle, type Profesor } from "@/services/academic";
 import { obtenerMateria } from "@/services/materias";
+import { obtenerDetalleAdministrativo } from "@/services/admin-detail";
+import { comisionDetalleSchema } from "@/services/schemas";
 import type { Materia } from "@/types/materias";
 import type { PaginatedResult } from "@/services/pagination";
 import { HttpError } from "@/services/http";
@@ -20,7 +22,7 @@ import styles from "./ComisionDetail.module.css";
 import { experienciasBack, feedbackOriginParams } from "@/validations/feedback";
 import { adminReturnTo } from "@/lib/navigation";
 import { adminFormHref } from "@/validations/admin";
-import { AdminHistory } from "@/components/admin/AdminHistory";
+import { AdminAudit } from "@/components/admin/AdminAudit";
 
 interface Resource<T> { key: string; data: T | null; error: string }
 
@@ -50,6 +52,7 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
   const context = parseMateriaContext(params);
   const [detail, setDetail] = useState<(Resource<ComisionDetalle> & { notFound: boolean }) | null>(null);
   const [retryToken, setRetryToken] = useState(0);
+  const [auditVersion, setAuditVersion] = useState(0);
   const current = detail?.key === comisionId ? detail : null;
   const comision = current?.data ?? null;
   const error = current?.error ?? "";
@@ -76,13 +79,13 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
 
   useEffect(() => {
     let active = true;
-    obtenerComision(comisionId).then((data) => {
+    (administrative ? obtenerDetalleAdministrativo("comisiones", comisionId).then((result) => comisionDetalleSchema.parse(result.registro)) : obtenerComision(comisionId)).then((data) => {
       if (active) setDetail({ key: comisionId, data, error: "", notFound: false });
     }).catch((failure: unknown) => {
       if (active) setDetail({ key: comisionId, data: null, error: failure instanceof Error ? failure.message : "Intentá nuevamente.", notFound: failure instanceof HttpError && failure.status === 404 });
     });
     return () => { active = false; };
-  }, [comisionId, retryToken]);
+  }, [comisionId, retryToken, administrative]);
 
   const actualMateriaId = comision?.cursada.materia.id;
   useEffect(() => {
@@ -141,11 +144,12 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
   async function manage(operation: () => Promise<void>, success: string) {
     if (pending.current) return;
     pending.current = true; setBusy(true); setActionError(""); setActionSuccess("");
-    try { await operation(); setActionSuccess(success); setRetryToken((value) => value + 1); }
+    try { await operation(); setActionSuccess(success); setRetryToken((value) => value + 1); setAuditVersion((value) => value + 1); setOptionsRetry((value) => value + 1); }
     catch (failure: unknown) { setActionError(failure instanceof Error ? failure.message : "Lo sentimos. No pudimos actualizar el equipo docente, intentá nuevamente."); }
     finally { pending.current = false; setBusy(false); }
   }
   function handleCambiarCargo(profesorId: string, cargo: CargoDocente) {
+    if (comision?.profesores.some((profesor) => profesor.id === profesorId && profesor.cargo === cargo)) return;
     void manage(async () => { await asignarProfesorComision(comisionId, profesorId, cargo); }, "El cargo se actualizó correctamente.");
   }
   function handleQuitar(profesorId: string) {
@@ -168,8 +172,8 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
   return <section className={styles.page} aria-labelledby={headingId}>
     <div className={styles.header}>
       <PageHeader id={headingId} title={materiaLabel} eyebrow={eyebrow} back={administrative ? { href: adminBack, label: "contexto administrativo" } : experienciasBack(params) ?? { href: materiaHref, label: "Comisiones de la materia" }}
-        breadcrumb={[...(administrative ? [{ label: "Administración", href: "/home/admin" }] : []), { label: "Materias", href: administrative ? "/home/admin/materias" : materiasHref }, { label: comision?.cursada.materia.nombre ?? "Materia", href: materiaHref }, { label: comision ? `Comisión ${comision.nombre}` : "Comisión" }]} focusKey={comisionId} />
-      {administrative && comision ? <Link className="button button-secondary" href={adminFormHref(`/home/admin/comisiones/${encodeURIComponent(comision.id)}/editar`, adminBack)}>Editar comisión</Link> : null}
+        breadcrumb={administrative ? [{ label: "Administración", href: "/home/admin" }, { label: "Comisiones", href: "/home/admin/comisiones" }, { label: comision ? `Comisión ${comision.nombre}` : "Comisión" }] : [...(administrative ? [{ label: "Administración", href: "/home/admin" }] : []), { label: "Materias", href: administrative ? "/home/admin/materias" : materiasHref }, { label: comision?.cursada.materia.nombre ?? "Materia", href: materiaHref }, { label: comision ? `Comisión ${comision.nombre}` : "Comisión" }]} focusKey={comisionId} />
+      {administrative && isAdmin && comision && !comision.deletedAt ? <><Link className="button button-secondary" href={adminFormHref(`/home/admin/comisiones/${encodeURIComponent(comision.id)}/editar`, adminBack)}>Editar comisión</Link></> : null}
       {comision ? <div className={styles.contextRow}>
         <div className={styles.context}>
           <span className={styles.commissionLabel}>Comisión {comision.nombre}</span>
@@ -202,7 +206,7 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
               <div className={styles.personText}>{administrative ? <Link className={styles.personName} href={`/home/admin/profesores/${encodeURIComponent(profesor.id)}?${adminContext}`}>{profesor.nombreCompleto}</Link> : <span className={styles.personName}>{profesor.nombreCompleto}</span>}<span className={styles.personRole}>{cargoLabel(profesor.cargo)}</span></div>
             </li>)}
           </ul>}
-          {isAdmin ? <>
+          {isAdmin && !comision.deletedAt ? <>
             <details className={styles.management}>
               <summary>Gestionar equipo docente</summary>
               <div className={styles.managementBody}>
@@ -214,7 +218,7 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
                   <select id={`${assignmentId}-cargo-${profesor.id}`} value={profesor.cargo} disabled={busy} onChange={(event) => handleCambiarCargo(profesor.id, event.target.value as CargoDocente)}>
                     {CARGOS.map((cargo) => <option key={cargo} value={cargo}>{cargoLabel(cargo)}</option>)}
                   </select>
-                  <button className="button button-secondary" type="button" disabled={busy} onClick={() => handleQuitar(profesor.id)}>Quitar</button>
+                  <button className="button button-secondary" type="button" disabled={busy} aria-label={`Quitar asignación de ${profesor.nombreCompleto}`} onClick={() => handleQuitar(profesor.id)}>Quitar asignación</button>
                 </div>)}
                 <form className={styles.assignment} onSubmit={handleAsignar} aria-labelledby={`${headingId}-asignar`}>
                   <h3 id={`${headingId}-asignar`}>Asignar profesor</h3>
@@ -232,10 +236,10 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
             <div className={styles.adminData}><h3>Datos de la comisión</h3><dl>
               <div><dt>Estado</dt><dd>{comision.activa ? "Activa" : "Inactiva"}</dd></div>
               <div><dt>Fecha de alta</dt><dd>{new Date(comision.createdAt).toLocaleString("es-AR")}</dd></div>
-            </dl><p className={styles.secondary}>La carrera y el número se pueden editar desde Administración. La baja se realiza desde el listado administrativo de comisiones.</p></div>
+            </dl><p className={styles.secondary}>Quitar una asignación sólo desvincula al docente de esta comisión; no da de baja al profesor. Dar de baja la comisión conserva las asignaciones y las experiencias registradas.</p></div>
           </> : null}
         </section>
     </div> : null}
-    {administrative && comision ? <AdminHistory key={comisionId} kind="comisiones" id={comisionId} /> : null}
+    {administrative && comision ? <AdminAudit key={`${comisionId}:${auditVersion}`} kind="comisiones" id={comisionId} /> : null}
   </section>;
 }

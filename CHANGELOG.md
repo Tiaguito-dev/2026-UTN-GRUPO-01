@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### Detalle administrativo y trazabilidad
+
+- Accesos Eye a detalles administrativos de usuarios y comentarios; Experiencias conserva filtros y página al regresar.
+- Auditoría compartida para materias, profesores, usuarios, comentarios, comisiones y períodos, con historial paginado y datos ausentes explícitos.
+- Lecturas protegidas por ADMIN y selección segura; futuras altas y relaciones académicas y eventos de comentarios registran actor dentro de la transacción existente.
+- Sin reconstrucción de eventos históricos ni cambios en el detalle privado del autor.
+
 ### Administración remota, estados y bajas lógicas (TASK-070)
 
 - Profesores y Usuarios filtran y paginan en PostgreSQL; los resultados y selectores

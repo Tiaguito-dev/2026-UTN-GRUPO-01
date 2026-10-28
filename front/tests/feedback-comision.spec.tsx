@@ -6,6 +6,7 @@ import { ComisionFeedback } from "@/components/feedback/ComisionFeedback";
 import { listarFeedbackComision, obtenerFeedbackPropio } from "@/services/feedback";
 import type { Feedback } from "@/types/feedback";
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("@/hooks/useIsAdmin", () => ({ useIsAdmin: () => false }));
 vi.mock("next/navigation", () => ({
   usePathname: () => "/home/materias/m1/cursadas/cu1/comisiones/c1",
   useSearchParams: () => new URLSearchParams(),

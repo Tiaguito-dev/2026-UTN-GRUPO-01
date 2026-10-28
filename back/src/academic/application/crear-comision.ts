@@ -12,7 +12,7 @@ export class CrearComision {
     private readonly materias: MateriaRepository,
   ) {}
 
-  async execute(input: unknown): Promise<Comision> {
+  async execute(input: unknown, actorId?: string): Promise<Comision> {
     const datos = validateCrearComisionInput(input);
     const cursada = await this.cursadas.findById(datos.cursadaId);
     if (!cursada) throw new CursadaNotFoundError();
@@ -22,6 +22,6 @@ export class CrearComision {
     if (await this.comisiones.findByCursadaIdCarreraNumero(datos.cursadaId, datos.carrera, datos.numero)) {
       throw new ComisionAlreadyExistsError();
     }
-    return this.comisiones.create(datos);
+    return this.comisiones.create(datos, actorId);
   }
 }
