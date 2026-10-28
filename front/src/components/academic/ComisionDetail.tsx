@@ -17,6 +17,7 @@ import { Notice } from "@/components/ui/Notice";
 import { periodoLabel } from "@/lib/format/periodo";
 import { iniciales } from "./detalle";
 import styles from "./ComisionDetail.module.css";
+import { experienciasBack, feedbackOriginParams } from "@/validations/feedback";
 
 interface Resource<T> { key: string; data: T | null; error: string }
 
@@ -122,7 +123,7 @@ export function ComisionDetail({ materiaId, cursadaId, comisionId }: { materiaId
   returnQuery.set("cursadaId", realCursadaId);
   if (comisionesPage > 1) returnQuery.set("comisionesPage", String(comisionesPage));
   const materiaHref = `${materiaBaseHref.split("?")[0]}?${returnQuery}`;
-  const contextQuery = new URLSearchParams();
+  const contextQuery = feedbackOriginParams(params);
   if (carrera) contextQuery.set("carrera", carrera);
   if (anio) contextQuery.set("anioCarrera", anio);
   if (listadoPage > 1) contextQuery.set("listadoPage", String(listadoPage));
@@ -161,7 +162,7 @@ export function ComisionDetail({ materiaId, cursadaId, comisionId }: { materiaId
 
   return <section className={styles.page} aria-labelledby={headingId}>
     <div className={styles.header}>
-      <PageHeader id={headingId} title={materiaLabel} eyebrow={eyebrow} back={{ href: materiaHref, label: "Comisiones de la materia" }}
+      <PageHeader id={headingId} title={materiaLabel} eyebrow={eyebrow} back={experienciasBack(params) ?? { href: materiaHref, label: "Comisiones de la materia" }}
         breadcrumb={[{ label: "Materias", href: materiasHref }, { label: comision?.cursada.materia.nombre ?? "Materia", href: materiaHref }, { label: comision ? `Comisión ${comision.nombre}` : "Comisión" }]} focusKey={comisionId} />
       {comision ? <div className={styles.contextRow}>
         <div className={styles.context}>

@@ -23,6 +23,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Notice } from "@/components/ui/Notice";
 import { ComisionesMateria } from "./ComisionesMateria";
+import { experienciasBack } from "@/validations/feedback";
 
 export function MateriaDetail({ materiaId }: { materiaId: string }) {
   const headingId = useId();
@@ -48,7 +49,7 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
         id={headingId}
         title={materiaLabel}
         focusKey={materiaId}
-        back={{ href: backHref, label: "Materias" }}
+        back={experienciasBack(params) ?? { href: backHref, label: "Materias" }}
         breadcrumb={[{ label: "Materias", href: backHref }, { label: materiaLabel }]}
       />
       {materia ? <div className="academic-heading-row">

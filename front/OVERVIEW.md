@@ -378,7 +378,7 @@ Rutas del módulo bajo el shell autenticado existente:
 - `/home/feedback/nuevo?comisionId=...`: formulario contextual. Con un único docente se
   asocia automáticamente; con varios se elige uno o la comisión en general; sin docentes
   se comenta la comisión. El alta vuelve al detalle de comisión con `successMessage`.
-- `/home/feedback/[feedbackId]`: comentario, contexto de comisión/período, auditoría,
+- `/home/feedback/[feedbackId]`: Tu comentario, contexto de comisión/período, metadatos,
   edición propia si la comisión está activa y eliminación propia con confirmación.
   El historial se muestra exclusivamente al autor y pagina de tres en tres.
 - `/home/feedback/[feedbackId]/editar`: edición propia de texto y anonimato. Conserva la
@@ -604,3 +604,72 @@ MateriaForm selecciona una o varias carreras mediante un selector nativo múltip
 por `selectedCarreras`, con las cinco carreras disponibles, instrucciones para teclado y
 validación accesible. La edición conserva la selección existente; enviar sin carreras enfoca
 ese selector. Se mantienen las reglas actuales de año/nivel y el contrato `carreras` de la API.
+
+### Breadcrumbs compartidos (TASK-063)
+
+`components/ui/Breadcrumb` compone el regreso y la navegación semántica para todas las
+pantallas que ya tienen recorrido. `PageHeader` delega en él; administración y cambio de
+contraseña reutilizan la misma presentación. `BackLink` y los separadores usan Lucide.
+La única hoja `styles/components/breadcrumb.css` define superficie blanca, borde, selección
+azul, foco y ajuste de nombres completos. Usa los tokens originales del sistema, incluido
+el borde #D8E0ED; se retiraron los overrides locales del formulario de comentarios.
+
+Cada pantalla entrega sus entidades y enlaces. `feedbackNavigation` completa materia y
+comisión en publicación, detalle privado y edición con los filtros y las páginas académicas.
+La edición conserva el contexto tanto al guardar como al cancelar. Si se abre un comentario
+desde Experiencias, el regreso y la eliminación retornan a su página del listado general;
+ese origen se representa por un identificador permitido, nunca por una URL arbitraria.
+Sin origen explícito válido, Breadcrumb regresa al último ancestro enlazado o a `/home`.
+
+### Filtros y lectura de Experiencias (TASK-065)
+
+`ExperienciasList` consume GET /feedback con `carrera`, `materiaId`, `page` y nueve elementos.
+Los filtros viven en URL, se combinan en servidor y reinician página al seleccionar o limpiar.
+No filtra la página en memoria. Carrera corresponde a la comisión; una materia compartida
+mantiene separadas sus experiencias. Total y rango usan la respuesta paginada real.
+
+`ExperienciasMateriaSelector` ofrece un desplegable nativo con búsqueda por nombre, botones
+de selección y paginación remota de nueve opciones. Usa listarMaterias con carrera opcional,
+validación de búsqueda existente y debounce de 300 ms; solo consulta opciones al abrirse.
+La materia seleccionada se resuelve por ID, independientemente de la página del selector.
+Al cambiar carrera comprueba las asociaciones completas antes de mantenerla o limpiarla;
+un error permite reintentar sin perder los filtros. Escape y salida de foco cierran el
+selector, y elegir devuelve el foco a su control. Incluye carga/error/vacío recuperables.
+
+`ExperienceCard` mantiene identidad pública (Anónimo incluso para el autor), contexto real,
+texto con saltos de línea y palabras largas, enlace de materia y acciones existentes.
+Solo `propio` habilita Administrar mi comentario. Colores, radios y superficies usan tokens.
+El service acepta `contexto.carrera` de forma compatible con respuestas previas; el backend
+actual siempre devuelve ese código real, que se muestra con la correspondencia formal.
+
+`experienciasOrigin` y `experienciasBack` conservan filtros y página como `origen=experiencias`,
+`experienciasCarrera`, `experienciasMateriaId` y `experienciasPage`, separados del contexto
+académico. Comisión, cambio de comisión, publicación y administración conservan este origen;
+el regreso de materia también lo reconoce. No se admiten URLs arbitrarias de retorno.
+
+### Administración del comentario propio (TASK-066)
+
+`FeedbackDetail` usa el título Tu comentario y el breadcrumb compartido con materia y comisión
+reales. Reutiliza `feedbackNavigation` para el regreso filtrado y el enlace de materia; este
+último también conserva el origen de Experiencias. La edición mantiene ese contexto tanto
+al cancelar como al guardar. Los labels del recorrido de edición identifican Tu comentario.
+
+`FeedbackCard` presenta una única superficie privada: acciones provistas por el detalle,
+materia enlazada (26 px), comisión/carrera formal/período de publicación, destinatario y texto
+multilínea (19 px, 16 px móvil, interlineado 1.75). Metadatos en el pie: publicación, última
+edición solo cuando updatedAt es posterior a createdAt e identidad pública de la respuesta.
+Anónimo se conserva incluso para el autor. No se consulta la identidad privada de su cuenta.
+La anterior tarjeta de auditoría no se renderiza; registros, endpoints y permisos permanecen.
+
+`FeedbackHistoryDisclosure` usa details/summary nativos, cerrado inicialmente, con aviso de
+privacidad enlazado mediante aria-describedby. Monta el `FeedbackHistorial` existente solo
+al abrir: consulta real, tres versiones por página, fecha/contenido, carga/error/reintento/vacío.
+Cerrar retira las versiones de la vista y reabrir comienza en la primera página. No hay
+una segunda copia permanente del comentario ni solicitudes de historial iniciales.
+
+Editar (Pencil, secundario azul) y Eliminar (Trash2, rojo discreto) están dentro de la tarjeta;
+se distribuyen en móvil sin solaparse. Comisión inactiva solo permite retiro. La confirmación
+usa Dialog, conserva prevención de duplicados, cancelación con foco al activador y mensaje
+de error para reintentar sin perder contenido. Una respuesta sin propio tampoco renderiza
+contenido/acciones/versiones; esto complementa la autorización obligatoria del servidor.
+Estilos limitados al módulo, con los tokens vigentes y sin nuevas dependencias.

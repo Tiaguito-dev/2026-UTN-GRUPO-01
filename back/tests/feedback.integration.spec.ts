@@ -173,6 +173,42 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     expect((await request("/feedback?pageSize=10", "GET", undefined, otro.cookie)).status).toBe(400);
   });
 
+  it("filtra por carrera de la comisión y materia compartida antes de paginar con orden estable", async () => {
+    const f = await fixture(0);
+    await prisma.materiaCarrera.create({ data: { materiaId: f.materia.id, carrera: "I", anioCarrera: "2" } });
+    const industrial = await prisma.comision.create({ data: { cursadaId: f.cursada.id, carrera: "I", numero: 41 } });
+    ids.comisiones.push(industrial.id);
+    await publish(`/comisiones/${industrial.id}/feedback`);
+    const created: PublicFeedback[] = [];
+    for (let index = 0; index < 11; index++) {
+      const commission = await prisma.comision.create({ data: { cursadaId: f.cursada.id, carrera: "S", numero: index + 50 } });
+      ids.comisiones.push(commission.id);
+      created.push(await publish(`/comisiones/${commission.id}/feedback`));
+    }
+    const removed = created.pop()!;
+    await request(`/feedback/${removed.id}`, "DELETE", undefined, autor.cookie);
+    await prisma.feedback.updateMany({ where: { materiaId: f.materia.id }, data: { createdAt: new Date("2026-01-01") } });
+    const read = async (query: string) => {
+      const response = await request(`/feedback?${query}`, "GET", undefined, autor.cookie);
+      expect(response.status).toBe(200);
+      return response.json();
+    };
+    const first = await read(`materiaId=${f.materia.id}&carrera=S`);
+    const second = await read(`materiaId=${f.materia.id}&carrera=S&page=2`);
+    expect(first).toMatchObject({ total: 10, page: 1, pageSize: 9 });
+    expect(second).toMatchObject({ total: 10, page: 2, pageSize: 9 });
+    expect([...first.items, ...second.items].map((row: PublicFeedback) => row.id))
+      .toEqual(created.map(row => row.id).sort().reverse());
+    expect(first.items.every((row: { contexto: { carrera: string } }) => row.contexto.carrera === "S")).toBe(true);
+    expect((await read(`materiaId=${f.materia.id}&carrera=I`)).total).toBe(1);
+    expect((await read(`materiaId=${f.materia.id}`)).total).toBe(11);
+    expect((await read(`materiaId=${f.materia.id}&carrera=Q`)).total).toBe(0);
+    const careerOnly = await read("carrera=I");
+    expect(careerOnly.items.every((row: { contexto: { carrera: string } }) => row.contexto.carrera === "I")).toBe(true);
+    expect((await request("/feedback?carrera=X", "GET", undefined, autor.cookie)).status).toBe(400);
+    expect((await request("/feedback?materiaId=invalid", "GET", undefined, autor.cookie)).status).toBe(400);
+  });
+
   it("separa experiencias por comisión y período real aunque la materia tenga otra modalidad", async () => {
     const f = await fixture(0);
     await prisma.materia.update({ where: { id: f.materia.id }, data: { modalidad: "ANUAL" } });

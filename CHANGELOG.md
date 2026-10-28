@@ -2,6 +2,40 @@
 
 ## [Sin publicar]
 
+### Administración del comentario propio (TASK-066)
+
+- Detalle privado Tu comentario con breadcrumb compartido y regreso contextual con filtros.
+  Una tarjeta reúne materia enlazada, carrera/comisión/período, destinatario, texto completo
+  y acciones Editar/Eliminar con Lucide. Identidad pública y fechas útiles en el pie.
+- Se retira la tarjeta visible de auditoría sin modificar registros ni permisos. Historial
+  real cerrado inicialmente, con consulta al abrir y paginación existente de tres versiones.
+- Texto adaptable, acciones que se distribuyen en móvil y tokens actuales. Confirmación,
+  cancelación, reintento de eliminación y navegación de edición conservados. Sin cambios
+  de backend, dependencias nuevas ni migraciones; aceptación visual pendiente.
+
+### Experiencias: filtros y lectura (TASK-065)
+
+- Filtros combinados de carrera y materia antes de paginar. La carrera corresponde a la
+  comisión real del comentario; las materias compartidas no mezclan experiencias de otras
+  carreras. Total y página mantienen el mismo snapshot y el orden reciente estable.
+- Selector de materia con búsqueda remota, debounce y opciones paginadas, también sin
+  carrera. Al cambiar carrera conserva solo una materia compatible y reinicia la página.
+- Filtros y página en URL y regreso desde comisión o administración del comentario.
+  Tarjetas compartidas con materia enlazada, carrera formal, texto legible y acciones
+  secundarias; anonimato y permisos privados conservados.
+- Sin dependencias ni migraciones nuevas. Verificación técnica sin navegador; aceptación
+  visual pendiente y servicios locales apagados.
+
+### Breadcrumbs compartidos (TASK-063)
+
+- Recorrido y Volver centralizados en Breadcrumb/PageHeader: superficie blanca, borde,
+  selección y foco con tokens del proyecto, separadores Lucide y ajuste de nombres largos.
+- Se eliminan variantes locales del formulario; las páginas con breadcrumbs conservan
+  una presentación única, también en móvil. Sin agregar recorridos a páginas raíz.
+- Comentarios muestran materia y comisión reales y conservan filtros/páginas al administrar,
+  editar y regresar. Desde Experiencias se conserva la página del listado de origen.
+- Regreso interno conocido con alternativa coherente, enlaces nativos y un solo aria-current.
+
 ### Modalidad de materia y refinamiento del formulario (TASK-062)
 
 - Modalidad Anual o Cuatrimestral (primero/segundo) en materia, incluidas electivas, con

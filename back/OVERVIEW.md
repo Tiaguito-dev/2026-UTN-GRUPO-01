@@ -963,3 +963,22 @@ ActualizarMateria revalida carreras con comisiones bajo su bloqueo UPDATE existe
 sin bloquear Cursada. Las restricciones SQL respaldan unicidad y las escrituras
 parciales no reemplazan campos omitidos. Listados conservan paginacion; profesores y
 cursadas agregan id como desempate estable.
+
+## Filtros del listado de Experiencias (TASK-065)
+
+`GET /feedback?carrera=S&materiaId=<uuid>&page=1&pageSize=9` conserva la sesión obligatoria,
+contrato paginado y máximo nueve elementos. Todos los parámetros son opcionales; carrera
+acepta S/C/Q/I/M, materiaId debe ser UUID y entradas inválidas o campos ajenos devuelven 400.
+Los endpoints de comisión e historial conservan su validación anterior, sin estos filtros.
+
+`FeedbackService` valida la consulta general completa antes de pasar paginación y filtros
+al puerto. `PrismaFeedbackRepository.listGeneral` combina deletedAt:null, materiaId y la
+relación `comision.carrera`. Nunca consulta MateriaCarrera para decidir si un comentario
+corresponde a una carrera. Se filtra antes de skip/take y count con idéntico where en una
+transacción RepeatableRead, orden createdAt descendente e id descendente como desempate.
+Materias compartidas, comentarios históricos y combinaciones vacías conservan sus datos.
+
+El contexto público agrega `carrera` desde la comisión vinculada. El resto del snapshot de
+publicación se conserva. No se modifica persistencia ni se requieren migraciones. Autoría,
+anonimato (autor:null incluso para su dueño), propiedad calculada por sesión, detalle privado,
+publicación, edición, eliminación lógica e historial mantienen sus reglas.

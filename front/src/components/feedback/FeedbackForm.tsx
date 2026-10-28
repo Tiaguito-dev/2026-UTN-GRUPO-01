@@ -13,7 +13,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Notice } from "@/components/ui/Notice";
 import { Dialog } from "@/components/ui/Dialog";
 import { cargoLabel } from "@/validations/materias";
-import { diferenciasFeedback, feedbackComisionHref, feedbackDetalleHref, feedbackOriginParams, feedbackSuccessHref, MAX_TEXTO_FEEDBACK, validarTextoFeedback } from "@/validations/feedback";
+import { diferenciasFeedback, feedbackDetalleHref, feedbackNavigation, feedbackSuccessHref, MAX_TEXTO_FEEDBACK, validarTextoFeedback } from "@/validations/feedback";
 import { useFeedbackResource } from "./useFeedbackResource";
 import styles from "./feedback.module.css";
 
@@ -40,16 +40,15 @@ export function FeedbackForm({ feedbackId, comisionId }: { feedbackId?: string; 
   });
   const context = resource.data?.feedback?.contexto;
   const comision = resource.data?.comision;
-  const origin = feedbackOriginParams(params);
-  const commissionHref = comision ? `${comisionHref(comision)}${origin.size ? `?${origin}` : ""}` : "/home/materias";
-  const backHref = feedbackId ? feedbackDetalleHref(feedbackId) : commissionHref;
+  const navigation = feedbackNavigation(context ?? (comision ? comisionContext(comision) : null), params);
+  const backHref = feedbackId ? feedbackDetalleHref(feedbackId, params) : navigation.commissionHref;
   const period = comision?.cursada.cuatrimestre;
   const modalidad = context ? context.modalidad ?? context.cuatrimestre : period !== undefined ? period : comision?.cursada.materia.modalidad;
   return <section className={styles.editorPage} aria-labelledby={headingId}>
     <header className={styles.editorHeader}>
       <PageHeader id={headingId} title={feedbackId ? "Editar comentario" : "Compartir mi experiencia"} focusKey={feedbackId ?? comisionId}
-        back={{ href: backHref, label: feedbackId ? "Comentario" : "Comisión" }}
-        breadcrumb={[{ label: "Materias", href: "/home/materias" }, ...(comision ? [{ label: `Comisión ${comision.nombre}`, href: commissionHref }] : []), { label: feedbackId ? "Editar comentario" : "Compartir experiencia" }]} />
+        back={{ href: backHref, label: feedbackId ? "tu comentario" : "Comisión" }}
+        breadcrumb={[...navigation.items, ...(feedbackId ? [{ label: "Tu comentario", href: backHref }] : []), { label: feedbackId ? "Editar comentario" : "Compartir experiencia" }]} />
     </header>
     {resource.error ? <Notice tone="error">{resource.error} {!resource.notFound ? <button className="button" type="button" onClick={resource.retry}>Reintentar</button> : null}</Notice> : null}
     {resource.loading ? <p role="status">Cargando formulario…</p> : null}
@@ -60,14 +59,14 @@ export function FeedbackForm({ feedbackId, comisionId }: { feedbackId?: string; 
       </div>
       {!comision.activa ? <Notice tone="warning">Esta comisión está inactiva. No se pueden publicar ni editar comentarios.</Notice>
         : feedbackId && !resource.data.feedback?.propio ? <Notice tone="error">Solo podés editar tus propios comentarios.</Notice>
-        : !feedbackId && resource.data.propio ? <Notice tone="warning">Ya tenés un comentario vigente en esta comisión. <Link href={feedbackDetalleHref(resource.data.propio.id)}>Ver mi comentario</Link></Notice>
+        : !feedbackId && resource.data.propio ? <Notice tone="warning">Ya tenés un comentario vigente en esta comisión. <Link href={feedbackDetalleHref(resource.data.propio.id, params)}>Ver mi comentario</Link></Notice>
         : <FeedbackEditor key={feedbackId ?? comision.id} comision={comision} original={resource.data.feedback} cancelHref={backHref} />}
     </> : null}
   </section>;
 }
 
-function comisionHref(comision: ComisionDetalle) {
-  return feedbackComisionHref({ comisionId: comision.id, nombre: comision.nombre, materiaId: comision.cursada.materia.id, materiaNombre: comision.cursada.materia.nombre, cursadaId: comision.cursada.id, anio: comision.cursada.anio, cuatrimestre: null, modalidad: comision.cursada.materia.modalidad ?? null });
+function comisionContext(comision: ComisionDetalle) {
+  return { comisionId: comision.id, nombre: comision.nombre, materiaId: comision.cursada.materia.id, materiaNombre: comision.cursada.materia.nombre, cursadaId: comision.cursada.id, anio: comision.cursada.anio, cuatrimestre: comision.cursada.cuatrimestre ?? null, modalidad: comision.cursada.cuatrimestre !== undefined ? comision.cursada.cuatrimestre : comision.cursada.materia.modalidad ?? null };
 }
 
 function FeedbackEditor({ comision, original, cancelHref }: { comision: ComisionDetalle; original: Feedback | null; cancelHref: string }) {
@@ -101,7 +100,7 @@ function FeedbackEditor({ comision, original, cancelHref }: { comision: Comision
         const changes = diferenciasFeedback(original, { texto: text, anonimo: anonymous });
         if (Object.keys(changes).length === 0) { setSuccess("No hay cambios para guardar."); return; }
         await actualizarFeedback(original.id, changes);
-        router.push(feedbackSuccessHref(feedbackDetalleHref(original.id), "El comentario se actualizó correctamente."));
+        router.push(feedbackSuccessHref(cancelHref, "El comentario se actualizó correctamente."));
       } else {
         await crearFeedback(comision.id, { texto: text, anonimo: anonymous, ...(comision.profesores.length === 1 ? {} : { profesorId: values.profesorId || null }) });
         router.push(feedbackSuccessHref(cancelHref, "El comentario se publicó correctamente."));

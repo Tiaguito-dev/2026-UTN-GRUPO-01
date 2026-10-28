@@ -5,6 +5,8 @@
     align-items: center;
     gap: var(--space-3);
     margin-bottom: var(--space-6);
+    min-width: 0;
+    max-width: 100%;
   }
 
   .back-link {
@@ -14,7 +16,7 @@
     min-height: 48px;
     padding: var(--space-2) var(--space-4) var(--space-2) var(--space-3);
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--text);
     font-size: var(--text-sm);
@@ -39,11 +41,8 @@
   }
 
   .breadcrumb {
-    margin-bottom: var(--space-6);
-  }
-
-  .page-nav .breadcrumb {
-    margin-bottom: 0;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .breadcrumb ol {
@@ -55,17 +54,20 @@
     padding: var(--space-1);
     margin: 0;
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     background: var(--surface);
     font-size: var(--text-sm);
     color: var(--muted);
     box-sizing: border-box;
+    max-width: 100%;
   }
 
   .breadcrumb li {
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
+    min-width: 0;
+    max-width: 100%;
   }
 
   .breadcrumb-separator {
@@ -74,13 +76,16 @@
   }
 
   .breadcrumb a,
-  .breadcrumb span[aria-current="page"] {
+  .breadcrumb span {
     display: inline-flex;
     align-items: center;
-    height: 38px;
-    padding-inline: var(--space-3);
+    min-height: 38px;
+    padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-sm);
     box-sizing: border-box;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.5;
   }
 
   .breadcrumb a {
@@ -103,5 +108,9 @@
     background: var(--soft-blue);
     color: var(--primary);
     font-weight: var(--weight-semibold);
+  }
+
+  @media (max-width: 600px) {
+    .page-nav .breadcrumb { flex-basis: 100%; }
   }
 }

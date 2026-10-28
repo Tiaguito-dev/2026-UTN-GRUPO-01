@@ -6,6 +6,7 @@ export interface Feedback {
   propio: boolean;
   profesor: { id: string; nombreCompleto: string; cargo: "TITULAR" | "ADJUNTO" | "JTP" } | null;
   contexto: {
+    carrera: "S" | "C" | "Q" | "I" | "M";
     comisionId: string;
     nombre: string;
     materiaId: string;

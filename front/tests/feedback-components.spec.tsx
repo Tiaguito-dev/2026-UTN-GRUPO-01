@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FeedbackForm } from "@/components/feedback/FeedbackForm";
 import { FeedbackDetail } from "@/components/feedback/FeedbackDetail";
@@ -27,7 +27,7 @@ const comision = {
 const feedback: Feedback = {
   id: "f1", texto: "Buena experiencia", anonimo: true, autor: null, propio: true,
   profesor: { id: "p1", nombreCompleto: "Ada", cargo: "TITULAR" },
-  contexto: { comisionId: "c1", nombre: "S-31", materiaId: "m1", materiaNombre: "Álgebra", cursadaId: "cu1", anio: 2026, cuatrimestre: "PRIMERO" },
+  contexto: { carrera: "S", comisionId: "c1", nombre: "S-31", materiaId: "m1", materiaNombre: "Álgebra", cursadaId: "cu1", anio: 2026, cuatrimestre: "PRIMERO" },
   createdAt: "2026-10-26T12:00:00.000Z", updatedAt: "2026-10-26T12:00:00.000Z",
 };
 
@@ -47,6 +47,48 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("Formulario de feedback", () => {
+  it("regresa a la página de Experiencias de origen y conserva ese regreso al editar", async () => {
+    origin.query = "origen=experiencias&experienciasPage=4&experienciasCarrera=I&experienciasMateriaId=m1";
+    render(<FeedbackDetail feedbackId="f1" />);
+    const edit = await screen.findByRole("link", { name: "Editar comentario" });
+    expect(screen.getByRole("link", { name: "Volver a Experiencias" }).getAttribute("href")).toBe("/home/experiencias?carrera=I&materiaId=m1&page=4");
+    expect(new URL(edit.getAttribute("href")!, "http://local").searchParams.get("experienciasPage")).toBe("4");
+    expect(new URL(edit.getAttribute("href")!, "http://local").searchParams.get("experienciasCarrera")).toBe("I");
+    expect(new URL(edit.getAttribute("href")!, "http://local").searchParams.get("experienciasMateriaId")).toBe("m1");
+    const subject = screen.getByRole("heading", { name: "Álgebra" }).querySelector("a")!;
+    expect(new URL(subject.getAttribute("href")!, "http://local").searchParams.get("experienciasMateriaId")).toBe("m1");
+    expect(within(screen.getByRole("navigation")).getByRole("link", { name: "Comisión S-31" })).toBeTruthy();
+  });
+  it("conserva materia, comisión y filtros en el recorrido de alta y edición", async () => {
+    origin.query = "carrera=S&anioCarrera=2&listadoPage=3&q=álgebra&cursadaId=cu1&comisionesPage=2";
+    const view = render(<FeedbackForm comisionId="c1" />);
+    await screen.findByRole("textbox", { name: "Tu experiencia" });
+    const nav = within(screen.getByRole("navigation", { name: "Ubicación actual" }));
+    const subject = new URL(nav.getByRole("link", { name: "Álgebra" }).getAttribute("href")!, "http://local");
+    expect(subject.pathname).toBe("/home/materias/m1");
+    expect(subject.searchParams.get("cursadaId")).toBe("cu1");
+    expect(subject.searchParams.get("comisionesPage")).toBe("2");
+    const list = new URL(nav.getByRole("link", { name: "Materias" }).getAttribute("href")!, "http://local");
+    expect(list.searchParams.get("page")).toBe("3");
+    expect(list.searchParams.get("q")).toBe("álgebra");
+    view.unmount();
+    render(<FeedbackForm feedbackId="f1" />);
+    await screen.findByRole("textbox", { name: "Tu experiencia" });
+    // TASK-066: el detalle privado se identifica ahora como Tu comentario.
+    const comment = screen.getByRole("link", { name: "Volver a tu comentario" });
+    expect(new URL(comment.getAttribute("href")!, "http://local").searchParams.get("listadoPage")).toBe("3");
+    expect(within(screen.getByRole("navigation")).getByRole("link", { name: "Tu comentario" })).toBeTruthy();
+  });
+  it("el detalle privado mantiene el recorrido real y el contexto al editar", async () => {
+    origin.query = "carrera=S&listadoPage=2&comisionesPage=3";
+    render(<FeedbackDetail feedbackId="f1" />);
+    const edit = await screen.findByRole("link", { name: "Editar comentario" });
+    expect(new URL(edit.getAttribute("href")!, "http://local").searchParams.get("listadoPage")).toBe("2");
+    const nav = within(screen.getByRole("navigation"));
+    expect(nav.getByRole("link", { name: "Álgebra" }).getAttribute("href")).toContain("/home/materias/m1?");
+    expect(nav.getByRole("link", { name: "Comisión S-31" }).getAttribute("href")).toContain("/comisiones/c1?");
+    expect(new URL(screen.getByRole("link", { name: "Volver a Comisión" }).getAttribute("href")!, "http://local").searchParams.get("comisionesPage")).toBe("3");
+  });
   it("presenta destinatario antes del texto e identidad con nombre público y ayuda accesible", async () => {
     render(<FeedbackForm comisionId="c1" />);
     const text = await screen.findByRole("textbox", { name: "Tu experiencia" });
@@ -174,6 +216,16 @@ describe("Formulario de feedback", () => {
     expect(String(push.mock.calls[0][0])).toContain("/home/feedback/f1?successMessage=");
     expect(screen.queryByRole("combobox")).toBeNull();
   });
+  it("cancelar una edición sin cambios regresa al detalle privado con su origen filtrado", async () => {
+    origin.query = "origen=experiencias&experienciasCarrera=S&experienciasMateriaId=m1&experienciasPage=2";
+    render(<FeedbackForm feedbackId="f1" />);
+    await screen.findByRole("textbox", { name: "Tu experiencia" });
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(actualizarFeedback).not.toHaveBeenCalled();
+    const url = new URL(String(push.mock.calls.at(-1)?.[0]), "http://local");
+    expect(url.pathname).toBe("/home/feedback/f1");
+    expect(Object.fromEntries(url.searchParams)).toMatchObject({ origen: "experiencias", experienciasCarrera: "S", experienciasMateriaId: "m1", experienciasPage: "2" });
+  });
   it("impide duplicados desde el formulario cuando ya tiene publicación vigente", async () => {
     vi.mocked(obtenerFeedbackPropio).mockResolvedValue(feedback);
     render(<FeedbackForm comisionId="c1" />);
@@ -219,6 +271,119 @@ describe("Períodos legados", () => {
 });
 
 describe("Detalle de feedback", () => {
+  it("reúne contexto, acciones y metadatos en la tarjeta propia sin auditoría ni versiones permanentes", async () => {
+    render(<FeedbackDetail feedbackId="f1" />);
+    expect(await screen.findByRole("heading", { level: 1, name: "Tu comentario" })).toBeTruthy();
+    const article = await screen.findByRole("article", { name: "Tu comentario" });
+    const card = within(article);
+    expect(card.getByRole("heading", { name: "Álgebra" })).toBeTruthy();
+    expect(card.getByRole("link", { name: "Álgebra" }).getAttribute("href")).toContain("/home/materias/m1");
+    expect(card.getByText(/Ingeniería en Sistemas de Información/)).toBeTruthy();
+    expect(await card.findByRole("link", { name: "Editar comentario" })).toBeTruthy();
+    expect(card.getByRole("button", { name: "Eliminar comentario" })).toBeTruthy();
+    expect(card.getByText("Anónimo")).toBeTruthy();
+    expect(card.getByText("Publicado")).toBeTruthy();
+    expect(card.queryByText("Última edición")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Auditoría" })).toBeNull();
+    expect(screen.getByText("Historial de cambios").closest("details")?.open).toBe(false);
+    expect(listarHistorialFeedback).not.toHaveBeenCalled();
+    expect(screen.getAllByText(feedback.texto)).toHaveLength(1);
+  });
+  it("muestra identidad pública con nombre y última edición real, conservando texto largo", async () => {
+    const texto = `Primer párrafo\n${"palabra".repeat(400)}`;
+    vi.mocked(obtenerFeedback).mockResolvedValue({ ...feedback, texto, anonimo: false, autor: { displayName: "Nombre público" }, profesor: null, updatedAt: "2026-10-27T14:00:00.000Z" });
+    render(<FeedbackDetail feedbackId="f1" />);
+    const card = within(await screen.findByRole("article", { name: "Tu comentario" }));
+    expect(card.getByText("Nombre público")).toBeTruthy();
+    expect(card.getByText("Última edición")).toBeTruthy();
+    expect(card.getByText("Sobre la comisión en general")).toBeTruthy();
+    expect(card.getByText(/Primer párrafo/).textContent).toBe(texto);
+    expect(card.getAllByRole("time").map(node => node.getAttribute("dateTime"))).toEqual([feedback.createdAt, "2026-10-27T14:00:00.000Z"]);
+  });
+  it("carga el historial al abrir, pagina tres versiones y deja de repetirlas al cerrar", async () => {
+    const row = { id: "h1", accion: "CREACION" as const, texto: "Versión original real", anonimo: true, createdAt: feedback.createdAt };
+    vi.mocked(listarHistorialFeedback).mockResolvedValue({ items: [row], total: 4, page: 1, pageSize: 3 });
+    render(<FeedbackDetail feedbackId="f1" />);
+    const summary = await screen.findByText("Historial de cambios");
+    expect(listarHistorialFeedback).not.toHaveBeenCalled();
+    await userEvent.click(summary);
+    expect(await screen.findByText(row.texto)).toBeTruthy();
+    expect(listarHistorialFeedback).toHaveBeenLastCalledWith("f1", { page: 1, pageSize: 3 });
+    vi.mocked(listarHistorialFeedback).mockResolvedValue({ items: [{ ...row, id: "h2", accion: "EDICION", texto: "Texto editado real" }], total: 4, page: 2, pageSize: 3 });
+    await userEvent.click(screen.getByRole("button", { name: "Página siguiente" }));
+    expect(await screen.findByText("Texto editado real")).toBeTruthy();
+    expect(listarHistorialFeedback).toHaveBeenLastCalledWith("f1", { page: 2, pageSize: 3 });
+    await userEvent.click(summary);
+    await waitFor(() => expect(screen.queryByText("Texto editado real")).toBeNull());
+    expect(summary.closest("details")?.open).toBe(false);
+    vi.mocked(listarHistorialFeedback).mockResolvedValue({ items: [row], total: 1, page: 1, pageSize: 3 });
+    await userEvent.click(summary);
+    expect(await screen.findByText(row.texto)).toBeTruthy();
+    expect(listarHistorialFeedback).toHaveBeenLastCalledWith("f1", { page: 1, pageSize: 3 });
+  });
+  it("mantiene el historial vacío o con error recuperable dentro del desplegable", async () => {
+    vi.mocked(listarHistorialFeedback).mockRejectedValueOnce(new Error("No pudimos recuperar las versiones."));
+    render(<FeedbackDetail feedbackId="f1" />);
+    await userEvent.click(await screen.findByText("Historial de cambios"));
+    expect(await screen.findByText(/No pudimos recuperar las versiones/)).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+    expect(await screen.findByText("No hay cambios registrados.")).toBeTruthy();
+  });
+  it("permite cancelar la eliminación y conservar el comentario; luego elimina con regreso filtrado", async () => {
+    origin.query = "origen=experiencias&experienciasCarrera=S&experienciasMateriaId=m1&experienciasPage=3";
+    render(<FeedbackDetail feedbackId="f1" />);
+    const remove = await screen.findByRole("button", { name: "Eliminar comentario" });
+    await userEvent.click(remove);
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(eliminarFeedback).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(remove);
+    await userEvent.click(remove);
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar eliminación" }));
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+    const url = new URL(String(push.mock.calls[0][0]), "http://local");
+    expect(url.pathname).toBe("/home/experiencias");
+    expect(Object.fromEntries(url.searchParams)).toMatchObject({ carrera: "S", materiaId: "m1", page: "3", successMessage: "El comentario se eliminó correctamente." });
+  });
+  it("una comisión inactiva conserva la eliminación pero no ofrece edición", async () => {
+    vi.mocked(obtenerComision).mockResolvedValue({ ...comision, activa: false });
+    render(<FeedbackDetail feedbackId="f1" />);
+    await screen.findByText(/La comisión está inactiva/);
+    expect(screen.queryByRole("link", { name: "Editar comentario" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Eliminar comentario" })).toBeTruthy();
+  });
+  it("un error al eliminar conserva el contenido y permite reintentar desde la misma tarjeta", async () => {
+    vi.mocked(eliminarFeedback).mockRejectedValueOnce(new Error("Lo sentimos. No pudimos eliminar tu comentario, intentá nuevamente."));
+    render(<FeedbackDetail feedbackId="f1" />);
+    const remove = await screen.findByRole("button", { name: "Eliminar comentario" });
+    await userEvent.click(remove);
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar eliminación" }));
+    expect(await screen.findByText(/No pudimos eliminar tu comentario/)).toBeTruthy();
+    expect(screen.getByText(feedback.texto)).toBeTruthy();
+    expect(push).not.toHaveBeenCalled();
+    await userEvent.click(remove);
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar eliminación" }));
+    await waitFor(() => expect(eliminarFeedback).toHaveBeenCalledTimes(2));
+    expect(push).toHaveBeenCalledTimes(1);
+  });
+  it("no presenta contenido ni gestión si una respuesta indica autor ajeno, y permite tabular las acciones propias", async () => {
+    vi.mocked(obtenerFeedback).mockResolvedValueOnce({ ...feedback, propio: false });
+    const view = render(<FeedbackDetail feedbackId="f1" />);
+    await screen.findByText(/Solo podés consultar el detalle de tus propios/);
+    expect(screen.queryByRole("article")).toBeNull();
+    expect(screen.queryByText(feedback.texto)).toBeNull();
+    expect(listarHistorialFeedback).not.toHaveBeenCalled();
+    expect(obtenerComision).not.toHaveBeenCalled();
+    view.unmount();
+    render(<FeedbackDetail feedbackId="propio" />);
+    const edit = await screen.findByRole("link", { name: "Editar comentario" });
+    edit.focus();
+    await userEvent.tab();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Eliminar comentario" }));
+    await userEvent.tab();
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Álgebra" }).querySelector("a"));
+    await userEvent.tab();
+    expect(document.activeElement).toBe(screen.getByText("Historial de cambios"));
+  });
   it("escapa el texto propio publicado al mostrar el detalle privado", async () => {
     const texto = '<img src=x onerror="alert(1)">';
     vi.mocked(obtenerFeedback).mockResolvedValue({ ...feedback, texto });

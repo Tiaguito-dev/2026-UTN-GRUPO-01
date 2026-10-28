@@ -30,6 +30,12 @@ function respond(body: unknown, status = 200) {
 }
 
 describe("Cliente de feedback", () => {
+  it("envía carrera y materia combinadas junto con la página del listado general", async () => {
+    respond({ items: [item], total: 20, page: 2, pageSize: 9 });
+    await listarFeedback({ carrera: "I", materiaId: "mat1", page: 2 });
+    const url = new URL(String(businessCalls()[0][0]));
+    expect(Object.fromEntries(url.searchParams)).toEqual({ page: "2", pageSize: "9", carrera: "I", materiaId: "mat1" });
+  });
   // TASK-061: the transversal feed keeps the same typed/redacted item contract.
   it("consulta Experiencias generales con nueve elementos y página explícita", async () => {
     const page = { items: [item], total: 10, page: 2, pageSize: 9 };

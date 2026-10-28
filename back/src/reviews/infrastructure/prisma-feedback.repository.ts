@@ -3,13 +3,13 @@ import type { PrismaService } from "../../infrastructure/prisma/prisma.service.j
 import type { PaginatedResult, Pagination } from "../../shared/domain/pagination.js";
 import type { Feedback } from "../domain/feedback.js";
 import type { FeedbackRepository } from "../application/ports/feedback.repository.js";
-import type { CreateFeedbackInput, UpdateFeedbackInput } from "../application/feedback-input.js";
+import type { CreateFeedbackInput, UpdateFeedbackInput, FeedbackFilters } from "../application/feedback-input.js";
 import { FeedbackDuplicateError, FeedbackNotFoundError } from "../application/errors.js";
 import { assertFeedbackOpen, assertFeedbackOwner, selectFeedbackProfesor } from "../application/feedback-policy.js";
 import { ComisionNotFoundError } from "../../academic/application/errors.js";
 
 type Transaction = Prisma.TransactionClient;
-const includeAutor = { autor: { select: { displayName: true } } } satisfies Prisma.FeedbackInclude;
+const includeAutor = { autor: { select: { displayName: true } }, comision: { select: { carrera: true } } } satisfies Prisma.FeedbackInclude;
 type FeedbackRow = Prisma.FeedbackGetPayload<{ include: typeof includeAutor }>;
 type SnapshotRow = {
   id: string; carrera: string; numero: number; activa: boolean;
@@ -24,7 +24,7 @@ function present(row: FeedbackRow, viewer: string): Feedback {
     autor: row.anonimo ? null : { displayName: row.autor.displayName }, propio: row.autorId === viewer,
     profesor: row.profesorId && row.profesorNombre && row.profesorCargo
       ? { id: row.profesorId, nombreCompleto: row.profesorNombre, cargo: row.profesorCargo } : null,
-    contexto: { comisionId: row.comisionId, nombre: row.comisionNombre, materiaId: row.materiaId,
+    contexto: { carrera: row.comision.carrera, comisionId: row.comisionId, nombre: row.comisionNombre, materiaId: row.materiaId,
       materiaNombre: row.materiaNombre, cursadaId: row.cursadaId, anio: row.anio, cuatrimestre: row.cuatrimestre, modalidad: row.modalidad },
     createdAt: row.createdAt, updatedAt: row.updatedAt,
   };
@@ -70,8 +70,11 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
     return { items: items.map((row) => present(row, viewer)), total, ...pagination };
   }
 
-  listGeneral(viewer: string, pagination: Pagination) {
-    return this.listing({ deletedAt: null }, viewer, pagination);
+  listGeneral(viewer: string, pagination: Pagination, filters: FeedbackFilters = {}) {
+    return this.listing({ deletedAt: null,
+      ...(filters.carrera ? { comision: { carrera: filters.carrera } } : {}),
+      ...(filters.materiaId ? { materiaId: filters.materiaId } : {}),
+    }, viewer, pagination);
   }
 
   async listComision(id: string, viewer: string, pagination: Pagination) {

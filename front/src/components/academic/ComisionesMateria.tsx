@@ -13,6 +13,7 @@ import { periodoLabel } from "@/lib/format/periodo";
 import { cargoLabel, carreraShortLabel, parseMateriaPage } from "@/validations/materias";
 import { CursadasList } from "./CursadasList";
 import styles from "./ComisionesMateria.module.css";
+import { feedbackOriginParams } from "@/validations/feedback";
 import cardStyles from "./ComisionesList.module.css";
 
 type PeriodsResource = { key: string; items: CursadaResumen[]; error: string };
@@ -44,7 +45,8 @@ export function ComisionesMateria({ materiaId, materiaNombre, materiasHref = "/h
   const requested = periods?.items.find((item) => item.id === selectedId);
   const selected = requested ?? periods?.items[0];
   const page = !selectedId || requested ? parseMateriaPage(params.get("comisionesPage")) : 1;
-  const context = new URLSearchParams();
+  const context = feedbackOriginParams(params);
+  for (const name of ["cursadaId", "comisionesPage", "page"]) context.delete(name);
   for (const name of ["carrera", "anioCarrera", "listadoPage", "q", "nivelElectiva"]) {
     const value = params.get(name);
     if (value) context.set(name, value);

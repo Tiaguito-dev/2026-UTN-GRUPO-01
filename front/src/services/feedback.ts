@@ -4,12 +4,16 @@ import { requestJson } from "./http";
 import { toQuery, type PaginationInput } from "./pagination";
 import { paginatedSchema, parseResponse } from "./schemas";
 import { feedbackHistorialSchema, feedbackSchema } from "./feedback-schemas";
+import type { Carrera } from "@/types/materias";
 
 const idPath = (id: string) => encodeURIComponent(id);
 const listQuery = (input: PaginationInput = {}, size = 9) => toQuery({ page: 1, pageSize: size, ...input });
 
-export function listarFeedback(input: PaginationInput = {}) {
-  return getAuthService().protectedGet(`/feedback${listQuery(input)}`, paginatedSchema(feedbackSchema));
+export function listarFeedback(input: PaginationInput & { carrera?: Carrera; materiaId?: string } = {}) {
+  const query = new URLSearchParams(listQuery(input).slice(1));
+  if (input.carrera) query.set("carrera", input.carrera);
+  if (input.materiaId) query.set("materiaId", input.materiaId);
+  return getAuthService().protectedGet(`/feedback?${query}`, paginatedSchema(feedbackSchema));
 }
 
 export function listarFeedbackComision(id: string, input: PaginationInput = {}) {

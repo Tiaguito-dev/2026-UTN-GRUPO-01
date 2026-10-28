@@ -1,8 +1,9 @@
 import type { CargoDocente, Cuatrimestre } from "@/services/academic";
-import type { ModalidadMateria } from "@/types/materias";
+import type { Carrera, ModalidadMateria } from "@/types/materias";
 
 export interface Docente { id: string; nombreCompleto: string }
 export interface FeedbackContexto {
+  carrera?: Carrera;
   comisionId: string;
   nombre: string;
   materiaId: string;

@@ -5,14 +5,14 @@ import userEvent from "@testing-library/user-event";
 import { ComisionDetail } from "@/components/academic/ComisionDetail";
 import { obtenerMateria } from "@/services/materias";
 import { asignarProfesorComision, listarComisionesPorCursada, listarProfesores, obtenerComision, quitarProfesorComision } from "@/services/academic";
-const { authState, push } = vi.hoisted(() => ({ authState: { role: "USER" }, push: vi.fn() }));
+const { authState, push, origin } = vi.hoisted(() => ({ authState: { role: "USER" }, push: vi.fn(), origin: { extra: "" } }));
 vi.mock("next/link", () => import("./support/next-link"));
 // TASK-057: feedback interactions are covered separately; this suite checks academic context.
 vi.mock("@/components/feedback/ComisionFeedback", () => ({
   ComisionFeedback: ({ comision }: { comision: { id: string } }) => <div data-testid="feedback-comision" data-comision-id={comision.id} />,
 }));
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams("carrera=S&anioCarrera=ELECTIVA&listadoPage=2&q=Plan&nivelElectiva=4&cursadaId=cur1&comisionesPage=3"),
+  useSearchParams: () => new URLSearchParams(`carrera=S&anioCarrera=ELECTIVA&listadoPage=2&q=Plan&nivelElectiva=4&cursadaId=cur1&comisionesPage=3${origin.extra}`),
   useRouter: () => ({ push }),
 }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ account: { role: authState.role } }) }));
@@ -34,6 +34,7 @@ const alternativas = {
 beforeEach(() => {
   vi.clearAllMocks();
   authState.role = "USER";
+  origin.extra = "";
   vi.mocked(obtenerComision).mockResolvedValue(comisionMock);
   vi.mocked(obtenerMateria).mockResolvedValue({ id: "mat1", nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "2", nivelElectiva: null }], createdAt: "2026-01-01", deletedAt: null });
   vi.mocked(listarComisionesPorCursada).mockResolvedValue(alternativas);
@@ -45,6 +46,14 @@ beforeEach(() => {
 afterEach(cleanup);
 // TASK-059 intentionally changes the former commission-title/sidebar-list presentation.
 describe("Detalle de comisión centrado en experiencias", () => {
+  it("regresa a Experiencias con sus filtros y conserva el origen al cambiar comisión", async () => {
+    origin.extra = "&origen=experiencias&experienciasCarrera=I&experienciasMateriaId=mat1&experienciasPage=3";
+    render(<ComisionDetail materiaId="mat1" cursadaId="cur1" comisionId="com1" />);
+    expect((await screen.findByRole("link", { name: "Volver a Experiencias" })).getAttribute("href")).toBe("/home/experiencias?carrera=I&materiaId=mat1&page=3");
+    await userEvent.selectOptions(await screen.findByRole("combobox", { name: "Comisión del período" }), "com2");
+    const query = new URL(String(push.mock.calls.at(-1)?.[0]), "http://local").searchParams;
+    expect(Object.fromEntries(query)).toMatchObject({ origen: "experiencias", experienciasCarrera: "I", experienciasMateriaId: "mat1", experienciasPage: "3" });
+  });
   it("titula con la materia y muestra carrera/año reales y equipo docente sin edición para USER", async () => {
     render(<ComisionDetail materiaId="mat1" cursadaId="cur1" comisionId="com1" />);
     expect(await screen.findByRole("heading", { level: 1, name: "Álgebra" })).toBeTruthy();

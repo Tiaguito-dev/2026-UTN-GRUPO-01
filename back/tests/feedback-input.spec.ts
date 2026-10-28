@@ -5,9 +5,18 @@ import {
   validateUpdateFeedback,
   validateFeedbackPagination,
   validateFeedbackId,
+  validateGeneralFeedbackQuery,
 } from "../src/reviews/application/feedback-input.js";
 
 describe("Feedback: contrato de entrada", () => {
+  it("valida carrera y materia opcionales sin admitir otros filtros", () => {
+    const materiaId = randomUUID();
+    expect(validateGeneralFeedbackQuery({ carrera: "S", materiaId, page: "2" })).toEqual({ page: 2, pageSize: 9, carrera: "S", materiaId });
+    expect(validateGeneralFeedbackQuery({})).toEqual({ page: 1, pageSize: 9 });
+    for (const query of [{ carrera: "X" }, { carrera: ["S", "I"] }, { materiaId: "no-uuid" }, { profesorId: materiaId }]) {
+      expect(() => validateGeneralFeedbackQuery(query)).toThrow();
+    }
+  });
   it("recorta bordes y admite texto español, saltos de línea y tabulación", () => {
     expect(validateCreateFeedback({ texto: "  Explica bien.\n\tBuena comisión.  ", anonimo: true }))
       .toEqual({ texto: "Explica bien.\n\tBuena comisión.", anonimo: true });

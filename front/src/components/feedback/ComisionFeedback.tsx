@@ -42,7 +42,7 @@ export function ComisionFeedback({ comision }: { comision: ComisionDetalle }) {
       {comments.state.status === "loading" ? <p role="status">Cargando comentarios…</p> : null}
       {comments.state.status === "error" ? <Notice tone="error">{comments.state.error} <button className="button" type="button" onClick={comments.retry}>Reintentar cargar comentarios</button></Notice> : null}
       {result ? <>
-        {result.items.length ? <ul className={styles.experienceList}>{result.items.map((feedback) => <li key={feedback.id}><ExperienceCard feedback={feedback} onManage={() => router.push(feedbackDetalleHref(feedback.id))} /></li>)}</ul> : <p className={styles.experienceEmpty}>Todavía no hay comentarios en esta comisión.</p>}
+        {result.items.length ? <ul className={styles.experienceList}>{result.items.map((feedback) => <li key={feedback.id}><ExperienceCard feedback={feedback} onManage={() => router.push(feedbackDetalleHref(feedback.id, params))} /></li>)}</ul> : <p className={styles.experienceEmpty}>Todavía no hay comentarios en esta comisión.</p>}
         <Pagination page={result.page} pageSize={result.pageSize} total={result.total} onChange={setPage} />
       </> : null}
     </div>

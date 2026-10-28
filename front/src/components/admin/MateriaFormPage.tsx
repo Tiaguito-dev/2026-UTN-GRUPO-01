@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { safeAdminReturnTo } from "@/validations/admin";
 import type { Materia } from "@/types/materias";
@@ -36,8 +35,8 @@ export function MateriaFormPage({ materia, detailHref }: { materia?: Materia; de
         id="materia-form-heading"
         title={materia ? "Editar materia" : "Nueva materia"}
         description="Definí el nombre, la modalidad y las carreras de la materia."
-        breadcrumb={[{ label: returnTo ? "Administración" : "Materias", href: returnTo ?? backList }, { label: materia ? "Editar materia" : "Nueva materia" }]}
-        back={returnTo ? { href: returnTo, label: "listado administrativo" } : undefined}
+        back={returnTo ? { href: returnTo, label: "listado administrativo" } : { href: materia ? detailHref ?? `/home/materias/${encodeURIComponent(materia.id)}` : backList, label: materia?.nombre ?? "Materias" }}
+        breadcrumb={[{ label: returnTo ? "Administración" : "Materias", href: returnTo ?? backList }, ...(materia ? [{ label: materia.nombre, href: detailHref ?? `/home/materias/${encodeURIComponent(materia.id)}` }] : []), { label: materia ? "Editar materia" : "Nueva materia" }]}
       />
       <Card variant="panel">
         <MateriaForm
@@ -49,11 +48,6 @@ export function MateriaFormPage({ materia, detailHref }: { materia?: Materia; de
           }}
         />
       </Card>
-      {materia ? (
-        <div className="form-links">
-          <Link href={detailHref ?? "/home/materias"}>Volver</Link>
-        </div>
-      ) : null}
     </section>
   );
 }
