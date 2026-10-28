@@ -6,6 +6,8 @@
 
 - Corrección del bloqueo de CI en configuración de correo: comprobación equivalente de
   caracteres de control compatible con ESLint, con cobertura de regresión del proveedor.
+- Integración de PR29 conservando los checks CI y ambos aportes de documentación; la
+  validación numérica de correo sustituye la excepción de lint incorporada en esa PR.
 - Cursadas anuales en alta, edición y navegación, mediante ampliación aditiva del enum de
   período; selector múltiple de carreras en formularios de materia en lugar de checkbox.
 - Tablas paginadas de materias, profesores, cursadas, comisiones y usuarios, conservando
@@ -16,6 +18,34 @@
   operaciones simultáneas; sin bajas, cambios de activa, roles ni auditoría nueva.
 - Altas reutilizadas y retorno seguro a filtros/página del listado. Implementación
   verificada con datos locales aislados y aprobada por el desarrollador.
+
+### Instalación de dependencias del check frontend (TASK-056)
+
+- Se restaura `npm ci` raíz: las pruebas de contrato del frontend importan filtros
+  del backend y necesitan NestJS. La instalación aislada falló en typecheck remoto.
+- Hasta tres intentos de instalación con cinco segundos entre fallos para tolerar
+  cortes transitorios de descarga de Prisma, conservando el fallo del job si se
+  agotan los intentos. No se omiten scripts ni verificaciones.
+- Evidencia local y limitaciones en la tarea; ejecución y aceptación en PR pendientes.
+
+### CI para cada PR a desarrollo y main (TASK-002, aceptación remota pendiente)
+
+- Los workflows existentes ejecutan ambos módulos en cada PR, incluidos cambios
+  de documentación, con checks únicos `backend-ci` y `frontend-ci`.
+- Se retiran los triggers push para evitar repetir las verificaciones tras el merge;
+  se conservan lint, typecheck, tests, builds y servicios de integración backend.
+- DoD y guía del equipo actualizados con el procedimiento de checks obligatorios
+  y comprobación del bloqueo, diferida hasta un fallo durante el desarrollo por
+  decisión del desarrollador. Protección de ramas y aceptación en PR real pendientes.
+- Validación local: lint, typecheck y builds de ambos módulos en verde, 651 tests
+  backend sin omitidos y 281 frontend aprobados, 11 migraciones aplicadas y sin deriva.
+
+### Validación de lint en ambos workspaces (TASK-055)
+
+- Validación inicial mediante excepción puntual de `no-control-regex` en la configuración
+  de correo. HU-11 la sustituye por comparación numérica equivalente, sin excepción de lint.
+- Lint de backend y frontend sin errores ni advertencias; 13 pruebas de
+  configuración del proveedor de correo aprobadas en el entorno local disponible.
 
 ### Correo por Brevo HTTPS (TASK-028)
 

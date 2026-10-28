@@ -4,24 +4,12 @@ name: front
 on:
   pull_request:
     branches: [desarrollo, main]
-    paths:
-      - "front/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/front.yml"
-  push:
-    branches: [desarrollo]
-    paths:
-      - "front/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/front.yml"
 
 permissions:
   contents: read
 
 jobs:
-  verify:
+  frontend-ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,7 +17,20 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      # Contract tests import backend filters, so both workspaces are required.
+      - name: Install dependencies
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if npm ci; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Dependency installation failed; retrying in 5 seconds ($attempt/3)."
+              sleep 5
+            fi
+          done
+          exit 1
       - run: npm run typecheck --workspace=front
       - run: npm run lint --workspace=front
       - run: npm run test --workspace=front

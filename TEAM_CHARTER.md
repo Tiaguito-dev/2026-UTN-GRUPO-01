@@ -14,7 +14,12 @@ Brindar transparencia al colectivo estudiantil por parte de sus pares, para que 
 
 - Canales de comunicación: Slack, WhatsApp, Discord.
 - Frecuencia de reuniones: _a definir_
-- Definition of Done: _a definir_
+- Definition of Done: tests y typecheck de backend y frontend pasan en CI,
+  lint sin errores ni advertencias y builds exitosos. Las verificaciones de
+  integración backend incluyen PostgreSQL, Mailpit y migraciones consistentes.
+  Los checks `backend-ci` y `frontend-ci` deben pasar antes del merge a
+  `desarrollo` o `main`. Procedimiento y aceptación administrativa en
+  [CONTRIBUTING.md](./CONTRIBUTING.md#integración-continua-y-definition-of-done).
 
 ## Toma de Decisiones
 

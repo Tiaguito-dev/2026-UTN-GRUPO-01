@@ -152,8 +152,16 @@ guards del backend siguen siendo la autoridad de autenticación.
   axe de las pantallas principales. Cómo y desde dónde se regeneran las capturas:
   [frontend-tests.md](../docs/standards/frontend-tests.md).
 
-El workflow `.github/workflows/front.yml` corre `typecheck`, `lint`, `test` y `build` en cada PR
-hacia `desarrollo` o `main` que toque el front. Solo verifica; no despliega.
+El workflow `.github/workflows/front.yml` publica el check `frontend-ci` y corre
+`typecheck`, `lint`, `test` y `build` en cada PR hacia `desarrollo` o `main`, sin
+filtros por archivos ni ejecución adicional al hacer push tras el merge. Solo
+verifica; no despliega. Instala ambos workspaces con `npm ci` usando el lockfile
+raíz: las pruebas de contrato del frontend importan filtros reales del backend
+y requieren NestJS. La instalación permite hasta tres intentos con cinco segundos
+entre fallos para tolerar cortes transitorios de descarga; si todos fallan, falla
+el job. Los tests browser locales requieren el stack completo y no corren en este job.
+DoD, protección de ramas y evidencia de aceptación en
+[CONTRIBUTING.md](../CONTRIBUTING.md#integración-continua-y-definition-of-done).
 
 Para levantar el stack completo, preparar el `.env` privado de la raíz según el
 [README](../README.md) y ejecutar:

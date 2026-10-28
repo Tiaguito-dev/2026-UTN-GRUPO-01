@@ -179,3 +179,18 @@ typecheck y publicar commit correctivo en misma rama/PR. Sin merge.
 Resultado corrección CI: 148/148 pruebas de proveedor/Brevo aprobadas tras el cambio;
 caracterización previa 118/118. Lint completo backend y typecheck aprobados.
 Validación equivalente sin deshabilitar reglas. Commit correctivo en PR30; sin merge.
+
+## Sincronización posterior a PR29 (2026-10-27)
+
+El desarrollador confirmó la integración de PR29 y solicitó corregir nuestra PR30.
+Integrar origin/desarrollo 0315dc1 mediante merge sin reescribir historia publicada. Conservar
+workflows backend-ci/frontend-ci y documentación CI de PR29; conservar tablas/ANUAL HU11 y la
+validación numérica de controles ya probada en f45fa53. Retirar la excepción ESLint de PR29,
+innecesaria sobre esa validación, pues falla con unused eslint-disable si se conserva.
+Resolver CHANGELOG y back/OVERVIEW concatenando ambos aportes y revisar auto-merge front/OVERVIEW.
+No cambiar tests ni comportamiento: ejecutar pruebas de correo y lint/typecheck ambos, y dejar
+la PR actualizada con commit merge/push. Sin merge hacia desarrollo ni cambios productivos.
+
+Resolución validada: 148/148 pruebas correo, lint y typecheck completos de ambos workspaces
+aprobados. Workflows idénticos a origin/desarrollo; sin marcadores ni archivos sin resolver.
+El merge conserva el código email.config.ts exacto de f45fa53, sin la excepción ESLint redundante.
