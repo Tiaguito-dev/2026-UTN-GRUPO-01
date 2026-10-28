@@ -1,50 +1,42 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useState, type FormEvent } from "react";
-import { useSearchParams } from "next/navigation";
+import { CalendarDays, ChevronDown } from "lucide-react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import {
-  asignarProfesorComision,
-  CARGOS,
-  listarComisionesPorCursada,
-  listarProfesores,
-  obtenerComision,
-  quitarProfesorComision,
-  type CargoDocente,
-  type Comision,
-  type ComisionDetalle,
-  type Profesor,
-} from "@/services/academic";
+import { asignarProfesorComision, CARGOS, listarComisionesPorCursada, listarProfesores, obtenerComision, quitarProfesorComision, type CargoDocente, type Comision, type ComisionDetalle, type Profesor } from "@/services/academic";
+import { obtenerMateria } from "@/services/materias";
+import type { Materia } from "@/types/materias";
+import type { PaginatedResult } from "@/services/pagination";
 import { HttpError } from "@/services/http";
-import {
-  cargoLabel,
-  carreraLabel,
-  isAnioCarrera,
-  isCarrera,
-  materiaDetailHref,
-  materiaListHref,
-  parseMateriaContext,
-  parseMateriaPage,
-} from "@/validations/materias";
+import { anioCarreraLabel, cargoLabel, carreraLabel, isAnioCarrera, isCarrera, materiaDetailHref, materiaListHref, modalidadLabel, parseMateriaContext, parseMateriaPage } from "@/validations/materias";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Badge } from "@/components/ui/Badge";
+import { ComisionFeedback } from "@/components/feedback/ComisionFeedback";
 import { Notice } from "@/components/ui/Notice";
-import { RowLink } from "@/components/ui/RowLink";
 import { periodoLabel } from "@/lib/format/periodo";
-import { PlusIcon, iniciales } from "./detalle";
+import { iniciales } from "./detalle";
+import styles from "./ComisionDetail.module.css";
 
-export function ComisionDetail({
-  materiaId,
-  cursadaId,
-  comisionId,
-}: {
-  materiaId: string;
-  cursadaId: string;
-  comisionId: string;
-}) {
+interface Resource<T> { key: string; data: T | null; error: string }
+
+async function loadOptions<T>(fetchPage: (page: number) => Promise<PaginatedResult<T>>): Promise<T[]> {
+  const first = await fetchPage(1);
+  const items = [...first.items];
+  const pageCount = Math.ceil(first.total / first.pageSize);
+  for (let page = 2; page <= pageCount; page += 1) {
+    const next = await fetchPage(page);
+    items.push(...next.items);
+  }
+  return items;
+}
+
+export function ComisionDetail({ materiaId, cursadaId, comisionId }: { materiaId: string; cursadaId: string; comisionId: string }) {
   const headingId = useId();
+  const selectorId = useId();
+  const assignmentId = useId();
   const isAdmin = useIsAdmin();
+  const router = useRouter();
   const params = useSearchParams();
   const rawCarrera = params.get("carrera");
   const carrera = isCarrera(rawCarrera) ? rawCarrera : undefined;
@@ -52,346 +44,190 @@ export function ComisionDetail({
   const anio = isAnioCarrera(rawAnio) ? rawAnio : undefined;
   const listadoPage = parseMateriaPage(params.get("listadoPage"));
   const context = parseMateriaContext(params);
-
-  const [comision, setComision] = useState<ComisionDetalle | null>(null);
-  const [error, setError] = useState("");
-  const [notFound, setNotFound] = useState(false);
-  const [actionError, setActionError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [detail, setDetail] = useState<(Resource<ComisionDetalle> & { notFound: boolean }) | null>(null);
   const [retryToken, setRetryToken] = useState(0);
-
-  const [comisionesCursada, setComisionesCursada] = useState<Comision[]>([]);
-  const [profesoresTotales, setProfesoresTotales] = useState<Profesor[]>([]);
+  const current = detail?.key === comisionId ? detail : null;
+  const comision = current?.data ?? null;
+  const error = current?.error ?? "";
+  const realMateriaId = comision?.cursada.materia.id ?? materiaId;
+  const realCursadaId = comision?.cursada.id ?? cursadaId;
+  const [materiaResult, setMateriaResult] = useState<Resource<Materia> | null>(null);
+  const [materiaRetry, setMateriaRetry] = useState(0);
+  const materiaKey = `${comision?.cursada.materia.id ?? ""}:${materiaRetry}`;
+  const materia = materiaResult?.key === materiaKey ? materiaResult : null;
+  const [optionsResult, setOptionsResult] = useState<Resource<Comision[]> | null>(null);
+  const [optionsRetry, setOptionsRetry] = useState(0);
+  const optionsKey = `${comision?.cursada.id ?? ""}:${optionsRetry}`;
+  const options = optionsResult?.key === optionsKey ? optionsResult : null;
+  const [catalog, setCatalog] = useState<Resource<Profesor[]> | null>(null);
+  const [catalogRetry, setCatalogRetry] = useState(0);
+  const catalogKey = `${isAdmin}:${catalogRetry}`;
+  const profesoresTotales = catalog?.key === catalogKey ? catalog.data ?? [] : [];
   const [nuevoProfesorId, setNuevoProfesorId] = useState("");
   const [nuevoCargo, setNuevoCargo] = useState<CargoDocente>("TITULAR");
+  const [actionError, setActionError] = useState("");
+  const [actionSuccess, setActionSuccess] = useState("");
+  const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
 
   useEffect(() => {
     let active = true;
-    obtenerComision(comisionId)
-      .then((data) => {
-        if (active) {
-          setComision(data);
-          setError("");
-          setNotFound(false);
-        }
-      })
-      .catch((err: unknown) => {
-        if (active) {
-          setComision(null);
-          setError(err instanceof Error ? err.message : "No pudimos recuperar la comisión.");
-          setNotFound(err instanceof HttpError && err.status === 404);
-        }
-      });
-    return () => {
-      active = false;
-    };
+    obtenerComision(comisionId).then((data) => {
+      if (active) setDetail({ key: comisionId, data, error: "", notFound: false });
+    }).catch((failure: unknown) => {
+      if (active) setDetail({ key: comisionId, data: null, error: failure instanceof Error ? failure.message : "Intentá nuevamente.", notFound: failure instanceof HttpError && failure.status === 404 });
+    });
+    return () => { active = false; };
   }, [comisionId, retryToken]);
 
+  const actualMateriaId = comision?.cursada.materia.id;
   useEffect(() => {
-    if (comision) {
-      document.title = `Comisión ${comision.nombre} | Profesor Butchery`;
-    }
-  }, [comision]);
-
-  // Load the commissions of the same cursada; the current one is marked in the list.
-  useEffect(() => {
+    if (!actualMateriaId) return;
     let active = true;
-    listarComisionesPorCursada(cursadaId, { pageSize: 100 })
-      .then((res) => {
-        if (active) setComisionesCursada(res.items);
-      })
-      .catch(() => {
-        // Soft failure, other commissions section remains empty
-      });
-    return () => {
-      active = false;
-    };
-  }, [cursadaId, comisionId]);
+    obtenerMateria(actualMateriaId).then((data) => {
+      if (active) setMateriaResult({ key: materiaKey, data, error: "" });
+    }).catch(() => {
+      if (active) setMateriaResult({ key: materiaKey, data: null, error: "No pudimos recuperar el año de la materia." });
+    });
+    return () => { active = false; };
+  }, [actualMateriaId, materiaKey]);
 
-  // Load all professors for admin selection
+  const actualCursadaId = comision?.cursada.id;
+  useEffect(() => {
+    if (!actualCursadaId) return;
+    let active = true;
+    loadOptions((page) => listarComisionesPorCursada(actualCursadaId, { page, pageSize: 100 })).then((data) => {
+      if (active) setOptionsResult({ key: optionsKey, data, error: "" });
+    }).catch(() => {
+      if (active) setOptionsResult({ key: optionsKey, data: null, error: "Lo sentimos. No pudimos recuperar las comisiones, intentá nuevamente." });
+    });
+    return () => { active = false; };
+  }, [actualCursadaId, optionsKey]);
+
   useEffect(() => {
     if (!isAdmin) return;
     let active = true;
-    listarProfesores({ pageSize: 100 })
-      .then((res) => {
-        if (active) setProfesoresTotales(res.items);
-      })
-      .catch(() => {
-        // Soft failure
-      });
-    return () => {
-      active = false;
-    };
-  }, [isAdmin]);
+    loadOptions((page) => listarProfesores({ page, pageSize: 100 })).then((data) => {
+      if (active) setCatalog({ key: catalogKey, data, error: "" });
+    }).catch(() => {
+      if (active) setCatalog({ key: catalogKey, data: null, error: "Lo sentimos. No pudimos recuperar los profesores, intentá nuevamente." });
+    });
+    return () => { active = false; };
+  }, [isAdmin, catalogKey]);
 
-  const realMateriaId = comision?.cursada.materia.id ?? materiaId;
-  const realCursadaId = comision?.cursada.id ?? cursadaId;
   const materiasHref = materiaListHref(carrera, anio, listadoPage, context);
-  const materiaHref = materiaDetailHref(realMateriaId, carrera, anio, listadoPage, context);
-
+  const materiaBaseHref = materiaDetailHref(realMateriaId, carrera, anio, listadoPage, context);
+  const comisionesPage = parseMateriaPage(params.get("comisionesPage"));
+  const returnQuery = new URLSearchParams(materiaBaseHref.split("?")[1]);
+  returnQuery.set("cursadaId", realCursadaId);
+  if (comisionesPage > 1) returnQuery.set("comisionesPage", String(comisionesPage));
+  const materiaHref = `${materiaBaseHref.split("?")[0]}?${returnQuery}`;
   const contextQuery = new URLSearchParams();
   if (carrera) contextQuery.set("carrera", carrera);
   if (anio) contextQuery.set("anioCarrera", anio);
   if (listadoPage > 1) contextQuery.set("listadoPage", String(listadoPage));
   if (context.q) contextQuery.set("q", context.q);
   if (context.nivelElectiva) contextQuery.set("nivelElectiva", context.nivelElectiva);
+  if (comisionesPage > 1) contextQuery.set("comisionesPage", String(comisionesPage));
   const queryString = contextQuery.size ? `?${contextQuery}` : "";
+  const back = <Link href={materiaHref}>Volver a las comisiones de la materia</Link>;
 
-  const cursadaHref = `/home/materias/${encodeURIComponent(realMateriaId)}/cursadas/${encodeURIComponent(realCursadaId)}${queryString}`;
-  const back = <Link href={cursadaHref}>Volver a las comisiones del período</Link>;
-
-  async function handleCambiarCargo(profesorId: string, cargo: CargoDocente) {
-    setActionError("");
-    setBusy(true);
-    try {
-      await asignarProfesorComision(comisionId, profesorId, cargo);
-      setRetryToken((n) => n + 1);
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "No pudimos actualizar el cargo.");
-    } finally {
-      setBusy(false);
-    }
+  async function manage(operation: () => Promise<void>, success: string) {
+    if (pending.current) return;
+    pending.current = true; setBusy(true); setActionError(""); setActionSuccess("");
+    try { await operation(); setActionSuccess(success); setRetryToken((value) => value + 1); }
+    catch (failure: unknown) { setActionError(failure instanceof Error ? failure.message : "Lo sentimos. No pudimos actualizar el equipo docente, intentá nuevamente."); }
+    finally { pending.current = false; setBusy(false); }
   }
-
-  async function handleQuitar(profesorId: string) {
-    setActionError("");
-    setBusy(true);
-    try {
-      await quitarProfesorComision(comisionId, profesorId);
-      setRetryToken((n) => n + 1);
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "No pudimos quitar al profesor.");
-    } finally {
-      setBusy(false);
-    }
+  function handleCambiarCargo(profesorId: string, cargo: CargoDocente) {
+    void manage(async () => { await asignarProfesorComision(comisionId, profesorId, cargo); }, "El cargo se actualizó correctamente.");
   }
-
-  async function handleAsignar(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  function handleQuitar(profesorId: string) {
+    void manage(() => quitarProfesorComision(comisionId, profesorId), "El profesor se desvinculó correctamente.");
+  }
+  function handleAsignar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     if (!nuevoProfesorId) return;
-    setActionError("");
-    setBusy(true);
-    try {
+    void manage(async () => {
       await asignarProfesorComision(comisionId, nuevoProfesorId, nuevoCargo);
-      setNuevoProfesorId("");
-      setNuevoCargo("TITULAR");
-      setRetryToken((n) => n + 1);
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "No pudimos asignar al profesor.");
-    } finally {
-      setBusy(false);
-    }
+      setNuevoProfesorId(""); setNuevoCargo("TITULAR");
+    }, "El profesor se asignó correctamente.");
   }
 
-  const comisionLabel = comision?.nombre ?? (error ? "Comisión" : "Cargando…");
-  const titulo = comision ? `Comisión ${comision.nombre}` : comisionLabel;
-  const materiaLabel = comision?.cursada.materia.nombre ?? "Materia";
-  const periodoNombre = comision
-    ? periodoLabel(comision.cursada.anio, comision.cursada.cuatrimestre)
-    : "Período";
+  const materiaLabel = comision?.cursada.materia.nombre ?? (error ? "Materia" : "Cargando…");
+  const classification = materia?.data?.carreras.find((item) => item.carrera === comision?.carrera);
+  const eyebrow = comision ? `${carreraLabel(comision.carrera)}${classification ? ` · ${anioCarreraLabel(classification.anioCarrera)}` : ""}` : undefined;
+  const profesoresDisponibles = profesoresTotales.filter((profesor) => !comision?.profesores.some((assigned) => assigned.id === profesor.id));
 
-  const profesoresDisponibles = profesoresTotales.filter(
-    (pt) => !comision?.profesores.some((p) => p.id === pt.id)
-  );
-
-  return (
-    <section aria-labelledby={headingId}>
-      <div className="academic-detail-header">
-        <PageHeader
-          id={headingId}
-          title={titulo}
-          eyebrow={comision ? `${materiaLabel} · ${periodoNombre}` : undefined}
-          back={{ href: cursadaHref, label: periodoNombre }}
-          breadcrumb={[
-            { label: "Materias", href: materiasHref },
-            { label: materiaLabel, href: materiaHref },
-            { label: periodoNombre, href: cursadaHref },
-            { label: comisionLabel },
-          ]}
-          focusKey={comisionId}
-        />
-        {comision ? (
-          <div className="academic-badges">
-            <span className="academic-tag academic-tag-primary">{carreraLabel(comision.carrera)}</span>
-            {isAdmin ? <span className={`academic-tag ${comision.activa ? "academic-tag-success" : ""}`}>{comision.activa ? "Activa" : "Inactiva"}</span> : null}
-          </div>
-        ) : null}
-      </div>
-      {error ? (
-        <Notice tone="error">
-          Lo sentimos. No pudimos recuperar la comisión. {error}{" "}
-          {notFound ? back : <button className="button" type="button" onClick={() => setRetryToken((n) => n + 1)}>Reintentar</button>}
-        </Notice>
-      ) : null}
-      {!comision && !error ? <p role="status">Cargando comisión…</p> : null}
-      {comision ? (
-        <div className="academic-columns">
-          <div className="academic-main">
-            <section className="academic-panel" aria-labelledby={`${headingId}-profesores`}>
-              <div className="academic-panel-header">
-                <div>
-                  <h2 id={`${headingId}-profesores`}>Profesores</h2>
-                  <p>Quiénes dictan esta comisión y con qué cargo.</p>
-                </div>
-                {isAdmin ? (
-                  // TASK-043 decision 2: jumps to the assign form below; focus moves in code.
-                  <a
-                    className="button button-secondary"
-                    href={`#${ASIGNAR_PROFESOR_ID}`}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      document.getElementById(ASIGNAR_PROFESOR_ID)?.focus();
-                    }}
-                  >
-                    <PlusIcon />
-                    Asignar profesor
-                  </a>
-                ) : null}
-              </div>
-              <div className="academic-panel-body">
-                {actionError ? <Notice tone="error">{actionError}</Notice> : null}
-                {comision.profesores.length === 0 ? (
-                  <p className="academic-empty">No hay profesores asignados a esta comisión.</p>
-                ) : (
-                  <ul className="row-list">
-                    {comision.profesores.map((p) => (
-                      <li key={p.id} className="academic-person">
-                        <span className="academic-avatar" aria-hidden="true">{iniciales(p.nombreCompleto)}</span>
-                        <span className="academic-person-name">{p.nombreCompleto}</span>
-                        {isAdmin ? (
-                          <span className="academic-person-actions">
-                            <label htmlFor={`cargo-${p.id}`} className="sr-only">
-                              Cambiar cargo de {p.nombreCompleto}
-                            </label>
-                            <select
-                              id={`cargo-${p.id}`}
-                              value={p.cargo}
-                              disabled={busy}
-                              onChange={(e) => handleCambiarCargo(p.id, e.target.value as CargoDocente)}
-                            >
-                              {CARGOS.map((c) => (
-                                <option key={c} value={c}>
-                                  {cargoLabel(c)}
-                                </option>
-                              ))}
-                            </select>
-                            <button className="button button-secondary"
-                              type="button"
-                              disabled={busy}
-                              onClick={() => handleQuitar(p.id)}
-                            >
-                              Quitar
-                            </button>
-                          </span>
-                        ) : (
-                          <span className="academic-tag">{cargoLabel(p.cargo)}</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                {isAdmin ? (
-                  <form className="academic-assign" onSubmit={handleAsignar} aria-labelledby={`${headingId}-asignar`}>
-                    <h3 id={`${headingId}-asignar`}>Asignar profesor</h3>
-                    <div className="field">
-                      <label htmlFor={ASIGNAR_PROFESOR_ID}>Profesor</label>
-                      <select
-                        id={ASIGNAR_PROFESOR_ID}
-                        value={nuevoProfesorId}
-                        disabled={busy}
-                        onChange={(e) => setNuevoProfesorId(e.target.value)}
-                      >
-                        <option value="">Elegí un profesor</option>
-                        {profesoresDisponibles.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.nombreCompleto}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label htmlFor="asignar-cargo">Cargo</label>
-                      <select
-                        id="asignar-cargo"
-                        value={nuevoCargo}
-                        disabled={busy}
-                        onChange={(e) => setNuevoCargo(e.target.value as CargoDocente)}
-                      >
-                        {CARGOS.map((c) => (
-                          <option key={c} value={c}>
-                            {cargoLabel(c)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <button className="button submit"
-                      type="submit"
-                      disabled={busy || !nuevoProfesorId}
-                    >
-                      {busy ? "Guardando…" : "Asignar profesor"}
-                    </button>
-                  </form>
-                ) : null}
-              </div>
-            </section>
-
-            <section className="academic-panel" aria-labelledby={`${headingId}-experiencias`}>
-              <div className="academic-panel-header">
-                <div>
-                  <h2 id={`${headingId}-experiencias`}>Experiencias de esta comisión</h2>
-                  <p>Lo que cuentan quienes cursaron en esta comisión.</p>
-                </div>
-                <Badge tone="upcoming">Próximamente</Badge>
-              </div>
-              <p className="academic-empty">
-                <strong>Todavía no se pueden compartir experiencias.</strong>
-                Cuando esté disponible, acá vas a poder leer y dejar tu experiencia sobre el dictado de esta comisión.
-              </p>
-            </section>
-
-            {isAdmin ? <p className="academic-note">La edición y la baja de comisiones todavía no están disponibles.</p> : null}
-          </div>
-
-          <div className="academic-aside">
-            {isAdmin ? (
-              <section className="academic-panel" aria-labelledby={`${headingId}-datos`}>
-                <div className="academic-panel-header"><h2 id={`${headingId}-datos`}>Datos de la comisión</h2></div>
-                <dl className="academic-data">
-                  <div><dt>Nombre</dt><dd>{comision.nombre}</dd></div>
-                  <div><dt>Carrera</dt><dd>{carreraLabel(comision.carrera)} ({comision.carrera})</dd></div>
-                  <div><dt>Estado</dt><dd>{comision.activa ? "Activa" : "Inactiva"}</dd></div>
-                  <div><dt>Fecha de alta</dt><dd>{new Date(comision.createdAt).toLocaleString("es-AR")}</dd></div>
-                </dl>
-              </section>
-            ) : null}
-
-            <section className="academic-panel" aria-labelledby={`${headingId}-otras`}>
-              <div className="academic-panel-header"><h2 id={`${headingId}-otras`}>Otras comisiones</h2></div>
-              <div className="academic-panel-body">
-                {comisionesCursada.every((otra) => otra.id === comisionId) ? (
-                  <p className="academic-empty">No hay otras comisiones en este período.</p>
-                ) : (
-                  <ul className="row-list">
-                    {comisionesCursada.map((otra) => (
-                      <RowLink
-                        key={otra.id}
-                        href={`/home/materias/${encodeURIComponent(realMateriaId)}/cursadas/${encodeURIComponent(realCursadaId)}/comisiones/${encodeURIComponent(otra.id)}${queryString}`}
-                        current={otra.id === comisionId}
-                        trailing={otra.id === comisionId ? "Actual" : (otra.activa ? undefined : <span className="academic-tag">Inactiva</span>)}
-                      >
-                        {otra.nombre}
-                      </RowLink>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </section>
-          </div>
+  return <section className={styles.page} aria-labelledby={headingId}>
+    <div className={styles.header}>
+      <PageHeader id={headingId} title={materiaLabel} eyebrow={eyebrow} back={{ href: materiaHref, label: "Comisiones de la materia" }}
+        breadcrumb={[{ label: "Materias", href: materiasHref }, { label: comision?.cursada.materia.nombre ?? "Materia", href: materiaHref }, { label: comision ? `Comisión ${comision.nombre}` : "Comisión" }]} focusKey={comisionId} />
+      {comision ? <div className={styles.contextRow}>
+        <div className={styles.context}>
+          <span className={styles.commissionLabel}>Comisión {comision.nombre}</span>
+          <span className={styles.period}><CalendarDays size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" />{periodoLabel(comision.cursada.anio)}</span>
+          <span>{modalidadLabel(materia?.data?.modalidad ?? comision.cursada.materia.modalidad)}</span>
+          {isAdmin ? <span className={styles.secondary}>{comision.activa ? "Activa" : "Inactiva"}</span> : null}
         </div>
-      ) : null}
-    </section>
-  );
+        {!options ? <p className={styles.secondary} role="status">Cargando comisiones…</p>
+          : options.error ? <p className={styles.secondary}>{options.error} <button className={styles.retry} type="button" onClick={() => setOptionsRetry((value) => value + 1)}>Reintentar comisiones</button></p>
+          : (options.data?.length ?? 0) > 1 ? <div className={styles.selector}>
+            <label htmlFor={selectorId}>Comisión del período</label>
+            <div className={styles.selectorControl}><select id={selectorId} value={comision.id} onChange={(event) => { if (event.target.value !== comision.id) router.push(`/home/materias/${encodeURIComponent(realMateriaId)}/cursadas/${encodeURIComponent(realCursadaId)}/comisiones/${encodeURIComponent(event.target.value)}${queryString}`); }}>
+              {!options.data?.some((item) => item.id === comision.id) ? <option value={comision.id}>Comisión {comision.nombre} (actual)</option> : null}
+              {options.data?.map((item) => <option key={item.id} value={item.id}>Comisión {item.nombre}{item.id === comision.id ? " (actual)" : ""}{!item.activa ? " · Inactiva" : ""}</option>)}
+            </select><ChevronDown size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" /></div>
+          </div> : <p className={styles.secondary}>{options.data?.length === 1 ? "Esta es la única comisión de este período." : "No hay otras comisiones disponibles en este período."}</p>}
+      </div> : null}
+      {comision && materia?.error ? <div className={styles.secondary} role="note"><span>{materia.error}</span> <button className={styles.retry} type="button" onClick={() => setMateriaRetry((value) => value + 1)}>Reintentar datos de materia</button></div> : null}
+    </div>
+    {params.get("successMessage") ? <Notice tone="success">{params.get("successMessage")}</Notice> : null}
+    {error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la comisión. {error} {current?.notFound ? back : <button className="button" type="button" onClick={() => setRetryToken((value) => value + 1)}>Reintentar</button>}</Notice> : null}
+    {!comision && !error ? <p role="status">Cargando comisión…</p> : null}
+    {comision ? <div className={styles.content}>
+      <div className={styles.main}><ComisionFeedback comision={comision} /></div>
+        <section className={styles.team} aria-labelledby={`${headingId}-equipo`}>
+          <h2 id={`${headingId}-equipo`}>Equipo docente</h2>
+          {comision.profesores.length === 0 ? <p className={styles.secondary}>No hay profesores asignados a esta comisión.</p> : <ul className={styles.teamList}>
+            {comision.profesores.map((profesor) => <li key={profesor.id} className={styles.person}>
+              <span className={styles.avatar} aria-hidden="true">{iniciales(profesor.nombreCompleto)}</span>
+              <div className={styles.personText}><span className={styles.personName}>{profesor.nombreCompleto}</span><span className={styles.personRole}>{cargoLabel(profesor.cargo)}</span></div>
+            </li>)}
+          </ul>}
+          {isAdmin ? <>
+            <details className={styles.management}>
+              <summary>Gestionar equipo docente</summary>
+              <div className={styles.managementBody}>
+                {actionError ? <Notice tone="error">{actionError}</Notice> : null}
+                {actionSuccess ? <Notice tone="success">{actionSuccess}</Notice> : null}
+                {comision.profesores.map((profesor) => <div key={profesor.id} className={styles.adminPerson}>
+                  <span>{profesor.nombreCompleto}</span>
+                  <label htmlFor={`${assignmentId}-cargo-${profesor.id}`} className="sr-only">Cambiar cargo de {profesor.nombreCompleto}</label>
+                  <select id={`${assignmentId}-cargo-${profesor.id}`} value={profesor.cargo} disabled={busy} onChange={(event) => handleCambiarCargo(profesor.id, event.target.value as CargoDocente)}>
+                    {CARGOS.map((cargo) => <option key={cargo} value={cargo}>{cargoLabel(cargo)}</option>)}
+                  </select>
+                  <button className="button button-secondary" type="button" disabled={busy} onClick={() => handleQuitar(profesor.id)}>Quitar</button>
+                </div>)}
+                <form className={styles.assignment} onSubmit={handleAsignar} aria-labelledby={`${headingId}-asignar`}>
+                  <h3 id={`${headingId}-asignar`}>Asignar profesor</h3>
+                  {catalog?.key !== catalogKey ? <p className={styles.secondary} role="status">Cargando profesores…</p> : catalog.error ? <Notice tone="error">{catalog.error} <button className="button button-secondary" type="button" onClick={() => setCatalogRetry((value) => value + 1)}>Reintentar profesores</button></Notice> : null}
+                  <div><label htmlFor={`${assignmentId}-profesor`}>Profesor</label><select id={`${assignmentId}-profesor`} value={nuevoProfesorId} disabled={busy} onChange={(event) => setNuevoProfesorId(event.target.value)}>
+                    <option value="">Elegí un profesor</option>{profesoresDisponibles.map((profesor) => <option key={profesor.id} value={profesor.id}>{profesor.nombreCompleto}</option>)}
+                  </select></div>
+                  <div><label htmlFor={`${assignmentId}-cargo`}>Cargo</label><select id={`${assignmentId}-cargo`} value={nuevoCargo} disabled={busy} onChange={(event) => setNuevoCargo(event.target.value as CargoDocente)}>
+                    {CARGOS.map((cargo) => <option key={cargo} value={cargo}>{cargoLabel(cargo)}</option>)}
+                  </select></div>
+                  <button className="button" type="submit" disabled={busy || !nuevoProfesorId}>{busy ? "Guardando…" : "Asignar profesor"}</button>
+                </form>
+              </div>
+            </details>
+            <div className={styles.adminData}><h3>Datos de la comisión</h3><dl>
+              <div><dt>Estado</dt><dd>{comision.activa ? "Activa" : "Inactiva"}</dd></div>
+              <div><dt>Fecha de alta</dt><dd>{new Date(comision.createdAt).toLocaleString("es-AR")}</dd></div>
+            </dl><p className={styles.secondary}>La edición y la baja de comisiones todavía no están disponibles.</p></div>
+          </> : null}
+        </section>
+    </div> : null}
+  </section>;
 }
-
-const ASIGNAR_PROFESOR_ID = "asignar-profesor";

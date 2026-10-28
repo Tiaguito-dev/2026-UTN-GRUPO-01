@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { SYSTEM_SECTIONS } from "./sections";
+import { NavigationIcon } from "./NavigationIcon";
+import styles from "./SidebarNav.module.css";
 
 /** La sección activa sale de la URL, no de estado interno: el sidebar vive en el layout y
  *  persiste entre navegaciones, incluido el drill-down de /home/materias/**. */
@@ -24,8 +26,8 @@ export function SidebarNav() {
     <nav aria-label="Navegación principal">
       <ul>
         {sections.map((item) => <li key={item.id}>
-          <Link className="button" href={item.href} aria-current={isCurrent(pathname, item.href) ? "page" : undefined}>
-            <span className="sidebar-symbol" aria-hidden="true">{item.symbol}</span>
+          <Link className={`button ${styles.link}`} href={item.href} aria-current={isCurrent(pathname, item.href) ? "page" : undefined}>
+            <NavigationIcon section={item.id} />
             <span>{item.title}</span>
           </Link>
         </li>)}

@@ -13,7 +13,7 @@ import {
   carreraShortLabel,
   cargoLabel,
 } from "@/validations/materias";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { listarComisionesPorCursada } from "@/services/academic";
 import type { Carrera } from "@/types/materias";
 import { useCursada } from "@/hooks/useCursada";
@@ -39,8 +39,7 @@ export function ComisionesList({ materiaId, cursadaId }: { materiaId: string; cu
   const listPage = parseMateriaPage(context.get("listadoPage"));
   const { cursada, error, notFound, retry } = useCursada(cursadaId);
   const materiaLabel = cursada?.materia.nombre ?? (error ? "Materia" : "Cargando…");
-  const periodoActual = cursada ? periodoLabel(cursada.anio, cursada.cuatrimestre) : error ? "Período" : "Cargando…";
-  useEffect(() => { if (cursada) document.title = `${periodoActual} | Profesor Butchery`; }, [cursada, periodoActual]);
+  const periodoActual = cursada ? periodoLabel(cursada.anio) : error ? "Cursada" : "Cargando…";
 
   const { page, setPage } = useUrlPagination();
   const [carreraFilter, setCarreraFilter] = useState<Carrera | undefined>(undefined);

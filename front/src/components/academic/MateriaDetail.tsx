@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useMateria } from "@/hooks/useMateria";
@@ -16,11 +16,13 @@ import {
   parseMateriaPage,
   parseMateriaContext,
   nivelElectivaLabel,
+  modalidadLabel,
+  isModalidadMateria,
 } from "@/validations/materias";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Notice } from "@/components/ui/Notice";
-import { CursadasList } from "./CursadasList";
+import { ComisionesMateria } from "./ComisionesMateria";
 
 export function MateriaDetail({ materiaId }: { materiaId: string }) {
   const headingId = useId();
@@ -40,10 +42,6 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
   // The year badge follows the career of the listing context, or the first one of the materia.
   const fila = materia ? materia.carreras.find((c) => c.carrera === carrera) ?? materia.carreras[0] : undefined;
 
-  useEffect(() => {
-    if (materia) document.title = `${materia.nombre} | Profesor Butchery`;
-  }, [materia]);
-
   return <section aria-labelledby={headingId}>
     <div className="academic-detail-header">
       <PageHeader
@@ -61,13 +59,14 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
         </div>
         {isAdmin && !materia.deletedAt ? <Link className="button button-secondary" href={editHref}>Editar materia</Link> : null}
       </div> : null}
+      {materia ? <p className="system-description">Modalidad: {modalidadLabel(materia.modalidad)}</p> : null}
     </div>
     {params.get("successMessage") ? <Notice tone="success">{params.get("successMessage")}</Notice> : null}
     {error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la materia. {error} {notFound ? <Link href={backHref}>Volver al listado de materias</Link> : <button className="button" onClick={retry} type="button">Reintentar</button>}</Notice> : null}
     {!materia && !error ? <p role="status">Cargando materia…</p> : null}
     {materia ? <div className="academic-columns">
       <div className="academic-main">
-        <CursadasList materiaId={materiaId} materiaNombre={materia.nombre} materiasHref={backHref} embedded />
+        <ComisionesMateria key={materiaId} materiaId={materiaId} materiaNombre={materia.nombre} materiasHref={backHref} />
       </div>
       {isAdmin ? <div className="academic-aside">
         <MateriaHistory key={materiaId} materiaId={materiaId} materiaCreatedAt={materia.createdAt} />
@@ -128,10 +127,11 @@ function initials(actorName: string) {
 }
 
 function historyFieldLabel(campo: string) {
-  return campo === "nombre" ? "Nombre" : campo === "nivelElectiva" ? "Nivel de electiva" : campo === "carreras" ? "Carreras" : "Año de la carrera";
+  return campo === "nombre" ? "Nombre" : campo === "modalidad" ? "Modalidad" : campo === "nivelElectiva" ? "Nivel de electiva" : campo === "carreras" ? "Carreras" : "Año de la carrera";
 }
 
 function historyValue(campo: string, value: string | null) {
+  if (campo === "modalidad") return modalidadLabel(isModalidadMateria(value) ? value : null);
   if (!value) return "Sin valor";
   if (campo === "nivelElectiva" && (value === "3" || value === "4" || value === "5")) return nivelElectivaLabel(value);
   if (campo === "anioCarrera" && isAnioCarrera(value)) return anioCarreraLabel(value);

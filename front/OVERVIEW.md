@@ -52,12 +52,13 @@ ADMIN: sin ese rol muestra "Acceso no permitido" dentro del shell.
 - `/verify-email`: confirma el enlace SMTP y retira el token de la URL; no inicia sesión.
 - `/resend-verification`: solicita un enlace para una cuenta pendiente, incluso anterior al cambio.
 - `/home`: inicio protegido con saludo, estado vacío informativo y acceso al perfil.
-- `/home/profesores`, `/home/experiencias`, `/home/comunidad`: secciones en preparación
+- `/home/profesores`, `/home/comunidad`: secciones en preparación
   (Próximamente), sin llamadas a endpoints académicos.
-- `/home/materias`: listado paginado de materias con selector de carrera ("Todas" y las 5 carreras de ingeniería), búsqueda por nombre y filtros por año y nivel de electiva según carrera.
-- `/home/materias/[materiaId]`: detalle de la materia con sus carreras asociadas, historial de cambios (solo visible y consultado para ADMIN) y sus cursadas (con conteo de comisiones, profesores y letras de carrera).
+- `/home/experiencias`: comentarios públicos para cuentas autenticadas, ordenados por publicación, con materia, comisión y período (TASK-061).
+- `/home/materias`: catálogo paginado de materias únicas, con carrera, año y búsqueda independientes; agrupación por años y niveles de electivas en los metadatos (TASK-060).
+- `/home/materias/[materiaId]`: detalle de materia y comisiones del período seleccionado, sin paso intermedio; historial y gestión de períodos solo ADMIN (TASK-061).
 - `/home/materias/[materiaId]/cursadas/[cursadaId]`: comisiones de una cursada filtrables por chip de carrera, con listado de docentes asignados y cargos.
-- `/home/materias/[materiaId]/cursadas/[cursadaId]/comisiones/[comisionId]`: detalle de la comisión con docentes asignados, administración de profesores (solo ADMIN), enlace a otras comisiones de la cursada y experiencias (Próximamente).
+- `/home/materias/[materiaId]/cursadas/[cursadaId]/comisiones/[comisionId]`: experiencias y equipo docente debajo, administración de profesores solo ADMIN y selector de otras comisiones del período.
 - `/home/admin`: panel de administración (solo ADMIN, como todo `/home/admin/**`).
 - `/home/admin/materias/nueva`, `/home/admin/materias/[materiaId]/editar`: alta y edición de
   materias con asignación multicarretera (`carreras: MateriaCarrera[]`).
@@ -85,8 +86,8 @@ El logo apunta a `/home` para cuentas autenticadas y a `/` para visitantes.
 El botón anuncia su estado con `aria-expanded`;
 Tab recorre las opciones nativas, Escape cierra y devuelve el foco al botón, y un clic fuera
 cierra el desplegable. La comprobación y los errores temporales tienen mensajes y reintento.
-Las reseñas, panorama de materias, experiencias y comunidad se presentan como funcionalidades
-futuras, sin exponer operaciones académicas que todavía no existen.
+El detalle de comisión permite consultar y compartir comentarios textuales. Las secciones
+generales de Profesores y Comunidad siguen como funcionalidades futuras; Experiencias muestra los comentarios publicados de todas las comisiones.
 
 `FeatureCarousel` utiliza perspectiva CSS y controles explícitos, sin reproducción automática
 ni dependencias adicionales. Permite avanzar con flechas, elegir una tarjeta con botones y
@@ -128,7 +129,7 @@ también de una renovación cuya respuesta no pudo confirmarse.
 vacío que explica qué funcionalidades llegarán al sistema. El menú lateral permanece fijo en
 escritorio y se adapta a botones superiores en móvil, sin desbordamiento horizontal. Cada
 sección del menú (`components/home/sections.ts`) es una ruta propia: Inicio, Profesores,
-Materias, Experiencias, Comunidad y, solo para ADMIN, Administración. Profesores, Experiencias
+Materias, Experiencias, Comunidad y, solo para ADMIN, Administración. Profesores
 y Comunidad muestran Próximamente (`UpcomingSection`); no llaman a endpoints académicos ni
 presentan datos inventados. El enlace de la sección actual lleva `aria-current`, y el título de
 cada pantalla recibe el foco al montar. El perfil se abre desde el menú de cuenta o Ver mi perfil. `RequireAuth`, vía `AppShell`, protege
@@ -267,12 +268,12 @@ en consultas y preservan los valores del formulario para corregir o reenviar.
 Casos y resultados verificados en la
 [matriz de trazabilidad TASK-025](../docs/tasks/finished/TASK-025-busqueda-materias-niveles-electivas.md#matriz-de-trazabilidad-de-casos-probados).
 
-El listado permite buscar por nombre con envío explícito mediante Buscar y limpiar
-el texto mediante Limpiar búsqueda. El criterio `q` se recorta, admite hasta 150
-caracteres y rechaza caracteres de control. Se combina con el año y, únicamente
-al elegir Electivas, con los chips Todos los niveles, 3.er Nivel, 4.º Nivel o
-5.º Nivel. Los cambios reinician la página; cambiar a un año obligatorio elimina
-el nivel. El backend filtra todos los resultados antes de paginar.
+El listado permite buscar por nombre con envío explícito mediante Buscar. El criterio `q`
+se recorta, admite hasta 150 caracteres y rechaza caracteres de control. Desde TASK-060
+se combina con carrera y año de manera independiente, sin chips ni selector de nivel.
+Limpiar filtros retira todos los criterios y reinicia la página. El nivel de electiva
+se muestra en los metadatos y se conserva si llega en una URL de Electivas; cambiar a
+un año obligatorio lo elimina. El backend filtra antes de paginar.
 
 `MateriaContext` y los constructores de destinos de `validations/materias.ts`
 conservan `q`, `anioCarrera`, `nivelElectiva` y página a través de detalle,
@@ -287,12 +288,10 @@ el envío de diferencias y evita solicitudes cuando no hay cambios. Listado y
 detalle muestran el nivel; el historial presenta los campos y sus valores con
 etiquetas legibles, incluido el nuevo valor null al limpiar el nivel.
 
-La sección de filtros usa un panel con buscador y chips de selección única para Todos
-los años, 1.º a 5.º año y Electivas. El grupo Nivel de electiva aparece únicamente al
-seleccionar Electivas. Los botones nativos exponen `aria-pressed`, admiten teclado y
-foco visible; se distribuyen en varias filas en pantallas pequeñas. Los estilos están
-aislados en `components/academic/MateriasList.module.css`, sin modificar estilos base.
-El contrato HTTP, permisos, validaciones y listado de resultados se conservan (TASK-026).
+Desde TASK-060 la sección de filtros muestra dos selects nativos (Carrera y Año de la
+carrera) y un buscador con icono y envío explícito. En pantallas pequeñas los selects
+comparten una fila y la búsqueda ocupa todo el ancho. Los estilos siguen aislados en
+`components/academic/MateriasList.module.css`, sin modificar estilos base.
 
 Casos probados, correspondencia con criterios de aceptación, resultados y recorrido manual:
 [matriz de trazabilidad TASK-024](../docs/tasks/finished/TASK-024-filtros-materias-anio-carrera.md#trazabilidad-de-casos-probados).
@@ -303,9 +302,8 @@ La jerarquía académica adopta el nuevo modelo de dominio:
 
 - **Carreras en materias**: `Materia` modela `carreras: MateriaCarrera[]` (`carrera`, `anioCarrera`,
   `nivelElectiva`). El selector de carreras de `/home/materias` permite navegar "Todas" o una carrera
-  específica. Los chips de año y nivel de electiva se muestran únicamente cuando hay una carrera
-  seleccionada. En "Todas" se presenta una lista plana con badges de carreras ("Común a las 5 carreras",
-  "Solo Sistemas", etc.); al elegir una carrera se agrupa por año lectivo (1 a 5 y Electivas).
+  específica. Desde TASK-060, año y carrera se combinan de forma independiente y el listado
+  siempre agrupa por años (1 a 5 y Electivas), con metadatos de las asociaciones relevantes.
 - **Formularios de materias**: `MateriaForm` permite marcar una o más carreras con checkboxes. Para cada
   carrera marcada se define año y opcionalmente nivel si es electiva. Valida que al menos una carrera
   esté tildada y advierte en caso de discrepancia de años entre carreras.
@@ -366,3 +364,199 @@ Esta sección reemplaza la descripción de `MateriaDetail` de TASK-024. Lo omiti
   (materia ya fija, sin selector); al crear, el modal se cierra y el listado se recarga con
   `refreshKey`, sin navegar. `/home/admin/cursadas/nueva` sigue intacta como ruta directa, con
   `AltaCursada` leyendo `?materiaId` cuando no recibe la prop.
+
+## Comentarios por comisión (TASK-057)
+
+El detalle de comisión incluye un listado de experiencias paginado de nueve elementos y
+comprueba por separado si la cuenta ya tiene una publicación vigente. USER y ADMIN pueden
+publicar, con el mismo límite de un comentario vigente por usuario y comisión, incluso
+si es anónimo o se refiere a otro docente. Después de eliminarlo se puede volver a publicar.
+Una comisión inactiva conserva la consulta y el retiro propio, pero no permite publicar ni editar.
+
+Rutas del módulo bajo el shell autenticado existente:
+
+- `/home/feedback/nuevo?comisionId=...`: formulario contextual. Con un único docente se
+  asocia automáticamente; con varios se elige uno o la comisión en general; sin docentes
+  se comenta la comisión. El alta vuelve al detalle de comisión con `successMessage`.
+- `/home/feedback/[feedbackId]`: comentario, contexto de comisión/período, auditoría,
+  edición propia si la comisión está activa y eliminación propia con confirmación.
+  El historial se muestra exclusivamente al autor y pagina de tres en tres.
+- `/home/feedback/[feedbackId]/editar`: edición propia de texto y anonimato. Conserva la
+  referencia docente original, envía solo diferencias y no llama al backend si no hay cambios.
+  Vuelve al detalle del comentario con `successMessage`.
+
+`services/feedback.ts` consume los endpoints de comentarios de comisión, detalle, comentario
+propio e historial. `feedback-schemas.ts` valida las respuestas y rechaza autores visibles
+en comentarios anónimos. Los tipos viven en `types/feedback.ts`; las validaciones y URLs
+del módulo en `validations/feedback.ts`. El texto se recorta y acepta entre 1 y 3000 puntos
+de código, sin controles salvo tabulación y saltos de línea. React lo presenta como texto,
+sin interpretar HTML. No se envían identificadores de autor desde formularios.
+
+`components/feedback/` contiene formulario, detalle, tarjetas, bloque de comisión y el hook
+local `useFeedbackResource`, que descarta respuestas de rutas anteriores y permite reintentar.
+Reutiliza paginación, formularios y primitivas existentes sin modificar hooks compartidos,
+autenticación, layout ni estilos base. El CSS Module usa tokens existentes.
+Los errores conservan el formulario y ofrecen feedback visible; el envío se bloquea ante
+doble clic y la eliminación requiere confirmación accesible.
+
+La búsqueda de docentes, las consultas agrupadas por docente, los controles administrativos
+de estado y la moderación quedan fuera de esta entrega. Profesores sigue como Próximamente.
+
+### Presentación de Experiencias en comisión (TASK-058)
+
+El bloque distingue encabezado y acción principal, aviso del límite con icono informativo y
+tarjetas de comentarios. El texto completo conserva saltos de línea; autor, referencia docente,
+fecha y marca de edición aparecen como contexto secundario. Los botones del bloque navegan
+al formulario o al comentario mediante el router, sin enlaces dentro del listado ni repetir
+el vínculo a la comisión actual. Se mantienen los estados de carga, error, vacío e inactividad
+y la paginación de nueve. Este ajuste no modifica el detalle individual ni los formularios.
+
+### Detalle centrado en la comunidad (TASK-059)
+
+El nombre de la materia encabeza la página; carrera y año se muestran con la clasificación
+real recuperada por el endpoint existente de materia. Comisión y período aparecen debajo.
+Los breadcrumbs se simplifican solo en esta página mediante ComisionDetail.module.css.
+Un selector reemplaza la tarjeta Otras comisiones, conserva contexto de navegación y distingue
+carga, error y comisión única. No se agregan endpoints ni vínculos a perfiles inexistentes.
+
+Experiencias ocupa la columna principal; Equipo docente usa una lista compacta en lateral de
+260 px. Hasta 1000 px se apilan las columnas. Se conservan las acciones ADMIN dentro de
+Gestionar equipo docente. El total de comentarios sale del total paginado, no del tamaño
+de la página; las tarjetas muestran identidad pública/anonimato, fecha, destinatario y texto.
+El propio se identifica con un acento azul y una única acción Administrar mi comentario.
+Los comentarios ajenos se leen en la lista y no acceden al detalle privado; el backend
+rechaza ese acceso con 403. La ayuda de reglas usa un details/summary nativo, sin modal nuevo.
+
+La pestaña del navegador conserva siempre Profesor Butchery: metadata raíz con default y
+template constantes, sin asignaciones document.title al cargar materias o comisiones.
+Esta política no cambia los encabezados visibles ni la navegación global.
+
+## Catálogo de materias con filtros independientes (TASK-060)
+
+`MateriasList` muestra exactamente tres criterios: Carrera, Año de la carrera y Buscar por
+nombre. Carrera y año son selects siempre disponibles; la búsqueda usa envío explícito,
+con icono `Search` de `lucide-react`, sin consultas por pulsación. Limpiar filtros elimina
+criterios y paginación. Los cambios individuales mantienen los otros criterios aplicados
+y vuelven a la primera página. En móvil se presentan los dos selects en una fila y el
+buscador a todo el ancho. El nivel de electiva ya no es un control adicional del catálogo.
+
+El servidor pagina nueve materias únicas en orden alfabético estable por nombre e id.
+La pantalla proyecta las asociaciones de esa página en todos los años que correspondan:
+una materia compartida puede repetirse en dos grupos, pero aporta una unidad al total y
+al rango mostrado. No se descarga el catálogo completo ni se elige el menor año.
+Cada fila muestra únicamente las carreras relevantes para ese grupo y los filtros activos;
+Electivas añade el nivel de cada asociación relevante. Las asociaciones completas se
+conservan en el contrato para el detalle. La agrupación siempre está disponible, incluso
+sin seleccionar carrera. Los registros sin asociaciones se muestran aparte sin filtros.
+
+Cada grupo presenta una lista blanca compacta con separadores suaves. Toda la fila es
+un `Link` nativo al detalle, con nombre, metadatos y `ChevronRight` decorativo; conserva
+clic normal, nueva pestaña, foco de teclado y contexto de retorno. URLs y service aceptan
+año sin carrera, incluida la navegación entre listado, detalle y edición. Los enlaces
+antiguos con nivel siguen siendo válidos para Electivas, incluso sin carrera.
+
+`MateriasResults` compone el hook existente `usePaginatedFetch`, `Notice` y `Pagination`
+directamente para disponer del total real también en estados vacíos o páginas agotadas.
+Muestra carga y reintento, evita informar cero ante una página fuera de rango y ofrece
+volver a la primera página. No modifica los hooks ni las primitivas compartidas.
+El alta administrativa continúa en el diálogo existente y recarga el listado tras guardar.
+
+El menú compartido `SidebarNav` utiliza `NavigationIcon` con importaciones nominales de
+`lucide-react`: House (Inicio), Users (Profesores), BookOpen (Materias), MessageSquare
+(Experiencias), UsersRound (Comunidad) y LayoutGrid (Administración). La librería se
+incorporó por pedido explícito del usuario en TASK-060. Los iconos son decorativos,
+de 18 px y trazo uniforme; las etiquetas accesibles, rutas, permisos y `aria-current`
+se conservan. `SidebarNav.module.css` ajusta únicamente radio, separación y acento activo,
+sin modificar el layout responsive compartido ni los estilos base.
+
+## Acceso directo a comisiones y lectura transversal (TASK-061)
+
+`MateriaDetail` integra `ComisionesMateria`: el contenido principal son las comisiones y la
+cursada es un selector de año. El valor inicial es el más reciente (año descendente),
+salvo un `cursadaId` válido en la URL. Se cargan
+las opciones de períodos mediante el endpoint existente paginado de cursadas; las comisiones
+se solicitan únicamente para el período elegido, de nueve en nueve. No se descargan todas
+las comisiones ni se aplica un filtro parcial de carrera a la página recibida.
+
+`cursadaId` y `comisionesPage` mantienen período y página en la URL, sin alterar el contexto
+del catálogo (`carrera`, `anioCarrera`, `listadoPage`, `q`, `nivelElectiva`). Al cambiar de
+cursada se reinicia la página. Los enlaces nativos de comisión llevan ese contexto; el detalle
+de comisión vuelve a la materia con el período que corresponde. Las URLs anteriores de
+cursada y comisión siguen disponibles. No cambia la relación de datos: cada comisión sigue
+perteneciendo a una cursada concreta y conserva sus comentarios históricos.
+
+Para ADMIN, Nueva comisión precarga el período seleccionado. Gestionar períodos abre el
+listado administrativo existente `CursadasList` con Nueva cursada; se monta al desplegar para
+evitar consultas mientras permanece cerrado. Su callback opcional `onCreated` permite
+refrescar las opciones luego del alta sin modificar hooks compartidos. El historial de materia
+conserva su permiso y paginación. Hay estados diferenciados de carga, error/reintento,
+ausencia de períodos, ausencia de comisiones y página agotada; las respuestas tardías de un
+período previo se descartan mediante la identidad del recurso y limpieza del efecto.
+
+`/home/experiencias` usa `ExperienciasList` dentro de Suspense y `listarFeedback` del service
+dedicado, que consume `GET /feedback` autenticado. Lista nueve comentarios por página, con
+total real y orden de publicación descendente del servidor. No crea publicaciones distintas:
+las mismas experiencias se leen desde su comisión o desde este listado transversal.
+`ExperienceCard` comparte la presentación con `ComisionFeedback`: identidad pública o
+anonimato, fecha, destinatario, texto con saltos de línea y acento para el comentario propio.
+En el listado general añade materia, comisión y período del snapshot, junto con Ver comisión.
+Solo `propio` muestra Administrar mi comentario, hacia el detalle privado existente; los
+comentarios ajenos no enlazan a ese detalle. No agrega votos, valoraciones ni filtros globales.
+Inicio y la descripción de la sección reflejan estas funcionalidades disponibles.
+
+`ComisionDetail` presenta Experiencias y luego Equipo docente en una sola columna, también
+en escritorio. El equipo mantiene sus acciones administrativas en el desplegable existente.
+Breadcrumbs y botón de regreso van al detalle de materia con `cursadaId` real y la página de
+comisiones de origen. No se requiere pasar por la pantalla de cursada para leer comentarios.
+
+## Modalidad de materia y presentación académica (TASK-062)
+
+`Materia` incorpora `modalidad`: ANUAL, PRIMERO o SEGUNDO. Las etiquetas distinguen Anual
+y Cuatrimestral con primer o segundo cuatrimestre; null se presenta como Modalidad sin
+definir, sin asumir una modalidad para datos antiguos. `MateriaForm` exige esta selección
+en altas y ediciones, independientemente de carreras, año o electiva. `MateriaFormPage`
+reutiliza ese mismo formulario. La edición envía solo diferencias; cambiar únicamente
+modalidad conserva las asociaciones de carrera/año, incluidas las que difieren entre sí.
+Los cambios de modalidad se consumen en el historial con su etiqueta legible.
+
+El service y los esquemas validan modalidad; las lecturas toleran su ausencia en respuestas
+antiguas, mientras el backend actualizado siempre devuelve valor o null. Los datos de
+materia se muestran en catálogo, detalle y comisión. No existe un filtro nuevo por modalidad.
+
+Los contratos públicos `Cursada`, `CursadaResumen` y `CursadaDetalle` identifican solamente
+el año, con unicidad materia/año. `AltaCursada` envía materiaId y anio, sin cuatrimestre;
+la etiqueta `periodoLabel` devuelve solo el año. Los listados y el selector de comisión
+siguen usando los mismos endpoints y preservan IDs, paginación y contexto de retorno.
+
+`ComisionesMateria` reutiliza la grilla y las tarjetas compactas de `ComisionesList`, con
+nombre destacado, carrera y docentes por fila. Las tarjetas conservan enlaces nativos,
+foco visible y tamaño flexible para nombres largos. Los selectores mantienen semántica
+nativa con apariencia controlada, bordes neutros, fondo blanco y chevron Lucide decorativo.
+`ComisionDetail` usa el breadcrumb compartido, sin sus overrides locales anteriores, para
+mantener el estilo entre niveles. No se modifican estilos base ni primitivas globales.
+
+### Formulario de experiencias (spec ampliado de TASK-062)
+
+`FeedbackForm` limita el contenido a 880 px y usa un contexto compacto con BookOpen y una
+única superficie blanca. Destinatario, texto e identidad pública son bloques separados.
+La referencia usa radios nativos hasta tres opciones y selector para más. Con un único
+docente se conserva la asociación automática existente; al editar, la referencia es fija.
+Las opciones muestran cargos reales, permiten foco de teclado y tienen etiquetas completas.
+
+La identidad se representa con dos radios (nombre público de la sesión o Anónimo), adaptados
+al booleano `anonimo` existente. La aclaración confirma que la cuenta permanece vinculada.
+El contador calcula puntos de código sobre el texto recortado, igual que backend; no usa
+maxlength UTF-16 ni live region por carácter. Valida vacío, controles y más de 3000 caracteres
+sin borrar contenido. El hook de envío existente previene duplicados y conserva errores.
+
+Cancelar vuelve al detalle de origen; si cambió texto, referencia o identidad, abre el Dialog
+compartido para descartar o seguir escribiendo. El contexto de catálogo, año/página de comisiones
+y página de comentarios se conserva mediante una lista explícita de parámetros académicos;
+no se aceptan destinos externos. Publicación y edición mantienen su navegación de éxito.
+Los iconos Send/LoaderCircle indican envío; campos y cancelación permanecen deshabilitados
+mientras se guarda. La animación respeta prefers-reduced-motion.
+
+El contexto del formulario presenta modalidad y año reales; para comentarios previos toma
+su snapshot, sin atribuirles la modalidad actual de la materia. `feedbackSchema` admite la
+modalidad del snapshot y el cuatrimestre legado nullable. Las tarjetas muestran año y
+modalidad por separado. El menú lateral y la navegación general no se modifican.

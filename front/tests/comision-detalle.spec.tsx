@@ -1,179 +1,136 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ComisionDetail } from "@/components/academic/ComisionDetail";
-import { regionOf } from "./support/region";
-import {
-  asignarProfesorComision,
-  listarComisionesPorCursada,
-  listarProfesores,
-  obtenerComision,
-  quitarProfesorComision,
-} from "@/services/academic";
-
-const { authState } = vi.hoisted(() => ({ authState: { role: "USER" } }));
-
+import { obtenerMateria } from "@/services/materias";
+import { asignarProfesorComision, listarComisionesPorCursada, listarProfesores, obtenerComision, quitarProfesorComision } from "@/services/academic";
+const { authState, push } = vi.hoisted(() => ({ authState: { role: "USER" }, push: vi.fn() }));
 vi.mock("next/link", () => import("./support/next-link"));
+// TASK-057: feedback interactions are covered separately; this suite checks academic context.
+vi.mock("@/components/feedback/ComisionFeedback", () => ({
+  ComisionFeedback: ({ comision }: { comision: { id: string } }) => <div data-testid="feedback-comision" data-comision-id={comision.id} />,
+}));
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams("carrera=S&anioCarrera=1&listadoPage=1"),
+  useSearchParams: () => new URLSearchParams("carrera=S&anioCarrera=ELECTIVA&listadoPage=2&q=Plan&nivelElectiva=4&cursadaId=cur1&comisionesPage=3"),
+  useRouter: () => ({ push }),
 }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ account: { role: authState.role } }) }));
+vi.mock("@/services/materias", () => ({ obtenerMateria: vi.fn() }));
 vi.mock("@/services/academic", () => ({
-  obtenerComision: vi.fn(),
-  listarComisionesPorCursada: vi.fn(),
-  listarProfesores: vi.fn(),
-  asignarProfesorComision: vi.fn(),
-  quitarProfesorComision: vi.fn(),
-  CARGOS: ["TITULAR", "ADJUNTO", "JTP"],
+  obtenerComision: vi.fn(), listarComisionesPorCursada: vi.fn(), listarProfesores: vi.fn(),
+  asignarProfesorComision: vi.fn(), quitarProfesorComision: vi.fn(), CARGOS: ["TITULAR", "ADJUNTO", "JTP"],
 }));
-
 const comisionMock = {
-  id: "com1",
-  cursadaId: "cur1",
-  carrera: "S" as const,
-  numero: 31,
-  nombre: "S-31",
-  activa: true,
-  profesores: [
-    { id: "p1", nombreCompleto: "Prof. Rossi", cargo: "TITULAR" as const },
-  ],
-  createdAt: "2026-01-01",
-  deletedAt: null,
-  cursada: {
-    id: "cur1",
-    anio: 2026,
-    cuatrimestre: "PRIMERO" as const,
-    materia: { id: "mat1", nombre: "Álgebra" },
-  },
+  id: "com1", cursadaId: "cur1", carrera: "S" as const, numero: 31, nombre: "S-31", activa: true,
+  profesores: [{ id: "p1", nombreCompleto: "Prof. Rossi", cargo: "TITULAR" as const }],
+  createdAt: "2026-01-01", deletedAt: null,
+  cursada: { id: "cur1", anio: 2026, cuatrimestre: "PRIMERO" as const, materia: { id: "mat1", nombre: "Álgebra" } },
 };
-
-afterEach(() => {
-  cleanup();
-  authState.role = "USER";
-  vi.clearAllMocks();
-});
-
+const alternativas = {
+  items: [comisionMock, { ...comisionMock, id: "com2", numero: 32, nombre: "S-32", profesores: [] }],
+  total: 2, page: 1, pageSize: 100,
+};
 beforeEach(() => {
+  vi.clearAllMocks();
+  authState.role = "USER";
   vi.mocked(obtenerComision).mockResolvedValue(comisionMock);
-  vi.mocked(listarComisionesPorCursada).mockResolvedValue({
-    items: [
-      comisionMock,
-      {
-        id: "com2",
-        cursadaId: "cur1",
-        carrera: "S" as const,
-        numero: 32,
-        nombre: "S-32",
-        activa: true,
-        profesores: [],
-        createdAt: "2026-01-01",
-        deletedAt: null,
-      },
-    ],
-    total: 2,
-    page: 1,
-    pageSize: 100,
-  });
-  vi.mocked(listarProfesores).mockResolvedValue({
-    items: [
-      { id: "p1", nombreCompleto: "Prof. Rossi", createdAt: "", deletedAt: null },
-      { id: "p2", nombreCompleto: "Dra. Gomez", createdAt: "", deletedAt: null },
-    ],
-    total: 2,
-    page: 1,
-    pageSize: 100,
-  });
+  vi.mocked(obtenerMateria).mockResolvedValue({ id: "mat1", nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "2", nivelElectiva: null }], createdAt: "2026-01-01", deletedAt: null });
+  vi.mocked(listarComisionesPorCursada).mockResolvedValue(alternativas);
+  vi.mocked(listarProfesores).mockResolvedValue({ items: [
+    { id: "p1", nombreCompleto: "Prof. Rossi", createdAt: "", deletedAt: null },
+    { id: "p2", nombreCompleto: "Dra. Gomez", createdAt: "", deletedAt: null },
+  ], total: 2, page: 1, pageSize: 100 });
 });
-
-describe("ComisionDetail", () => {
-  it("muestra datos de la comisión y profesores para usuario común sin controles de edición", async () => {
-    authState.role = "USER";
+afterEach(cleanup);
+// TASK-059 intentionally changes the former commission-title/sidebar-list presentation.
+describe("Detalle de comisión centrado en experiencias", () => {
+  it("titula con la materia y muestra carrera/año reales y equipo docente sin edición para USER", async () => {
     render(<ComisionDetail materiaId="mat1" cursadaId="cur1" comisionId="com1" />);
-
-    // TASK-043: the h1 reads "Comisión S-31" (ComisionDetalle artboard); before it was "S-31".
-    expect(await screen.findByRole("heading", { level: 1, name: "Comisión S-31" })).toBeTruthy();
-    expect(screen.getByText("Ingeniería en Sistemas")).toBeTruthy();
-    expect(screen.getAllByText(/Álgebra/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/1er cuatrimestre 2026/).length).toBeGreaterThan(0);
-    // TASK-043: the row may show name and cargo in separate elements (avatar row).
-    expect(regionOf(screen.getByRole("heading", { level: 2, name: "Profesores" })).textContent).toMatch(/Prof\. Rossi.*Titular/);
-
-    // No se ven controles de admin
+    expect(await screen.findByRole("heading", { level: 1, name: "Álgebra" })).toBeTruthy();
+    expect(await screen.findByText(/Ingeniería en Sistemas.*2\.º año/)).toBeTruthy();
+    expect(screen.getAllByText(/2026/).length).toBeGreaterThan(0);
+    const equipo = (await screen.findByRole("heading", { name: "Equipo docente" })).closest("section")!;
+    expect(within(equipo).getByText("Prof. Rossi")).toBeTruthy();
+    expect(within(equipo).getByText("Titular")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Quitar" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Asignar profesor" })).toBeNull();
-
-    // Otras comisiones
-    expect(await screen.findByRole("link", { name: "S-32" })).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "S-31" })).toBeNull();
+    expect(screen.queryByText("Gestionar equipo docente")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Datos de la comisión" })).toBeNull();
+    expect((await screen.findByTestId("feedback-comision")).getAttribute("data-comision-id")).toBe("com1");
   });
-
-  it("permite a ADMIN cambiar cargo, quitar y asignar profesor", async () => {
-    authState.role = "ADMIN";
+  // TASK-061: experiences precede the team in a single column, and return restores the period.
+  it("ubica equipo docente después de experiencias y vuelve directamente a materia con período y página", async () => {
     render(<ComisionDetail materiaId="mat1" cursadaId="cur1" comisionId="com1" />);
-
-    await screen.findByRole("heading", { level: 1, name: "Comisión S-31" });
-
-    // Cambiar cargo
-    const selectCargo = screen.getByLabelText("Cambiar cargo de Prof. Rossi");
-    await userEvent.selectOptions(selectCargo, "JTP");
-    expect(asignarProfesorComision).toHaveBeenCalledWith("com1", "p1", "JTP");
-
-    // Quitar
-    const botonQuitar = screen.getByRole("button", { name: "Quitar" });
-    await userEvent.click(botonQuitar);
+    const team = await screen.findByRole("heading", { name: "Equipo docente" });
+    const experiences = screen.getByTestId("feedback-comision");
+    expect(experiences.compareDocumentPosition(team) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(team.closest("aside")).toBeNull();
+    const back = screen.getByRole("link", { name: /Volver a/ });
+    const url = new URL(back.getAttribute("href")!, "http://localhost");
+    expect(url.pathname).toBe("/home/materias/mat1");
+    expect(Object.fromEntries(url.searchParams)).toMatchObject({ cursadaId: "cur1", comisionesPage: "3", carrera: "S", anioCarrera: "ELECTIVA", listadoPage: "2", q: "Plan", nivelElectiva: "4" });
+    expect(screen.queryByRole("link", { name: "2026" })).toBeNull();
+  });
+  it("selector navega a otra comisión manteniendo el contexto original de búsqueda", async () => {
+    const user = userEvent.setup();
+    render(<ComisionDetail materiaId="mat1" cursadaId="cur1" comisionId="com1" />);
+    const select = await screen.findByRole("combobox", { name: "Comisión del período" });
+    expect((select as HTMLSelectElement).value).toBe("com1");
+    await user.selectOptions(select, "com2");
+    const url = new URL(String(push.mock.calls[0][0]), "http://localhost");
+    expect(url.pathname).toBe("/home/materias/mat1/cursadas/cur1/comisiones/com2");
+    expect(Object.fromEntries(url.searchParams)).toMatchObject({ carrera: "S", anioCarrera: "ELECTIVA", listadoPage: "2", q: "Plan", nivelElectiva: "4" });
+  });
+  it("distingue carga de alternativas de una comisión única", async () => {
+    vi.mocked(listarComisionesPorCursada).mockReturnValueOnce(new Promise(() => {}));
+    const { unmount } = render(<ComisionDetail materiaId="mat1" cursadaId="cur1" comisionId="com1" />);
+    expect(await screen.findByText("Cargando comisiones…")).toBeTruthy();
+    expect(screen.queryByText("Esta es la única comisión de este período.")).toBeNull();
+    unmount();
+    vi.mocked(listarComisionesPorCursada).mockResolvedValue({ items: [comisionMock], total: 1, page: 1, pageSize: 100 });
+    render(<ComisionDetail materiaId="mat1" cursadaId="cur1" comisionId="com1" />);
+    expect(await screen.findByText("Esta es la única comisión de este período.")).toBeTruthy();
+    expect(screen.queryByRole("combobox", { name: "Comisión del período" })).toBeNull();
+  });
+  it("fallo de alternativas ofrece reintentar sin simular que la comisión es única", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listarComisionesPorCursada).mockRejectedValueOnce(new Error("Error de conexión"));
+    render(<ComisionDetail materiaId="mat1" cursadaId="cur1" comisionId="com1" />);
+    const retry = await screen.findByRole("button", { name: "Reintentar comisiones" });
+    expect(screen.queryByText("Esta es la única comisión de este período.")).toBeNull();
+    await user.click(retry);
+    expect(await screen.findByRole("combobox", { name: "Comisión del período" })).toBeTruthy();
+  });
+  it("el año no se infiere de la URL cuando falla la consulta de materia", async () => {
+    vi.mocked(obtenerMateria).mockRejectedValueOnce(new Error("Sin datos"));
+    render(<ComisionDetail materiaId="mat1" cursadaId="cur1" comisionId="com1" />);
+    expect(await screen.findByRole("heading", { level: 1, name: "Álgebra" })).toBeTruthy();
+    expect(await screen.findByText("No pudimos recuperar el año de la materia.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Reintentar datos de materia" })).toBeTruthy();
+    expect(screen.queryByText(/Ingeniería en Sistemas.*Electiva/)).toBeNull();
+  });
+  it("ADMIN conserva cambios de cargo, baja y asignación dentro de gestión desplegable", async () => {
+    const user = userEvent.setup(); authState.role = "ADMIN";
+    render(<ComisionDetail materiaId="mat1" cursadaId="cur1" comisionId="com1" />);
+    const summary = await screen.findByText("Gestionar equipo docente");
+    expect(summary.closest("details")?.open).toBe(false);
+    await user.click(summary);
+    expect(summary.closest("details")?.open).toBe(true);
+    await user.selectOptions(screen.getByLabelText("Cambiar cargo de Prof. Rossi"), "JTP");
+    await waitFor(() => expect(asignarProfesorComision).toHaveBeenCalledWith("com1", "p1", "JTP"));
+    await user.click(screen.getByRole("button", { name: "Quitar" }));
     expect(quitarProfesorComision).toHaveBeenCalledWith("com1", "p1");
-
-    // Asignar
-    const selectProfesor = screen.getByLabelText("Profesor");
-    await userEvent.selectOptions(selectProfesor, "p2");
-    const botonAsignar = screen.getByRole("button", { name: "Asignar profesor" });
-    await userEvent.click(botonAsignar);
+    await user.selectOptions(screen.getByLabelText("Profesor"), "p2");
+    await user.click(screen.getByRole("button", { name: "Asignar profesor" }));
     expect(asignarProfesorComision).toHaveBeenCalledWith("com1", "p2", "TITULAR");
   });
-
-  describe("rediseño (TASK-043)", () => {
-    it("Experiencias de esta comisión muestra Próximamente", async () => {
-      render(<ComisionDetail materiaId="mat1" cursadaId="cur1" comisionId="com1" />);
-      const experiencias = regionOf(await screen.findByRole("heading", { level: 2, name: "Experiencias de esta comisión" }));
-      expect(within(experiencias).getByText("Próximamente")).toBeTruthy();
-    });
-
-    it("usuario común no ve Asignar profesor ni Datos de la comisión", async () => {
-      render(<ComisionDetail materiaId="mat1" cursadaId="cur1" comisionId="com1" />);
-      await screen.findByRole("heading", { level: 2, name: "Profesores" });
-      expect(screen.queryByRole("link", { name: "Asignar profesor" })).toBeNull();
-      expect(screen.queryByRole("heading", { name: "Datos de la comisión" })).toBeNull();
-    });
-
-    it("ADMIN: cada profesor conserva cargo y Quitar en la fila (decisión 4) y ve Datos de la comisión", async () => {
-      authState.role = "ADMIN";
-      render(<ComisionDetail materiaId="mat1" cursadaId="cur1" comisionId="com1" />);
-      const profesores = regionOf(await screen.findByRole("heading", { level: 2, name: "Profesores" }));
-      expect(within(profesores).getByLabelText("Cambiar cargo de Prof. Rossi")).toBeTruthy();
-      expect(within(profesores).getByRole("button", { name: "Quitar" })).toBeTruthy();
-      expect(screen.getByRole("heading", { level: 2, name: "Datos de la comisión" })).toBeTruthy();
-    });
-
-    it("ADMIN: el enlace Asignar profesor lleva el foco al formulario de asignación (decisión 2)", async () => {
-      authState.role = "ADMIN";
-      render(<ComisionDetail materiaId="mat1" cursadaId="cur1" comisionId="com1" />);
-      const link = await screen.findByRole("link", { name: "Asignar profesor" });
-      const form = screen.getByLabelText("Profesor").closest("form")!;
-      expect(link.getAttribute("href")).toMatch(/^#./);
-      expect(form.contains(document.getElementById(link.getAttribute("href")!.slice(1)))).toBe(true);
-      await userEvent.click(link);
-      expect(form.contains(document.activeElement)).toBe(true);
-    });
-  });
-
-  it("muestra error si falla la obtención de la comisión", async () => {
+  it("representa ausencia de docentes y error principal con acción visible", async () => {
+    vi.mocked(obtenerComision).mockResolvedValueOnce({ ...comisionMock, profesores: [] });
+    const { unmount } = render(<ComisionDetail materiaId="mat1" cursadaId="cur1" comisionId="com1" />);
+    expect(await screen.findByText(/No hay profesores asignados/)).toBeTruthy();
+    unmount();
     vi.mocked(obtenerComision).mockRejectedValueOnce(new Error("No se pudo cargar la comisión."));
     render(<ComisionDetail materiaId="mat1" cursadaId="cur1" comisionId="com1" />);
-
-    expect(await screen.findByRole("alert")).toHaveProperty(
-      "textContent",
-      expect.stringContaining("No se pudo cargar la comisión.")
-    );
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", expect.stringContaining("No se pudo cargar la comisión."));
   });
 });

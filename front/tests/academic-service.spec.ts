@@ -63,6 +63,13 @@ describe("Cliente academic: construcción de URL y delegación en protectedGet",
       q: "Plan %_",
     });
   });
+  // TASK-060: a year (including elective level) is useful without choosing a career.
+  it("envía año y nivel independientes de la carrera sin eliminarlos del query", async () => {
+    fetchMock.mockResolvedValue(reply(200, emptyPage));
+    await listarMaterias({ anioCarrera: "ELECTIVA", nivelElectiva: "4", q: "Óptica" });
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(Object.fromEntries(url.searchParams)).toEqual({ anioCarrera: "ELECTIVA", nivelElectiva: "4", q: "Óptica", pageSize: "9" });
+  });
   it("listarCursadasPorMateria arma la ruta anidada con el materiaId escapado", async () => {
     fetchMock.mockResolvedValue(reply(200, emptyPage));
     await listarCursadasPorMateria("mat/1", { page: 1 });
@@ -84,7 +91,6 @@ describe("Cliente academic: construcción de URL y delegación en protectedGet",
     const cursada = {
       id: "c/1",
       anio: 2026,
-      cuatrimestre: "PRIMERO",
       materia: { id: "m/1", nombre: "Álgebra" },
     };
     fetchMock.mockResolvedValueOnce(reply(200, materia)).mockResolvedValueOnce(reply(200, cursada));
@@ -103,7 +109,7 @@ describe("Cliente academic: construcción de URL y delegación en protectedGet",
       profesores: [{ id: "p1", nombreCompleto: "Prof. Rossi", cargo: "TITULAR" }],
       createdAt: "2026-01-01",
       deletedAt: null,
-      cursada: { id: "cur-1", anio: 2026, cuatrimestre: "PRIMERO", materia: { id: "m1", nombre: "Álgebra" } },
+      cursada: { id: "cur-1", anio: 2026, materia: { id: "m1", nombre: "Álgebra" } },
     };
     fetchMock.mockResolvedValueOnce(reply(200, comision));
     await expect(obtenerComision("com/1")).resolves.toEqual(comision);
@@ -123,12 +129,12 @@ describe("Cliente academic: construcción de URL y delegación en protectedGet",
     expect(fetchMock.mock.calls[3][1]).toMatchObject({ method: "DELETE" });
   });
   it("crearCursada envía los datos sin profesor", async () => {
-    const cursada = { id: "c1", materiaId: "m1", anio: 2026, cuatrimestre: "PRIMERO", createdAt: "", deletedAt: null };
+    const cursada = { id: "c1", materiaId: "m1", anio: 2026, createdAt: "", deletedAt: null };
     fetchMock.mockResolvedValueOnce(reply(200, cursada));
-    await expect(crearCursada({ materiaId: "m1", anio: 2026, cuatrimestre: "PRIMERO" })).resolves.toEqual(cursada);
+    await expect(crearCursada({ materiaId: "m1", anio: 2026 })).resolves.toEqual(cursada);
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
       method: "POST",
-      body: JSON.stringify({ materiaId: "m1", anio: 2026, cuatrimestre: "PRIMERO" }),
+      body: JSON.stringify({ materiaId: "m1", anio: 2026 }),
     });
   });
   it("crearComision envía carrera y número", async () => {
@@ -160,7 +166,7 @@ describe("Cliente academic: construcción de URL y delegación en protectedGet",
     });
   });
   it("TASK-031: un detalle de cursada sin la materia también es un 502, no un ZodError", async () => {
-    fetchMock.mockResolvedValue(reply(200, { id: "c1", anio: 2026, cuatrimestre: "PRIMERO" }));
+    fetchMock.mockResolvedValue(reply(200, { id: "c1", anio: 2026 }));
     await expect(obtenerCursada("c1")).rejects.toMatchObject({ name: "HttpError", status: 502 });
   });
   it("delega el error del backend tal cual (404 no dispara refresh, solo pega una vez)", async () => {

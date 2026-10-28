@@ -96,7 +96,7 @@ export function AltaComision() {
           label: "Cursada",
           options: opcionesListas(cursadas.state).map((cursada) => ({
             value: cursada.id,
-            label: periodoLabel(cursada.anio, cursada.cuatrimestre),
+            label: periodoLabel(cursada.anio),
           })),
           defaultValue: opcionesListas(cursadas.state).some((cursada) => cursada.id === cursadaInicial) ? cursadaInicial : undefined,
           validate: (value) =>

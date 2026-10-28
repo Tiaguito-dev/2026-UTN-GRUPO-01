@@ -55,17 +55,35 @@ describe("SidebarNav", () => {
   const current = () => screen.getAllByRole("link").filter((link) => link.getAttribute("aria-current") === "page").map((link) => link.textContent);
 
   it.each([
-    ["/home", "⌂Inicio"],
-    ["/home/materias", "MMaterias"],
-    ["/home/materias/m1/cursadas/c1", "MMaterias"],
-    ["/home/profesores", "PProfesores"],
-    ["/account", "⌂Inicio"],
-    ["/account/change-password", "⌂Inicio"],
+    ["/home", "Inicio"],
+    ["/home/materias", "Materias"],
+    ["/home/materias/m1/cursadas/c1", "Materias"],
+    ["/home/profesores", "Profesores"],
+    ["/account", "Inicio"],
+    ["/account/change-password", "Inicio"],
   ])("en %s marca %s con aria-current", (pathname, expected) => {
     location.pathname = pathname;
     auth.value = { status: "authenticated", account: { role: "USER" } };
     render(<SidebarNav />);
     expect(current()).toEqual([expected]);
+  });
+
+  // TASK-060 replaces letter/symbol glyphs with one decorative outline icon collection.
+  it("cada entrada conserva enlace nativo y usa un icono decorativo uniforme", () => {
+    location.pathname = "/home/materias";
+    auth.value = { status: "authenticated", account: { role: "ADMIN" } };
+    render(<SidebarNav />);
+    const links = screen.getAllByRole("link");
+    expect(links.map(link => link.getAttribute("href"))).toEqual(["/home", "/home/profesores", "/home/materias", "/home/experiencias", "/home/comunidad", "/home/admin"]);
+    for (const link of links) {
+      const icon = link.querySelector("svg")!;
+      expect(icon).not.toBeNull();
+      expect(icon.getAttribute("width")).toBe("18");
+      expect(icon.getAttribute("height")).toBe("18");
+      expect(icon.getAttribute("stroke-width")).toBe("1.75");
+      expect(icon.getAttribute("aria-hidden")).toBe("true");
+      expect(icon.getAttribute("focusable")).toBe("false");
+    }
   });
 
   it("con el header, el sidebar es el único landmark Navegación principal", () => {

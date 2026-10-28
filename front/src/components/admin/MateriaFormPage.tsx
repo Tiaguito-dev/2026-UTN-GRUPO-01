@@ -32,6 +32,7 @@ export function MateriaFormPage({ materia, detailHref }: { materia?: Materia; de
       <PageHeader
         id="materia-form-heading"
         title={materia ? "Editar materia" : "Nueva materia"}
+        description="Definí el nombre, la modalidad y las carreras de la materia."
         breadcrumb={[{ label: "Materias", href: backList }, { label: materia ? "Editar materia" : "Nueva materia" }]}
       />
       <Card variant="panel">

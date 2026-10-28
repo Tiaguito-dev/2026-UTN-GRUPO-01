@@ -28,8 +28,7 @@ export const SYSTEM_SECTIONS: SystemSection[] = [
   },
   {
     id: "experiencias", title: "Experiencias", symbol: "E", href: "/home/experiencias",
-    description: "Recorridos reales que aportan otra perspectiva a tus decisiones académicas.",
-    detail: "Aquí podrás compartir y descubrir experiencias universitarias. Por ahora no hay publicaciones ni acciones habilitadas.",
+    description: "Comentarios de la comunidad sobre materias, comisiones y docentes.",
   },
   {
     id: "comunidad", title: "Comunidad", symbol: "C", href: "/home/comunidad",

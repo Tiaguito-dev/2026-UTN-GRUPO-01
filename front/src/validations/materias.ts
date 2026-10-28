@@ -2,13 +2,29 @@ import {
   ANIOS_CARRERA,
   CARRERAS,
   NIVELES_ELECTIVA,
+  MODALIDADES_MATERIA,
   type AnioCarrera,
   type Carrera,
   type NivelElectiva,
+  type ModalidadMateria,
 } from "@/types/materias";
 
-export { ANIOS_CARRERA, CARRERAS, NIVELES_ELECTIVA };
+export { ANIOS_CARRERA, CARRERAS, NIVELES_ELECTIVA, MODALIDADES_MATERIA };
 export type { Carrera };
+
+const MODALIDAD_LABEL: Record<ModalidadMateria, string> = {
+  ANUAL: "Anual",
+  PRIMERO: "Cuatrimestral · 1.er cuatrimestre",
+  SEGUNDO: "Cuatrimestral · 2.º cuatrimestre",
+};
+
+export function isModalidadMateria(value: unknown): value is ModalidadMateria {
+  return typeof value === "string" && MODALIDADES_MATERIA.some((modalidad) => modalidad === value);
+}
+
+export function modalidadLabel(value: ModalidadMateria | null | undefined): string {
+  return value ? MODALIDAD_LABEL[value] : "Modalidad sin definir";
+}
 
 export const CARRERA_LABEL: Record<Carrera, string> = {
   S: "Ingeniería en Sistemas",
@@ -78,7 +94,7 @@ export function parseMateriaContext(params: { get(name: string): string | null }
   return {
     ...(carrera ? { carrera } : {}),
     ...(q ? { q } : {}),
-    ...(carrera && params.get("anioCarrera") === "ELECTIVA" && isNivelElectiva(nivel) ? { nivelElectiva: nivel } : {}),
+    ...(params.get("anioCarrera") === "ELECTIVA" && isNivelElectiva(nivel) ? { nivelElectiva: nivel } : {}),
   };
 }
 
@@ -94,11 +110,9 @@ export function materiaListHref(carrera?: Carrera, anio?: AnioCarrera, page = 1,
   const query = new URLSearchParams();
   const effectiveCarrera = carrera ?? context.carrera;
   if (context.q?.trim() && !validateMateriaSearch(context.q)) query.set("q", context.q.trim());
-  if (effectiveCarrera) {
-    query.set("carrera", effectiveCarrera);
-    if (anio) query.set("anioCarrera", anio);
-    if (anio === "ELECTIVA" && isNivelElectiva(context.nivelElectiva)) query.set("nivelElectiva", context.nivelElectiva);
-  }
+  if (effectiveCarrera) query.set("carrera", effectiveCarrera);
+  if (anio) query.set("anioCarrera", anio);
+  if (anio === "ELECTIVA" && isNivelElectiva(context.nivelElectiva)) query.set("nivelElectiva", context.nivelElectiva);
   if (Number.isSafeInteger(page) && page > 1) query.set("page", String(page));
   return `/home/materias${query.size ? `?${query}` : ""}`;
 }
@@ -107,11 +121,9 @@ export function materiaDetailHref(id: string, carrera?: Carrera, anio?: AnioCarr
   const query = new URLSearchParams();
   const effectiveCarrera = carrera ?? context.carrera;
   if (context.q?.trim() && !validateMateriaSearch(context.q)) query.set("q", context.q.trim());
-  if (effectiveCarrera) {
-    query.set("carrera", effectiveCarrera);
-    if (anio) query.set("anioCarrera", anio);
-    if (anio === "ELECTIVA" && isNivelElectiva(context.nivelElectiva)) query.set("nivelElectiva", context.nivelElectiva);
-  }
+  if (effectiveCarrera) query.set("carrera", effectiveCarrera);
+  if (anio) query.set("anioCarrera", anio);
+  if (anio === "ELECTIVA" && isNivelElectiva(context.nivelElectiva)) query.set("nivelElectiva", context.nivelElectiva);
   if (Number.isSafeInteger(page) && page > 1) query.set("listadoPage", String(page));
   return `/home/materias/${encodeURIComponent(id)}${query.size ? `?${query}` : ""}`;
 }

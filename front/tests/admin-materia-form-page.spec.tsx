@@ -25,6 +25,7 @@ afterEach(() => {
 const mockMateria: Materia = {
   id: "m-1",
   nombre: "Sistemas Operativos",
+  modalidad: "ANUAL",
   carreras: [{ carrera: "S", anioCarrera: "3", nivelElectiva: null }],
   createdAt: "2026-01-01T00:00:00Z",
   deletedAt: null,
@@ -42,6 +43,7 @@ describe("MateriaFormPage", () => {
     render(<MateriaFormPage />);
 
     await userEvent.type(screen.getByLabelText("Nombre de la materia"), "Sistemas Operativos");
+    await userEvent.selectOptions(screen.getByLabelText("Modalidad"), "ANUAL");
     await userEvent.click(screen.getByLabelText(/S — Ingeniería en Sistemas/));
     await userEvent.selectOptions(screen.getByLabelText("Año de la carrera"), "3");
     await userEvent.click(screen.getByRole("button", { name: "Crear materia" }));

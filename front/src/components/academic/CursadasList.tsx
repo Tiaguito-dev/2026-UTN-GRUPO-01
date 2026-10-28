@@ -15,7 +15,7 @@ import { RowLink } from "@/components/ui/RowLink";
 import { AltaCursada } from "@/components/admin/AltaCursada";
 import { periodoLabel } from "@/lib/format/periodo";
 
-export function CursadasList({ materiaId, materiaNombre, materiasHref = "/home/materias", embedded = false }: { materiaId: string; materiaNombre: string | undefined; materiasHref?: string; embedded?: boolean }) {
+export function CursadasList({ materiaId, materiaNombre, materiasHref = "/home/materias", embedded = false, onCreated }: { materiaId: string; materiaNombre: string | undefined; materiasHref?: string; embedded?: boolean; onCreated?: () => void }) {
   const headingId = useId();
   const isAdmin = useIsAdmin();
   const context = useSearchParams();
@@ -47,7 +47,7 @@ export function CursadasList({ materiaId, materiaNombre, materiasHref = "/home/m
     {embedded ? <div className="academic-panel-header">
       <div>
         <h2 id={headingId}>Cursadas</h2>
-        <p>Cada período en que se dictó, con sus comisiones y carreras.</p>
+        <p>Cada año en que se dictó, con sus comisiones y carreras.</p>
       </div>
       {nueva}
     </div> : <>
@@ -58,15 +58,16 @@ export function CursadasList({ materiaId, materiaNombre, materiasHref = "/home/m
         focusKey={materiaId}
         back={{ href: materiasHref, label: "Materias" }}
       />
-      <p className="system-description">Períodos en los que se dictó esta materia.</p>
+      <p className="system-description">Años en los que se dictó esta materia.</p>
       {nueva}
     </>}
     {created ? <Notice tone="success">{created}</Notice> : null}
-    {isAdmin ? <Dialog open={creating} onClose={() => setCreating(false)} title="Nueva cursada" description={`Una cursada es el dictado de ${materiaLabel} en un año y cuatrimestre.`} busy={saving}>
+    {isAdmin ? <Dialog open={creating} onClose={() => setCreating(false)} title="Nueva cursada" description={`Una cursada identifica el año de dictado de ${materiaLabel}. La modalidad se define en la materia.`} busy={saving}>
       {creating ? <AltaCursada materiaId={materiaId} onCancel={() => setCreating(false)} onBusyChange={setSaving} onSuccess={(message) => {
         setCreating(false);
         setCreated(message);
         setRefreshKey((key) => key + 1);
+        onCreated?.();
       }} /> : null}
     </Dialog> : null}
     <div className="academic-panel-body">
@@ -87,7 +88,7 @@ export function CursadasList({ materiaId, materiaNombre, materiasHref = "/home/m
                 </>}
                 trailing="Ver comisiones"
               >
-                {periodoLabel(cursada.anio, cursada.cuatrimestre)}
+                {periodoLabel(cursada.anio)}
               </RowLink>;
             })}
           </ul>

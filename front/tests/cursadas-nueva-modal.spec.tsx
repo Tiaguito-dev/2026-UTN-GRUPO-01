@@ -61,12 +61,12 @@ describe("CursadasList, 'Nueva cursada' en modal (TASK-054)", () => {
     vi.mocked(listarCursadasPorMateria)
       .mockResolvedValueOnce({ items: [], total: 0, page: 1, pageSize: 10 })
       .mockResolvedValueOnce({
-        items: [{ id: "c1", anio: 2026, cuatrimestre: "PRIMERO", comisiones: 0, profesores: 0, carreras: [] }],
+        items: [{ id: "c1", anio: 2026, comisiones: 0, profesores: 0, carreras: [] }],
         total: 1,
         page: 1,
         pageSize: 10,
       });
-    vi.mocked(crearCursada).mockResolvedValue({ id: "c1", materiaId: "m1", anio: 2026, cuatrimestre: "PRIMERO", createdAt: "2026-10-25", deletedAt: null });
+    vi.mocked(crearCursada).mockResolvedValue({ id: "c1", materiaId: "m1", anio: 2026, createdAt: "2026-10-25", deletedAt: null });
 
     render(<CursadasList materiaId="m1" materiaNombre="Álgebra" />);
     await screen.findByText("Esta materia todavía no tiene cursadas cargadas.");
@@ -78,12 +78,11 @@ describe("CursadasList, 'Nueva cursada' en modal (TASK-054)", () => {
     expect(screen.queryByLabelText("Materia")).toBeNull();
 
     await userEvent.type(screen.getByLabelText("Año"), "2026");
-    await userEvent.selectOptions(screen.getByLabelText("Cuatrimestre"), "PRIMERO");
     await userEvent.click(screen.getByRole("button", { name: "Crear cursada" }));
 
-    expect(crearCursada).toHaveBeenCalledWith({ materiaId: "m1", anio: 2026, cuatrimestre: "PRIMERO" });
+    expect(crearCursada).toHaveBeenCalledWith({ materiaId: "m1", anio: 2026 });
     await waitFor(() => expect(dialogClosed()).toBe(true));
-    await waitFor(() => expect(screen.getAllByRole("status").some((status) => status.textContent?.includes("1er cuatrimestre 2026"))).toBe(true));
+    await waitFor(() => expect(screen.getAllByRole("status").some((status) => status.textContent?.includes("2026"))).toBe(true));
     await waitFor(() => expect(vi.mocked(listarCursadasPorMateria).mock.calls.length).toBeGreaterThan(pedidos));
   });
 
