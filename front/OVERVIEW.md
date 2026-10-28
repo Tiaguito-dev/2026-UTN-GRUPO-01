@@ -66,7 +66,7 @@ ADMIN: sin ese rol muestra "Acceso no permitido" dentro del shell.
 - `/home/admin/cursadas/nueva`: alta de cursada por materia y período (sin profesor responsable).
 - `/home/admin/comisiones/nueva`: alta de comisión por cursada, carrera y número (1 a 999).
 - `/home/admin/profesores`: listado paginado de consulta de los profesores cargados.
-- `/home/admin/usuarios`: listado de consulta de las cuentas registradas.
+- `/home/admin/usuarios`: listado con estado, filtros y administración del acceso de las cuentas registradas.
 - `/account`, `/account/change-password`: perfil y cambio de contraseña protegidos.
 - `/health`: comprobación pública de estado (`app/health/route.ts`).
 - `NEXT_PUBLIC_API_URL`: URL pública del backend.
@@ -565,7 +565,7 @@ modalidad por separado. El menú lateral y la navegación general no se modifica
 La portada `/home/admin` conserva las tarjetas de oferta académica y cuentas. Sus enlaces
 Ver todas abren tablas administrativas en `/home/admin/materias`, `/profesores`, `/cursadas`,
 `/comisiones` y `/usuarios`. Las cuatro primeras muestran acciones Editar por fila y creación
-sobre la tabla; Usuarios es de consulta, sin edición ni gestión de roles. Materias pagina de
+sobre la tabla; Usuarios permite desactivar y reactivar cuentas, sin gestión de roles. Materias pagina de
 a nueve y los otros listados de a veinte. Las rutas permanecen bajo el guard ADMIN existente.
 
 Cursadas requiere seleccionar materia; Comisiones requiere materia y cursada. Los listados
@@ -750,14 +750,14 @@ con teclado. No cambia Card, componentes globales, hooks compartidos ni el shell
 `AdminAcademicList` conserva altas y enlaces administrativos reales; oculta edición en
 registros inactivos cuando el contrato expone ese estado. Usa Plus, Eye y Pencil de Lucide.
 Los tooltips aparecen por hover/foco, permiten mover el puntero a su texto y se cierran con
-Escape. `UsuariosList` permanece de consulta: no ofrece alta, edición de roles ni gestión
-de estado porque el backend no expone esas operaciones. Experiencias sigue usando tarjetas.
+Escape. `UsuariosList` ofrece detalle administrativo y cambios de estado con confirmación;
+no ofrece alta ni edición de roles. Experiencias sigue usando tarjetas.
 
 Filtros permitidos por `validations/admin.ts`, con búsqueda validada hasta 150 caracteres:
 
 - Materias: `q`, `carrera`, `anioCarrera`, `nivelElectiva` (3, 4 o 5 solo en ELECTIVA).
 - Profesores: `q` por nombre, insensible a mayúsculas y tildes.
-- Usuarios: `q` por nombre/email y `rol` (ADMIN/USER).
+- Usuarios: `q` por nombre/email, `rol` (ADMIN/USER) y `estado` (ACTIVO/INACTIVO).
 - Cursadas: `materiaId`; Comisiones: `materiaId`, `cursadaId` (período) y `carrera`.
 - `page` en todos los casos. Cambiar filtros reinicia la página; detalle/edición preservan
   filtros y página mediante `returnTo` validado. Los parámetros desconocidos se rechazan.
@@ -805,7 +805,7 @@ No se agrega creación de usuarios ni edición de roles. La autorización final 
 
 `AdminHistory` consulta `services/admin-history.ts` para profesor, cursada, comisión y usuario.
 Muestra cambios reales con fecha, acción, valor anterior/nuevo y páginas de tres. Los detalles
-académicos lo incorporan; Usuarios abre el historial en un diálogo. Materias mantiene su
+académicos lo incorporan; Usuarios muestra el historial en el detalle administrativo. Materias mantiene su
 historial dedicado, ahora compatible con el cambio `deletedAt`. Los editores de profesor,
 cursada y comisión vuelven al detalle con `successMessage` y `returnTo` validado; si se cambia
 la materia de una cursada, el retorno apunta al listado de la nueva materia en página uno.
@@ -817,6 +817,7 @@ de imágenes. Requiere builds backend/frontend, `TEST_DATABASE_URL` exclusivo y 
 compilado con `NEXT_PUBLIC_API_URL=http://localhost:3301`, `NEXT_PUBLIC_ALLOW_LOCAL_HTTP=true`.
 Ejecución desde raíz: `npx playwright test admin-limits.browser.spec.mjs --config=playwright.config.ts`.
 La revisión visual es responsabilidad del usuario.
+
 
 ## Detalle administrativo y auditoría
 
@@ -832,6 +833,9 @@ Los accesos Eye de materias, profesores, cursadas y comisiones abren detalles ba
 
 Cobertura: `user-access-state.spec.tsx` verifica cuentas homónimas, cancelación, recarga filtrada, reactivación desde otra página del historial, rechazo backend y restricciones de UI. El recorrido aislado de Playwright valida estas acciones con un navegador y contratos HTTP interceptados.
 
+## Verificación de detalles con proxy
+Los servicios de detalle administrativo consumen `/admin/:kind/:id/detalle`; las páginas se sirven bajo `/home/admin/...`. Nginx debe encaminarlos a backend y frontend respectivamente. Las rutas individuales `/users/` y `/profesores/` también requieren proxy al backend para estado, detalle e historial. `node scripts/check-admin-proxy.mjs` comprueba el contrato desplegado (401 JSON sin sesión en API y 200 HTML en páginas) sin modificar datos; los mocks de servicios no detectan errores de este enrutamiento.
+
 ## Bajas administrativas académicas
 Los listados de Materias, Profesores, Períodos (Cursadas) y Comisiones usan Trash2 con nombre accesible y confirmación de baja lógica. `AcademicDeleteDialog` identifica etiqueta e ID y explica las restricciones por entidad y la conservación de experiencias, relaciones e historial. `AcademicDeleteAction` añade la misma operación a los cuatro detalles y sólo se ofrece a ADMIN cuando el registro está vigente. Reutiliza `services/admin-academic.ts` y `AdminConfirmDialog`; no hay borrado definitivo ni endpoints nuevos.
 
@@ -840,3 +844,15 @@ Después de una baja, el detalle permanece disponible, recarga estado y auditor�
 Los listados académicos vuelven a pedir la página, el total filtrado y los contadores tras operar. El hook local `useAcademicPage` ajusta a la última página válida usando total/pageSize remotos cuando la página actual queda fuera de rango; conserva filtros y no modifica hooks compartidos. La desvinculación docente se presenta como `Quitar asignación de <nombre>` y aclara que no da de baja al profesor. Dar de baja una comisión conserva las asignaciones históricas y cierra nuevas operaciones.
 
 Pruebas de interacción en `academic-bajas.spec.tsx` cubren cuatro detalles, confirmación/cancelación, conservación del detalle histórico, permisos visuales, error relacional con actualización del historial y última fila de página 2 con retorno a página 1 y contador actualizado. Los guards del segmento y el backend siguen siendo la autoridad de autorización.
+
+## Altas administrativas y carrera de comisión
+
+`AltaComision` obtiene las carreras de la materia seleccionada mediante el catálogo académico. Si hay una, muestra su nombre como contexto de lectura y la envía automáticamente; si hay varias, exige seleccionar una de ellas. Si no hay ninguna, bloquea el envío e indica asociar una carrera desde la edición de la materia. El cambio de materia descarta la carrera anterior y recalcula cursadas y opciones. `EditarAcademico` aplica el mismo contexto para comisión y evita PATCH si no existen diferencias. Número y períodos conservan sus validadores y límites; el selector de cursada distingue año y cuatrimestre.
+
+`AltaForm` admite `defaultReturnTo` fijo o derivado de los valores enviados y prioriza un `returnTo` administrativo validado. Materias y profesores vuelven a su listado; períodos y comisiones vuelven al listado acotado a materia/período. Los enlaces desde `ComisionesMateria` y `ComisionesList` conservan ese origen. Las altas en modal cierran únicamente tras éxito y recargan su lista; las páginas navegan con confirmación y refrescan el router. Los servicios HTTP ya usan `cache: no-store`.
+
+`adminCreationHref` conserva filtros y página y agrega `creationOutsideFilters=1` cuando el registro no coincide con la consulta de origen. Los listados muestran el aviso y ofrecen limpiar filtros mediante una acción explícita. La creación de materias evalúa las carreras y años de la misma asociación, sin combinar filas distintas. La edición de materia vuelve a su detalle con el listado de origen en `returnTo`.
+
+Los errores conservan los campos. Los formularios mantienen la protección frente a envíos simultáneos. Las asignaciones docentes permanecen en su sección y recargan detalle, opciones y auditoría después de confirmar el éxito; seleccionar el mismo cargo no envía una actualización.
+
+Regresiones: `admin-comision-carreras`, `admin-creation-flows`, `admin-creation-filters`, `admin-creation-list-refresh`, `admin-assignment-flows` y `comisiones-creation-origin`, además de los tests existentes de formularios, filtros, precarga y edición. Pruebas visuales y de navegador a cargo del desarrollador en esta tarea.

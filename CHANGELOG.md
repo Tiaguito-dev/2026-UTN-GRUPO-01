@@ -2,12 +2,24 @@
 
 ## [Sin publicar]
 
+### Formularios de comisiones y retorno de altas administrativas
+
+- Carrera única de la materia asignada automáticamente como contexto de lectura; selección restringida cuando hay varias y bloqueo explicativo cuando no hay carreras. Backend resuelve y valida la asociación desde persistencia.
+- Altas de materias, profesores, períodos y comisiones regresan a su listado o sección administrativa de origen únicamente tras éxito, con confirmación y actualización de datos. Las asignaciones docentes actualizan equipo, opciones e historial en la misma sección.
+- Se preservan filtros y campos ante errores, se avisa si el alta queda fuera de la selección y se ofrece limpiar filtros explícitamente. Ediciones sin diferencias no envían actualizaciones; edición de materia vuelve al detalle conservando el origen.
+- Se agregan pruebas de regresión de carreras, navegación, errores/reintentos, filtros y asignaciones. Sin commits; ver evidencia en la tarea.
+
 ### Bajas administrativas académicas
 
 - Acciones Trash2 y confirmaciones de baja lógica en listados y detalles de materias, profesores, comisiones y períodos. Se identifica el registro y se explican dependencias y conservación de relaciones, experiencias e historial.
 - Listados recalculan resultados y ajustan automáticamente la página cuando desaparece su última fila; el detalle conserva estado y auditoría tras una baja o un bloqueo.
 - Auditoría de bajas exitosas y bloqueadas con resultado, actor, fecha y motivo; los bloqueos no se presentan como modificaciones del registro. Materia conserva su contrato histórico sin duplicar eventos.
 - Se distingue quitar una asignación de dar de baja al profesor y se impide desvincular asignaciones de una comisión dada de baja ante solicitudes concurrentes. Sin cascadas, borrado definitivo ni migraciones nuevas.
+
+### Corrección del detalle administrativo detrás del proxy
+
+- Nginx dev y TLS reenvían `/admin/`, `/users/` y `/profesores/` al backend. Los detalles, historial y operaciones individuales dejan de caer en el frontend con 404 HTML.
+- Se agrega `scripts/check-admin-proxy.mjs` para verificar el enrutamiento real y conservar las páginas administrativas en frontend. Se comprobaron los seis detalles en navegador autenticado y sus permisos pasando por el stack local.
 
 ### Gestión del acceso de usuarios
 

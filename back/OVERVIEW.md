@@ -1104,6 +1104,19 @@ Materias reutiliza `MateriaHistorial` para cambios y bajas, sumando las nuevas a
 
 Los metadatos ausentes son `null`. `updatedAt` es una fecha del registro cuando existe, o del último evento persistido disponible; no implica que exista un historial completo. La auditoría filtra campos mediante una lista permitida. Los endpoints privados del autor y las lecturas públicas mantienen sus permisos y selección originales.
 
+## Gestión administrativa del acceso de usuarios
+
+`GET /users` combina `q`, `rol` y `estado=ACTIVO|INACTIVO` antes de paginar. El frontend solicita nueve resultados. `PATCH /users/:id/estado` acepta exclusivamente `{ activo: boolean }` y devuelve id, nombre visible, email, rol, fecha de alta y disabledAt; nunca hashes ni tokens. `GET /users/:id/historial` y `GET /admin/users/:id/detalle` muestran eventos con actor y fecha, con tres eventos por página. Todos requieren sesión vigente y rol ADMIN.
+
+`CambiarEstadoUsuario` valida UUID/payload y evita autodesactivación. `PrismaUserAdministrationRepository` serializa cambios con advisory lock transaccional PostgreSQL, bloquea las filas de actor/destinatario ordenadas y vuelve a comprobar que el actor siga siendo ADMIN activo. Impide desactivar el último administrador activo; solicitudes repetidas del mismo estado no crean eventos adicionales. Las transacciones registran DESACTIVACION o REACTIVACION junto al cambio y sus diferencias. Los eventos históricos ACTIVACION siguen siendo legibles.
+
+Desactivar marca disabledAt, revoca todas las sesiones e invalida sus credenciales pendientes en la misma transacción. No toca cuentas, comentarios ni snapshots de comentarios ni su anonimato. Login rechaza disabledAt y createSession vuelve a validar bajo bloqueo de User, incluyendo carreras con desactivación. AuthenticationGuard verifica sesión persistida y estado vigente; refresh rechaza sesiones revocadas/cuentas inactivas. Reactivar sólo limpia disabledAt: no recupera sesiones ni credenciales revocadas y requiere un login nuevo.
+
+Errores: 400 para contrato o identificador inválido, 401 sin acceso vigente, 403 sin rol ADMIN o actor ya inactivo, 404 para cuenta inexistente y 409 por autodesactivación o protección del último ADMIN. El detalle usa una proyección explícita sin secretos de autenticación. No incorpora borrado definitivo, cambios de rol ni creación de cuentas.
+
+## Enrutamiento del API administrativo
+Los proxies `infra/proxy/nginx.dev.conf` y `nginx.conf` deben enviar `/admin/`, `/users/` y `/profesores/` al backend, además de los prefijos académicos existentes. `/admin/:kind/:id/detalle` devuelve JSON protegido por ADMIN; `/home/admin/...` sigue perteneciendo a Next.js. Una respuesta HTML404 en el servicio de detalle indica un problema de proxy y no un registro ausente. Regresión contra stack real sin datos ni cookies: `node scripts/check-admin-proxy.mjs [origen]`. Los tests HTTP directos de Nest no validan este salto de infraestructura.
+
 ## Bajas administrativas académicas y resultados auditados
 
 `DELETE /materias/:id`, `/profesores/:id`, `/cursadas/:id` y `/comisiones/:id` conservan el contrato de ADMIN con sesión vigente y respuesta204 al completar una baja lógica. La entidad permanece con deletedAt; Comisión además queda activa=false. Nunca se borran experiencias, snapshots, asignaciones docentes ni relaciones por dar de baja.
@@ -1115,3 +1128,15 @@ Reglas: Materia bloquea períodos de cursada no dados de baja; Cursada bloquea c
 El detalle administrativo incluye resultado/motivo entre los campos seguros. Los eventos BAJA_BLOQUEADA aparecen en el historial, pero no cambian auditoria.updatedAt/updatedBy ni la fecha/actor de baja. Materia conserva su historial estricto de campos en MateriaHistorial: una baja nueva usa el mismo UUID y fecha en ambos historiales, y el detalle usa el resultado del ledger cuando existe. El UNION agrega altas e intentos bloqueados sin duplicar bajas ni reconstruir actores históricos.
 
 Listados y selectores de creación excluyen deletedAt no nulo. Los servicios de alta/edición/asignación comprueban vigencia en transacciones y toman los mismos bloqueos que las bajas. Quitar una asignación docente es una operación distinta de dar de baja al Profesor; tras tomar el bloqueo de Comisión, la desvinculación vuelve a comprobar que continúe vigente para no modificar asignaciones conservadas por una baja concurrente. Las referencias y snapshots históricos continúan interpretables desde el detalle administrativo y el contenido publicado.
+
+## Carrera de comisión y altas administrativas (TASK-admin-altas-retornos)
+
+POST `/comisiones` recibe `{ cursadaId, numero, carrera? }`. Conserva número entero entre
+1 y 999 y carrera del catálogo S, C, Q, I, M. Carrera omitida se resuelve desde las asociaciones
+de la materia únicamente si existe una sola; con varias se exige elegir una de ellas. Una
+carrera enviada que no pertenece a la materia devuelve 400, incluso si hay una sola disponible.
+Sin carreras se devuelve 400 indicando asociar al menos una carrera a la materia antes del alta.
+PATCH mantiene el control de pertenencia también cuando solo cambia el número y explica
+corregir la asociación si no existen carreras. La persistencia revalida la pertenencia bajo
+los bloqueos existentes de cursada y materia, conservando la protección frente a concurrencia.
+No se asigna ni sugiere numeración disponible; no cambian permisos ADMIN, auditoría ni períodos.
