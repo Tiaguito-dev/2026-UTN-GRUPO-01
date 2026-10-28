@@ -1,3 +1,7 @@
+import { ObtenerProfesor } from "./application/obtener-profesor.js";
+import { ActualizarProfesor } from "./application/actualizar-profesor.js";
+import { ActualizarCursada } from "./application/actualizar-cursada.js";
+import { ActualizarComision } from "./application/actualizar-comision.js";
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
 import type { AuthenticatedRequest } from "../auth/presentation/authentication.guard.js";
 import { ActualizarMateria } from "./application/actualizar-materia.js";
@@ -45,7 +49,36 @@ export class AcademicController {
     private readonly asignarProfesorComision: AsignarProfesorComision,
     private readonly quitarProfesorComision: QuitarProfesorComision,
     private readonly obtenerComision: ObtenerComision,
+    private readonly obtenerProfesor: ObtenerProfesor,
+    private readonly actualizarProfesor: ActualizarProfesor,
+    private readonly actualizarCursada: ActualizarCursada,
+    private readonly actualizarComision: ActualizarComision,
+
   ) {}
+
+  @Get("profesores/:profesorId")
+  @Roles("ADMIN")
+  profesor(@Param("profesorId") id: string): Promise<Profesor> {
+    return this.obtenerProfesor.execute(id);
+  }
+
+  @Patch("profesores/:profesorId")
+  @Roles("ADMIN")
+  editarProfesor(@Param("profesorId") id: string, @Body() body: unknown) {
+    return this.actualizarProfesor.execute(id, body);
+  }
+
+  @Patch("cursadas/:cursadaId")
+  @Roles("ADMIN")
+  editarCursada(@Param("cursadaId") id: string, @Body() body: unknown) {
+    return this.actualizarCursada.execute(id, body);
+  }
+
+  @Patch("comisiones/:comisionId")
+  @Roles("ADMIN")
+  editarComision(@Param("comisionId") id: string, @Body() body: unknown) {
+    return this.actualizarComision.execute(id, body);
+  }
 
   @Get("materias")
   materias(@Query() query: unknown): Promise<PaginatedResult<Materia>> {

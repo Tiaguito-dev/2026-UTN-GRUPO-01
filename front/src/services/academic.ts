@@ -16,15 +16,15 @@ import type { Carrera, ModalidadMateria } from "@/types/materias";
 
 export type { Materia, Carrera, MateriaCarrera } from "@/types/materias";
 export interface Profesor { id: string; nombreCompleto: string; createdAt: string; deletedAt: string | null }
-export type Cuatrimestre = "PRIMERO" | "SEGUNDO";
+export type Cuatrimestre = "PRIMERO" | "SEGUNDO" | "ANUAL";
 export const CARGOS = ["TITULAR", "ADJUNTO", "JTP"] as const;
 export type CargoDocente = typeof CARGOS[number];
 export interface ProfesorAsignado { id: string; nombreCompleto: string; cargo: CargoDocente }
-export interface Cursada { id: string; materiaId: string; anio: number; createdAt: string; deletedAt: string | null }
-export interface CursadaResumen { id: string; anio: number; comisiones: number; profesores: number; carreras: Carrera[] }
-export interface CursadaDetalle { id: string; anio: number; materia: { id: string; nombre: string; modalidad?: ModalidadMateria | null } }
+export interface Cursada { id: string; materiaId: string; anio: number; cuatrimestre?: Cuatrimestre | null; createdAt: string; deletedAt: string | null }
+export interface CursadaResumen { id: string; anio: number; cuatrimestre?: Cuatrimestre | null; comisiones: number; profesores: number; carreras: Carrera[] }
+export interface CursadaDetalle { id: string; anio: number; cuatrimestre?: Cuatrimestre | null; materia: { id: string; nombre: string; modalidad?: ModalidadMateria | null } }
 export interface Comision { id: string; cursadaId: string; carrera: Carrera; numero: number; nombre: string; activa: boolean; profesores: ProfesorAsignado[]; createdAt: string; deletedAt: string | null }
-export interface ComisionDetalle extends Comision { cursada: { id: string; anio: number; materia: { id: string; nombre: string; modalidad?: ModalidadMateria | null } } }
+export interface ComisionDetalle extends Comision { cursada: { id: string; anio: number; cuatrimestre?: Cuatrimestre | null; materia: { id: string; nombre: string; modalidad?: ModalidadMateria | null } } }
 
 export { listarMaterias, obtenerMateria, crearMateria } from "./materias";
 export function listarProfesores(pagination: PaginationInput = {}): Promise<PaginatedResult<Profesor>> {
@@ -68,7 +68,7 @@ export async function quitarProfesorComision(comisionId: string, profesorId: str
 export function crearProfesor(input: { nombreCompleto: string }): Promise<Profesor> {
   return getAuthService().protectedPost("/profesores", input, profesorSchema);
 }
-export function crearCursada(input: { materiaId: string; anio: number }): Promise<Cursada> {
+export function crearCursada(input: { materiaId: string; anio: number; cuatrimestre: Cuatrimestre }): Promise<Cursada> {
   return getAuthService().protectedPost("/cursadas", input, cursadaSchema);
 }
 export function crearComision(input: { cursadaId: string; carrera: Carrera; numero: number }): Promise<Comision> {

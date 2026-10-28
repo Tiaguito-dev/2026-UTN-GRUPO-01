@@ -4,6 +4,27 @@ import { testAuthEnvironment } from "./auth-test.config.js";
 
 const brevo = { EMAIL_PROVIDER: "brevo", BREVO_API_KEY: "private-api-key", EMAIL_FROM: "verified@example.test" };
 describe("Selección segura del proveedor de correo", () => {
+  // Caracterización previa al reemplazo del regex: required valida después de trim.
+  const controles = [...Array.from({ length: 32 }, (_, code) => code), 127];
+  const campos = ["BREVO_API_KEY", "EMAIL_FROM", "EMAIL_FROM_NAME"] as const;
+  it.each(campos.flatMap((campo) => controles.map((code) => ({ campo, code }))))(
+    "rechaza el control incrustado $code en $campo sin exponer el valor",
+    ({ campo, code }) => {
+      const value = campo === "EMAIL_FROM" ? `verified${String.fromCharCode(code)}user@example.test` : `left${String.fromCharCode(code)}right`;
+      expect(() => readEmailConfig({ ...brevo, [campo]: value })).toThrow(`Configuración de email inválida: ${campo}.`);
+    }
+  );
+  it.each([32, 126, 128])("admite el límite imprimible %i en clave y nombre", (code) => {
+    const value = `left${String.fromCharCode(code)}right`;
+    expect(readEmailConfig({ ...brevo, BREVO_API_KEY: value, EMAIL_FROM_NAME: value })).toMatchObject({ apiKey: value, fromName: value });
+  });
+  it.each([126, 128])("admite el límite compatible %i en dirección de remitente", (code) => {
+    const from = `verified${String.fromCharCode(code)}user@example.test`;
+    expect(readEmailConfig({ ...brevo, EMAIL_FROM: from })).toMatchObject({ from });
+  });
+  it("conserva el trim previo de los tres campos requeridos", () => {
+    expect(readEmailConfig({ ...brevo, BREVO_API_KEY: "\tprivate-api-key\n", EMAIL_FROM: "\tverified@example.test\r\n", EMAIL_FROM_NAME: "\tComunidad UTN\n" })).toMatchObject({ apiKey: "private-api-key", from: "verified@example.test", fromName: "Comunidad UTN" });
+  });
   it("Brevo funciona sin configuración SMTP y usa nombre visible predeterminado", () => {
     expect(readEmailConfig(brevo)).toEqual({ provider: "brevo", apiKey: "private-api-key", from: "verified@example.test", fromName: "Profesor Butchery", timeoutMs: 1500 });
   });

@@ -77,7 +77,8 @@ describe("Formulario de feedback", () => {
     expect(crearFeedback).toHaveBeenCalledWith("c1", { texto: "Clases claras", anonimo: false, profesorId: "p3" });
   });
   it("con un docente conserva la asociación automática y muestra una modalidad anual real", async () => {
-    vi.mocked(obtenerComision).mockResolvedValue({ ...comision, profesores: [comision.profesores[0]], cursada: { ...comision.cursada, materia: { ...comision.cursada.materia, modalidad: "ANUAL" } } });
+    // TASK-067: la cursada real es anual; su período prima sobre la modalidad de materia.
+    vi.mocked(obtenerComision).mockResolvedValue({ ...comision, profesores: [comision.profesores[0]], cursada: { ...comision.cursada, cuatrimestre: "ANUAL", materia: { ...comision.cursada.materia, modalidad: "ANUAL" } } });
     render(<FeedbackForm comisionId="c1" />);
     await screen.findByRole("textbox", { name: "Tu experiencia" });
     expect(screen.getByText(/Comisión S-31.*Anual.*2026/)).toBeTruthy();
@@ -204,6 +205,16 @@ describe("Formulario de feedback", () => {
     await user.click(screen.getByRole("button", { name: "Publicar comentario" }));
     expect(crearFeedback).toHaveBeenLastCalledWith("c1", { texto: "Experiencia para conservar", anonimo: true, profesorId: "p2" });
     expect(push).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Períodos legados", () => {
+  it("no inventa un período cuando la cursada lo tiene sin definir", async () => {
+    vi.mocked(obtenerComision).mockResolvedValue({ ...comision, cursada: { ...comision.cursada, cuatrimestre: null, materia: { ...comision.cursada.materia, modalidad: "ANUAL" } } });
+    render(<FeedbackForm comisionId="c1" />);
+    await screen.findByRole("textbox", { name: "Tu experiencia" });
+    expect(screen.getByText(/Comisión S-31.*Cursada 2026/)).toBeTruthy();
+    expect(screen.queryByText(/Comisión S-31.*Anual/)).toBeNull();
   });
 });
 

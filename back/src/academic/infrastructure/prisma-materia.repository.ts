@@ -2,7 +2,7 @@ import { Prisma } from "../../generated/prisma/client.js";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import type { Pagination, PaginatedResult } from "../../shared/domain/pagination.js";
 import { serializarCarreras, type AnioCarrera, type Carrera, type NivelElectiva, type Materia, type MateriaCambio, type MateriaCarrera, type MateriaHistorial } from "../domain/materia.js";
-import { MateriaAlreadyExistsError, MateriaNotFoundError } from "../application/errors.js";
+import { CarreraConComisionesError, MateriaAlreadyExistsError, MateriaNotFoundError } from "../application/errors.js";
 import type { CreateMateriaInput, MateriaFilters, MateriaRepository } from "../application/ports/materia.repository.js";
 
 const conCarreras = { carreras: { orderBy: { carrera: "asc" } } } satisfies Prisma.MateriaInclude;
@@ -82,6 +82,12 @@ export class PrismaMateriaRepository implements MateriaRepository {
         await tx.$queryRaw`SELECT "id" FROM "Materia" WHERE "id" = ${id}::uuid FOR UPDATE`;
         const current = await tx.materia.findFirst({ where: { id, deletedAt: null }, include: conCarreras });
         if (!current) throw new MateriaNotFoundError();
+        if (input.carreras) {
+          const carreras = input.carreras.map(fila => fila.carrera);
+          if (await tx.comision.count({ where: { deletedAt: null, cursada: { materiaId: id }, carrera: { notIn: carreras } } })) {
+            throw new CarreraConComisionesError();
+          }
+        }
         const cambios: MateriaCambio[] = [];
         const data: Prisma.MateriaUpdateInput = {};
         if (input.nombre !== undefined && input.nombre !== current.nombre) {

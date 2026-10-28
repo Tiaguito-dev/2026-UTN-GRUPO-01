@@ -50,7 +50,7 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
     // administrator reassigns a professor concurrently. Later reads never rebuild this snapshot.
     const rows = await tx.$queryRaw<SnapshotRow[]>`
       SELECT c."id", c."carrera"::text, c."numero", c."activa", cu."id" AS "cursadaId",
-        cu."anio", m."modalidad"::text AS "modalidad", m."id" AS "materiaId", m."nombre" AS "materiaNombre",
+        cu."anio", cu."cuatrimestre"::text AS "modalidad", m."id" AS "materiaId", m."nombre" AS "materiaNombre",
         p."id" AS "profesorId", p."nombreCompleto" AS "profesorNombre", cp."cargo" AS "profesorCargo"
       FROM "Comision" c JOIN "Cursada" cu ON cu."id" = c."cursadaId"
       JOIN "Materia" m ON m."id" = cu."materiaId"

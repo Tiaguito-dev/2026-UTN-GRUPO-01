@@ -47,7 +47,7 @@ describe("Paridad front/back: año de la cursada", () => {
   it("acepta y rechaza los mismos años alrededor de los límites de los dos lados", () => {
     const bordes = [ANIO_MINIMO, front.ANIO_MINIMO, anioMaximo(), front.anioMaximo()];
     for (const anio of new Set(bordes.flatMap((borde) => [borde - 1, borde, borde + 1]))) {
-      const backAcepta = accepts(() => validateCrearCursadaInput({ materiaId: UUID, anio }));
+      const backAcepta = accepts(() => validateCrearCursadaInput({ cuatrimestre: "PRIMERO", materiaId: UUID, anio }));
       expect(front.validateAnio(String(anio)) === undefined, `año ${anio}`).toBe(backAcepta);
     }
   });

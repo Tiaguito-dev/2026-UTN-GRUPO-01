@@ -43,7 +43,8 @@ export function FeedbackForm({ feedbackId, comisionId }: { feedbackId?: string; 
   const origin = feedbackOriginParams(params);
   const commissionHref = comision ? `${comisionHref(comision)}${origin.size ? `?${origin}` : ""}` : "/home/materias";
   const backHref = feedbackId ? feedbackDetalleHref(feedbackId) : commissionHref;
-  const modalidad = context ? context.modalidad ?? context.cuatrimestre : comision?.cursada.materia.modalidad;
+  const period = comision?.cursada.cuatrimestre;
+  const modalidad = context ? context.modalidad ?? context.cuatrimestre : period !== undefined ? period : comision?.cursada.materia.modalidad;
   return <section className={styles.editorPage} aria-labelledby={headingId}>
     <header className={styles.editorHeader}>
       <PageHeader id={headingId} title={feedbackId ? "Editar comentario" : "Compartir mi experiencia"} focusKey={feedbackId ?? comisionId}

@@ -22,5 +22,5 @@ export interface Comision {
 }
 
 export interface ComisionDetalle extends Comision {
-  cursada: { id: string; anio: number; materia: { id: string; nombre: string; modalidad: ModalidadMateria | null } };
+  cursada: { id: string; anio: number; cuatrimestre?: import("./cursada.js").Cuatrimestre | null; materia: { id: string; nombre: string; modalidad: ModalidadMateria | null } };
 }

@@ -26,6 +26,23 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("Comisiones directamente en materia", () => {
+  it("distingue períodos del mismo año y consulta únicamente la cursada seleccionada", async () => {
+    navigation.query += "&cursadaId=first";
+    vi.mocked(listarCursadasPorMateria).mockResolvedValue({ items: [
+      { ...periods[1], anio: 2026, cuatrimestre: "PRIMERO" },
+      { ...periods[2], anio: 2026, cuatrimestre: "SEGUNDO" },
+    ], total: 2, page: 1, pageSize: 100 });
+    const view = render(<ComisionesMateria materiaId="mat1" materiaNombre="Álgebra" />);
+    await screen.findByRole("link", { name: /S-21/ });
+    expect(screen.getByRole("option", { name: "1er cuatrimestre 2026" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "2do cuatrimestre 2026" })).toBeTruthy();
+    expect(listarComisionesPorCursada).toHaveBeenLastCalledWith("first", { page: 1, pageSize: 9 });
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Cursada" }), "recent");
+    navigation.query = new URL(String(navigation.replace.mock.calls.at(-1)?.[0]), "http://local").search.slice(1);
+    view.rerender(<ComisionesMateria materiaId="mat1" materiaNombre="Álgebra" />);
+    await waitFor(() => expect(listarComisionesPorCursada).toHaveBeenLastCalledWith("recent", { page: 1, pageSize: 9 }));
+    expect((await screen.findByRole("link", { name: /S-21/ })).getAttribute("href")).toContain("/cursadas/recent/");
+  });
   it("selecciona el período más reciente y enlaza directamente a comentarios sin pantalla de cursada", async () => {
     render(<ComisionesMateria materiaId="mat1" materiaNombre="Álgebra" />);
     const link = await screen.findByRole("link", { name: /S-21/ });

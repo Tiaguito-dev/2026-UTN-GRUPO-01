@@ -167,7 +167,7 @@ export function ComisionDetail({ materiaId, cursadaId, comisionId }: { materiaId
         <div className={styles.context}>
           <span className={styles.commissionLabel}>Comisión {comision.nombre}</span>
           <span className={styles.period}><CalendarDays size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" />{periodoLabel(comision.cursada.anio)}</span>
-          <span>{modalidadLabel(materia?.data?.modalidad ?? comision.cursada.materia.modalidad)}</span>
+          <span>{modalidadLabel(comision.cursada.cuatrimestre !== undefined ? comision.cursada.cuatrimestre : materia?.data?.modalidad ?? comision.cursada.materia.modalidad)}</span>
           {isAdmin ? <span className={styles.secondary}>{comision.activa ? "Activa" : "Inactiva"}</span> : null}
         </div>
         {!options ? <p className={styles.secondary} role="status">Cargando comisiones…</p>
@@ -225,7 +225,7 @@ export function ComisionDetail({ materiaId, cursadaId, comisionId }: { materiaId
             <div className={styles.adminData}><h3>Datos de la comisión</h3><dl>
               <div><dt>Estado</dt><dd>{comision.activa ? "Activa" : "Inactiva"}</dd></div>
               <div><dt>Fecha de alta</dt><dd>{new Date(comision.createdAt).toLocaleString("es-AR")}</dd></div>
-            </dl><p className={styles.secondary}>La edición y la baja de comisiones todavía no están disponibles.</p></div>
+            </dl><p className={styles.secondary}>La carrera y el número se pueden editar desde Administración. La baja de comisiones todavía no está disponible.</p></div>
           </> : null}
         </section>
     </div> : null}

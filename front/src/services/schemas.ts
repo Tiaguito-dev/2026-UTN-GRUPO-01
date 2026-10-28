@@ -32,6 +32,7 @@ export function paginatedSchema<T>(item: z.ZodType<T>): z.ZodType<PaginatedResul
 }
 
 const modalidadMateria = z.enum(["ANUAL", "PRIMERO", "SEGUNDO"]).nullable().optional();
+const cuatrimestre = z.enum(["PRIMERO", "SEGUNDO", "ANUAL"]);
 const carrera = z.enum(["S", "C", "Q", "I", "M"]);
 const cargo: z.ZodType<CargoDocente> = z.enum(["TITULAR", "ADJUNTO", "JTP"]);
 
@@ -78,6 +79,7 @@ export const cursadaSchema: z.ZodType<Cursada> = z.object({
   id: z.string(),
   materiaId: z.string(),
   anio: z.number(),
+  cuatrimestre: cuatrimestre.nullable().optional(),
   createdAt: z.string(),
   deletedAt: z.string().nullable(),
 });
@@ -85,6 +87,7 @@ export const cursadaSchema: z.ZodType<Cursada> = z.object({
 export const cursadaResumenSchema: z.ZodType<CursadaResumen> = z.object({
   id: z.string(),
   anio: z.number(),
+  cuatrimestre: cuatrimestre.nullable().optional(),
   comisiones: z.number(),
   profesores: z.number(),
   carreras: z.array(carrera),
@@ -93,6 +96,7 @@ export const cursadaResumenSchema: z.ZodType<CursadaResumen> = z.object({
 export const cursadaDetalleSchema: z.ZodType<CursadaDetalle> = z.object({
   id: z.string(),
   anio: z.number(),
+  cuatrimestre: cuatrimestre.nullable().optional(),
   materia: z.object({ id: z.string(), nombre: z.string(), modalidad: modalidadMateria }),
 });
 
@@ -119,6 +123,7 @@ export const comisionDetalleSchema: z.ZodType<ComisionDetalle> = comisionRawSche
   cursada: z.object({
     id: z.string(),
     anio: z.number(),
+  cuatrimestre: cuatrimestre.nullable().optional(),
     materia: z.object({ id: z.string(), nombre: z.string(), modalidad: modalidadMateria }),
   }),
 });

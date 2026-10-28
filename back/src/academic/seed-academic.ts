@@ -18,7 +18,7 @@ config({
  * ni modifica nada preexistente.
  */
 interface ComisionSeed { carrera: Carrera; numero: number; activa?: boolean; profesores: [string, CargoDocente][] }
-interface CursadaSeed { anio: number; comisiones: ComisionSeed[] }
+interface CursadaSeed { anio: number; cuatrimestre?: ModalidadMateria; comisiones: ComisionSeed[] }
 interface MateriaSeed { nombre: string; modalidad: ModalidadMateria; carreras: { carrera: Carrera; anioCarrera: string }[]; cursadas: CursadaSeed[] }
 
 const TODAS: Carrera[] = ["S", "C", "Q", "I", "M"];
@@ -90,11 +90,12 @@ async function seed(): Promise<void> {
       });
 
       for (const cursadaSeed of materiaSeed.cursadas) {
+        const cuatrimestre = cursadaSeed.cuatrimestre ?? materiaSeed.modalidad;
         const cursadaExistente = await prisma.cursada.findUnique({
-          where: { materiaId_anio: { materiaId: materia.id, anio: cursadaSeed.anio } },
+          where: { materiaId_anio_cuatrimestre: { materiaId: materia.id, anio: cursadaSeed.anio, cuatrimestre } },
         });
         const cursada = cursadaExistente ?? await prisma.cursada.create({
-          data: { materiaId: materia.id, anio: cursadaSeed.anio },
+          data: { materiaId: materia.id, anio: cursadaSeed.anio, cuatrimestre },
         });
         if (!cursadaExistente) cursadasCreadas += 1;
 

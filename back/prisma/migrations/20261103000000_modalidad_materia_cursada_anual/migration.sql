@@ -1,13 +1,7 @@
 BEGIN;
 
--- Never merge commissions/comments or replace IDs when legacy periods collide.
+-- Preserve every course period from desarrollo; never merge commissions or IDs.
 LOCK TABLE "Cursada" IN ACCESS EXCLUSIVE MODE;
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM "Cursada" GROUP BY "materiaId", "anio" HAVING COUNT(*) > 1) THEN
-    RAISE EXCEPTION 'Existen cursadas duplicadas por materia y año, incluidas bajas. Revise sus relaciones antes de aplicar la unicidad anual; no se fusionaron ni eliminaron datos.';
-  END IF;
-END $$;
 
 CREATE TYPE "ModalidadMateria" AS ENUM ('ANUAL', 'PRIMERO', 'SEGUNDO');
 ALTER TABLE "Materia" ADD COLUMN "modalidad" "ModalidadMateria";
@@ -29,7 +23,5 @@ UPDATE "Feedback" SET "modalidad" = "cuatrimestre"::text::"ModalidadMateria";
 
 ALTER TABLE "Cursada" ALTER COLUMN "cuatrimestre" DROP NOT NULL;
 ALTER TABLE "Feedback" ALTER COLUMN "cuatrimestre" DROP NOT NULL;
-DROP INDEX "Cursada_materiaId_anio_cuatrimestre_key";
-CREATE UNIQUE INDEX "Cursada_materiaId_anio_key" ON "Cursada"("materiaId", "anio");
 
 COMMIT;

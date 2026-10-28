@@ -10,7 +10,7 @@ const API = "http://localhost:3301";
 const password = " Contraseña de prueba segura 2026 ";
 const SCREENS = {
   public: [["landing", "/"], ["login", "/login"]],
-  private: [["inicio", "/home"], ["materias", "/home/materias"], ["alta-materia", "/home/admin/materias/nueva"], ["profesores", "/home/admin/profesores"], ["perfil", "/account"], ["cambio-contrasena", "/account/change-password"]],
+  private: [["inicio", "/home"], ["materias", "/home/materias"], ["alta-materia", "/home/admin/materias/nueva"], ["profesores", "/home/admin/profesores"], ["admin-materias", "/home/admin/materias"], ["admin-cursadas", "/home/admin/cursadas"], ["admin-comisiones", "/home/admin/comisiones"], ["admin-usuarios", "/home/admin/usuarios"], ["perfil", "/account"], ["cambio-contrasena", "/account/change-password"]],
 };
 let prisma;
 const userIds = [];
@@ -58,7 +58,7 @@ async function check(page, name, path, width) {
   await expect(page).toHaveScreenshot(`${name}-${width}.png`, {
     fullPage: true,
     // Data that changes between runs: the catalog in the test database and the random email.
-    mask: [page.locator(".card-panel ul, .card-panel .pagination, .academic-panel ul, .row-list"), page.getByText(/@alu\.frlp\.utn\.edu\.ar/)],
+    mask: [page.locator(".card-panel ul, .card-panel table, .card-panel .pagination, .academic-panel ul, .row-list"), page.getByText(/@alu\.frlp\.utn\.edu\.ar/)],
   });
   const { violations } = await new AxeBuilder({ page }).analyze();
   const blocking = violations

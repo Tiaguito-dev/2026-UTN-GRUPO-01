@@ -7,7 +7,7 @@ export const feedbackSchema: z.ZodType<Feedback> = z.object({
   profesor: z.object({ id: z.string(), nombreCompleto: z.string(), cargo: z.enum(["TITULAR", "ADJUNTO", "JTP"]) }).nullable(),
   contexto: z.object({
     comisionId: z.string(), nombre: z.string(), materiaId: z.string(), materiaNombre: z.string(),
-    cursadaId: z.string(), anio: z.number(), cuatrimestre: z.enum(["PRIMERO", "SEGUNDO"]).nullable(),
+    cursadaId: z.string(), anio: z.number(), cuatrimestre: z.enum(["PRIMERO", "SEGUNDO", "ANUAL"]).nullable(),
     modalidad: z.enum(["ANUAL", "PRIMERO", "SEGUNDO"]).nullable().optional(),
   }),
   createdAt: z.string(), updatedAt: z.string(),

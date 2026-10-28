@@ -78,9 +78,10 @@ describe("CursadasList, 'Nueva cursada' en modal (TASK-054)", () => {
     expect(screen.queryByLabelText("Materia")).toBeNull();
 
     await userEvent.type(screen.getByLabelText("Año"), "2026");
+    await userEvent.selectOptions(screen.getByLabelText("Período"), "ANUAL");
     await userEvent.click(screen.getByRole("button", { name: "Crear cursada" }));
 
-    expect(crearCursada).toHaveBeenCalledWith({ materiaId: "m1", anio: 2026 });
+    expect(crearCursada).toHaveBeenCalledWith({ materiaId: "m1", anio: 2026, cuatrimestre: "ANUAL" });
     await waitFor(() => expect(dialogClosed()).toBe(true));
     await waitFor(() => expect(screen.getAllByRole("status").some((status) => status.textContent?.includes("2026"))).toBe(true));
     await waitFor(() => expect(vi.mocked(listarCursadasPorMateria).mock.calls.length).toBeGreaterThan(pedidos));

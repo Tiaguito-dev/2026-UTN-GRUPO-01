@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { safeAdminReturnTo } from "@/validations/admin";
 import type { Materia } from "@/types/materias";
 import {
   isAnioCarrera,
@@ -16,6 +17,8 @@ import { MateriaForm } from "./MateriaForm";
 
 export function MateriaFormPage({ materia, detailHref }: { materia?: Materia; detailHref?: string }) {
   const router = useRouter();
+  const params = useSearchParams();
+  const returnTo = safeAdminReturnTo(params.get("returnTo"));
 
   const listContext = new URL(detailHref ?? "/home/materias", "https://local.invalid").searchParams;
   const listCarrera = listContext.get("carrera");
@@ -33,13 +36,14 @@ export function MateriaFormPage({ materia, detailHref }: { materia?: Materia; de
         id="materia-form-heading"
         title={materia ? "Editar materia" : "Nueva materia"}
         description="Definí el nombre, la modalidad y las carreras de la materia."
-        breadcrumb={[{ label: "Materias", href: backList }, { label: materia ? "Editar materia" : "Nueva materia" }]}
+        breadcrumb={[{ label: returnTo ? "Administración" : "Materias", href: returnTo ?? backList }, { label: materia ? "Editar materia" : "Nueva materia" }]}
+        back={returnTo ? { href: returnTo, label: "listado administrativo" } : undefined}
       />
       <Card variant="panel">
         <MateriaForm
           materia={materia}
           onSuccess={(saved) => {
-            const target = materia ? detailHref ?? `/home/materias/${encodeURIComponent(materia.id)}` : "/home/materias";
+            const target = returnTo ?? (materia ? detailHref ?? `/home/materias/${encodeURIComponent(materia.id)}` : "/home/materias");
             const message = materia ? "Materia actualizada correctamente." : `Materia creada: ${saved.nombre}.`;
             router.push(`${target}${target.includes("?") ? "&" : "?"}successMessage=${encodeURIComponent(message)}`);
           }}

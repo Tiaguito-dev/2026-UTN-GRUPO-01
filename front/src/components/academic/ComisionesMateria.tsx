@@ -24,7 +24,8 @@ async function loadPeriods(materiaId: string): Promise<CursadaResumen[]> {
     const next = await listarCursadasPorMateria(materiaId, { page, pageSize: 100 });
     items.push(...next.items);
   }
-  return items.sort((a, b) => b.anio - a.anio || a.id.localeCompare(b.id));
+  const periodOrder = { PRIMERO: 1, SEGUNDO: 2, ANUAL: 3 };
+  return items.sort((a, b) => b.anio - a.anio || (b.cuatrimestre ? periodOrder[b.cuatrimestre] : 0) - (a.cuatrimestre ? periodOrder[a.cuatrimestre] : 0) || a.id.localeCompare(b.id));
 }
 
 /** Period is a filter here; commissions remain distinct resources for each academic period. */
@@ -67,11 +68,11 @@ export function ComisionesMateria({ materiaId, materiaNombre, materiasHref = "/h
   }
 
   return <section className={styles.module} aria-labelledby={headingId}>
-    <div className={styles.header}><div><h2 id={headingId}>Comisiones</h2><p>Elegí una comisión para consultar y compartir experiencias. La cursada identifica el año.</p></div>
+    <div className={styles.header}><div><h2 id={headingId}>Comisiones</h2><p>Elegí una comisión para consultar y compartir experiencias. La cursada identifica el año y el período.</p></div>
       {isAdmin && selected ? <Link className="button" href={`/home/admin/comisiones/nueva?cursadaId=${encodeURIComponent(selected.id)}`}>Nueva comisión</Link> : null}
     </div>
     {!periods ? <p role="status">Cargando cursadas…</p> : periods.error ? <Notice tone="error">{periods.error} <button className="button" type="button" onClick={() => setRevision((value) => value + 1)}>Reintentar cursadas</button></Notice> : selected ? <>
-      <div className={styles.period}><label htmlFor={selectorId}><CalendarDays size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" />Cursada</label><div className={styles.selectControl}><select id={selectorId} value={selected.id} onChange={(event) => navigate(event.target.value)}>{periods.items.map((period) => <option key={period.id} value={period.id}>{periodoLabel(period.anio)}</option>)}</select><ChevronDown size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" /></div></div>
+      <div className={styles.period}><label htmlFor={selectorId}><CalendarDays size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" />Cursada</label><div className={styles.selectControl}><select id={selectorId} value={selected.id} onChange={(event) => navigate(event.target.value)}>{periods.items.map((period) => <option key={period.id} value={period.id}>{periodoLabel(period.anio, period.cuatrimestre)}</option>)}</select><ChevronDown size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" /></div></div>
       {selectedId && !requested ? <p className={styles.summary}>El período solicitado no está disponible. Se muestra el más reciente.</p> : null}
       <ComisionesPeriodo key={selected.id} materiaId={materiaId} cursada={selected} page={page} contextQuery={contextQuery} onPageChange={(next) => navigate(selected.id, next)} />
     </> : <p>Esta materia todavía no tiene cursadas cargadas.</p>}

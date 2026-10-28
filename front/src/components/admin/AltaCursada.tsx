@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { crearCursada, listarMaterias } from "@/services/academic";
+import { crearCursada, listarMaterias, type Cuatrimestre } from "@/services/academic";
 import { MAX_PAGE_SIZE } from "@/services/pagination";
 import { useAllPages } from "@/hooks/useAllPages";
-import { periodoLabel } from "@/lib/format/periodo";
+import { CUATRIMESTRE_LABEL, periodoLabel } from "@/lib/format/periodo";
 import { ANIO_MINIMO, anioMaximo, validateAnio, validateSeleccion } from "@/validations/academic";
 import { AltaForm, AltaFormFields } from "./AltaForm";
 import { bloqueoDeOpciones, opcionesListas } from "./opciones";
+
+const isCuatrimestre = (value: string): value is Cuatrimestre => value === "PRIMERO" || value === "SEGUNDO" || value === "ANUAL";
 
 export function AltaCursada({ materiaId: materiaIdProp, onSuccess, onCancel, onBusyChange }: {
   /** Fija la materia (TASK-054: detalle de materia en un `Dialog`), sin pasar por la URL. */
@@ -25,10 +27,11 @@ export function AltaCursada({ materiaId: materiaIdProp, onSuccess, onCancel, onB
   const materiaInicial = materiaIdProp ?? (params.get("materiaId") ?? "");
   const opcionesMateria = opcionesListas(materias.state);
 
-  async function crear(materiaId: string, anio: string) {
-    const cursada = await crearCursada({ materiaId, anio: Number(anio.trim()) });
+  async function crear(materiaId: string, anio: string, cuatrimestre: string) {
+    if (!isCuatrimestre(cuatrimestre)) throw new Error("Elegí un período de la lista.");
+    const cursada = await crearCursada({ materiaId, anio: Number(anio.trim()), cuatrimestre });
     const materia = opcionesMateria.find((item) => item.id === cursada.materiaId)?.nombre ?? "la materia elegida";
-    return `Cursada creada: ${materia}, ${periodoLabel(cursada.anio)}.`;
+    return `Cursada creada: ${materia}, ${periodoLabel(cursada.anio, cursada.cuatrimestre)}.`;
   }
 
   // TASK-054: materia fija desde el detalle (modal) es un formulario corto; "Alta en modal" de
@@ -38,8 +41,9 @@ export function AltaCursada({ materiaId: materiaIdProp, onSuccess, onCancel, onB
       submitLabel="Crear cursada"
       fields={[
         { name: "anio", label: "Año", hint: `Un año entre ${ANIO_MINIMO} y ${maximo}.`, numeric: { min: ANIO_MINIMO, max: maximo }, validate: validateAnio },
+        { name: "cuatrimestre", label: "Período", options: [{ value: "PRIMERO", label: CUATRIMESTRE_LABEL.PRIMERO }, { value: "SEGUNDO", label: CUATRIMESTRE_LABEL.SEGUNDO }, { value: "ANUAL", label: CUATRIMESTRE_LABEL.ANUAL }], validate: validateSeleccion },
       ]}
-      onSubmit={(values) => crear(materiaIdProp, values.anio)}
+      onSubmit={(values) => crear(materiaIdProp, values.anio, values.cuatrimestre)}
       onSuccess={onSuccess}
       onCancel={onCancel}
       onBusyChange={onBusyChange}
@@ -49,7 +53,7 @@ export function AltaCursada({ materiaId: materiaIdProp, onSuccess, onCancel, onB
   return <AltaForm
     breadcrumb={[{ label: "Administración", href: "/home/admin" }, { label: "Nueva cursada" }]}
     heading="Nueva cursada"
-    description="Una cursada identifica el año de dictado de una materia. No puede repetirse la misma materia en el mismo año; su modalidad se define en la materia."
+    description="Una cursada es el dictado de una materia en un período. No puede repetirse la misma materia en el mismo año y período."
     submitLabel="Crear cursada"
     blocked={bloqueoDeOpciones([
       { ...materias, nombre: "materias", vacio: <>Todavía no hay materias cargadas. <Link href="/home/admin/materias/nueva">Crear una materia</Link> antes de dar de alta una cursada.</> },
@@ -57,7 +61,8 @@ export function AltaCursada({ materiaId: materiaIdProp, onSuccess, onCancel, onB
     fields={[
       { name: "materiaId", label: "Materia", options: opcionesMateria.map((materia) => ({ value: materia.id, label: materia.nombre })), defaultValue: opcionesMateria.some((materia) => materia.id === materiaInicial) ? materiaInicial : undefined, validate: validateSeleccion },
       { name: "anio", label: "Año", hint: `Un año entre ${ANIO_MINIMO} y ${maximo}.`, numeric: { min: ANIO_MINIMO, max: maximo }, validate: validateAnio },
+      { name: "cuatrimestre", label: "Período", options: [{ value: "PRIMERO", label: CUATRIMESTRE_LABEL.PRIMERO }, { value: "SEGUNDO", label: CUATRIMESTRE_LABEL.SEGUNDO }, { value: "ANUAL", label: CUATRIMESTRE_LABEL.ANUAL }], validate: validateSeleccion },
     ]}
-    onSubmit={(values) => crear(values.materiaId, values.anio)}
+    onSubmit={(values) => crear(values.materiaId, values.anio, values.cuatrimestre)}
   />;
 }

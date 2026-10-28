@@ -63,6 +63,22 @@
   de duplicados concurrentes en backend. Migración aditiva y rutas del proxy actualizadas.
 - Sin búsqueda por docente, moderación, administración de estado ni dependencias nuevas.
   Validación automatizada del flujo principal; pruebas manuales a cargo del desarrollador.
+### Administración académica HU-11 (TASK-055)
+
+- Corrección del bloqueo de CI en configuración de correo: comprobación equivalente de
+  caracteres de control compatible con ESLint, con cobertura de regresión del proveedor.
+- Integración de PR29 conservando los checks CI y ambos aportes de documentación; la
+  validación numérica de correo sustituye la excepción de lint incorporada en esa PR.
+- Cursadas anuales en alta, edición y navegación, mediante ampliación aditiva del enum de
+  período; selector múltiple de carreras en formularios de materia en lugar de checkbox.
+- Tablas paginadas de materias, profesores, cursadas, comisiones y usuarios, conservando
+  la portada administrativa actual; usuarios permanece como consulta.
+- Edición administrativa de profesores, cursadas y comisiones sobre el modelo vigente,
+  con validación estricta y preservación de docentes, cargos y relaciones.
+- Bloqueo de movimientos de cursada y cambios de carrera incompatibles, también ante
+  operaciones simultáneas; sin bajas, cambios de activa, roles ni auditoría nueva.
+- Altas reutilizadas y retorno seguro a filtros/página del listado. Implementación
+  verificada con datos locales aislados y aprobada por el desarrollador.
 
 ### Instalación de dependencias del check frontend (TASK-056)
 
@@ -87,8 +103,8 @@
 
 ### Validación de lint en ambos workspaces (TASK-055)
 
-- Excepción puntual y justificada de `no-control-regex` en la configuración de
-  correo: conserva el rechazo deliberado de caracteres de control.
+- Validación inicial mediante excepción puntual de `no-control-regex` en la configuración
+  de correo. HU-11 la sustituye por comparación numérica equivalente, sin excepción de lint.
 - Lint de backend y frontend sin errores ni advertencias; 13 pruebas de
   configuración del proveedor de correo aprobadas en el entorno local disponible.
 

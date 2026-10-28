@@ -277,7 +277,7 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     const body = await response.json();
     expect(response.status).toBe(200);
     expect(body.items).toEqual([{
-      id: cursada.id, anio: cursada.anio, comisiones: 0, profesores: 0, carreras: [],
+      id: cursada.id, anio: cursada.anio, cuatrimestre: "PRIMERO", comisiones: 0, profesores: 0, carreras: [],
     }]);
   });
 
@@ -313,7 +313,7 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     const response = await get(`/cursadas/${cursada.id}`, cookie);
     expect(response.status).toBe(200);
     expect(await response.json()).toStrictEqual({
-      id: cursada.id, anio: 2025, comisiones: 0, profesores: 0, carreras: [],
+      id: cursada.id, anio: 2025, cuatrimestre: "PRIMERO", comisiones: 0, profesores: 0, carreras: [],
       materia: { id: materia.id, nombre: materia.nombre, modalidad: null },
     });
   });
@@ -399,7 +399,7 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
       await asignar(s1.id, p2.id, "JTP");
       await asignar(inactiva.id, p3.id, "TITULAR");
       await asignar(borrada.id, p4.id, "TITULAR");
-      const resumen = { id: cursada.id, anio: 2025, comisiones: 2, profesores: 2, carreras: ["S", "Q"] };
+      const resumen = { id: cursada.id, anio: 2025, cuatrimestre: "PRIMERO", comisiones: 2, profesores: 2, carreras: ["S", "Q"] };
 
       expect((await (await get(`/materias/${materia.id}/cursadas`, cookie)).json()).items).toStrictEqual([resumen]);
       expect(await (await get(`/cursadas/${cursada.id}`, cookie)).json()).toStrictEqual({ ...resumen, materia: { id: materia.id, nombre: materia.nombre, modalidad: null } });
@@ -445,7 +445,7 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
         id: comision.id, cursadaId: cursada.id, nombre: "S-31", activa: false, carrera: "S", numero: 31,
         profesores: [{ id: profesor.id, nombreCompleto: profesor.nombreCompleto, cargo: "TITULAR" }],
         createdAt: iso(comision.createdAt), deletedAt: null,
-        cursada: { id: cursada.id, anio: 2025, materia: { id: materia.id, nombre: materia.nombre, modalidad: null } },
+        cursada: { id: cursada.id, anio: 2025, cuatrimestre: "PRIMERO", materia: { id: materia.id, nombre: materia.nombre, modalidad: null } },
       });
     });
 

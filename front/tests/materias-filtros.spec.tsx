@@ -173,7 +173,7 @@ describe("Listado de materias, rediseño (TASK-043)", () => {
 
     await userEvent.type(within(dialog).getByLabelText("Nombre de la materia"), "Sintaxis");
     await userEvent.selectOptions(within(dialog).getByLabelText("Modalidad"), "ANUAL");
-    await userEvent.click(within(dialog).getByLabelText(/S — Ingeniería en Sistemas/));
+    await userEvent.selectOptions(within(dialog).getByRole("listbox", { name: "Carreras" }), "S");
     await userEvent.selectOptions(within(dialog).getByLabelText("Año de la carrera"), "2");
     await userEvent.click(within(dialog).getByRole("button", { name: "Crear materia" }));
 
@@ -212,9 +212,9 @@ describe("Formulario de materia", () => {
   it("crea electiva con carreras y vuelve al listado con mensaje visible", async () => {
     vi.mocked(crearMateria).mockResolvedValue(materia);
     render(<MateriaFormPage />);
-    await userEvent.type(screen.getByLabelText("Nombre de la materia"), "Materia");
     await userEvent.selectOptions(screen.getByLabelText("Modalidad"), "ANUAL");
-    await userEvent.click(screen.getByLabelText(/S — Ingeniería en Sistemas/));
+    await userEvent.type(screen.getByLabelText("Nombre de la materia"), "Materia");
+    await userEvent.selectOptions(screen.getByRole("listbox", { name: "Carreras" }), "S");
     await userEvent.selectOptions(screen.getByLabelText("Año de la carrera"), "ELECTIVA");
     await userEvent.click(screen.getByRole("button", { name: "Crear materia" }));
     expect(crearMateria).not.toHaveBeenCalled();

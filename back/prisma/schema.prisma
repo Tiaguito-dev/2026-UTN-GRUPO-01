@@ -86,6 +86,7 @@ model RefreshCredential {
 enum Cuatrimestre {
   PRIMERO
   SEGUNDO
+  ANUAL
 }
 
 enum ModalidadMateria {
@@ -155,14 +156,14 @@ model Cursada {
   id           String       @id @default(uuid()) @db.Uuid
   materiaId    String       @db.Uuid
   anio         Int
-  // Legado preservado: las nuevas cursadas se identifican solo por materia y año.
+  // Los registros legados sin período se conservan; las nuevas altas exigen uno.
   cuatrimestre Cuatrimestre?
   createdAt    DateTime     @default(now()) @db.Timestamptz(3)
   deletedAt    DateTime?    @db.Timestamptz(3)
   materia      Materia      @relation(fields: [materiaId], references: [id], onDelete: Restrict)
   comisiones   Comision[]
 
-  @@unique([materiaId, anio])
+  @@unique([materiaId, anio, cuatrimestre])
 }
 
 model Comision {

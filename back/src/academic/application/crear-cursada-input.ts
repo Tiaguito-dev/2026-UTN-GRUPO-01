@@ -1,9 +1,11 @@
 import { z } from "zod";
+import type { Cuatrimestre } from "../domain/cursada.js";
 import { CAMPOS_NO_PERMITIDOS, InvalidAcademicInputError } from "./errors.js";
 
 export interface CrearCursadaInput {
   materiaId: string;
   anio: number;
+  cuatrimestre: Cuatrimestre;
 }
 
 export const ANIO_MINIMO = 2000;
@@ -19,11 +21,13 @@ function schema(): z.ZodType<CrearCursadaInput> {
   return z.strictObject({
     materiaId: z.string().uuid(),
     anio: z.number().int().min(ANIO_MINIMO).max(anioMaximo()),
+    cuatrimestre: z.enum(["PRIMERO", "SEGUNDO", "ANUAL"]),
   });
 }
 
 const MENSAJES: Record<string, string> = {
   materiaId: "El identificador de la materia no es válido.",
+  cuatrimestre: "El período debe ser PRIMERO, SEGUNDO o ANUAL.",
 };
 
 export function validateCrearCursadaInput(value: unknown): CrearCursadaInput {

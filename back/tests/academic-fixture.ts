@@ -51,6 +51,7 @@ export function fixture() {
       id: cursada.id,
       materiaId: cursada.materiaId,
       anio: cursada.anio,
+      cuatrimestre: cursada.cuatrimestre,
       comisiones: vigentes.length,
       profesores: new Set(vigentes.flatMap((c) => c.profesores.map((p) => p.id))).size,
       carreras: CARRERAS.filter((carrera) => vigentes.some((c) => c.carrera === carrera)),
@@ -79,6 +80,11 @@ export function fixture() {
     }),
   };
   const profesorRepository: ProfesorRepository = {
+    update: vi.fn(async (id, input) => {
+      const result = { ...profesores.get(id)!, ...input };
+      profesores.set(id, result);
+      return result;
+    }),
     findAll: vi.fn(async (pagination) => paginate([...profesores.values()], pagination)),
     findById: vi.fn(async (id) => { const p = profesores.get(id); return p && !p.deletedAt ? p : null; }),
     create: vi.fn(async ({ nombreCompleto }) => {
@@ -88,6 +94,11 @@ export function fixture() {
     }),
   };
   const cursadaRepository: CursadaRepository = {
+    update: vi.fn(async (id, input) => {
+      const result = { ...cursadas.get(id)!, ...input };
+      cursadas.set(id, result);
+      return result;
+    }),
     findByMateriaId: vi.fn(async (materiaId, pagination) => {
       const items = [...cursadas.values()].filter((c) => c.materiaId === materiaId && !c.deletedAt).map((c) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars -- descarta materiaId, no viaja en el resumen paginado
@@ -97,8 +108,8 @@ export function fixture() {
       return paginate(items, pagination);
     }),
     findById: vi.fn(async (id) => { const c = cursadas.get(id); return c && !c.deletedAt ? resumir(c) : null; }),
-    findByPeriodo: vi.fn(async (materiaId, anio) =>
-      [...cursadas.values()].find((c) => c.materiaId === materiaId && c.anio === anio) ?? null),
+    findByPeriodo: vi.fn(async (materiaId, anio, cuatrimestre) =>
+      [...cursadas.values()].find((c) => c.materiaId === materiaId && c.anio === anio && c.cuatrimestre === cuatrimestre) ?? null),
     create: vi.fn(async (input) => {
       const cursada: Cursada = { ...input, id: randomUUID(), createdAt: new Date(), deletedAt: null };
       cursadas.set(cursada.id, cursada);
@@ -106,6 +117,12 @@ export function fixture() {
     }),
   };
   const comisionRepository: ComisionRepository = {
+    update: vi.fn(async (id, input) => {
+      const result = { ...comisiones.get(id)!, ...input };
+      result.nombre = `${result.carrera}-${result.numero}`;
+      comisiones.set(id, result);
+      return conProfesores(result);
+    }),
     findByCursadaId: vi.fn(async (cursadaId, pagination) => paginate([...comisiones.values()].filter((c) => c.cursadaId === cursadaId).map(conProfesores), pagination)),
     findByCursadaIdCarreraNumero: vi.fn(async (cursadaId, carrera, numero) =>
       [...comisiones.values()].find((c) => c.cursadaId === cursadaId && c.carrera === carrera && c.numero === numero) ?? null),
@@ -142,8 +159,8 @@ export function fixture() {
     profesores.set(profesor.id, profesor);
     return profesor;
   }
-  function addCursada(materiaId: string, anio = 2026): Cursada {
-    const cursada: Cursada = { id: randomUUID(), materiaId, anio, createdAt: new Date(), deletedAt: null };
+  function addCursada(materiaId: string, anio = 2026, cuatrimestre: import("../src/academic/domain/cursada.js").Cuatrimestre = "PRIMERO"): Cursada {
+    const cursada: Cursada = { id: randomUUID(), materiaId, anio, cuatrimestre, createdAt: new Date(), deletedAt: null };
     cursadas.set(cursada.id, cursada);
     return cursada;
   }

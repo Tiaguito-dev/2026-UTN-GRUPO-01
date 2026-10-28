@@ -6,12 +6,11 @@ import { findSection } from "@/components/home/sections";
 import { PageHeader } from "@/components/ui/PageHeader";
 import styles from "./AdminPanel.module.css";
 
-// TASK-043 decision 3: there is no global listing of cursadas or comisiones, so their "Ver todas"
-// goes to /home/materias, the entry of the hierarchy.
+// Los listados administrativos conservan la selección de materia y cursada por URL.
 const OFERTA = [
-  { simbolo: "M", titulo: "Materias", detalle: "Con sus carreras. El nombre no puede repetirse.", requisito: null, nota: "Se carga sola", nueva: { label: "Nueva", nombre: "Nueva materia", href: "/home/admin/materias/nueva" }, ver: { label: "Ver todas", nombre: "Ver todas las materias", href: "/home/materias" }, flecha: "→" },
-  { simbolo: "Cu", titulo: "Cursadas", detalle: "El año de dictado de una materia.", requisito: "materia", nota: null, nueva: { label: "Nueva", nombre: "Nueva cursada", href: "/home/admin/cursadas/nueva" }, ver: { label: "Ver todas", nombre: "Ver todas las cursadas", href: "/home/materias" }, flecha: "→" },
-  { simbolo: "Co", titulo: "Comisiones", detalle: "Carrera más número, por ejemplo S-31.", requisito: "cursada", nota: null, nueva: { label: "Nueva", nombre: "Nueva comisión", href: "/home/admin/comisiones/nueva" }, ver: { label: "Ver todas", nombre: "Ver todas las comisiones", href: "/home/materias" }, flecha: "←" },
+  { simbolo: "M", titulo: "Materias", detalle: "Con sus carreras. El nombre no puede repetirse.", requisito: null, nota: "Se carga sola", nueva: { label: "Nueva", nombre: "Nueva materia", href: "/home/admin/materias/nueva" }, ver: { label: "Ver todas", nombre: "Ver todas las materias", href: "/home/admin/materias" }, flecha: "→" },
+  { simbolo: "Cu", titulo: "Cursadas", detalle: "El dictado de una materia en un año y período.", requisito: "materia", nota: null, nueva: { label: "Nueva", nombre: "Nueva cursada", href: "/home/admin/cursadas/nueva" }, ver: { label: "Ver todas", nombre: "Ver todas las cursadas", href: "/home/admin/cursadas" }, flecha: "→" },
+  { simbolo: "Co", titulo: "Comisiones", detalle: "Carrera más número, por ejemplo S-31.", requisito: "cursada", nota: null, nueva: { label: "Nueva", nombre: "Nueva comisión", href: "/home/admin/comisiones/nueva" }, ver: { label: "Ver todas", nombre: "Ver todas las comisiones", href: "/home/admin/comisiones" }, flecha: "←" },
   { simbolo: "P", titulo: "Profesores", detalle: "Se asignan a cada comisión con su cargo: Titular, Adjunto o JTP.", requisito: null, nota: "Se carga solo", nueva: { label: "Nuevo", nombre: "Nuevo profesor", href: "/home/admin/profesores/nuevo" }, ver: { label: "Ver todos", nombre: "Ver todos los profesores", href: "/home/admin/profesores" }, flecha: null },
 ];
 
@@ -30,7 +29,7 @@ export function AdminPanel() {
     <section id="oferta" className={styles.group} aria-labelledby={ofertaId}>
       <div>
         <h2 id={ofertaId} className={styles.groupTitle}>Oferta académica</h2>
-        <p className={styles.groupDescription}>Cada materia define sus carreras y su modalidad, anual o cuatrimestral. La cursada identifica el año; dentro de ella se agregan las comisiones, y a cada comisión se le asignan sus profesores con el cargo.</p>
+        <p className={styles.groupDescription}>Materias y profesores se cargan por separado. Una cursada es una materia en un año y período; dentro de ella se agregan las comisiones, y a cada comisión se le asignan sus profesores con el cargo.</p>
       </div>
       <div className={styles.flow}>
         {OFERTA.map((card) => <Fragment key={card.titulo}>
@@ -59,6 +58,6 @@ export function AdminPanel() {
         </article>
       </div>
     </section>
-    <p className="system-footnote">La edición y la baja todavía no están disponibles.</p>
+    <p className="system-footnote">La administración permite crear y editar. No se realizan bajas desde este panel.</p>
   </section>;
 }

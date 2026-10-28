@@ -18,7 +18,7 @@ import { fixture } from "./academic-fixture.js";
 describe("validateCrearMateriaInput: forma con carreras", () => {
   it("acepta carreras y completa el nivel nulo de las que no son electivas", () => {
     const input = { modalidad: "ANUAL", nombre: " Análisis II ", carreras: [{ carrera: "S", anioCarrera: "2" }, { carrera: "Q", anioCarrera: "ELECTIVA", nivelElectiva: "4" }] };
-    expect(validateCrearMateriaInput(input)).toMatchObject({ nombre: "Análisis II",
+    expect(validateCrearMateriaInput(input)).toMatchObject({ modalidad: "ANUAL", nombre: "Análisis II",
       carreras: [{ carrera: "S", anioCarrera: "2", nivelElectiva: null }, { carrera: "Q", anioCarrera: "ELECTIVA", nivelElectiva: "4" }] });
   });
 
@@ -33,17 +33,17 @@ describe("validateCrearMateriaInput: forma con carreras", () => {
   });
 
   it.each([
-    ["ambas formas a la vez", { nombre: "Materia", anioCarrera: "1", carreras: [{ carrera: "S", anioCarrera: "1" }] }],
-    ["ambas formas con solo el nivel legado", { nombre: "Materia", nivelElectiva: "3", carreras: [{ carrera: "S", anioCarrera: "1" }] }],
-    ["carreras vacío", { nombre: "Materia", carreras: [] }],
-    ["carrera repetida", { nombre: "Materia", carreras: [{ carrera: "S", anioCarrera: "1" }, { carrera: "S", anioCarrera: "2" }] }],
-    ["Electiva sin nivel", { nombre: "Materia", carreras: [{ carrera: "S", anioCarrera: "ELECTIVA" }] }],
-    ["carrera desconocida", { nombre: "Materia", carreras: [{ carrera: "X", anioCarrera: "1" }] }],
-    ["carrera en minúscula", { nombre: "Materia", carreras: [{ carrera: "s", anioCarrera: "1" }] }],
-    ["año inválido en una fila", { nombre: "Materia", carreras: [{ carrera: "S", anioCarrera: "6" }] }],
-    ["fila sin año", { nombre: "Materia", carreras: [{ carrera: "S" }] }],
-    ["carreras que no es arreglo", { nombre: "Materia", carreras: { carrera: "S", anioCarrera: "1" } }],
-    ["fila con claves de más", { nombre: "Materia", carreras: [{ carrera: "S", anioCarrera: "1", plan: "2023" }] }],
+    ["ambas formas a la vez", { modalidad: "ANUAL", nombre: "Materia", anioCarrera: "1", carreras: [{ carrera: "S", anioCarrera: "1" }] }],
+    ["ambas formas con solo el nivel legado", { modalidad: "ANUAL", nombre: "Materia", nivelElectiva: "3", carreras: [{ carrera: "S", anioCarrera: "1" }] }],
+    ["carreras vacío", { modalidad: "ANUAL", nombre: "Materia", carreras: [] }],
+    ["carrera repetida", { modalidad: "ANUAL", nombre: "Materia", carreras: [{ carrera: "S", anioCarrera: "1" }, { carrera: "S", anioCarrera: "2" }] }],
+    ["Electiva sin nivel", { modalidad: "ANUAL", nombre: "Materia", carreras: [{ carrera: "S", anioCarrera: "ELECTIVA" }] }],
+    ["carrera desconocida", { modalidad: "ANUAL", nombre: "Materia", carreras: [{ carrera: "X", anioCarrera: "1" }] }],
+    ["carrera en minúscula", { modalidad: "ANUAL", nombre: "Materia", carreras: [{ carrera: "s", anioCarrera: "1" }] }],
+    ["año inválido en una fila", { modalidad: "ANUAL", nombre: "Materia", carreras: [{ carrera: "S", anioCarrera: "6" }] }],
+    ["fila sin año", { modalidad: "ANUAL", nombre: "Materia", carreras: [{ carrera: "S" }] }],
+    ["carreras que no es arreglo", { modalidad: "ANUAL", nombre: "Materia", carreras: { carrera: "S", anioCarrera: "1" } }],
+    ["fila con claves de más", { modalidad: "ANUAL", nombre: "Materia", carreras: [{ carrera: "S", anioCarrera: "1", plan: "2023" }] }],
     ["sin nombre", { carreras: [{ carrera: "S", anioCarrera: "1" }] }],
   ])("rechaza %s", (_caso, input) => {
     expect(() => validateCrearMateriaInput(input)).toThrow(InvalidAcademicInputError);
@@ -111,12 +111,12 @@ describe("validateCrearComisionInput: forma con carrera y número", () => {
 
 describe("validateCrearCursadaInput: sin profesor", () => {
   it("acepta una cursada sin profesorId", () => {
-    const datos = { materiaId: randomUUID(), anio: 2026 };
+    const datos = { materiaId: randomUUID(), anio: 2026, cuatrimestre: "PRIMERO" as const };
     expect(validateCrearCursadaInput(datos)).toEqual(datos);
   });
 
   it("si llega profesorId se rechaza con CAMPOS_NO_PERMITIDOS", () => {
-    expect(() => validateCrearCursadaInput({ materiaId: randomUUID(), profesorId: randomUUID(), anio: 2026 }))
+    expect(() => validateCrearCursadaInput({ materiaId: randomUUID(), profesorId: randomUUID(), anio: 2026, cuatrimestre: "PRIMERO" }))
       .toThrow(CAMPOS_NO_PERMITIDOS);
   });
 });
@@ -143,7 +143,7 @@ describe("CrearMateria con carreras", () => {
     const { crearMateria, materiaRepository } = fixture();
     const carreras = [{ carrera: "S", anioCarrera: "2", nivelElectiva: null }, { carrera: "Q", anioCarrera: "ELECTIVA", nivelElectiva: "4" }];
     await crearMateria.execute({ modalidad: "ANUAL", nombre: "Análisis II", carreras });
-    expect(materiaRepository.create).toHaveBeenCalledWith(expect.objectContaining({ nombre: "Análisis II", carreras }));
+    expect(materiaRepository.create).toHaveBeenCalledWith(expect.objectContaining({ modalidad: "ANUAL", nombre: "Análisis II", carreras }));
   });
 
   it("la forma legada se rechaza con 400 CAMPOS_NO_PERMITIDOS", async () => {
@@ -271,7 +271,7 @@ describe("CrearCursada sin profesor", () => {
   it("crea la cursada sin consultar profesores", async () => {
     const { crearCursada, cursadaRepository, profesorRepository, addMateria } = fixture();
     const materia = addMateria("Álgebra");
-    const datos = { materiaId: materia.id, anio: 2026 };
+    const datos = { materiaId: materia.id, anio: 2026, cuatrimestre: "PRIMERO" as const };
     await expect(crearCursada.execute(datos)).resolves.toMatchObject(datos);
     expect(profesorRepository.findById).not.toHaveBeenCalled();
     expect(cursadaRepository.create).toHaveBeenCalledWith(datos);
@@ -280,7 +280,7 @@ describe("CrearCursada sin profesor", () => {
   it("con profesorId se rechaza con 400 CAMPOS_NO_PERMITIDOS", async () => {
     const { crearCursada, cursadaRepository, addMateria } = fixture();
     const materia = addMateria("Álgebra");
-    await expect(crearCursada.execute({ materiaId: materia.id, profesorId: randomUUID(), anio: 2026 }))
+    await expect(crearCursada.execute({ materiaId: materia.id, profesorId: randomUUID(), anio: 2026, cuatrimestre: "PRIMERO" }))
       .rejects.toThrow(CAMPOS_NO_PERMITIDOS);
     expect(cursadaRepository.create).not.toHaveBeenCalled();
   });

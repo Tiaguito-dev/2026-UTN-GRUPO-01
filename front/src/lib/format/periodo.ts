@@ -1,2 +1,7 @@
-/** Una cursada identifica el año; la modalidad pertenece a la materia. */
-export function periodoLabel(anio: number): string { return String(anio); }
+import type { Cuatrimestre } from "@/services/academic";
+
+export const CUATRIMESTRE_LABEL: Record<Cuatrimestre, string> = { PRIMERO: "1er cuatrimestre", SEGUNDO: "2do cuatrimestre", ANUAL: "Anual" };
+
+export function periodoLabel(anio: number, cuatrimestre?: Cuatrimestre | null): string {
+  return cuatrimestre ? `${CUATRIMESTRE_LABEL[cuatrimestre]} ${anio}` : cuatrimestre === null ? `${anio} · Sin período definido` : String(anio);
+}

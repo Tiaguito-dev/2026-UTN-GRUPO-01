@@ -39,8 +39,8 @@ describe("ListarCursadasPorMateria", () => {
     const materia = addMateria("Álgebra");
     const cursada = addCursada(materia.id, 2025);
     const result = await listarCursadasPorMateria.execute(materia.id, undefined);
-    expect(result.items).toEqual([{ id: cursada.id, anio: 2025, comisiones: 0, profesores: 0, carreras: [] }]);
-    expect(Object.keys(result.items[0]!).sort()).toEqual(["anio", "carreras", "comisiones", "id", "profesores"]);
+    expect(result.items).toEqual([{ id: cursada.id, anio: 2025, cuatrimestre: "PRIMERO", comisiones: 0, profesores: 0, carreras: [] }]);
+    expect(Object.keys(result.items[0]!).sort()).toEqual(["anio", "carreras", "comisiones", "cuatrimestre", "id", "profesores"]);
   });
 
   it("filtra comisiones inactivas y dadas de baja al calcular el resumen", async () => {
@@ -56,7 +56,7 @@ describe("ListarCursadasPorMateria", () => {
     f.asignaciones.set(`${s1.id}:${ada.id}`, "ADJUNTO");
     f.asignaciones.set(`${s1.id}:${alan.id}`, "JTP");
     const result = await f.listarCursadasPorMateria.execute(materia.id, undefined);
-    expect(result.items).toEqual([{ id: cursada.id, anio: 2026, comisiones: 2, profesores: 2, carreras: ["S", "Q"] }]);
+    expect(result.items).toEqual([{ id: cursada.id, anio: 2026, cuatrimestre: "PRIMERO", comisiones: 2, profesores: 2, carreras: ["S", "Q"] }]);
   });
 
   it("materiaId no-UUID tira InvalidIdError sin tocar los repositorios", async () => {
@@ -140,7 +140,7 @@ describe("ObtenerCursada", () => {
     const cursada = f.addCursada(materia.id, 2025);
     f.addComision(cursada.id, "S", 1);
     await expect(obtener(f).execute(cursada.id)).resolves.toStrictEqual({
-      id: cursada.id, anio: 2025, comisiones: 1, profesores: 0, carreras: ["S"],
+      id: cursada.id, anio: 2025, cuatrimestre: "PRIMERO", comisiones: 1, profesores: 0, carreras: ["S"],
       materia: { id: materia.id, nombre: "Álgebra", modalidad: "ANUAL" },
     });
   });

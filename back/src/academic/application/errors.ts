@@ -45,7 +45,7 @@ export class MateriaAlreadyExistsError extends DomainError {
 
 export class CursadaAlreadyExistsError extends DomainError {
   readonly httpStatus = 409;
-  constructor() { super("Ya existe una cursada de esa materia para ese año."); this.name = "CursadaAlreadyExistsError"; }
+  constructor() { super("Ya existe una cursada de esa materia para ese año y período."); this.name = "CursadaAlreadyExistsError"; }
 }
 
 export class ComisionAlreadyExistsError extends DomainError {

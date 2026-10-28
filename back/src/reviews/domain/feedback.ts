@@ -13,7 +13,7 @@ export interface Feedback {
     cursadaId: string;
     anio: number;
     /** Cuatrimestre histórico: null para anual o modalidad todavía sin definir. */
-    cuatrimestre: "PRIMERO" | "SEGUNDO" | null;
+    cuatrimestre: "PRIMERO" | "SEGUNDO" | "ANUAL" | null;
     modalidad: "ANUAL" | "PRIMERO" | "SEGUNDO" | null;
   };
   createdAt: Date;

@@ -131,10 +131,10 @@ describe("Cliente academic: construcción de URL y delegación en protectedGet",
   it("crearCursada envía los datos sin profesor", async () => {
     const cursada = { id: "c1", materiaId: "m1", anio: 2026, createdAt: "", deletedAt: null };
     fetchMock.mockResolvedValueOnce(reply(200, cursada));
-    await expect(crearCursada({ materiaId: "m1", anio: 2026 })).resolves.toEqual(cursada);
+    await expect(crearCursada({ materiaId: "m1", anio: 2026, cuatrimestre: "ANUAL" })).resolves.toEqual(cursada);
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
       method: "POST",
-      body: JSON.stringify({ materiaId: "m1", anio: 2026 }),
+      body: JSON.stringify({ materiaId: "m1", anio: 2026, cuatrimestre: "ANUAL" }),
     });
   });
   it("crearComision envía carrera y número", async () => {

@@ -118,6 +118,7 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
   it("publica en una materia anual y conserva la modalidad original al cambiar la materia", async () => {
     const f = await fixture(0);
     await prisma.materia.update({ where: { id: f.materia.id }, data: { modalidad: "ANUAL" } });
+    await prisma.cursada.update({ where: { id: f.cursada.id }, data: { cuatrimestre: "ANUAL" } });
     const created = await publish(f.path, autor.cookie, { texto: "Cursada anual", anonimo: true });
     expect(created.contexto).toMatchObject({ anio: 2026, modalidad: "ANUAL", cuatrimestre: null });
     await prisma.materia.update({ where: { id: f.materia.id }, data: { modalidad: "SEGUNDO" } });
@@ -170,6 +171,29 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     }
     expect((await request(`/feedback/${historic!.id}`, "GET", undefined, otro.cookie)).status).toBe(403);
     expect((await request("/feedback?pageSize=10", "GET", undefined, otro.cookie)).status).toBe(400);
+  });
+
+  it("separa experiencias por comisión y período real aunque la materia tenga otra modalidad", async () => {
+    const f = await fixture(0);
+    await prisma.materia.update({ where: { id: f.materia.id }, data: { modalidad: "ANUAL" } });
+    const second = await prisma.cursada.create({ data: { materiaId: f.materia.id, anio: 2026, cuatrimestre: "SEGUNDO" } });
+    ids.cursadas.push(second.id);
+    const commission = await prisma.comision.create({ data: { cursadaId: second.id, carrera: "S", numero: 31 } });
+    ids.comisiones.push(commission.id);
+    const firstFeedback = await publish(f.path);
+    const secondFeedback = await publish(`/comisiones/${commission.id}/feedback`);
+    expect(firstFeedback.contexto).toMatchObject({ cursadaId: f.cursada.id, modalidad: "PRIMERO", cuatrimestre: "PRIMERO" });
+    expect(secondFeedback.contexto).toMatchObject({ cursadaId: second.id, modalidad: "SEGUNDO", cuatrimestre: "SEGUNDO" });
+    expect(firstFeedback.id).not.toBe(secondFeedback.id);
+    const read = await (await request(f.path, "GET", undefined, autor.cookie)).json();
+    expect(read.total).toBe(1);
+    expect(read.items[0].id).toBe(firstFeedback.id);
+    const legacy = await prisma.cursada.create({ data: { materiaId: f.materia.id, anio: 2025, cuatrimestre: null } });
+    ids.cursadas.push(legacy.id);
+    const legacyCommission = await prisma.comision.create({ data: { cursadaId: legacy.id, carrera: "S", numero: 31 } });
+    ids.comisiones.push(legacyCommission.id);
+    const legacyFeedback = await publish(`/comisiones/${legacyCommission.id}/feedback`);
+    expect(legacyFeedback.contexto).toMatchObject({ cursadaId: legacy.id, modalidad: null, cuatrimestre: null });
   });
 
   it("publica inmediatamente y asocia al único docente sin exponer identidad anónima", async () => {

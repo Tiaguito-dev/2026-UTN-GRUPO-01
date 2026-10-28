@@ -74,8 +74,8 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
   }
   const crearMateria = (nombre = `Materia ${randomUUID()}`) => crear("/materias", { nombre, modalidad: "ANUAL", carreras: [{ carrera: "S", anioCarrera: "1" }] }, materiaIds);
   const crearProfesor = (nombreCompleto = `Profesor ${randomUUID()}`) => crear("/profesores", { nombreCompleto }, profesorIds);
-  const crearCursada = (materiaId: string, anio = ANIO) =>
-    crear("/cursadas", { materiaId, anio }, cursadaIds);
+  const crearCursada = (materiaId: string, anio = ANIO, cuatrimestre = "PRIMERO") =>
+    crear("/cursadas", { materiaId, anio, cuatrimestre }, cursadaIds);
   const crearComision = (cursadaId: string, carrera = "S", numero = 1) => crear("/comisiones", { cursadaId, carrera, numero }, comisionIds);
 
   /** Materia + cursada recién creados por HTTP. */
@@ -118,6 +118,135 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
     if (prisma) await prisma.$disconnect();
   });
 
+  describe("TASK-055 edición administrativa", () => {
+    it("ANUAL roundtrip: crea, lista y edita conservando el período persistido", async () => {
+      const materia = await crearMateria();
+      const anual = await crearCursada(materia.id, ANIO, "ANUAL");
+      expect(anual.cuatrimestre).toBe("ANUAL");
+      const listado = await (await get(`/materias/${materia.id}/cursadas`, userCookie)).json();
+      expect(listado.items).toContainEqual(expect.objectContaining({ id: anual.id, cuatrimestre: "ANUAL" }));
+      const result = await patch(`/cursadas/${anual.id}`, { anio: ANIO + 1 }, adminCookie);
+      expect(result.status).toBe(200);
+      expect(await result.json()).toMatchObject({ id: anual.id, anio: ANIO + 1, cuatrimestre: "ANUAL" });
+      expect((await prisma.cursada.findUniqueOrThrow({ where: { id: anual.id } })).cuatrimestre).toBe("ANUAL");
+      const semestral = await crearCursada(materia.id, ANIO, "PRIMERO");
+      const editar = await patch(`/cursadas/${semestral.id}`, { cuatrimestre: "ANUAL" }, adminCookie);
+      expect(editar.status).toBe(200);
+      expect(await editar.json()).toMatchObject({ id: semestral.id, cuatrimestre: "ANUAL" });
+    });
+    it("serializa alta de comisión contra retiro concurrente de su carrera", async () => {
+      const { materia, cursada } = await jerarquia();
+      await prisma.materiaCarrera.create({ data: { materiaId: materia.id, carrera: "Q", anioCarrera: "1" } });
+      const [alta, retiro] = await Promise.all([
+        post("/comisiones", { cursadaId: cursada.id, carrera: "Q", numero: 21 }, adminCookie),
+        patch(`/materias/${materia.id}`, { carreras: [{ carrera: "S", anioCarrera: "1" }] }, adminCookie),
+      ]);
+      if (alta.status === 201) comisionIds.add((await alta.json()).id);
+      expect([201, 400]).toContain(alta.status);
+      expect([200, 409]).toContain(retiro.status);
+      const carreras = await prisma.materiaCarrera.findMany({ where: { materiaId: materia.id } });
+      const comisiones = await prisma.comision.findMany({ where: { cursadaId: cursada.id, deletedAt: null } });
+      expect(comisiones.every((c) => carreras.some((r) => r.carrera === c.carrera))).toBe(true);
+      expect(alta.status === 201 && retiro.status === 200).toBe(false);
+    });
+
+    it("serializa movimiento de cursada contra alta concurrente de comisión", async () => {
+      const { materia, cursada } = await jerarquia();
+      await prisma.materiaCarrera.create({ data: { materiaId: materia.id, carrera: "Q", anioCarrera: "1" } });
+      const destino = await crearMateria();
+      const [alta, mover] = await Promise.all([
+        post("/comisiones", { cursadaId: cursada.id, carrera: "Q", numero: 22 }, adminCookie),
+        patch(`/cursadas/${cursada.id}`, { materiaId: destino.id }, adminCookie),
+      ]);
+      if (alta.status === 201) comisionIds.add((await alta.json()).id);
+      expect([201, 400]).toContain(alta.status);
+      expect([200, 400]).toContain(mover.status);
+      const actual = await prisma.cursada.findUniqueOrThrow({ where: { id: cursada.id } });
+      const carreras = await prisma.materiaCarrera.findMany({ where: { materiaId: actual.materiaId } });
+      const comisiones = await prisma.comision.findMany({ where: { cursadaId: cursada.id, deletedAt: null } });
+      expect(comisiones.every((c) => carreras.some((r) => r.carrera === c.carrera))).toBe(true);
+      expect(alta.status === 201 && mover.status === 200).toBe(false);
+    });
+
+    it("consulta y edita un profesor y protege GET/PATCH por rol", async () => {
+      const profesor = await crearProfesor();
+      expect((await get(`/profesores/${profesor.id}`)).status).toBe(401);
+      expect((await get(`/profesores/${profesor.id}`, userCookie)).status).toBe(403);
+      expect((await get(`/profesores/${profesor.id}`, adminCookie)).status).toBe(200);
+      expect((await patch(`/profesores/${profesor.id}`, { nombreCompleto: "Otro" })).status).toBe(401);
+      expect((await patch(`/profesores/${profesor.id}`, { nombreCompleto: "Otro" }, userCookie)).status).toBe(403);
+      const result = await patch(`/profesores/${profesor.id}`, { nombreCompleto: " Ada Lovelace " }, adminCookie);
+      expect(result.status).toBe(200);
+      expect(await result.json()).toMatchObject({ id: profesor.id, nombreCompleto: "Ada Lovelace" });
+      expect((await patch(`/profesores/${randomUUID()}`, { nombreCompleto: "Ada" }, adminCookie)).status).toBe(404);
+    });
+
+    it("mueve una cursada compatible preservando comisión y docentes", async () => {
+      const { cursada } = await jerarquia();
+      const destino = await crearMateria();
+      const comision = await crearComision(cursada.id);
+      const profesor = await crearProfesor();
+      await prisma.comisionProfesor.create({ data: { comisionId: comision.id, profesorId: profesor.id, cargo: "TITULAR" } });
+      const result = await patch(`/cursadas/${cursada.id}`, { materiaId: destino.id, cuatrimestre: "SEGUNDO" }, adminCookie);
+      expect(result.status).toBe(200);
+      expect(await result.json()).toMatchObject({ id: cursada.id, materiaId: destino.id, cuatrimestre: "SEGUNDO" });
+      const detalle = await (await get(`/comisiones/${comision.id}`, userCookie)).json();
+      expect(detalle.cursada.materia.id).toBe(destino.id);
+      expect(detalle.profesores).toEqual([expect.objectContaining({ id: profesor.id, cargo: "TITULAR" })]);
+      expect((await get(`/cursadas/${cursada.id}`, userCookie)).status).toBe(200);
+    });
+
+    it("impide mover a una materia sin carreras de comisiones incluso inactivas", async () => {
+      const { cursada } = await jerarquia();
+      const comision = await crearComision(cursada.id);
+      await prisma.comision.update({ where: { id: comision.id }, data: { activa: false } });
+      const destino = await crear("/materias", { modalidad: "ANUAL", nombre: `Química ${randomUUID()}`, carreras: [{ carrera: "Q", anioCarrera: "1" }] }, materiaIds);
+      expect((await patch(`/cursadas/${cursada.id}`, { materiaId: destino.id }, adminCookie)).status).toBe(400);
+      expect((await prisma.cursada.findUniqueOrThrow({ where: { id: cursada.id } })).materiaId).toBe(cursada.materiaId);
+    });
+
+    it("edita carrera y número y mantiene cursada, activa y docentes", async () => {
+      const { materia, cursada } = await jerarquia();
+      await prisma.materiaCarrera.create({ data: { materiaId: materia.id, carrera: "Q", anioCarrera: "1" } });
+      const comision = await crearComision(cursada.id);
+      const profesor = await crearProfesor();
+      await prisma.comisionProfesor.create({ data: { comisionId: comision.id, profesorId: profesor.id, cargo: "ADJUNTO" } });
+      const result = await patch(`/comisiones/${comision.id}`, { carrera: "Q", numero: 31 }, adminCookie);
+      expect(result.status).toBe(200);
+      expect(await result.json()).toMatchObject({ id: comision.id, nombre: "Q-31", cursadaId: cursada.id, activa: true, profesores: [expect.objectContaining({ id: profesor.id, cargo: "ADJUNTO" })] });
+      expect((await get(`/comisiones/${comision.id}`, userCookie)).status).toBe(200);
+    });
+
+    it("rechaza duplicados de cursada y comisión con 409 y carreras ajenas con 400", async () => {
+      const { cursada, materia } = await jerarquia();
+      await crearCursada(materia.id, ANIO, "SEGUNDO");
+      expect((await patch(`/cursadas/${cursada.id}`, { cuatrimestre: "SEGUNDO" }, adminCookie)).status).toBe(409);
+      const comision = await crearComision(cursada.id, "S", 1);
+      await crearComision(cursada.id, "S", 2);
+      expect((await patch(`/comisiones/${comision.id}`, { numero: 2 }, adminCookie)).status).toBe(409);
+      expect((await patch(`/comisiones/${comision.id}`, { carrera: "Q" }, adminCookie)).status).toBe(400);
+    });
+
+    it("rechaza PATCH vacíos, propiedades retiradas y ausencia de CSRF", async () => {
+      const profesor = await crearProfesor();
+      const { cursada } = await jerarquia();
+      const comision = await crearComision(cursada.id);
+      for (const [path, body] of [
+        [`/profesores/${profesor.id}`, {}], [`/profesores/${profesor.id}`, { nombreCompleto: "Ada", role: "ADMIN" }],
+        [`/cursadas/${cursada.id}`, {}], [`/cursadas/${cursada.id}`, { profesorId: profesor.id }],
+        [`/comisiones/${comision.id}`, {}], [`/comisiones/${comision.id}`, { nombre: "Otra" }],
+        [`/comisiones/${comision.id}`, { activa: false }], [`/comisiones/${comision.id}`, { cursadaId: cursada.id }],
+      ] as const) expect((await patch(path, body, adminCookie)).status, path).toBe(400);
+      for (const [path, body] of [[`/cursadas/${cursada.id}`, { anio: ANIO }], [`/comisiones/${comision.id}`, { numero: 3 }]] as const) {
+        expect((await patch(path, body)).status).toBe(401);
+        expect((await patch(path, body, userCookie)).status).toBe(403);
+        expect((await fetch(`${baseUrl}${path}`, { method: "PATCH", headers: { Cookie: adminCookie, "Content-Type": "application/json" }, body: JSON.stringify(body) })).status).toBe(403);
+      }
+      expect((await patch(`/cursadas/${randomUUID()}`, { anio: ANIO }, adminCookie)).status).toBe(404);
+      expect((await patch(`/comisiones/${randomUUID()}`, { numero: 3 }, adminCookie)).status).toBe(404);
+    });
+  });
+
   describe("un ADMIN carga la jerarquía completa", () => {
     it("da de alta las 4 entidades con 201 y quedan visibles en el drill-down de lectura", async () => {
       const materia = await crearMateria();
@@ -126,11 +255,11 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
       const comision = await crearComision(cursada.id, "S", 1);
       expect(comision).toMatchObject({ cursadaId: cursada.id, nombre: "S-1", carrera: "S", numero: 1, activa: true, deletedAt: null });
 
-      const materias = await (await get(`/materias?pageSize=9`, adminCookie)).json();
+      const materias = await (await get(`/materias?pageSize=9&q=${encodeURIComponent(materia.nombre)}`, adminCookie)).json();
       expect(materias.items.map((item: { id: string }) => item.id)).toContain(materia.id);
 
       const cursadas = await (await get(`/materias/${materia.id}/cursadas`, adminCookie)).json();
-      expect(cursadas.items).toEqual([{ id: cursada.id, anio: ANIO, comisiones: 1, profesores: 0, carreras: ["S"] }]);
+      expect(cursadas.items).toEqual([{ id: cursada.id, anio: ANIO, cuatrimestre: "PRIMERO", comisiones: 1, profesores: 0, carreras: ["S"] }]);
 
       const comisiones = await (await get(`/cursadas/${cursada.id}/comisiones`, adminCookie)).json();
       expect(comisiones.items.map((item: { id: string }) => item.id)).toEqual([comision.id]);
@@ -171,9 +300,9 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
 
     it("cursada con la misma materia, año devuelve 409", async () => {
       const { materia, cursada } = await jerarquia();
-      const response = await post("/cursadas", { materiaId: materia.id, anio: cursada.anio }, adminCookie);
+      const response = await post("/cursadas", { materiaId: materia.id, anio: cursada.anio, cuatrimestre: "PRIMERO" }, adminCookie);
       expect(response.status).toBe(409);
-      expect((await response.json()).message).toBe("Ya existe una cursada de esa materia para ese año.");
+      expect((await response.json()).message).toBe("Ya existe una cursada de esa materia para ese año y período.");
     });
 
     it("comisión con la misma carrera y número en la misma cursada devuelve 409", async () => {
@@ -197,7 +326,7 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
 
   describe("referencias inexistentes y cuerpos inválidos", () => {
     it("POST /cursadas con materia inexistente devuelve 404 de materia", async () => {
-      const response = await post("/cursadas", { materiaId: randomUUID(), anio: ANIO }, adminCookie);
+      const response = await post("/cursadas", { materiaId: randomUUID(), anio: ANIO, cuatrimestre: "PRIMERO" }, adminCookie);
       expect(response.status).toBe(404);
       expect((await response.json()).message).toBe("La materia solicitada no existe.");
     });
@@ -309,13 +438,14 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
   });
 
   describe("carreras de la materia (TASK-040)", () => {
-    it("crea electiva anual, cursada solo por año y registra cambios de modalidad sin duplicados", async () => {
-      const materia = await crear("/materias", { nombre: `Anual ${randomUUID()}`, modalidad: "ANUAL", carreras: [{ carrera: "S", anioCarrera: "ELECTIVA", nivelElectiva: "4" }] }, materiaIds);
+    it("conserva períodos de cursada y registra cambios de modalidad de materia sin duplicados", async () => {
+      const materia = await crear("/materias", { modalidad: "ANUAL", nombre: `Anual ${randomUUID()}`, carreras: [{ carrera: "S", anioCarrera: "ELECTIVA", nivelElectiva: "4" }] }, materiaIds);
       expect(materia.modalidad).toBe("ANUAL");
-      const cursada = await crear("/cursadas", { materiaId: materia.id, anio: ANIO }, cursadaIds);
-      expect(cursada).not.toHaveProperty("cuatrimestre");
-      expect((await post("/cursadas", { materiaId: materia.id, anio: ANIO }, adminCookie)).status).toBe(409);
-      expect((await post("/cursadas", { materiaId: materia.id, anio: ANIO + 1, cuatrimestre: "PRIMERO" }, adminCookie)).status).toBe(400);
+      const cursada = await crearCursada(materia.id, ANIO, "ANUAL");
+      expect(cursada.cuatrimestre).toBe("ANUAL");
+      expect((await post("/cursadas", { materiaId: materia.id, anio: ANIO, cuatrimestre: "ANUAL" }, adminCookie)).status).toBe(409);
+      expect((await post("/cursadas", { materiaId: materia.id, anio: ANIO + 1 }, adminCookie)).status).toBe(400);
+      await crearCursada(materia.id, ANIO, "SEGUNDO");
       const path = `/materias/${materia.id}`;
       expect((await patch(path, { modalidad: "SEGUNDO" }, adminCookie)).status).toBe(200);
       expect((await patch(path, { modalidad: "SEGUNDO" }, adminCookie)).status).toBe(200);
@@ -348,7 +478,7 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
       const materia = await crear("/materias", { modalidad: "ANUAL", nombre: `Materia ${randomUUID()}`, carreras: [
         { carrera: "S", anioCarrera: "2" }, { carrera: "Q", anioCarrera: "2" },
       ] }, materiaIds);
-      const cursada = await crear("/cursadas", { materiaId: materia.id, anio: ANIO }, cursadaIds);
+      const cursada = await crear("/cursadas", { materiaId: materia.id, anio: ANIO, cuatrimestre: "PRIMERO" }, cursadaIds);
       await crear("/comisiones", { cursadaId: cursada.id, carrera: "Q", numero: 1 }, comisionIds);
       const response = await patch(`/materias/${materia.id}`, { carreras: [{ carrera: "S", anioCarrera: "2" }] }, adminCookie);
       expect(response.status).toBe(409);
@@ -374,7 +504,7 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
 
     it("POST /comisiones devuelve carrera, número y profesores", async () => {
       const materia = await crear("/materias", { modalidad: "ANUAL", nombre: `Materia ${randomUUID()}`, carreras: [{ carrera: "S", anioCarrera: "2" }] }, materiaIds);
-      const cursada = await crear("/cursadas", { materiaId: materia.id, anio: ANIO }, cursadaIds);
+      const cursada = await crear("/cursadas", { materiaId: materia.id, anio: ANIO, cuatrimestre: "PRIMERO" }, cursadaIds);
       const nueva = await crear("/comisiones", { cursadaId: cursada.id, carrera: "S", numero: 31 }, comisionIds);
       expect(nueva).toMatchObject({ cursadaId: cursada.id, nombre: "S-31", activa: true, carrera: "S", numero: 31, profesores: [], deletedAt: null });
       const responseLegada = await post("/comisiones", { cursadaId: cursada.id, nombre: "Comisión 1 - Mañana" }, adminCookie);
