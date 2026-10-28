@@ -3,20 +3,22 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { MateriaDetail } from "@/components/academic/MateriaDetail";
 import { listarHistorialMateria } from "@/services/materias";
+import type { Materia } from "@/types/materias";
 
 const { state } = vi.hoisted(() => ({
   state: {
     role: "USER",
+    query: "carrera=S&anioCarrera=ELECTIVA&listadoPage=2&q=Plan&nivelElectiva=4",
     realCursadas: false,
     deletedAt: null as string | null,
-    detail: null as null | { materia: null; error: string; notFound: boolean; retry: () => void },
+    detail: null as null | { materia: Materia | null; error: string; notFound: boolean; retry: () => void },
     historyData: null as null | { items: import("@/types/materias").MateriaHistorial[]; total: number; page: number; pageSize: number },
   },
 }));
 
 vi.mock("next/link", () => import("./support/next-link"));
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams("carrera=S&anioCarrera=ELECTIVA&listadoPage=2&q=Plan&nivelElectiva=4"),
+  useSearchParams: () => new URLSearchParams(state.query),
 }));
 vi.mock("@/services/materias", () => ({
   listarHistorialMateria: vi.fn().mockResolvedValue({
@@ -76,9 +78,23 @@ afterEach(() => {
   state.deletedAt = null;
   state.detail = null;
   state.historyData = null;
+  state.query = "carrera=S&anioCarrera=ELECTIVA&listadoPage=2&q=Plan&nivelElectiva=4";
 });
 
 describe("Detalle de materia", () => {
+  it("identifica Básica con todas sus asociaciones y cambia el año según la carrera sin perderlas", () => {
+    state.detail = { materia: { id: "m1", nombre: "Compartida", carreras: [
+      { carrera: "S", anioCarrera: "1", nivelElectiva: null }, { carrera: "I", anioCarrera: "2", nivelElectiva: null },
+    ], modalidad: "ANUAL", createdAt: "2026-01-01", deletedAt: null }, error: "", notFound: false, retry: vi.fn() };
+    state.query = "carrera=I";
+    const view = render(<MateriaDetail materiaId="m1" />);
+    expect(screen.getByText("Básica")).toBeTruthy();
+    expect(screen.getByText("2.º año")).toBeTruthy();
+    state.query = "";
+    view.rerender(<MateriaDetail materiaId="m1" />);
+    expect(screen.getByText("Año según carrera")).toBeTruthy();
+    expect(screen.getByText("Básica")).toBeTruthy();
+  });
   // TASK-043: the "Datos de la materia" card, which listed "Ingeniería en Sistemas — Electiva", goes away.
   it("Volver y breadcrumb recuperan carrera, año y página del listado", () => {
     render(<MateriaDetail materiaId="m1" />);

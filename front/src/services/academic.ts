@@ -36,8 +36,10 @@ export function listarCursadasPorMateria(materiaId: string, pagination: Paginati
 export function obtenerCursada(cursadaId: string): Promise<CursadaDetalle> {
   return getAuthService().protectedGet(`/cursadas/${encodeURIComponent(cursadaId)}`, cursadaDetalleSchema);
 }
-export function listarComisionesPorCursada(cursadaId: string, pagination: PaginationInput = {}): Promise<PaginatedResult<Comision>> {
-  return getAuthService().protectedGet(`/cursadas/${encodeURIComponent(cursadaId)}/comisiones${toQuery(pagination)}`, paginatedSchema(comisionSchema));
+export function listarComisionesPorCursada(cursadaId: string, pagination: PaginationInput & { carrera?: Carrera } = {}): Promise<PaginatedResult<Comision>> {
+  const query = new URLSearchParams(toQuery(pagination).slice(1));
+  if (pagination.carrera) query.set("carrera", pagination.carrera);
+  return getAuthService().protectedGet(`/cursadas/${encodeURIComponent(cursadaId)}/comisiones${query.size ? `?${query}` : ""}`, paginatedSchema(comisionSchema));
 }
 export function obtenerComision(comisionId: string): Promise<ComisionDetalle> {
   return getAuthService().protectedGet(`/comisiones/${encodeURIComponent(comisionId)}`, comisionDetalleSchema);

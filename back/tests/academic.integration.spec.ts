@@ -331,6 +331,28 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
   });
 
   describe("lecturas con carreras y comisiones (TASK-041)", () => {
+    it("filtra carrera y cursada antes de paginar, con total único coherente y cero para combinación vacía", async () => {
+      const materia = await createMateriaConCarreras(`Compartida ${randomUUID()}`, [
+        { carrera: "S", anioCarrera: "1" }, { carrera: "I", anioCarrera: "2" }, { carrera: "Q", anioCarrera: "ELECTIVA", nivelElectiva: "4" },
+      ]);
+      const current = await createCursada(materia.id, 2026);
+      const old = await createCursada(materia.id, 2025);
+      for (let numero = 1; numero <= 12; numero++) await createComision(current.id, { carrera: "S", numero });
+      for (let numero = 1; numero <= 4; numero++) await createComision(current.id, { carrera: "I", numero });
+      await createComision(old.id, { carrera: "S", numero: 99 });
+      await createComision(current.id, { carrera: "S", numero: 98, deletedAt: new Date() });
+      const cookie = await sessionCookie();
+      const path = `/cursadas/${current.id}/comisiones`;
+      const page1 = await (await get(`${path}?carrera=S&page=1&pageSize=9`, cookie)).json();
+      const page2 = await (await get(`${path}?carrera=S&page=2&pageSize=9`, cookie)).json();
+      expect(page1).toMatchObject({ total: 12, page: 1, pageSize: 9 });
+      expect(page2).toMatchObject({ total: 12, page: 2, pageSize: 9 });
+      expect([...page1.items, ...page2.items].map((row: { numero: number }) => row.numero)).toEqual(Array.from({ length: 12 }, (_, index) => index + 1));
+      expect(page1.items.every((row: { carrera: string; cursadaId: string }) => row.carrera === "S" && row.cursadaId === current.id)).toBe(true);
+      expect(await (await get(`${path}?carrera=Q`, cookie)).json()).toMatchObject({ total: 0, items: [] });
+      expect(await (await get(path, cookie)).json()).toMatchObject({ total: 16 });
+      expect((await get(`${path}?carrera=INVALIDA`, cookie)).status).toBe(400);
+    });
     const iso = (fecha: Date) => fecha.toISOString();
 
     // TASK-060: paginate alphabetically by unique subject, not by association/year/level.

@@ -13,6 +13,7 @@ import {
   materiaDetailHref,
   anioCarreraLabel,
   carrerasResumenLabel,
+  materiaAnioLabel,
   parseMateriaPage,
   parseMateriaContext,
   nivelElectivaLabel,
@@ -40,8 +41,6 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
   const editHref = `/home/admin/materias/${encodeURIComponent(materiaId)}/editar${detailHref.includes("?") ? detailHref.slice(detailHref.indexOf("?")) : ""}`;
   const { materia, error, notFound, retry } = useMateria(materiaId);
   const materiaLabel = materia?.nombre ?? (error ? "Materia" : "Cargando…");
-  // The year badge follows the career of the listing context, or the first one of the materia.
-  const fila = materia ? materia.carreras.find((c) => c.carrera === carrera) ?? materia.carreras[0] : undefined;
 
   return <section aria-labelledby={headingId}>
     <div className="academic-detail-header">
@@ -54,7 +53,7 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
       />
       {materia ? <div className="academic-heading-row">
         <div className="academic-badges">
-          {fila ? <span className="academic-tag academic-tag-primary">{anioCarreraLabel(fila.anioCarrera)}{fila.anioCarrera === "ELECTIVA" && fila.nivelElectiva ? ` · ${nivelElectivaLabel(fila.nivelElectiva)}` : ""}</span> : null}
+          <span className="academic-tag academic-tag-primary">{materiaAnioLabel(materia.carreras, carrera)}</span>
           <span className="academic-tag">{materia.carreras.length ? carrerasResumenLabel(materia.carreras) : "Sin carreras asignadas"}</span>
           {isAdmin ? <span className={`academic-tag ${materia.deletedAt ? "" : "academic-tag-success"}`}>{materia.deletedAt ? "Inactiva" : "Activa"}</span> : null}
         </div>
@@ -67,7 +66,7 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
     {!materia && !error ? <p role="status">Cargando materia…</p> : null}
     {materia ? <div className="academic-columns">
       <div className="academic-main">
-        <ComisionesMateria key={materiaId} materiaId={materiaId} materiaNombre={materia.nombre} materiasHref={backHref} />
+        <ComisionesMateria key={materiaId} materiaId={materiaId} materiaNombre={materia.nombre} carreras={materia.carreras} materiasHref={backHref} />
       </div>
       {isAdmin ? <div className="academic-aside">
         <MateriaHistory key={materiaId} materiaId={materiaId} materiaCreatedAt={materia.createdAt} />
@@ -128,10 +127,12 @@ function initials(actorName: string) {
 }
 
 function historyFieldLabel(campo: string) {
+  if (campo === "deletedAt") return "Fecha de baja";
   return campo === "nombre" ? "Nombre" : campo === "modalidad" ? "Modalidad" : campo === "nivelElectiva" ? "Nivel de electiva" : campo === "carreras" ? "Carreras" : "Año de la carrera";
 }
 
 function historyValue(campo: string, value: string | null) {
+  if (campo === "deletedAt") return value ? new Date(value).toLocaleString("es-AR") : "Activa";
   if (campo === "modalidad") return modalidadLabel(isModalidadMateria(value) ? value : null);
   if (!value) return "Sin valor";
   if (campo === "nivelElectiva" && (value === "3" || value === "4" || value === "5")) return nivelElectivaLabel(value);

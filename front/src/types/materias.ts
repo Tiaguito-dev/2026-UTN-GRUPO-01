@@ -38,7 +38,7 @@ export interface MateriaHistorial {
   };
   createdAt: string;
   cambios: {
-    campo: "nombre" | "anioCarrera" | "nivelElectiva" | "carreras" | "modalidad";
+    campo: "nombre" | "anioCarrera" | "nivelElectiva" | "carreras" | "modalidad" | "deletedAt";
     anterior: string | null;
     nuevo: string | null;
   }[];

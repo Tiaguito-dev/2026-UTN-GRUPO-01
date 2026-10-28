@@ -7,7 +7,10 @@ import {
   type Carrera,
   type NivelElectiva,
   type ModalidadMateria,
+  type MateriaCarrera,
 } from "@/types/materias";
+import { carreraLabel } from "@/lib/format/carrera";
+export { CARRERA_LABEL, CARRERA_SHORT_LABEL, carreraLabel, carreraShortLabel } from "@/lib/format/carrera";
 
 export { ANIOS_CARRERA, CARRERAS, NIVELES_ELECTIVA, MODALIDADES_MATERIA };
 export type { Carrera };
@@ -26,41 +29,27 @@ export function modalidadLabel(value: ModalidadMateria | null | undefined): stri
   return value ? MODALIDAD_LABEL[value] : "Modalidad sin definir";
 }
 
-export const CARRERA_LABEL: Record<Carrera, string> = {
-  S: "Ingeniería en Sistemas",
-  C: "Ingeniería Civil",
-  Q: "Ingeniería Química",
-  I: "Ingeniería Industrial",
-  M: "Ingeniería Mecánica",
-};
-
-export const CARRERA_SHORT_LABEL: Record<Carrera, string> = {
-  S: "Sistemas",
-  C: "Civil",
-  Q: "Química",
-  I: "Industrial",
-  M: "Mecánica",
-};
-
 export { CARGO_LABEL, CARGO_TONE, cargoLabel } from "@/lib/format/cargo";
 
 export function isCarrera(value: unknown): value is Carrera {
   return typeof value === "string" && (CARRERAS as readonly string[]).includes(value);
 }
 
-export function carreraLabel(carrera: Carrera | null | undefined): string {
-  return carrera ? CARRERA_LABEL[carrera] ?? carrera : "Sin carrera asignada";
-}
-
-export function carreraShortLabel(carrera: Carrera): string {
-  return CARRERA_SHORT_LABEL[carrera] ?? carrera;
-}
-
 export function carrerasResumenLabel(carreras: { carrera: Carrera }[] | Carrera[]): string {
-  const codigos: Carrera[] = carreras.map((c) => (typeof c === "string" ? c : c.carrera));
-  if (codigos.length === 5) return "Común a las 5 carreras";
-  if (codigos.length === 1) return `Solo ${carreraShortLabel(codigos[0])}`;
-  return codigos.map(carreraShortLabel).join(", ");
+  const codigos = [...new Set(carreras.map((c) => typeof c === "string" ? c : c.carrera))];
+  return codigos.length > 1 ? "Básica" : carreraLabel(codigos[0]);
+}
+
+export function materiaAnioLabel(carreras: MateriaCarrera[], carrera?: Carrera): string {
+  const selected = carreras.find((row) => row.carrera === carrera);
+  const rows = selected ? [selected] : carreras;
+  if (!rows.length) return "Sin año asignado";
+  const year = rows[0].anioCarrera;
+  if (rows.some((row) => row.anioCarrera !== year)) return "Año según carrera";
+  if (year !== "ELECTIVA") return anioCarreraLabel(year);
+  const level = rows[0].nivelElectiva;
+  return rows.some((row) => row.nivelElectiva !== level)
+    ? "Electiva · Nivel según carrera" : `Electiva · ${nivelElectivaLabel(level)}`;
 }
 
 export interface MateriaContext {

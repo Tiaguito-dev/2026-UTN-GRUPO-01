@@ -8,7 +8,7 @@ import type { AnioCarrera, Carrera, Materia, MateriaCarrera } from "@/types/mate
 import { useFocusOnMount } from "@/hooks/useFocusOnMount";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
-import { ANIOS_CARRERA, CARRERAS, anioCarreraLabel, carreraShortLabel, isAnioCarrera, isCarrera, materiaListHref, materiaDetailHref, modalidadLabel, parseMateriaPage, parseMateriaContext, validateMateriaSearch, nivelElectivaLabel, type MateriaContext } from "@/validations/materias";
+import { ANIOS_CARRERA, CARRERAS, anioCarreraLabel, carreraLabel, carreraShortLabel, isAnioCarrera, isCarrera, materiaListHref, materiaDetailHref, modalidadLabel, parseMateriaPage, parseMateriaContext, validateMateriaSearch, nivelElectivaLabel, type MateriaContext } from "@/validations/materias";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Notice } from "@/components/ui/Notice";
@@ -93,8 +93,8 @@ function compareMaterias(first: Materia, second: Materia): number {
 
 function associationMetadata(association: MateriaCarrera): string {
   return association.anioCarrera === "ELECTIVA"
-    ? `${carreraShortLabel(association.carrera)} · Electiva · ${association.nivelElectiva ? `Nivel ${association.nivelElectiva}` : "Sin nivel asignado"}`
-    : `${carreraShortLabel(association.carrera)} · ${anioCarreraLabel(association.anioCarrera)}`;
+    ? `${carreraLabel(association.carrera)} · Electiva · ${association.nivelElectiva ? `Nivel ${association.nivelElectiva}` : "Sin nivel asignado"}`
+    : `${carreraLabel(association.carrera)} · ${anioCarreraLabel(association.anioCarrera)}`;
 }
 
 function MateriasResults({ carrera, anio, page, context, refreshKey }: { carrera: Carrera | undefined; anio: AnioCarrera | undefined; page: number; context: MateriaContext; refreshKey: number }) {
@@ -111,7 +111,7 @@ function MateriasResults({ carrera, anio, page, context, refreshKey }: { carrera
         <p className={styles.resultTotal}>{state.data.total === 1 ? "1 materia" : `${state.data.total} materias`}<span className={styles.resultFilters}> · {filterSummary}</span></p>
         {state.data.items.length ? <p className={styles.resultRange}>Mostrando {(state.data.page - 1) * state.data.pageSize + 1}–{Math.min(state.data.total, (state.data.page - 1) * state.data.pageSize + state.data.items.length)} de {state.data.total}</p> : null}
       </div>
-      {!anio && state.data.items.length ? <p className={styles.projectionNote}>Una materia puede aparecer en varias carreras, se muestra una sola vez.</p> : null}
+      {!anio && state.data.items.length ? <p className={styles.projectionNote}>Una materia puede aparecer en varios años; se cuenta una sola vez en el total.</p> : null}
       {state.data.items.length === 0 ? state.data.total === 0 ? <div className={styles.empty}><p>No hay materias que coincidan con la búsqueda y los filtros.</p><button className="button button-secondary" type="button" onClick={() => router.replace("/home/materias", { scroll: false })}>Limpiar búsqueda y filtros</button></div> : <p>No hay materias en esta página. <button className="button button-secondary" type="button" onClick={() => changePage(1)}>Volver a la primera página</button></p> : [...ANIOS_CARRERA, null].map((group) => {
         const entries = state.data.items.flatMap((materia) => {
           const associations = matchingAssociations(materia, carrera, anio, context).filter((association) => association.anioCarrera === group);

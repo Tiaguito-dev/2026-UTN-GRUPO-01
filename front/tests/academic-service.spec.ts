@@ -80,6 +80,11 @@ describe("Cliente academic: construcción de URL y delegación en protectedGet",
     await listarComisionesPorCursada("cur-1", { pageSize: 20 });
     expect(requestedPath(fetchMock.mock.calls[0][0])).toBe("/cursadas/cur-1/comisiones?pageSize=20");
   });
+  it("envía carrera junto con la paginación de comisiones al servidor", async () => {
+    fetchMock.mockResolvedValue(reply(200, emptyPage));
+    await listarComisionesPorCursada("cur-1", { carrera: "I", page: 2, pageSize: 9 });
+    expect(requestedPath(fetchMock.mock.calls[0][0])).toBe("/cursadas/cur-1/comisiones?page=2&pageSize=9&carrera=I");
+  });
   it("obtenerMateria y obtenerCursada piden el detalle por id escapado", async () => {
     const materia = {
       id: "m/1",

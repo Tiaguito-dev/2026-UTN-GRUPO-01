@@ -19,9 +19,9 @@ type ComisionRow = Prisma.ComisionGetPayload<{ include: typeof conProfesores }>;
 export class PrismaComisionRepository implements ComisionRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findByCursadaId(cursadaId: string, pagination: Pagination): Promise<PaginatedResult<Comision>> {
-    const where = { cursadaId, deletedAt: null };
-    const [items, total] = await Promise.all([
+  async findByCursadaId(cursadaId: string, pagination: Pagination, carrera?: Carrera): Promise<PaginatedResult<Comision>> {
+    const where = { cursadaId, deletedAt: null, ...(carrera ? { carrera } : {}) };
+    const [items, total] = await this.prisma.$transaction([
       this.prisma.comision.findMany({
         where,
         include: conProfesores,
@@ -30,7 +30,7 @@ export class PrismaComisionRepository implements ComisionRepository {
         take: pagination.pageSize,
       }),
       this.prisma.comision.count({ where }),
-    ]);
+    ], { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
     return { items: items.map(toComision), total, page: pagination.page, pageSize: pagination.pageSize };
   }
 

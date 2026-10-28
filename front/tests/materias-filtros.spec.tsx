@@ -119,8 +119,9 @@ describe("Catálogo de materias, filtros independientes y grupos", () => {
     const links = within(group).getAllByRole("link");
     expect(links).toHaveLength(2);
     expect(links.map(link => link.textContent)).toEqual([expect.stringContaining("Álgebra"), expect.stringContaining("Zoología")]);
-    expect(links[0].textContent).toContain("Sistemas · 2.º año");
-    expect(links[0].textContent).toContain("Química · 2.º año");
+    // TASK-064: las asociaciones mantienen sus datos con denominaciones formales.
+    expect(links[0].textContent).toContain("Ingeniería en Sistemas de Información · 2.º año");
+    expect(links[0].textContent).toContain("Ingeniería Química · 2.º año");
   });
 });
 describe("Listado de materias, rediseño (TASK-043)", () => {

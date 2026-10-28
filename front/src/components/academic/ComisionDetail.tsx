@@ -20,6 +20,7 @@ import styles from "./ComisionDetail.module.css";
 import { experienciasBack, feedbackOriginParams } from "@/validations/feedback";
 import { adminReturnTo } from "@/lib/navigation";
 import { adminFormHref } from "@/validations/admin";
+import { AdminHistory } from "@/components/admin/AdminHistory";
 
 interface Resource<T> { key: string; data: T | null; error: string }
 
@@ -231,9 +232,10 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
             <div className={styles.adminData}><h3>Datos de la comisión</h3><dl>
               <div><dt>Estado</dt><dd>{comision.activa ? "Activa" : "Inactiva"}</dd></div>
               <div><dt>Fecha de alta</dt><dd>{new Date(comision.createdAt).toLocaleString("es-AR")}</dd></div>
-            </dl><p className={styles.secondary}>La carrera y el número se pueden editar desde Administración. La baja de comisiones todavía no está disponible.</p></div>
+            </dl><p className={styles.secondary}>La carrera y el número se pueden editar desde Administración. La baja se realiza desde el listado administrativo de comisiones.</p></div>
           </> : null}
         </section>
     </div> : null}
+    {administrative && comision ? <AdminHistory key={comisionId} kind="comisiones" id={comisionId} /> : null}
   </section>;
 }
