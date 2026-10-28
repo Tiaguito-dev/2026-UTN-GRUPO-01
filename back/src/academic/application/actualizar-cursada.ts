@@ -6,8 +6,9 @@ import { ANIO_MINIMO, anioMaximo } from "./crear-cursada-input.js";
 import { CursadaNotFoundError, MateriaNotFoundError, CursadaAlreadyExistsError, InvalidAcademicInputError, CAMPOS_NO_PERMITIDOS } from "./errors.js";
 export class ActualizarCursada {
   constructor(private readonly materias: MateriaRepository, private readonly cursadas: CursadaRepository) {}
-  async execute(idInput: unknown, body: unknown) {
+  async execute(idInput: unknown, body: unknown, actorIdInput?: unknown) {
     const id = validateId(idInput);
+    const actorId = actorIdInput === undefined ? undefined : validateId(actorIdInput);
     const result = z.strictObject({ materiaId: z.string().uuid().optional(),
       anio: z.number().int().min(ANIO_MINIMO).max(anioMaximo()).optional(), cuatrimestre: z.enum(["PRIMERO", "SEGUNDO", "ANUAL"]).optional()
     }).refine(value => Object.values(value).some(v => v !== undefined)).safeParse(body);
@@ -18,6 +19,6 @@ export class ActualizarCursada {
     if (!await this.materias.findById(effective.materiaId)) throw new MateriaNotFoundError();
     const duplicate = await this.cursadas.findByPeriodo(effective.materiaId, effective.anio, effective.cuatrimestre);
     if (duplicate && duplicate.id !== id) throw new CursadaAlreadyExistsError();
-    return this.cursadas.update(id, result.data);
+    return actorId ? this.cursadas.update(id, result.data, actorId) : this.cursadas.update(id, result.data);
   }
 }

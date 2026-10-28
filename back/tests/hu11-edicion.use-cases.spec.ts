@@ -67,6 +67,26 @@ describe("HU11 edición con el modelo actual", () => {
     expect(update).toHaveBeenCalledWith(c.id, { numero: 31 });
   });
 
+  it.each([{ carreras: [] }, { carreras: ["Q"] }] as const)("no permite editar una comisión con carrera ajena a su materia (%j)", async ({ carreras }) => {
+    const f = fixture();
+    const materia = f.addMateria("Álgebra");
+    f.setCarreras(materia.id, carreras.map((carrera) => ({ carrera, anioCarrera: "1", nivelElectiva: null })));
+    const c = f.addComision(f.addCursada(materia.id).id, "S");
+    const update = vi.fn();
+    const caso = new ActualizarComision(f.cursadaRepository, { ...f.comisionRepository, update }, f.materiaRepository);
+    await expect(caso.execute(c.id, { numero: 2 })).rejects.toThrow(carreras.length ? "La carrera no corresponde" : "La materia no tiene carreras asociadas");
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("rechaza una carrera ajena enviada al editar aunque la materia tenga una sola", async () => {
+    const f = fixture();
+    const c = f.addComision(f.addCursada(f.addMateria("Álgebra").id).id, "S");
+    const update = vi.fn();
+    const caso = new ActualizarComision(f.cursadaRepository, { ...f.comisionRepository, update }, f.materiaRepository);
+    await expect(caso.execute(c.id, { carrera: "Q" })).rejects.toThrow("La carrera no corresponde");
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it.each([{}, { nombre: "S-31" }, { activa: false }, { cursadaId: randomUUID() }, { numero: 0 }])("rechaza PATCH de comisión inválido %j", async (body) => {
     const f = fixture();
     const update = vi.fn();

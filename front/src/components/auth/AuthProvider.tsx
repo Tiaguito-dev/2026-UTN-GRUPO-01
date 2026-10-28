@@ -13,7 +13,7 @@ export interface AuthContextValue {
   error: string | null;
   coordinationAvailable: boolean;
   checkSession(): Promise<void>;
-  login(input: LoginInput): Promise<void>;
+  login(input: LoginInput): Promise<PublicAccount>;
   register(input: RegisterInput): Promise<PublicAccount>;
   forgotPassword(input: { email: string }): Promise<string>;
   resetPassword(input: ResetPasswordInput): Promise<void>;
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { active = false; generation.current += 1; unsubscribe(); };
   }, [checkSession, clear, failure]);
   const login = async (input: LoginInput) => {
-    await getAuthService().login(input, (user) => {
+    return getAuthService().login(input, (user) => {
       // Success is applied before releasing the cookie lock; later tab events can supersede it.
       generation.current += 1;
       setAccount(user); setError(null); setStatus("authenticated");

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useMateria } from "@/hooks/useMateria";
@@ -13,14 +13,18 @@ import {
   materiaDetailHref,
   anioCarreraLabel,
   carrerasResumenLabel,
+  materiaAnioLabel,
   parseMateriaPage,
   parseMateriaContext,
   nivelElectivaLabel,
+  modalidadLabel,
+  isModalidadMateria,
 } from "@/validations/materias";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Notice } from "@/components/ui/Notice";
-import { CursadasList } from "./CursadasList";
+import { ComisionesMateria } from "./ComisionesMateria";
+import { experienciasBack } from "@/validations/feedback";
 
 export function MateriaDetail({ materiaId }: { materiaId: string }) {
   const headingId = useId();
@@ -37,12 +41,6 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
   const editHref = `/home/admin/materias/${encodeURIComponent(materiaId)}/editar${detailHref.includes("?") ? detailHref.slice(detailHref.indexOf("?")) : ""}`;
   const { materia, error, notFound, retry } = useMateria(materiaId);
   const materiaLabel = materia?.nombre ?? (error ? "Materia" : "Cargando…");
-  // The year badge follows the career of the listing context, or the first one of the materia.
-  const fila = materia ? materia.carreras.find((c) => c.carrera === carrera) ?? materia.carreras[0] : undefined;
-
-  useEffect(() => {
-    if (materia) document.title = `${materia.nombre} | Profesor Butchery`;
-  }, [materia]);
 
   return <section aria-labelledby={headingId}>
     <div className="academic-detail-header">
@@ -50,24 +48,25 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
         id={headingId}
         title={materiaLabel}
         focusKey={materiaId}
-        back={{ href: backHref, label: "Materias" }}
+        back={experienciasBack(params) ?? { href: backHref, label: "Materias" }}
         breadcrumb={[{ label: "Materias", href: backHref }, { label: materiaLabel }]}
       />
       {materia ? <div className="academic-heading-row">
         <div className="academic-badges">
-          {fila ? <span className="academic-tag academic-tag-primary">{anioCarreraLabel(fila.anioCarrera)}{fila.anioCarrera === "ELECTIVA" && fila.nivelElectiva ? ` · ${nivelElectivaLabel(fila.nivelElectiva)}` : ""}</span> : null}
+          <span className="academic-tag academic-tag-primary">{materiaAnioLabel(materia.carreras, carrera)}</span>
           <span className="academic-tag">{materia.carreras.length ? carrerasResumenLabel(materia.carreras) : "Sin carreras asignadas"}</span>
           {isAdmin ? <span className={`academic-tag ${materia.deletedAt ? "" : "academic-tag-success"}`}>{materia.deletedAt ? "Inactiva" : "Activa"}</span> : null}
         </div>
         {isAdmin && !materia.deletedAt ? <Link className="button button-secondary" href={editHref}>Editar materia</Link> : null}
       </div> : null}
+      {materia ? <p className="system-description">Modalidad: {modalidadLabel(materia.modalidad)}</p> : null}
     </div>
     {params.get("successMessage") ? <Notice tone="success">{params.get("successMessage")}</Notice> : null}
     {error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la materia. {error} {notFound ? <Link href={backHref}>Volver al listado de materias</Link> : <button className="button" onClick={retry} type="button">Reintentar</button>}</Notice> : null}
     {!materia && !error ? <p role="status">Cargando materia…</p> : null}
     {materia ? <div className="academic-columns">
       <div className="academic-main">
-        <CursadasList materiaId={materiaId} materiaNombre={materia.nombre} materiasHref={backHref} embedded />
+        <ComisionesMateria key={materiaId} materiaId={materiaId} materiaNombre={materia.nombre} carreras={materia.carreras} materiasHref={backHref} />
       </div>
       {isAdmin ? <div className="academic-aside">
         <MateriaHistory key={materiaId} materiaId={materiaId} materiaCreatedAt={materia.createdAt} />
@@ -77,7 +76,7 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
 }
 
 // TASK-045: history is only rendered for ADMIN (and only ADMIN fetches it).
-function MateriaHistory({ materiaId, materiaCreatedAt }: { materiaId: string; materiaCreatedAt: string }) {
+export function MateriaHistory({ materiaId, materiaCreatedAt }: { materiaId: string; materiaCreatedAt: string }) {
   const headingId = useId();
   const [page, setPage] = useState(1);
   const { state, retry } = usePaginatedFetch(`historial:${materiaId}`, (next) => listarHistorialMateria(materiaId, { page: next }), page);
@@ -128,10 +127,13 @@ function initials(actorName: string) {
 }
 
 function historyFieldLabel(campo: string) {
-  return campo === "nombre" ? "Nombre" : campo === "nivelElectiva" ? "Nivel de electiva" : campo === "carreras" ? "Carreras" : "Año de la carrera";
+  if (campo === "deletedAt") return "Fecha de baja";
+  return campo === "nombre" ? "Nombre" : campo === "modalidad" ? "Modalidad" : campo === "nivelElectiva" ? "Nivel de electiva" : campo === "carreras" ? "Carreras" : "Año de la carrera";
 }
 
 function historyValue(campo: string, value: string | null) {
+  if (campo === "deletedAt") return value ? new Date(value).toLocaleString("es-AR") : "Activa";
+  if (campo === "modalidad") return modalidadLabel(isModalidadMateria(value) ? value : null);
   if (!value) return "Sin valor";
   if (campo === "nivelElectiva" && (value === "3" || value === "4" || value === "5")) return nivelElectivaLabel(value);
   if (campo === "anioCarrera" && isAnioCarrera(value)) return anioCarreraLabel(value);

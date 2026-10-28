@@ -17,7 +17,6 @@
   /* Wraps "Volver" and PageHeader's fragment: Volver and the breadcrumb share the first row. */
   .academic-detail-header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: var(--space-8); }
   .academic-detail-header > :not(.academic-back, .breadcrumb) { flex-basis: 100%; }
-  .academic-detail-header .breadcrumb ol { margin: 0; }
   .system-content .academic-detail-header h1 { margin: 0; }
   .academic-detail-header .eyebrow { margin: var(--space-2) 0 calc(-1 * var(--space-2)); color: var(--muted); font-size: var(--text-base); letter-spacing: 0; }
   .academic-detail-header .system-description { margin: 0; }

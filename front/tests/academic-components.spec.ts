@@ -110,11 +110,11 @@ describe("CursadasList", () => {
   it("muestra el listado y la paginación con el nombre de materia recibido", () => {
     setFetchState({
       status: "ready",
-      result: { items: [{ id: "c1", anio: 2026, cuatrimestre: "PRIMERO", comisiones: 2, profesores: 3, carreras: ["S", "C"] }], total: 15, page: 1, pageSize: 10 },
+      result: { items: [{ id: "c1", anio: 2026, comisiones: 2, profesores: 3, carreras: ["S", "C"] }], total: 15, page: 1, pageSize: 10 },
     });
     const html = renderToStaticMarkup(createElement(CursadasList, { materiaId: "m1", materiaNombre: "Álgebra" }));
     expect(html).toContain(">Álgebra<");
-    expect(html).toContain("1er cuatrimestre 2026");
+    expect(html).toContain("2026");
     expect(html).toContain('href="/home/materias/m1/cursadas/c1"');
     expect(html).toContain("2 comisiones");
     expect(html).toContain("3 profesores");
@@ -132,7 +132,7 @@ describe("CursadasList", () => {
 
 describe("ComisionesList", () => {
   const baseProps = { materiaId: "m1", cursadaId: "c1" };
-  const cursada = { id: "c1", anio: 2026, cuatrimestre: "PRIMERO", materia: { id: "m1", nombre: "Álgebra" } };
+  const cursada = { id: "c1", anio: 2026, materia: { id: "m1", nombre: "Álgebra" } };
   beforeEach(() => { auth.role = "USER"; detail.value = { cursada, error: "", notFound: false, retry: vi.fn() }; });
 
   describe("rediseño (TASK-043)", () => {
@@ -145,7 +145,7 @@ describe("ComisionesList", () => {
       setFetchState({ status: "ready", result: { items: [], total: 0, page: 1, pageSize: 10 } });
       const html = renderToStaticMarkup(createElement(ComisionesList, baseProps));
       expect(html).toMatch(/<p class="eyebrow">Álgebra<\/p>/);
-      expect(html).toMatch(/<h1[^>]*>1er cuatrimestre 2026<\/h1>/);
+      expect(html).toMatch(/<h1[^>]*>2026<\/h1>/);
     });
     it("usuario común no ve Nueva comisión", () => {
       setFetchState({ status: "ready", result: { items: [], total: 0, page: 1, pageSize: 10 } });
@@ -202,7 +202,7 @@ describe("ComisionesList", () => {
     const html = renderToStaticMarkup(createElement(ComisionesList, baseProps));
     expect(html).toContain(">Materias<");
     expect(html).toContain(">Álgebra<");
-    expect(html).toContain("1er cuatrimestre 2026");
+    expect(html).toContain("2026");
     expect(html).toContain("S-31");
     expect(html).toContain('href="/home/materias/m1/cursadas/c1/comisiones/co1"');
     expect(html).toContain("Prof. Rossi (Titular)");

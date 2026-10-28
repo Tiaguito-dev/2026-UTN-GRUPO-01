@@ -1,5 +1,153 @@
 # Backend
 
+## Modalidad de materia y cursadas por año (TASK-062)
+
+Este es el contrato vigente para materias/cursadas; reemplaza las descripciones históricas
+de TASK-024/040/041/044 en las secciones inferiores.
+
+- `Materia.modalidad` es `ANUAL`, `PRIMERO` o `SEGUNDO`; los dos últimos representan dictado
+  cuatrimestral. Es independiente de carrera, año de carrera y condición de electiva.
+  Lecturas existentes pueden devolver `null` si no existe evidencia suficiente para deducirla.
+- `POST /materias` exige `{nombre, modalidad, carreras:[{carrera,anioCarrera,nivelElectiva?}]}`.
+  `PATCH /materias/:id` admite `{nombre?,modalidad?,carreras?}`; si recibe modalidad debe
+  ser una de las tres opciones. Se registran únicamente diferencias reales, con
+  `campo:"modalidad"` en el historial y valores anteriores/nuevos (incluido null anterior).
+- `POST /cursadas` exige únicamente `{materiaId,anio}`. Una materia tiene una cursada por
+  año calendario, protegida por índice único también bajo concurrencia. Cuatrimestre y otros
+  campos ajenos se rechazan con 400. Un duplicado anual devuelve 409.
+- Las altas y lecturas de cursada omiten `cuatrimestre`: alta `{id,materiaId,anio,createdAt,
+  deletedAt}`, resumen `{id,anio,comisiones,profesores,carreras}`, detalle añade
+  `materia:{id,nombre,modalidad}`. El detalle de comisión contiene
+  `cursada:{id,anio,materia:{id,nombre,modalidad}}`. La lista de cursadas ordena año descendente
+  e id, conserva paginación y cuenta equipos docentes/comisiones según las reglas actuales.
+- El campo antiguo `Cursada.cuatrimestre` se conserva nullable solo como legado interno; no se
+  propaga mediante filas Prisma crudas ni se usa en nuevas altas, unicidad o etiquetas.
+- El snapshot de Feedback agrega `contexto.modalidad`; nuevas publicaciones capturan el
+  valor vigente de Materia en la consulta MVCC de contexto. El cuatrimestre histórico se
+  conserva nullable por compatibilidad: ANUAL o modalidad desconocida usan null. Editar la
+  materia o su modalidad no cambia comentarios previamente publicados.
+
+Aplicar `20261103000000_modalidad_materia_cursada_anual` antes de iniciar el backend nuevo.
+La migración es transaccional, no elimina filas ni reemplaza IDs, y bloquea/aborta ante
+cursadas duplicadas por materia/año (incluidas bajas) para no fusionar comisiones o comentarios
+sin revisión. Solo deduce modalidad de materias con cuatrimestres legados completamente
+consistentes; materias sin cursadas o con evidencia contradictoria quedan null. Feedback se
+completa desde su propio cuatrimestre guardado, nunca desde la configuración actual.
+El seed de demostración usa modalidad explícita y cursadas solo por año, sin modificar
+contenido existente. Sin dependencias ni variables de entorno nuevas.
+
+## Feedback textual por comisión (TASK-057)
+
+El módulo `reviews` permite publicar experiencias de una comisión y, opcionalmente, de uno
+de sus docentes. No incorpora búsqueda de docentes, puntuaciones, reportes, moderación ni
+controles nuevos del estado académico. No acredita inscripción: verifica la sesión y el correo
+mediante los guards existentes. ADMIN y USER tienen las mismas reglas de publicación.
+
+### Contratos
+
+Todos los endpoints requieren sesión y responden con `Cache-Control: no-store`. Las escrituras
+conservan Origin/CSRF del transporte existente. La autoría se obtiene exclusivamente de la sesión.
+
+| Método y ruta | Contrato |
+|---|---|
+| `GET /feedback?page=1&pageSize=9` (TASK-061) | Lista transversal autenticada de comentarios vigentes, más recientes primero (`createdAt DESC, id DESC`). |
+| `GET /comisiones/:id/feedback?page=1&pageSize=9` | Lista los comentarios vigentes más recientes, con desempate por id. |
+| `GET /comisiones/:id/feedback/propio` | Devuelve el comentario vigente del usuario o `null`. |
+| `POST /comisiones/:id/feedback` | `{texto, anonimo, profesorId?}`; responde 201 con el comentario. |
+| `GET /feedback/:id` | Detalle vigente exclusivo del autor (403 para otras cuentas, incluido ADMIN), sin email ni identificador del autor. |
+| `PATCH /feedback/:id` | Solo autor; `{texto?, anonimo?}`. No permite cambiar comisión ni docente. |
+| `DELETE /feedback/:id` | Solo autor; baja lógica y revisión en transacción, responde 204. |
+| `GET /feedback/:id/historial?page=1&pageSize=3` | Solo autor, incluso tras eliminación; creación, edición y eliminación. |
+
+Listados: `{items,total,page,pageSize}`; máximo nueve comentarios por página y tres revisiones.
+Comentario: `{id,texto,anonimo,autor:{displayName}|null,propio,profesor,contexto,createdAt,updatedAt}`.
+`profesor` es `null` o `{id,nombreCompleto,cargo}`. `contexto` contiene `comisionId`, `nombre`
+de comisión, `materiaId`, `materiaNombre`, `cursadaId`, `anio`, `modalidad` y el
+`cuatrimestre` histórico nullable.
+Revisión: `{id,accion,texto,anonimo,createdAt}`, con acción CREACION, EDICION o ELIMINACION.
+Las fechas se serializan como ISO. El anonimato oculta la identidad incluso al propio autor
+en la proyección pública; `propio` habilita sus acciones sin exponer identificadores.
+El historial es privado del autor: un ADMIN ajeno tampoco accede a él.
+
+La consulta general de Experiencias (TASK-061) reutiliza los mismos comentarios, proyección
+pública y paginación: nueve por defecto y máximo nueve. Devuelve `{items,total,page,pageSize}`,
+excluye publicaciones eliminadas y conserva los datos académicos/docentes copiados al publicar,
+incluidos períodos anteriores y comisiones inactivas. No reconstruye el contexto desde las
+asignaciones actuales. El anonimato continúa ocultando al autor y `propio` se calcula para la
+sesión que consulta; no se incluyen `autorId`, email ni historial. No crea otra clase de contenido
+ni habilita el detalle privado de comentarios ajenos. Sin sesión responde 401; paginación
+inválida o filtros no contemplados responden 400. No requiere migraciones ni nuevas variables.
+El método `listGeneral` recorre controller, service y puerto del módulo existente y delega en
+la misma consulta transaccional/proyección que `listComision`; los permisos del detalle y las
+escrituras permanecen independientes de esta lectura transversal.
+
+### Reglas, persistencia e historial
+
+Texto plano: trim de bordes, 1–3000 puntos de código Unicode; rechaza controles C0/C1 salvo
+tabulación y saltos de línea LF/CR. Los cuerpos son estrictos y no aceptan `autorId`.
+Un usuario tiene como máximo un comentario vigente por comisión, también bajo anonimato o
+para docentes distintos. Puede eliminarlo y publicar otro; la baja conserva la trazabilidad.
+La comisión debe estar activa y ella, su cursada y su materia sin baja lógica para publicar
+o editar. Retirar y consultar comentarios históricos sigue permitido tras una baja académica.
+
+Sin docentes, la referencia es general. Con uno, se lo asocia automáticamente. Con varios,
+se acepta uno asignado o una referencia general. Un docente ajeno se rechaza con 400.
+El contexto y el docente/cargo se copian en el alta: una reasignación o cambio de nombre posterior
+no reatribuye comentarios anteriores. Editar texto o anonimato conserva esas instantáneas.
+
+`FeedbackService` valida las entradas antes de llamar al puerto `FeedbackRepository`;
+`application/feedback-policy.ts` concentra las reglas de autoría, vigencia y selección docente.
+`PrismaFeedbackRepository` ejecuta los bloqueos y las transacciones. Alta, edición y baja
+bloquean la fila de comisión; el alta obtiene contexto y asignaciones en una única consulta SQL
+con una instantánea MVCC consistente. Las escrituras posteriores no reconstruyen el pasado.
+El índice parcial UNIQUE `(autorId,comisionId) WHERE deletedAt IS NULL` protege también altas
+concurrentes. Los cambios y su revisión se guardan en una transacción; sin diferencias no se
+escribe ni genera revisión. Las relaciones de autor, comisión y docente usan borrado restringido.
+
+Errores: 400 datos/campos/paginación inválidos, 401 sin sesión, 403 autoría insuficiente,
+404 comentario/comisión inexistente, 409 publicación duplicada o comisión inactiva.
+El controlador nunca devuelve filas Prisma ni credenciales de identidad interna.
+
+Aplicar `20261102000000_feedback_comisiones` con el flujo habitual `db:deploy` antes de iniciar
+el código nuevo. Es aditiva, utiliza `DATABASE_URL` y no requiere dependencias ni variables
+nuevas; conserva Docker, PostgreSQL y el contrato de despliegue existente.
+
+## Catálogo de materias: filtros independientes y orden alfabético (TASK-060)
+
+Contrato vigente de `GET /materias`; prevalece sobre las descripciones de listado históricas
+de TASK-024, TASK-025, TASK-041 y TASK-044 que aparecen más abajo. No cambia autenticación,
+permisos, escrituras, detalle ni el historial de materias.
+
+- `carrera` y `anioCarrera` son filtros opcionales e independientes. Por ejemplo,
+  `?anioCarrera=2` encuentra materias de segundo año de cualquier carrera; `?carrera=Q`
+  encuentra materias de Química de cualquier año. Juntos deben coincidir sobre la misma
+  asociación `MateriaCarrera`, evitando mezclar el año de una carrera con otra carrera.
+- `nivelElectiva` sigue requiriendo `anioCarrera=ELECTIVA`, con o sin carrera. Filtros fuera
+  del catálogo, parámetros repetidos y nivel sin Electiva continúan devolviendo 400.
+- `q` busca una subcadena literal del nombre sin distinguir mayúsculas ni diacríticos:
+  `algebra` encuentra `Álgebra`, y ambas direcciones con tildes funcionan. `%`, `_` y barra
+  inversa son caracteres literales, nunca comodines aportados por el usuario. Se conserva
+  el límite de 150 puntos de código, trim y rechazo de controles.
+- La respuesta conserva `{items,total,page,pageSize}` y todas las asociaciones `carreras`
+  de cada materia, aunque solo una asociación haya coincidido con los filtros. Cada materia
+  cuenta una vez en `total` y en el corte de página. El frontend puede mostrarla en varios
+  grupos sin duplicarla en el conteo del backend.
+- El orden se calcula antes de paginar sobre el nombre en minúsculas sin diacríticos, con
+  nombre original e id como desempates. No se ordena por año ni nivel. Página predeterminada
+  de nueve materias; se mantiene el máximo de 100 para opciones administrativas existentes.
+
+El adaptador usa SQL parametrizado con `EXISTS` sobre una única asociación y la misma
+condición de filtro para IDs de página y conteo. Solo esos IDs se hidratan con Prisma;
+no se descarga el catálogo completo. Las consultas comparten una transacción de lectura
+`RepeatableRead` para conservar el mismo estado al contar, cortar e hidratar las asociaciones.
+Se preserva el orden de los IDs de la consulta incluso si la hidratación devuelve otro orden.
+
+La búsqueda y el orden usan PostgreSQL UTF-8 `normalize(..., NFD)`, `translate` para eliminar
+marcas combinadas U+0300–U+036F y `lower`; el término utiliza la misma normalización antes
+de escapar los metacaracteres. Incluye tildes, diéresis y la tilde de ñ. No altera nombres
+guardados ni necesita extensiones `unaccent`, migraciones, dependencias o variables nuevas.
+Continúa usando el PostgreSQL existente en Docker y producción.
+
 ## Materias: clasificación, filtros e historial (TASK-024)
 
 Casos de contrato, permisos, consulta PostgreSQL e historial verificados:
@@ -815,3 +963,180 @@ ActualizarMateria revalida carreras con comisiones bajo su bloqueo UPDATE existe
 sin bloquear Cursada. Las restricciones SQL respaldan unicidad y las escrituras
 parciales no reemplazan campos omitidos. Listados conservan paginacion; profesores y
 cursadas agregan id como desempate estable.
+## Filtro de carrera en comisiones de una cursada (TASK-064)
+
+`GET /cursadas/:cursadaId/comisiones?page=1&pageSize=9&carrera=S` admite carrera opcional
+con los códigos existentes S/C/Q/I/M. `ListarComisionesPorCursada` valida el código y la
+paginación antes de consultar el repositorio; carrera inválida devuelve 400. Se conserva
+sesión obligatoria y 404 para cursada inexistente/borrada. Sin carrera mantiene el listado
+existente para consumidores administrativos. No hay nuevos endpoints ni migraciones.
+
+`PrismaComisionRepository.findByCursadaId` aplica cursada+carrera+deletedAt tanto a findMany
+como a count antes de skip/take, dentro de una transacción RepeatableRead. Conserva orden
+estable carrera/número/id, docentes y cargos reales, y respuesta `{items,total,page,pageSize}`.
+Una combinación vacía devuelve items vacío y total cero, sin sustituir carrera ni cursada.
+No se alteran modelos, códigos internos, relaciones ni validaciones de autoría/destinatario
+del módulo reviews. Básica es presentación calculada con MateriaCarrera en frontend.
+
+## Filtros del listado de Experiencias (TASK-065)
+
+`GET /feedback?carrera=S&materiaId=<uuid>&page=1&pageSize=9` conserva la sesión obligatoria,
+contrato paginado y máximo nueve elementos. Todos los parámetros son opcionales; carrera
+acepta S/C/Q/I/M, materiaId debe ser UUID y entradas inválidas o campos ajenos devuelven 400.
+Los endpoints de comisión e historial conservan su validación anterior, sin estos filtros.
+
+`FeedbackService` valida la consulta general completa antes de pasar paginación y filtros
+al puerto. `PrismaFeedbackRepository.listGeneral` combina deletedAt:null, materiaId y la
+relación `comision.carrera`. Nunca consulta MateriaCarrera para decidir si un comentario
+corresponde a una carrera. Se filtra antes de skip/take y count con idéntico where en una
+transacción RepeatableRead, orden createdAt descendente e id descendente como desempate.
+Materias compartidas, comentarios históricos y combinaciones vacías conservan sus datos.
+
+El contexto público agrega `carrera` desde la comisión vinculada. El resto del snapshot de
+publicación se conserva. No se modifica persistencia ni se requieren migraciones. Autoría,
+anonimato (autor:null incluso para su dueño), propiedad calculada por sesión, detalle privado,
+publicación, edición, eliminación lógica e historial mantienen sus reglas.
+
+## Compatibilidad con desarrollo y migraciones de feedback (TASK-067)
+
+Se conserva el CRUD administrativo del equipo hasta 1be4682 y la unicidad por
+materia/año/cuatrimestre (PRIMERO/SEGUNDO/ANUAL). POST /cursadas exige período explícito;
+PATCH acepta solo diferencias y conserva los bloqueos y validaciones relacionales del equipo.
+Los registros legados sin período se leen como null; no se asigna uno automáticamente.
+Materia conserva modalidad; el snapshot de un nuevo comentario prioriza cuatrimestre real
+de su cursada y conserva el resto del contexto histórico y la validación docente/comisión.
+
+La migración 20261103000000 de esta rama, aún sin publicar, se compatibiliza para mantener
+períodos múltiples recibidos de desarrollo. No impone unicidad solo por año ni fusiona IDs.
+20261104000000 restaura la unicidad por período en instalaciones locales que ya aplicaron
+la variante anterior de 20261103000000. Mantiene nulls para revisión y no elimina datos.
+Las pruebas de SQL cubren ambos esquemas de partida, con quince migraciones en una base nueva.
+
+Revisión local antes de nuevas migraciones de desarrollo: si ya se aplicó la variante previa
+de 20261103000000, su checksum histórico difiere del archivo integrado. Revisar el historial
+de Prisma y su respaldo; no aceptar un reset automático de migrate dev. Esta tarea no toca
+la base local ni modifica sus registros _prisma_migrations. La corrección de estructura se
+incluye como migración posterior, y la aceptación local queda pendiente.
+
+## Contratos consumidos por tablas administrativas (TASK-069)
+
+Esta tarea de frontend conserva los endpoints y permisos existentes. `GET /materias` permite
+filtrar nombre, carrera, año y nivel de electiva antes de paginar. `GET /profesores`,
+`GET /materias/:id/cursadas`, `GET /cursadas/:id/comisiones` y `GET /users` mantienen sus
+contratos paginados; la UI carga sus catálogos completos de forma acotada cuando necesita
+filtrar sin búsqueda remota. No se agrega una API de filtrado ni se modifica persistencia.
+
+`GET /users` requiere ADMIN y devuelve id, nombre visible, email, rol y fecha de creación;
+no devuelve estado ni permite activar/desactivar o cambiar roles. El frontend no infiere
+esos datos. Las acciones académicas disponibles en tablas son consulta y edición existentes;
+no hay DELETE de materia, profesor, cursada o comisión. La baja relacional de un docente de
+una comisión conserva su endpoint y flujo de detalle. Para catálogos superiores al límite
+frontend queda pendiente incorporar búsqueda remota con sus validaciones y pruebas propias.
+
+## Administración remota, cuentas y bajas lógicas (TASK-070)
+
+Esta actualización resuelve las limitaciones anteriores. El filtro `q` de `GET /profesores`
+y `GET /users` busca texto literal sin distinguir tildes ni mayúsculas, admite hasta 150
+caracteres y rechaza controles/valores repetidos inválidos. `%`, `_` y barra inversa se
+escapan como datos. Usuarios combina `rol=ADMIN|USER` y `estado=ACTIVO|INACTIVO`. Consultas
+parametrizadas aplican filtros antes de LIMIT/OFFSET y usan snapshot RepeatableRead para
+mantener total/página consistentes y orden determinista. Se conserva el contrato paginado
+existente; frontend solicita nueve registros y los clientes de opciones pueden pedir hasta 100.
+
+`User.disabledAt` nullable define acceso activo sin confundirlo con verificación de email.
+Los registros existentes permanecen activos. Las respuestas administrativas incorporan
+`disabledAt`; el JSON público de autenticación conserva sus campos anteriores. AuthenticationUser
+incluye el estado para validar cada acceso y renovación. Login rechaza credenciales de cuentas
+inactivas con el mensaje genérico; recuperación y verificación no permiten sortear la baja.
+
+Contratos nuevos (todos requieren ADMIN y las escrituras mantienen protección CSRF existente):
+
+| Método y ruta | Entrada / respuesta | Regla |
+|---|---|---|
+| PATCH `/users/:id/estado` | Body estricto `{activo:boolean}`; usuario administrativo | 400 inválido, 404 inexistente, 409 autodesactivación/último ADMIN; 403 actor inactivo o sin permisos |
+| GET `/users/:id/historial` | `page`, `pageSize` máximo/default 3; resultado paginado | Incluye cuentas inactivas, sin secretos |
+| DELETE `/materias/:id` | 204 sin body | 409 si tiene cursadas sin baja |
+| DELETE `/profesores/:id` | 204 sin body | 409 si tiene asignaciones en comisiones sin baja |
+| DELETE `/cursadas/:id` | 204 sin body | 409 si tiene comisiones sin baja |
+| DELETE `/comisiones/:id` | 204 sin body | Baja lógica y `activa=false`; conserva comentarios y asignaciones históricas |
+| GET `/profesores/:id/historial`, `/cursadas/:id/historial`, `/comisiones/:id/historial` | `page`, `pageSize` máximo/default 3 | Existe también después de baja lógica |
+
+UUID de recurso y actor se validan antes de persistir. Las bajas reiteradas responden 404.
+Materia mantiene su endpoint de historial y registra el cambio de `deletedAt`, consultable
+tras baja. Las altas pueden reutilizar nombre o clave natural de registros eliminados gracias
+a índices únicos parciales; cada nuevo registro tiene identidad propia. Seeds usan findFirst
+de registros vigentes en lugar de claves únicas compuestas retiradas del schema.
+
+`PrismaUserAdministrationRepository` serializa cambios de estado con un advisory lock de
+transacción y bloquea filas User antes de Sessions ordenadas. Revalida actor activo y ADMIN
+dentro de la transacción, impide autodesactivación y conserva al menos un administrador activo.
+Desactivar revoca sesiones e invalida refresh, recuperación y verificación pendientes junto
+al estado y auditoría en una sola transacción. Login revalida estado tras adquirir el lock User;
+refresh conserva su orden de locks y no puede recuperar sesiones revocadas. Reactivar no
+recupera sesiones anteriores. Repetir el estado actual no escribe un evento nuevo.
+
+`AcademicAdministrationRepository` separa las bajas/historial de los repositorios de consulta.
+Bajas bloquean la entidad; altas/movimientos/asignaciones bloquean y revalidan su contexto para
+no crear relaciones con padres dados de baja. Ediciones académicas registran solo diferencias
+reales con actor obligatorio en HTTP. Las filas y snapshots de Feedback permanecen accesibles
+en el feed histórico; no se borra contenido por cascada.
+
+La migración `20261105000000_administracion_estados_historial` agrega `disabledAt`, índice de
+rol/estado y `AdministracionHistorial` (entidad/id, actor UUID referenciado a User, acción,
+fecha y JSON de cambios `{campo,anterior,nuevo}`). Un índice por entidad/id/fecha/id soporta
+historia paginada. Reemplaza índices únicos académicos por sus variantes de registros vigentes,
+sin eliminar filas ni cambiar IDs. No se necesita reset ni eliminar volúmenes. La auditoría
+no almacena hashes, contraseñas, tokens ni credenciales y valida el JSON antes de responder.
+
+Pruebas TASK-070: unitarias de contratos/permisos y HTTP real con PostgreSQL/Mailpit efímeros,
+base exclusiva mediante `TEST_DATABASE_URL`, incluyendo más de 2000 profesores, filtros antes
+de paginar, sesiones revocadas, reactivación, auditoría/no-op, conflictos relacionales,
+concurrencia y reutilización de claves tras baja. La prueba de navegador funcional está
+documentada en front/OVERVIEW.md y no produce capturas.
+
+## Detalle administrativo y auditoría
+
+`GET /admin/:kind/:id/detalle?page=1&pageSize=3` exige rol `ADMIN`, valida UUID y paginación y responde con `Cache-Control: no-store`. Entidades admitidas: `materias`, `profesores`, `cursadas`, `comisiones`, `users`, `feedback`. Devuelve `registro`, `auditoria` e `historial` paginado; incluye bajas lógicas. Usuarios se leen con una selección explícita de campos, sin credenciales ni sesiones.
+
+`AdministracionHistorial` conserva futuras altas académicas, modificaciones, bajas, asignaciones y desvinculaciones docentes. El actor se propaga desde la petición autenticada. La mutación y su evento comparten transacción Prisma y los bloqueos existentes; una operación sin diferencias no genera evento. Las altas de usuarios siguen siendo autorregistro: no se inventa actor administrativo.
+
+Materias reutiliza `MateriaHistorial` para cambios y bajas, sumando las nuevas altas del registro administrativo sin duplicar eventos. Comentarios reutiliza sus snapshots `FeedbackHistorial`; los nuevos eventos administrativos comparten identificador con el snapshot y registran el actor en `AdministracionHistorial`, dentro de la misma transacción. Los actores de snapshots antiguos permanecen no disponibles. El valor anterior procede del snapshot persistido anterior, nunca de una reconstrucción del contexto actual.
+
+Los metadatos ausentes son `null`. `updatedAt` es una fecha del registro cuando existe, o del último evento persistido disponible; no implica que exista un historial completo. La auditoría filtra campos mediante una lista permitida. Los endpoints privados del autor y las lecturas públicas mantienen sus permisos y selección originales.
+
+## Gestión administrativa del acceso de usuarios
+
+`GET /users` combina `q`, `rol` y `estado=ACTIVO|INACTIVO` antes de paginar. El frontend solicita nueve resultados. `PATCH /users/:id/estado` acepta exclusivamente `{ activo: boolean }` y devuelve id, nombre visible, email, rol, fecha de alta y disabledAt; nunca hashes ni tokens. `GET /users/:id/historial` y `GET /admin/users/:id/detalle` muestran eventos con actor y fecha, con tres eventos por página. Todos requieren sesión vigente y rol ADMIN.
+
+`CambiarEstadoUsuario` valida UUID/payload y evita autodesactivación. `PrismaUserAdministrationRepository` serializa cambios con advisory lock transaccional PostgreSQL, bloquea las filas de actor/destinatario ordenadas y vuelve a comprobar que el actor siga siendo ADMIN activo. Impide desactivar el último administrador activo; solicitudes repetidas del mismo estado no crean eventos adicionales. Las transacciones registran DESACTIVACION o REACTIVACION junto al cambio y sus diferencias. Los eventos históricos ACTIVACION siguen siendo legibles.
+
+Desactivar marca disabledAt, revoca todas las sesiones e invalida sus credenciales pendientes en la misma transacción. No toca cuentas, comentarios ni snapshots de comentarios ni su anonimato. Login rechaza disabledAt y createSession vuelve a validar bajo bloqueo de User, incluyendo carreras con desactivación. AuthenticationGuard verifica sesión persistida y estado vigente; refresh rechaza sesiones revocadas/cuentas inactivas. Reactivar sólo limpia disabledAt: no recupera sesiones ni credenciales revocadas y requiere un login nuevo.
+
+Errores: 400 para contrato o identificador inválido, 401 sin acceso vigente, 403 sin rol ADMIN o actor ya inactivo, 404 para cuenta inexistente y 409 por autodesactivación o protección del último ADMIN. El detalle usa una proyección explícita sin secretos de autenticación. No incorpora borrado definitivo, cambios de rol ni creación de cuentas.
+
+## Enrutamiento del API administrativo
+Los proxies `infra/proxy/nginx.dev.conf` y `nginx.conf` deben enviar `/admin/`, `/users/` y `/profesores/` al backend, además de los prefijos académicos existentes. `/admin/:kind/:id/detalle` devuelve JSON protegido por ADMIN; `/home/admin/...` sigue perteneciendo a Next.js. Una respuesta HTML404 en el servicio de detalle indica un problema de proxy y no un registro ausente. Regresión contra stack real sin datos ni cookies: `node scripts/check-admin-proxy.mjs [origen]`. Los tests HTTP directos de Nest no validan este salto de infraestructura.
+
+## Bajas administrativas académicas y resultados auditados
+
+`DELETE /materias/:id`, `/profesores/:id`, `/cursadas/:id` y `/comisiones/:id` conservan el contrato de ADMIN con sesión vigente y respuesta204 al completar una baja lógica. La entidad permanece con deletedAt; Comisión además queda activa=false. Nunca se borran experiencias, snapshots, asignaciones docentes ni relaciones por dar de baja.
+
+Reglas: Materia bloquea períodos de cursada no dados de baja; Cursada bloquea comisiones no dadas de baja; Profesor bloquea asignaciones en comisiones no dadas de baja. Comisión admite baja conservando su equipo docente y contenido. Un bloqueo devuelve409 con una explicación y el paso a seguir. La dependencia se valida antes del UPDATE dentro de la transacción bajo el bloqueo de la entidad. La estrategia no ejecuta DELETE físico: no intenta sortear una restricción de integridad con una cascada ni convierte esos bloqueos de dominio en500.
+
+`PrismaAcademicAdministrationRepository` registra en AdministracionHistorial entidad/entidadId, actorId, createdAt y cambios de campos. Acción ELIMINACION significa baja lógica exitosa y agrega resultado=EXITOSA; BAJA_BLOQUEADA registra resultado=BLOQUEADA y motivo. El intento bloqueado se confirma en la transacción antes de lanzar el error409 hacia HTTP, de modo que no se pierde por rollback. Los intentos sin permiso, identificador inválido o registro inexistente no generan eventos ficticios. Un error de almacenamiento revierte la operación; no se informa éxito sin el registro de auditoría.
+
+El detalle administrativo incluye resultado/motivo entre los campos seguros. Los eventos BAJA_BLOQUEADA aparecen en el historial, pero no cambian auditoria.updatedAt/updatedBy ni la fecha/actor de baja. Materia conserva su historial estricto de campos en MateriaHistorial: una baja nueva usa el mismo UUID y fecha en ambos historiales, y el detalle usa el resultado del ledger cuando existe. El UNION agrega altas e intentos bloqueados sin duplicar bajas ni reconstruir actores históricos.
+
+Listados y selectores de creación excluyen deletedAt no nulo. Los servicios de alta/edición/asignación comprueban vigencia en transacciones y toman los mismos bloqueos que las bajas. Quitar una asignación docente es una operación distinta de dar de baja al Profesor; tras tomar el bloqueo de Comisión, la desvinculación vuelve a comprobar que continúe vigente para no modificar asignaciones conservadas por una baja concurrente. Las referencias y snapshots históricos continúan interpretables desde el detalle administrativo y el contenido publicado.
+
+## Carrera de comisión y altas administrativas (TASK-admin-altas-retornos)
+
+POST `/comisiones` recibe `{ cursadaId, numero, carrera? }`. Conserva número entero entre
+1 y 999 y carrera del catálogo S, C, Q, I, M. Carrera omitida se resuelve desde las asociaciones
+de la materia únicamente si existe una sola; con varias se exige elegir una de ellas. Una
+carrera enviada que no pertenece a la materia devuelve 400, incluso si hay una sola disponible.
+Sin carreras se devuelve 400 indicando asociar al menos una carrera a la materia antes del alta.
+PATCH mantiene el control de pertenencia también cuando solo cambia el número y explica
+corregir la asociación si no existen carreras. La persistencia revalida la pertenencia bajo
+los bloqueos existentes de cursada y materia, conservando la protección frente a concurrencia.
+No se asigna ni sugiere numeración disponible; no cambian permisos ADMIN, auditoría ni períodos.

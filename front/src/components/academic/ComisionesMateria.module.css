@@ -1,0 +1,35 @@
+.module { display: grid; gap: var(--space-5); min-width: 0; }
+.header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.header h2 { margin: 0; font-size: var(--text-xl); }
+.header p { margin: var(--space-2) 0 0; color: var(--muted); font-size: var(--text-md); }
+.filters { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-4); }
+.filter { display: grid; align-content: start; gap: var(--space-2); flex: 1 1 18rem; min-width: 0; }
+.filter:last-child { flex: 0 1 12rem; }
+.filter label, .label { display: inline-flex; align-items: center; gap: var(--space-2); margin: 0; color: var(--muted); font-size: var(--text-md); }
+.filter svg { flex-shrink: 0; }
+.fixedCareer { display: flex; align-items: center; min-height: 44px; margin: 0; line-height: 1.5; font-weight: var(--weight-medium); overflow-wrap: anywhere; }
+.selectControl { position: relative; width: 100%; min-width: 0; }
+.selectControl select { appearance: none; width: 100%; min-height: 44px; padding: var(--space-3) var(--space-10) var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.selectControl select:hover { border-color: var(--primary); }
+.selectControl select:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.selectControl > svg { position: absolute; right: var(--space-3); top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--muted); }
+.summary { margin: 0; color: var(--muted); font-size: var(--text-md); }
+.management { margin-top: var(--space-3); padding-top: var(--space-4); border-top: 1px solid var(--border); }
+.management > summary { color: var(--primary); font-size: var(--text-md); font-weight: var(--weight-medium); cursor: pointer; padding-block: var(--space-2); border-radius: var(--radius-sm); }
+.management > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.management > div { padding-top: var(--space-4); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18.75rem), 1fr)); gap: var(--space-4); list-style: none; padding: 0; margin: 0; }
+.grid > li { min-width: 0; }
+.commissionCard { display: flex; flex-direction: column; gap: var(--space-3); height: 100%; box-sizing: border-box; padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); text-decoration: none; overflow-wrap: anywhere; }
+.commissionCard:hover { border-color: var(--primary); }
+.commissionCard:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.cardHead { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
+.cardHead > div { min-width: 0; }
+.cardHead > svg { flex-shrink: 0; color: var(--muted); margin-top: var(--space-1); }
+.code { display: block; white-space: nowrap; font-size: var(--text-base); font-weight: var(--weight-bold); }
+.careerName { display: block; color: var(--muted); font-size: var(--text-sm); line-height: 1.5; margin-top: var(--space-1); }
+.teachers, .noTeachers { border-top: 1px solid var(--border); padding: var(--space-3) 0 0; margin: 0; }
+.teachers { display: grid; gap: var(--space-2); list-style: none; font-size: var(--text-md); line-height: 1.5; }
+.teacherRole, .noTeachers { color: var(--muted); font-size: var(--text-sm); }
+.inactive { border-style: dashed; }
+@media (max-width: 600px) { .filter, .filter:last-child { flex-basis: 100%; } }

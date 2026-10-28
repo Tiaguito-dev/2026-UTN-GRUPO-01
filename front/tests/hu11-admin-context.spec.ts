@@ -14,4 +14,20 @@ describe("HU11 contexto administrativo", () => {
   it("acepta volver al listado de profesores", () => {
     expect(safeAdminReturnTo("/home/admin/profesores?page=2")).toBe("/home/admin/profesores?page=2");
   });
+  // TASK-068: edición desde Experiencias debe conservar la consulta administrativa.
+  it("acepta regresar al feed administrativo con carrera, materia y página", () => {
+    const origin = "/home/admin/experiencias?carrera=S&materiaId=mat-1&page=3";
+    expect(safeAdminReturnTo(origin)).toBe(origin);
+  });
+  it.each([
+    "/home/admin/experiencias?carrera=OTRA",
+    "/home/admin/experiencias?page=0",
+    "/home/admin/experiencias?page=1&page=2",
+    "/home/admin/experiencias?materiaId=",
+    "/home/admin/experiencias?role=ADMIN",
+    "/home/admin/experiencias?returnTo=https%3A%2F%2Fevil.test",
+    "/home/experiencias?carrera=S&page=3",
+  ])('rechaza contextos del feed administrativo inválidos: %s', (origin) => {
+    expect(safeAdminReturnTo(origin)).toBeUndefined();
+  });
 });

@@ -6,7 +6,7 @@ export interface Cursada {
   id: string;
   materiaId: string;
   anio: number;
-  cuatrimestre: Cuatrimestre;
+  cuatrimestre: Cuatrimestre | null;
   createdAt: Date;
   deletedAt: Date | null;
 }
@@ -14,7 +14,7 @@ export interface Cursada {
 export interface CursadaResumen {
   id: string;
   anio: number;
-  cuatrimestre: Cuatrimestre;
+  cuatrimestre: Cuatrimestre | null;
   comisiones: number;
   profesores: number;
   carreras: Carrera[];

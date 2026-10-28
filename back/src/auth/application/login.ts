@@ -35,7 +35,7 @@ export class Login {
     const values = validateLoginInput(input);
     const user = await this.users.findByEmail(values.email);
     const valid = await this.passwords.verify(user?.passwordHash ?? this.dummyHash, values.password);
-    if (!user || !valid) throw new InvalidCredentialsError();
+    if (!user || !valid || user.disabledAt) throw new InvalidCredentialsError();
     if (!canAuthenticate(user)) throw new EmailNotVerifiedError();
     const issuedAt = Math.floor(this.now().getTime() / 1000);
     const sessionExpiry = new Date((issuedAt + this.sessionTtlSeconds) * 1000);

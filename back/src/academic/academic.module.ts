@@ -31,11 +31,18 @@ import { ActualizarMateria } from "./application/actualizar-materia.js";
 import { ListarHistorialMateria } from "./application/listar-historial-materia.js";
 import { AsignarProfesorComision } from "./application/asignar-profesor-comision.js";
 import { QuitarProfesorComision } from "./application/quitar-profesor-comision.js";
+import { AcademicAdministrationController } from "./academic-administration.controller.js";
+import { ACADEMIC_ADMINISTRATION_REPOSITORY, type AcademicAdministrationRepository } from "./application/ports/academic-administration.repository.js";
+import { PrismaAcademicAdministrationRepository } from "./infrastructure/prisma-academic-administration.repository.js";
+import { EliminarAcademico } from "./application/eliminar-academico.js";
+import { ListarHistorialAcademico } from "./application/listar-historial-academico.js";
 
 @Module({
   imports: [PrismaModule, AuthModule, SharedModule],
-  controllers: [AcademicController],
+  controllers: [AcademicController, AcademicAdministrationController],
   providers: [
+    { provide: ACADEMIC_ADMINISTRATION_REPOSITORY, useFactory: (prisma: PrismaService) => new PrismaAcademicAdministrationRepository(prisma), inject: [PrismaService] },
+    ...[EliminarAcademico, ListarHistorialAcademico].map((provide) => ({ provide, useFactory: (repository: AcademicAdministrationRepository) => new provide(repository), inject: [ACADEMIC_ADMINISTRATION_REPOSITORY] })),
     { provide: ObtenerProfesor, useFactory: (profesores: ProfesorRepository) => new ObtenerProfesor(profesores), inject: [PROFESOR_REPOSITORY] },
     { provide: ActualizarProfesor, useFactory: (profesores: ProfesorRepository) => new ActualizarProfesor(profesores), inject: [PROFESOR_REPOSITORY] },
     { provide: ActualizarCursada, useFactory: (materias: MateriaRepository, cursadas: CursadaRepository) => new ActualizarCursada(materias, cursadas), inject: [MATERIA_REPOSITORY, CURSADA_REPOSITORY] },

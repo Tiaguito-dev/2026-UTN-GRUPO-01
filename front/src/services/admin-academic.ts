@@ -10,5 +10,10 @@ async function patch<T>(path: string, input: unknown, schema: z.ZodType<T>): Pro
   return parseResponse(schema, await requestJson(path, { method: "PATCH", body: input }));
 }
 export function actualizarProfesor(id: string, input: { nombreCompleto: string }): Promise<Profesor> { return patch(`/profesores/${encodeURIComponent(id)}`, input, profesorSchema); }
-export function actualizarCursada(id: string, input: Partial<Pick<Cursada, "materiaId" | "anio" | "cuatrimestre">>): Promise<Cursada> { return patch(`/cursadas/${encodeURIComponent(id)}`, input, cursadaSchema); }
+export function actualizarCursada(id: string, input: Partial<{ materiaId: string; anio: number; cuatrimestre: NonNullable<Cursada["cuatrimestre"]> }>): Promise<Cursada> { return patch(`/cursadas/${encodeURIComponent(id)}`, input, cursadaSchema); }
 export function actualizarComision(id: string, input: { carrera?: Carrera; numero?: number }): Promise<Comision> { return patch(`/comisiones/${encodeURIComponent(id)}`, input, comisionSchema); }
+export type AcademicAdminKind = "materias" | "profesores" | "cursadas" | "comisiones";
+export async function eliminarAcademico(kind: AcademicAdminKind, id: string): Promise<void> {
+  await getAuthService().me();
+  await requestJson(`/${kind}/${encodeURIComponent(id)}`, { method: "DELETE" });
+}

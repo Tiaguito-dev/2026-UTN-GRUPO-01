@@ -74,6 +74,14 @@ describe("ListarCursadasPorMateria", () => {
 });
 
 describe("ListarComisionesPorCursada", () => {
+  it("envía carrera validada al repositorio antes de paginar", async () => {
+    const { listarComisionesPorCursada, comisionRepository, addMateria, addCursada } = fixture();
+    const cursada = addCursada(addMateria("Álgebra").id);
+    await listarComisionesPorCursada.execute(cursada.id, { carrera: "I", page: 2, pageSize: 9 });
+    expect(comisionRepository.findByCursadaId).toHaveBeenCalledWith(cursada.id, { page: 2, pageSize: 9 }, "I");
+    await expect(listarComisionesPorCursada.execute(cursada.id, { carrera: "INVALIDA" })).rejects.toMatchObject({ httpStatus: 400 });
+    expect(comisionRepository.findByCursadaId).toHaveBeenCalledTimes(1);
+  });
   it("lista las comisiones de una cursada existente", async () => {
     const { listarComisionesPorCursada, addMateria, addCursada, addComision } = fixture();
     const materia = addMateria("Álgebra");
@@ -141,7 +149,7 @@ describe("ObtenerCursada", () => {
     f.addComision(cursada.id, "S", 1);
     await expect(obtener(f).execute(cursada.id)).resolves.toStrictEqual({
       id: cursada.id, anio: 2025, cuatrimestre: "PRIMERO", comisiones: 1, profesores: 0, carreras: ["S"],
-      materia: { id: materia.id, nombre: "Álgebra" },
+      materia: { id: materia.id, nombre: "Álgebra", modalidad: "ANUAL" },
     });
   });
 

@@ -9,11 +9,11 @@ export class QuitarProfesorComision {
     private readonly profesores: ProfesorRepository,
   ) {}
 
-  async execute(comisionIdInput: unknown, profesorIdInput: unknown): Promise<void> {
+  async execute(comisionIdInput: unknown, profesorIdInput: unknown, actorId?: string): Promise<void> {
     const comisionId = validateId(comisionIdInput);
     const profesorId = validateId(profesorIdInput);
     if (!(await this.comisiones.findById(comisionId))) throw new ComisionNotFoundError();
     if (!(await this.profesores.findById(profesorId))) throw new ProfesorNotFoundError();
-    if (!(await this.comisiones.quitarProfesor(comisionId, profesorId))) throw new ProfesorNoAsignadoError();
+    if (!(await this.comisiones.quitarProfesor(comisionId, profesorId, actorId))) throw new ProfesorNoAsignadoError();
   }
 }

@@ -49,7 +49,7 @@ describe("PageHeader", () => {
     expect(backLink.compareDocumentPosition(breadcrumb) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("sin back el render actual no cambia y no crea div.page-nav", () => {
+  it("sin back explícito utiliza el último ancestro del breadcrumb como regreso", () => {
     const { container } = render(
       <PageHeader
         id="h"
@@ -58,7 +58,8 @@ describe("PageHeader", () => {
       />
     );
 
-    expect(container.querySelector("div.page-nav")).toBeNull();
+    expect(container.querySelector("div.page-nav")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Volver a Inicio" }).getAttribute("href")).toBe("/home");
     expect(screen.getByRole("navigation", { name: "Ubicación actual" })).toBeTruthy();
     expect(screen.getByRole("heading", { level: 1, name: "Materias" })).toBeTruthy();
   });

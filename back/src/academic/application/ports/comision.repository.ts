@@ -11,18 +11,18 @@ export interface CreateComisionInput {
 }
 
 export interface ComisionRepository {
-  findByCursadaId(cursadaId: string, pagination: Pagination): Promise<PaginatedResult<Comision>>;
+  findByCursadaId(cursadaId: string, pagination: Pagination, carrera?: Carrera): Promise<PaginatedResult<Comision>>;
   findByCursadaIdCarreraNumero(cursadaId: string, carrera: Carrera, numero: number): Promise<Comision | null>;
   /** Excluye las comisiones dadas de baja. */
   findById(id: string): Promise<Comision | null>;
   /** Null si la comisión, su cursada o su materia están borradas; las inactivas se devuelven. */
   findDetalleById(id: string): Promise<ComisionDetalle | null>;
-  update(id: string, input: Partial<Pick<CreateComisionInput, "carrera" | "numero">>): Promise<Comision>;
-  create(input: CreateComisionInput): Promise<Comision>;
+  update(id: string, input: Partial<Pick<CreateComisionInput, "carrera" | "numero">>, actorId?: string): Promise<Comision>;
+  create(input: CreateComisionInput, actorId?: string): Promise<Comision>;
   /** Solo cuenta comisiones no borradas. */
   existsByMateriaAndCarrera(materiaId: string, carrera: Carrera): Promise<boolean>;
   /** Upsert: si ya estaba asignado, cambia el cargo. */
-  asignarProfesor(comisionId: string, profesorId: string, cargo: CargoDocente): Promise<void>;
+  asignarProfesor(comisionId: string, profesorId: string, cargo: CargoDocente, actorId?: string): Promise<void>;
   /** Devuelve false si el profesor no estaba asignado. */
-  quitarProfesor(comisionId: string, profesorId: string): Promise<boolean>;
+  quitarProfesor(comisionId: string, profesorId: string, actorId?: string): Promise<boolean>;
 }

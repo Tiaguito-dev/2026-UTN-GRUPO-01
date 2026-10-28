@@ -2,6 +2,198 @@
 
 ## [Sin publicar]
 
+### Formularios de comisiones y retorno de altas administrativas
+
+- Carrera única de la materia asignada automáticamente como contexto de lectura; selección restringida cuando hay varias y bloqueo explicativo cuando no hay carreras. Backend resuelve y valida la asociación desde persistencia.
+- Altas de materias, profesores, períodos y comisiones regresan a su listado o sección administrativa de origen únicamente tras éxito, con confirmación y actualización de datos. Las asignaciones docentes actualizan equipo, opciones e historial en la misma sección.
+- Se preservan filtros y campos ante errores, se avisa si el alta queda fuera de la selección y se ofrece limpiar filtros explícitamente. Ediciones sin diferencias no envían actualizaciones; edición de materia vuelve al detalle conservando el origen.
+- Se agregan pruebas de regresión de carreras, navegación, errores/reintentos, filtros y asignaciones. Sin commits; ver evidencia en la tarea.
+
+### Bajas administrativas académicas
+
+- Acciones Trash2 y confirmaciones de baja lógica en listados y detalles de materias, profesores, comisiones y períodos. Se identifica el registro y se explican dependencias y conservación de relaciones, experiencias e historial.
+- Listados recalculan resultados y ajustan automáticamente la página cuando desaparece su última fila; el detalle conserva estado y auditoría tras una baja o un bloqueo.
+- Auditoría de bajas exitosas y bloqueadas con resultado, actor, fecha y motivo; los bloqueos no se presentan como modificaciones del registro. Materia conserva su contrato histórico sin duplicar eventos.
+- Se distingue quitar una asignación de dar de baja al profesor y se impide desvincular asignaciones de una comisión dada de baja ante solicitudes concurrentes. Sin cascadas, borrado definitivo ni migraciones nuevas.
+
+### Corrección del detalle administrativo detrás del proxy
+
+- Nginx dev y TLS reenvían `/admin/`, `/users/` y `/profesores/` al backend. Los detalles, historial y operaciones individuales dejan de caer en el frontend con 404 HTML.
+- Se agrega `scripts/check-admin-proxy.mjs` para verificar el enrutamiento real y conservar las páginas administrativas en frontend. Se comprobaron los seis detalles en navegador autenticado y sus permisos pasando por el stack local.
+
+### Gestión del acceso de usuarios
+
+- Confirmaciones de desactivación y reactivación identifican nombre y email; acciones Lucide accesibles en listado y detalle, estado y resultados filtrados actualizados tras operar.
+- El detalle vuelve a los eventos más recientes tras cambiar el estado. Se explicita que reactivar requiere iniciar sesión nuevamente y conserva las revocaciones anteriores.
+- Verificada protección backend de cuentas inactivas, sesiones existentes, permisos y administradores concurrentes; comentarios anónimos y snapshots permanecen intactos. Nuevos eventos de reactivación usan REACTIVACION.
+- Migración aditiva del CHECK de historial para admitir eventos de comentarios y evitar el error 500 detectado durante las pruebas. Documentación de contratos y pruebas ampliadas. Sin commits.
+
+### Detalle administrativo y trazabilidad
+
+- Accesos Eye a detalles administrativos de usuarios y comentarios; Experiencias conserva filtros y página al regresar.
+- Auditoría compartida para materias, profesores, usuarios, comentarios, comisiones y períodos, con historial paginado y datos ausentes explícitos.
+- Lecturas protegidas por ADMIN y selección segura; futuras altas y relaciones académicas y eventos de comentarios registran actor dentro de la transacción existente.
+- Sin reconstrucción de eventos históricos ni cambios en el detalle privado del autor.
+
+### Administración remota, estados y bajas lógicas (TASK-070)
+
+- Profesores y Usuarios filtran y paginan en PostgreSQL; los resultados y selectores
+  administrativos dejan de descargar catálogos completos. Las tablas mantienen nueve filas,
+  total filtrado y contexto en URL. Materias busca por nombre y los períodos se eligen por páginas.
+- Usuarios incorpora estado, activación/reactivación confirmada e historial. Desactivar
+  revoca sesiones y credenciales pendientes; login, refresh y acceso rechazan cuentas inactivas.
+  Se impiden autodesactivación y pérdida concurrente de administradores activos.
+- Materias, Profesores, Cursadas y Comisiones permiten baja lógica confirmada, protegida por
+  ADMIN y bloqueada por relaciones vigentes. Se conservan comentarios, snapshots e identidad
+  histórica. Índices únicos parciales permiten reutilizar claves de registros dados de baja.
+- Historial administrativo registra ediciones reales y bajas con actor y fecha, con páginas
+  de tres eventos. Edición regresa al detalle con éxito y retorno contextual al listado.
+- Migración aditiva de estado e historial; pruebas con PostgreSQL/Mailpit temporales y
+  recorridos funcionales sin capturas. Experiencias conserva sus tarjetas. Sin commits.
+
+### Tablas administrativas coherentes (TASK-069)
+
+- Materias, Profesores, Usuarios, Cursadas y Comisiones comparten tabla de ancho completo,
+  filas compactas, filtros y alta en una barra, y scroll contenido en móvil. Experiencias
+  mantiene sus tarjetas y filtros sin cambios.
+- Acciones reales Eye/Pencil con nombre accesible, tooltip por foco/hover y cierre con Escape.
+  Altas con Plus y texto explícito. No se agregan eliminación, gestión de cuentas ni roles.
+- Filtros antes de paginar nueve filas, total filtrado y retorno contextual en URL. Materias
+  filtra en backend; los catálogos sin búsqueda remota reutilizan la carga completa acotada
+  existente (hasta 2000 registros; error en vez de resultados parciales).
+- Usuarios permite buscar nombre/email y filtrar rol. Estado y activación quedan pendientes
+  porque el contrato actual no los expone. Sin dependencias ni cambios de endpoints.
+
+### Recorrido administrativo por rol (TASK-068)
+
+- Inicio de sesión, marca y menú resuelven el panel administrativo para ADMIN. Perfil y
+  cierre de sesión se conservan, con menú estudiantil intacto para USER y guard administrativo.
+- Detalles administrativos de materia, profesor, cursada y comisión reutilizan consultas y
+  edición existentes. Los listados y relaciones permanecen en administración y conservan origen.
+- Experiencias administrativa reutiliza filtros y paginación sin invitar a publicar ni abrir
+  gestión privada del comentario. Anonimato y autorizaciones del backend se conservan.
+- Breadcrumb compartido comienza en Administración; traducción central de rutas evita montar
+  contenido estudiantil para ADMIN. Sin dependencias, migraciones ni operaciones backend nuevas.
+
+### Integración de desarrollo y comentarios (TASK-067)
+
+- Se integran los listados y editores administrativos del equipo hasta 1be4682, conservando
+  su contrato de cursadas por materia/año/período, incluidos períodos Anual, Primero y Segundo.
+- Se conservan los ajustes de breadcrumbs, materias/comisiones, filtros de Experiencias y
+  administración del comentario propio. Los períodos del mismo año mantienen sus IDs y
+  experiencias; los nuevos snapshots usan el período real de la cursada.
+- Se compatibiliza la migración de modalidad aún no publicada y se agrega corrección para
+  instalaciones de la variante anual anterior, sin fusionar filas ni inventar períodos nulos.
+- Regresión de frontend/backend y PostgreSQL efímero, sin modificar la base local. Cambios
+  del equipo, propios y de integración identificados en TASK-067 para aceptación manual.
+
+### Administración del comentario propio (TASK-066)
+
+- Detalle privado Tu comentario con breadcrumb compartido y regreso contextual con filtros.
+  Una tarjeta reúne materia enlazada, carrera/comisión/período, destinatario, texto completo
+  y acciones Editar/Eliminar con Lucide. Identidad pública y fechas útiles en el pie.
+- Se retira la tarjeta visible de auditoría sin modificar registros ni permisos. Historial
+  real cerrado inicialmente, con consulta al abrir y paginación existente de tres versiones.
+- Texto adaptable, acciones que se distribuyen en móvil y tokens actuales. Confirmación,
+  cancelación, reintento de eliminación y navegación de edición conservados. Sin cambios
+  de backend, dependencias nuevas ni migraciones; aceptación visual pendiente.
+
+### Experiencias: filtros y lectura (TASK-065)
+
+- Filtros combinados de carrera y materia antes de paginar. La carrera corresponde a la
+  comisión real del comentario; las materias compartidas no mezclan experiencias de otras
+  carreras. Total y página mantienen el mismo snapshot y el orden reciente estable.
+- Selector de materia con búsqueda remota, debounce y opciones paginadas, también sin
+  carrera. Al cambiar carrera conserva solo una materia compatible y reinicia la página.
+- Filtros y página en URL y regreso desde comisión o administración del comentario.
+  Tarjetas compartidas con materia enlazada, carrera formal, texto legible y acciones
+  secundarias; anonimato y permisos privados conservados.
+- Sin dependencias ni migraciones nuevas. Verificación técnica sin navegador; aceptación
+  visual pendiente y servicios locales apagados.
+
+### Identificación académica y selección de comisiones (TASK-064)
+
+- Denominaciones formales centralizadas, incluida Ingeniería en Sistemas de Información.
+  Materias compartidas se identifican como Básica según sus asociaciones completas; año y
+  nivel corresponden a la carrera elegida o indican cuándo dependen de la carrera.
+- Filtros de carrera asociada y año de cursada juntos, con selección conservada en URL.
+  Carrera única fija; materias compartidas sin selección no cargan todas las comisiones.
+- Consulta de comisiones filtrada por carrera antes de paginar y contar en backend. Nueve
+  por página, estado vacío estable y sin cambio automático a otra combinación.
+- Tarjetas completas como enlaces, código unido, carrera formal y docentes/cargos reales;
+  grilla responsive de ancho suficiente y sin alturas mínimas artificiales.
+
+### Breadcrumbs compartidos (TASK-063)
+
+- Recorrido y Volver centralizados en Breadcrumb/PageHeader: superficie blanca, borde,
+  selección y foco con tokens del proyecto, separadores Lucide y ajuste de nombres largos.
+- Se eliminan variantes locales del formulario; las páginas con breadcrumbs conservan
+  una presentación única, también en móvil. Sin agregar recorridos a páginas raíz.
+- Comentarios muestran materia y comisión reales y conservan filtros/páginas al administrar,
+  editar y regresar. Desde Experiencias se conserva la página del listado de origen.
+- Regreso interno conocido con alternativa coherente, enlaces nativos y un solo aria-current.
+
+### Modalidad de materia y refinamiento del formulario (TASK-062)
+
+- Modalidad Anual o Cuatrimestral (primero/segundo) en materia, incluidas electivas, con
+  validación e historial. Cursada identifica únicamente materia y año. Migración conserva
+  IDs, datos de períodos previos y snapshots de comentarios; se detiene ante duplicados.
+- Regresan las tarjetas compactas de comisiones; selectores con apariencia del sistema
+  y breadcrumb de comisión consistente con el componente compartido.
+- Formulario de experiencias con destinatario antes del texto, radios o selector según
+  cantidad de opciones, identidad pública con nombre o anonimato, contador Unicode y
+  confirmación al cancelar cambios. Texto y selecciones se conservan ante errores.
+- Pruebas focalizadas y migración verificadas en PostgreSQL efímero. Revisión visual
+  manual pendiente; sin nuevas dependencias ni commits.
+
+### Comisiones directas y experiencias generales (TASK-061, revisión visual pendiente)
+
+- Desde una materia se accede directamente a las comisiones; la cursada es un filtro de
+  período, inicialmente el más reciente. Regreso conserva período, página y contexto del
+  catálogo. Las rutas anteriores y la gestión administrativa continúan disponibles.
+- Equipo docente debajo de Experiencias en una sola columna.
+- Experiencias muestra los mismos comentarios de todas las comisiones, con materia,
+  comisión y período. Lectura paginada de nueve, anonimato preservado y acceso al detalle
+  privado únicamente del autor. Sin nuevas migraciones ni dependencias.
+
+### Catálogo de Materias e iconos de navegación (TASK-060, revisión manual pendiente)
+
+- Filtros compactos de carrera, año y nombre combinables, incluso año sin carrera;
+  búsqueda sin distinguir mayúsculas ni tildes y limpieza de filtros.
+- Listas agrupadas por año y electivas con nivel, metadatos relevantes y enlaces nativos.
+  Paginación de nueve materias únicas; una materia compartida figura en sus grupos sin
+  inflar el total. Filtros sobre una misma asociación antes de paginar en PostgreSQL.
+- `lucide-react` incorporado por pedido del usuario para menú compartido, búsqueda y
+  chevrons, conservando permisos, rutas y navegación accesible.
+- Pruebas enfocadas de filtros, asociaciones, paginación, estados y menú; sin migraciones
+  ni nuevos endpoints. Revisión visual manual a cargo del desarrollador.
+
+### Detalle de comisión y título de pestaña (TASK-059, revisión manual pendiente)
+
+- Materia como título, contexto académico real, período con calendario, breadcrumbs locales
+  simples y selector de comisiones del mismo período. Equipo docente en lateral compacto.
+- Experiencias con total real y tarjetas legibles; ayuda secundaria y una sola acción para
+  administrar el comentario propio. Detalle restringido al autor también en backend.
+- Título de navegador fijo Profesor Butchery, conservando títulos visibles de las páginas.
+- Sin nuevas dependencias, endpoints ni cambios al layout o navegación lateral.
+
+### Presentación de Experiencias de comisión (TASK-058, revisión manual pendiente)
+
+- Encabezado con acción principal, aviso informativo del límite con icono y comentarios
+  presentados en tarjetas con texto destacado y metadatos secundarios.
+- Navegación mediante botones dentro de Experiencias. El detalle individual y sus
+  formularios conservan su presentación para un ajuste posterior.
+
+### Comentarios por comisión (TASK-057, alta, edición y baja aceptadas manualmente)
+
+- Publicación textual inmediata por comisión, referencia a uno de sus docentes o a la
+  comisión en general y opción de anonimato. Un comentario vigente por usuario y comisión.
+- Edición propia con diferencias reales, eliminación lógica confirmada y republicación;
+  historial privado de tres eventos por página y comentarios paginados de nueve.
+- Contexto docente y académico conservado al publicar; permisos, validación y protección
+  de duplicados concurrentes en backend. Migración aditiva y rutas del proxy actualizadas.
+- Sin búsqueda por docente, moderación, administración de estado ni dependencias nuevas.
+  Validación automatizada del flujo principal; pruebas manuales a cargo del desarrollador.
 ### Administración académica HU-11 (TASK-055)
 
 - Corrección del bloqueo de CI en configuración de correo: comprobación equivalente de

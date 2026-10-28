@@ -1,3 +1,4 @@
+// Administrative mutations now forward an optional actor for transactional audit.
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { AsignarProfesorComision } from "../src/academic/application/asignar-profesor-comision.js";
@@ -32,7 +33,7 @@ describe("Profesores por comisión", () => {
     it.each(["TITULAR", "ADJUNTO", "JTP"])("asigna con cargo %s y devuelve id, nombre y cargo", async (cargo) => {
       const { asignar, comisionRepository, asignaciones, comision, profesor } = conComision();
       await expect(asignar.execute(comision.id, profesor.id, { cargo })).resolves.toStrictEqual({ id: profesor.id, nombreCompleto: "Ada Lovelace", cargo });
-      expect(comisionRepository.asignarProfesor).toHaveBeenCalledWith(comision.id, profesor.id, cargo);
+      expect(comisionRepository.asignarProfesor).toHaveBeenCalledWith(comision.id, profesor.id, cargo, undefined);
       expect(asignaciones.get(clave(comision.id, profesor.id))).toBe(cargo);
     });
 
@@ -100,7 +101,7 @@ describe("Profesores por comisión", () => {
       const { asignar, quitar, comisionRepository, asignaciones, comision, profesor } = conComision();
       await asignar.execute(comision.id, profesor.id, { cargo: "ADJUNTO" });
       await expect(quitar.execute(comision.id, profesor.id)).resolves.toBeUndefined();
-      expect(comisionRepository.quitarProfesor).toHaveBeenCalledWith(comision.id, profesor.id);
+      expect(comisionRepository.quitarProfesor).toHaveBeenCalledWith(comision.id, profesor.id, undefined);
       expect(asignaciones.has(clave(comision.id, profesor.id))).toBe(false);
     });
 

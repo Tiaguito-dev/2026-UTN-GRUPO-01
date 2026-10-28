@@ -11,6 +11,8 @@ export class PrismaPasswordRecoveryRepository implements PasswordRecoveryReposit
     }
     await this.prisma.$transaction(async (tx) => {
       await this.lockUser(tx, credential.userId);
+      const user = await tx.user.findUnique({ where: { id: credential.userId }, select: { disabledAt: true } });
+      if (!user || user.disabledAt) return;
       const checkedAt = this.checkedAt(credential.createdAt);
       if (credential.expiresAt <= checkedAt) throw new Error("La credencial de recuperación venció antes de persistirse.");
       await tx.passwordResetCredential.updateMany({ where: { userId: credential.userId, consumedAt: null, invalidatedAt: null }, data: { invalidatedAt: checkedAt } });
@@ -55,6 +57,8 @@ export class PrismaPasswordRecoveryRepository implements PasswordRecoveryReposit
       const credential = await tx.passwordResetCredential.findUnique({ where: { tokenHash: hash } });
       const checkedAt = this.checkedAt(now);
       if (!credential || credential.deliveredAt === null || credential.consumedAt !== null || credential.invalidatedAt !== null || credential.expiresAt <= checkedAt) return false;
+      const user = await tx.user.findUnique({ where: { id: credential.userId }, select: { disabledAt: true } });
+      if (!user || user.disabledAt) return false;
       await tx.user.update({ where: { id: credential.userId }, data: { passwordHash: newPasswordHash } });
       await tx.passwordResetCredential.update({ where: { id: credential.id }, data: { consumedAt: checkedAt } });
       await this.invalidateAndRevoke(tx, credential.userId, checkedAt);
@@ -65,8 +69,8 @@ export class PrismaPasswordRecoveryRepository implements PasswordRecoveryReposit
   async change(userId: string, expectedPasswordHash: string, newPasswordHash: string, now: Date): Promise<boolean> {
     return this.prisma.$transaction(async (tx) => {
       await this.lockUser(tx, userId);
-      const user = await tx.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
-      if (!user || user.passwordHash !== expectedPasswordHash) return false;
+      const user = await tx.user.findUnique({ where: { id: userId }, select: { passwordHash: true, disabledAt: true } });
+      if (!user || user.disabledAt || user.passwordHash !== expectedPasswordHash) return false;
       await this.lockSessions(tx, userId);
       await tx.user.update({ where: { id: userId }, data: { passwordHash: newPasswordHash } });
       await this.invalidateAndRevoke(tx, userId, this.checkedAt(now));

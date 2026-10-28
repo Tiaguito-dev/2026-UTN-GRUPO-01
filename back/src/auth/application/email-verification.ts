@@ -35,7 +35,7 @@ export class EmailVerification {
     try {
       validateInstitutionalEmailDomain(email);
       const user = await this.users.findByEmail(email);
-      if (user && !canAuthenticate(user)) await this.requestForUser(user.id, user.email);
+      if (user && !user.disabledAt && !canAuthenticate(user)) await this.requestForUser(user.id, user.email);
     } catch { this.report("VERIFICATION_RESEND_FAILED"); }
     finally {
       const remaining = this.minimumDurationMs - (performance.now() - started);

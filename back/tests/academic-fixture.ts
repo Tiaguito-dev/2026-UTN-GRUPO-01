@@ -9,6 +9,7 @@ import { CrearProfesor } from "../src/academic/application/crear-profesor.js";
 import { CrearCursada } from "../src/academic/application/crear-cursada.js";
 import { CrearComision } from "../src/academic/application/crear-comision.js";
 import { ActualizarMateria } from "../src/academic/application/actualizar-materia.js";
+import { MateriaNotFoundError } from "../src/academic/application/errors.js";
 import type { Pagination, PaginatedResult } from "../src/shared/domain/pagination.js";
 import { CARRERAS, type AnioCarrera, type Carrera, type NivelElectiva, type Materia, type MateriaCarrera } from "../src/academic/domain/materia.js";
 import type { Profesor } from "../src/academic/domain/profesor.js";
@@ -70,11 +71,12 @@ export function fixture() {
       const materia = { ...materias.get(id)!, ...input, ...(filas ? { carreras: porCarrera(filas) } : {}) }; materias.set(id, materia); return materia;
     }),
     findCarreras: vi.fn(async (materiaId) => (materias.get(materiaId)?.carreras ?? []).map((fila) => fila.carrera)),
-    findHistorial: vi.fn(async (_id, pagination) => paginate([], pagination)),
+    // TASK-070: historial reconoce también entidades dadas de baja; la existencia la verifica el puerto.
+    findHistorial: vi.fn(async (id, pagination) => { if (!materias.has(id)) throw new MateriaNotFoundError(); return paginate([], pagination); }),
     findById: vi.fn(async (id) => { const m = materias.get(id); return m && !m.deletedAt ? m : null; }),
     findByNombre: vi.fn(async (nombre) => [...materias.values()].find((m) => m.nombre === nombre) ?? null),
-    create: vi.fn(async ({ nombre, carreras: filas }) => {
-      const materia: Materia = { id: randomUUID(), nombre, carreras: porCarrera(filas ?? []), createdAt: new Date(), deletedAt: null };
+    create: vi.fn(async ({ nombre, modalidad, carreras: filas }) => {
+      const materia: Materia = { id: randomUUID(), nombre, modalidad, carreras: porCarrera(filas ?? []), createdAt: new Date(), deletedAt: null };
       materias.set(materia.id, materia);
       return materia;
     }),
@@ -123,7 +125,7 @@ export function fixture() {
       comisiones.set(id, result);
       return conProfesores(result);
     }),
-    findByCursadaId: vi.fn(async (cursadaId, pagination) => paginate([...comisiones.values()].filter((c) => c.cursadaId === cursadaId).map(conProfesores), pagination)),
+    findByCursadaId: vi.fn(async (cursadaId, pagination, carrera) => paginate([...comisiones.values()].filter((c) => c.cursadaId === cursadaId && !c.deletedAt && (!carrera || c.carrera === carrera)).map(conProfesores), pagination)),
     findByCursadaIdCarreraNumero: vi.fn(async (cursadaId, carrera, numero) =>
       [...comisiones.values()].find((c) => c.cursadaId === cursadaId && c.carrera === carrera && c.numero === numero) ?? null),
     findById: vi.fn(async (id) => { const c = comisiones.get(id); return c && !c.deletedAt ? conProfesores(c) : null; }),
@@ -132,7 +134,7 @@ export function fixture() {
       const cursada = comision && cursadas.get(comision.cursadaId);
       const materia = cursada && materias.get(cursada.materiaId);
       if (!comision || !cursada || !materia || comision.deletedAt || cursada.deletedAt || materia.deletedAt) return null;
-      return { ...conProfesores(comision), cursada: { id: cursada.id, anio: cursada.anio, cuatrimestre: cursada.cuatrimestre, materia: { id: materia.id, nombre: materia.nombre } } };
+      return { ...conProfesores(comision), cursada: { id: cursada.id, anio: cursada.anio, materia: { id: materia.id, nombre: materia.nombre, modalidad: materia.modalidad } } };
     }),
     create: vi.fn(async ({ cursadaId, carrera, numero }) => {
       const comision: Comision = { id: randomUUID(), cursadaId, nombre: `${carrera}-${numero}`, activa: true, carrera, numero, profesores: [], createdAt: new Date(), deletedAt: null };
@@ -147,7 +149,7 @@ export function fixture() {
 
   function addMateria(nombre: string, anioCarrera: AnioCarrera = "1", nivelElectiva: NivelElectiva | null = null): Materia {
     const carreras: MateriaCarrera[] = [{ carrera: "S", anioCarrera, nivelElectiva: nivelElectiva ?? null }];
-    const materia: Materia = { id: randomUUID(), nombre, carreras, createdAt: new Date(), deletedAt: null };
+    const materia: Materia = { id: randomUUID(), nombre, modalidad: "ANUAL", carreras, createdAt: new Date(), deletedAt: null };
     materias.set(materia.id, materia);
     return materia;
   }
@@ -159,8 +161,8 @@ export function fixture() {
     profesores.set(profesor.id, profesor);
     return profesor;
   }
-  function addCursada(materiaId: string, anio = 2026): Cursada {
-    const cursada: Cursada = { id: randomUUID(), materiaId, anio, cuatrimestre: "PRIMERO", createdAt: new Date(), deletedAt: null };
+  function addCursada(materiaId: string, anio = 2026, cuatrimestre: import("../src/academic/domain/cursada.js").Cuatrimestre = "PRIMERO"): Cursada {
+    const cursada: Cursada = { id: randomUUID(), materiaId, anio, cuatrimestre, createdAt: new Date(), deletedAt: null };
     cursadas.set(cursada.id, cursada);
     return cursada;
   }

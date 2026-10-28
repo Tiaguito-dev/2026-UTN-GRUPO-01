@@ -6,11 +6,11 @@ import type { MateriaRepository } from "./ports/materia.repository.js";
 export class CrearMateria {
   constructor(private readonly materias: MateriaRepository) {}
 
-  async execute(input: unknown): Promise<Materia> {
+  async execute(input: unknown, actorId?: string): Promise<Materia> {
     const datos = validateCrearMateriaInput(input);
     // Consulta previa para dar un 409 claro; la restricción única de la base es el respaldo
     // real contra la carrera entre dos altas simultáneas (ver el adaptador Prisma).
     if (await this.materias.findByNombre(datos.nombre)) throw new MateriaAlreadyExistsError();
-    return this.materias.create(datos);
+    return this.materias.create(datos, actorId);
   }
 }

@@ -45,7 +45,7 @@ export class MateriaAlreadyExistsError extends DomainError {
 
 export class CursadaAlreadyExistsError extends DomainError {
   readonly httpStatus = 409;
-  constructor() { super("Ya existe una cursada de esa materia para ese año y cuatrimestre."); this.name = "CursadaAlreadyExistsError"; }
+  constructor() { super("Ya existe una cursada de esa materia para ese año y período."); this.name = "CursadaAlreadyExistsError"; }
 }
 
 export class ComisionAlreadyExistsError extends DomainError {
@@ -56,4 +56,9 @@ export class ComisionAlreadyExistsError extends DomainError {
 export class CarreraConComisionesError extends DomainError {
   readonly httpStatus = 409;
   constructor() { super("No se puede quitar una carrera que tiene comisiones."); this.name = "CarreraConComisionesError"; }
+}
+
+export class AcademicRelationshipsError extends DomainError {
+  readonly httpStatus = 409;
+  constructor(message: string) { super(message); this.name = "AcademicRelationshipsError"; }
 }

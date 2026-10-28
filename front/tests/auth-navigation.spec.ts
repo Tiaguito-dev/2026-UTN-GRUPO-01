@@ -7,7 +7,7 @@ import { COORDINATION_NOTICE } from "../src/services/session-coordinator";
 
 const { state } = vi.hoisted(() => ({ state: { value: {} as Record<string, unknown> } }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => state.value }));
-vi.mock("next/navigation", () => ({ usePathname: () => "/account", useRouter: () => ({ replace: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/account", useSearchParams: () => new URLSearchParams(), useRouter: () => ({ replace: vi.fn() }) }));
 
 const content = createElement("span", null, "Contenido administrativo de prueba");
 function setAuth(status: string, role = "USER", temporaryError?: string, coordinationAvailable = true) {

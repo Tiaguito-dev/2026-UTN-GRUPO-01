@@ -47,17 +47,22 @@ export function AdminPanel() {
       </div>
     </section>
     <section id="cuentas-m" className={styles.group} aria-labelledby={cuentasId}>
-      <h2 id={cuentasId} className={styles.groupTitle}>Cuentas y moderación</h2>
+      <h2 id={cuentasId} className={styles.groupTitle}>Cuentas y experiencias</h2>
       <div className={styles.accounts}>
         <article className={styles.card}>
           <div className={styles.cardHead}><span className={styles.symbol} aria-hidden="true">U</span><h3>Usuarios registrados</h3></div>
-          <p className={styles.detail}>Listado de consulta de las cuentas de la aplicación, con su rol.</p>
+          <p className={styles.detail}>Consultá el detalle y el historial de las cuentas y administrá su acceso mediante desactivación y reactivación.</p>
           <div className={styles.actions}>
             <Link className="button button-secondary" href="/home/admin/usuarios" aria-label="Ver todos los usuarios registrados">Ver todos</Link>
           </div>
         </article>
+        <article className={styles.card}>
+          <div className={styles.cardHead}><h3>Experiencias</h3></div>
+          <p className={styles.detail}>Consulta de los comentarios publicados, respetando su identidad pública.</p>
+          <div className={styles.actions}><Link className="button button-secondary" href="/home/admin/experiencias">Ver experiencias</Link></div>
+        </article>
       </div>
     </section>
-    <p className="system-footnote">La administración permite crear y editar. No se realizan bajas desde este panel.</p>
+    <p className="system-footnote">Administrá la oferta académica y el acceso de las cuentas registradas.</p>
   </section>;
 }

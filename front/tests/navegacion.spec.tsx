@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SidebarNav } from "@/components/home/SidebarNav";
 
 const { auth, location } = vi.hoisted(() => ({
   auth: { value: { status: "authenticated", account: { role: "USER" }, logout: async () => {} } as Record<string, unknown> },
-  location: { pathname: "/home" },
+  location: { pathname: "/home", replace: vi.fn() },
 }));
 vi.mock("next/link", () => import("./support/next-link"));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }), usePathname: () => location.pathname }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: location.replace }), usePathname: () => location.pathname }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => auth.value }));
 
 afterEach(cleanup);
@@ -49,23 +49,58 @@ describe("SiteHeader", () => {
     await userEvent.click(screen.getByText("Contenido"));
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
+
+  it("ADMIN regresa al panel desde la marca y conserva perfil y cierre de sesión", async () => {
+    const logout = vi.fn().mockResolvedValue(undefined);
+    auth.value = { status: "authenticated", account: { role: "ADMIN" }, logout };
+    render(<SiteHeader />);
+    expect(screen.getByRole("link", { name: /Profesor Butchery/ }).getAttribute("href")).toBe("/home/admin");
+    await userEvent.click(screen.getByRole("button", { name: "Opciones de cuenta" }));
+    expect(screen.getByRole("link", { name: "Mi perfil" }).getAttribute("href")).toBe("/account");
+    expect(screen.getByRole("link", { name: "Cambiar contraseña" }).getAttribute("href")).toBe("/account/change-password");
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar sesión" }));
+    await waitFor(() => expect(logout).toHaveBeenCalledOnce());
+    expect(location.replace).toHaveBeenCalledWith("/login?notice=logout");
+  });
 });
 
 describe("SidebarNav", () => {
   const current = () => screen.getAllByRole("link").filter((link) => link.getAttribute("aria-current") === "page").map((link) => link.textContent);
 
   it.each([
-    ["/home", "⌂Inicio"],
-    ["/home/materias", "MMaterias"],
-    ["/home/materias/m1/cursadas/c1", "MMaterias"],
-    ["/home/profesores", "PProfesores"],
-    ["/account", "⌂Inicio"],
-    ["/account/change-password", "⌂Inicio"],
+    ["/home", "Inicio"],
+    ["/home/materias", "Materias"],
+    ["/home/materias/m1/cursadas/c1", "Materias"],
+    ["/home/profesores", "Profesores"],
+    ["/account", "Inicio"],
+    ["/account/change-password", "Inicio"],
   ])("en %s marca %s con aria-current", (pathname, expected) => {
     location.pathname = pathname;
     auth.value = { status: "authenticated", account: { role: "USER" } };
     render(<SidebarNav />);
     expect(current()).toEqual([expected]);
+  });
+
+  // TASK-060 replaces letter/symbol glyphs with one decorative outline icon collection.
+  it("cada entrada conserva enlace nativo y usa un icono decorativo uniforme", () => {
+    location.pathname = "/home/admin/materias";
+    auth.value = { status: "authenticated", account: { role: "ADMIN" } };
+    render(<SidebarNav />);
+    const links = screen.getAllByRole("link");
+    // TASK-068: administración tiene su propio recorrido, sin enlaces de participación.
+    expect(links.map(link => link.getAttribute("href"))).toEqual(["/home/admin", "/home/admin/materias", "/home/admin/profesores", "/home/admin/usuarios", "/home/admin/experiencias"]);
+    expect(links.map(link => link.textContent)).toEqual(["Inicio", "Materias", "Profesores", "Usuarios", "Experiencias"]);
+    expect(screen.getByText("Administración")).toBeTruthy();
+    expect(screen.queryByText(/De estudiantes/)).toBeNull();
+    for (const link of links) {
+      const icon = link.querySelector("svg")!;
+      expect(icon).not.toBeNull();
+      expect(icon.getAttribute("width")).toBe("18");
+      expect(icon.getAttribute("height")).toBe("18");
+      expect(icon.getAttribute("stroke-width")).toBe("1.75");
+      expect(icon.getAttribute("aria-hidden")).toBe("true");
+      expect(icon.getAttribute("focusable")).toBe("false");
+    }
   });
 
   it("con el header, el sidebar es el único landmark Navegación principal", () => {
@@ -76,14 +111,31 @@ describe("SidebarNav", () => {
     expect(screen.queryByRole("complementary", { name: /./ })).toBeNull();
   });
 
-  it.each([
-    ["authenticated", "ADMIN", true],
-    ["authenticated", "USER", false],
-    ["loading", "ADMIN", false],
-  ])("con sesión %s y rol %s, Administración visible: %s", (status, role, visible) => {
+  it("USER conserva las cinco secciones estudiantiles", () => {
     location.pathname = "/home";
-    auth.value = { status, account: { role } };
+    auth.value = { status: "authenticated", account: { role: "USER" } };
     render(<SidebarNav />);
-    expect(Boolean(screen.queryByRole("link", { name: /Administración/ }))).toBe(visible);
+    expect(screen.getAllByRole("link").map(link => link.getAttribute("href"))).toEqual(["/home", "/home/profesores", "/home/materias", "/home/experiencias", "/home/comunidad"]);
+    expect(screen.queryByText("Administración")).toBeNull();
+  });
+
+  it.each([
+    ["/home/admin", "Inicio"],
+    ["/home/admin/materias/m1", "Materias"],
+    ["/home/admin/profesores/p1/editar", "Profesores"],
+    ["/home/admin/usuarios", "Usuarios"],
+    ["/home/admin/experiencias?page=2", "Experiencias"],
+    ["/account", "Inicio"],
+  ])("ADMIN en %s tiene una única sección activa: %s", (path, expected) => {
+    location.pathname = path.split("?")[0];
+    auth.value = { status: "authenticated", account: { role: "ADMIN" } };
+    render(<SidebarNav />);
+    expect(current()).toEqual([expected]);
+  });
+
+  it("no presenta enlaces administrativos antes de confirmar la sesión", () => {
+    auth.value = { status: "checking", account: { role: "ADMIN" } };
+    render(<SidebarNav />);
+    expect(screen.queryAllByRole("link").some(link => link.getAttribute("href")?.startsWith("/home/admin"))).toBe(false);
   });
 });

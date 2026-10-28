@@ -3,12 +3,13 @@ import { nombreSchema } from "./academic-text.js";
 import { CAMPOS_NO_PERMITIDOS, InvalidAcademicInputError } from "./errors.js";
 import { InvalidPaginationError } from "../../shared/domain/errors.js";
 import type { Pagination } from "../../shared/domain/pagination.js";
-import { CARRERAS, type AnioCarrera, type MateriaCarrera, type NivelElectiva } from "../domain/materia.js";
+import { CARRERAS, type AnioCarrera, type MateriaCarrera, type ModalidadMateria, type NivelElectiva } from "../domain/materia.js";
 import type { MateriaFilters } from "./ports/materia.repository.js";
 
 export const anioCarreraSchema = z.enum(["1", "2", "3", "4", "5", "ELECTIVA"]);
 export const nivelElectivaSchema = z.enum(["3", "4", "5"]);
 export const materiaNombreSchema = nombreSchema(150);
+export const modalidadMateriaSchema = z.enum(["ANUAL", "PRIMERO", "SEGUNDO"]);
 
 export const carreraSchema = z.enum(CARRERAS);
 export const materiaCarreraSchema = z.strictObject({
@@ -21,10 +22,14 @@ export const carrerasSchema = z.array(materiaCarreraSchema).min(1)
 
 const updateCarrerasSchema = z.strictObject({
   nombre: materiaNombreSchema.optional(),
+  modalidad: modalidadMateriaSchema.optional(),
   carreras: carrerasSchema.optional(),
 });
 
 export function carrerasInputError(error: z.ZodError): InvalidAcademicInputError {
+  if (!error.issues.some((issue) => issue.code === "unrecognized_keys") && error.issues.some((issue) => issue.path[0] === "modalidad")) {
+    return new InvalidAcademicInputError("Seleccione la modalidad: Anual, primer cuatrimestre o segundo cuatrimestre.");
+  }
   return new InvalidAcademicInputError(error.issues.some((issue) => issue.code === "unrecognized_keys") ? CAMPOS_NO_PERMITIDOS
     : "Indique al menos una carrera (S, C, Q, I o M), sin repetir, cada una con un año entre 1 y 5 o Electiva y, para electivas, nivel 3, 4 o 5.");
 }
@@ -34,11 +39,12 @@ export function resolveCarreras(filas: z.infer<typeof carrerasSchema>): MateriaC
   return filas.map((fila) => ({ ...fila, nivelElectiva: resolveNivelElectiva(fila.anioCarrera, fila.nivelElectiva) }));
 }
 
-export function validateActualizarMateriaInput(value: unknown): { nombre?: string; carreras?: MateriaCarrera[] } {
+export function validateActualizarMateriaInput(value: unknown): { nombre?: string; modalidad?: ModalidadMateria; carreras?: MateriaCarrera[] } {
   const result = updateCarrerasSchema.safeParse(value);
   if (!result.success) throw carrerasInputError(result.error);
-  const output: { nombre?: string; carreras?: MateriaCarrera[] } = {};
+  const output: { nombre?: string; modalidad?: ModalidadMateria; carreras?: MateriaCarrera[] } = {};
   if (result.data.nombre !== undefined) output.nombre = result.data.nombre;
+  if (result.data.modalidad !== undefined) output.modalidad = result.data.modalidad;
   if (result.data.carreras !== undefined) output.carreras = resolveCarreras(result.data.carreras);
   return output;
 }
@@ -58,9 +64,6 @@ export function validateMateriaFilter(value: unknown): MateriaFilters {
       .transform((text) => text.trim()).refine((text) => Array.from(text).length <= 150).optional(),
   }).safeParse(value ?? {});
   if (!result.success) throw new InvalidAcademicInputError("Revise la búsqueda (máximo 150 caracteres) y seleccione una carrera, un año y un nivel válidos.");
-  if (!result.data.carrera && (result.data.anioCarrera || result.data.nivelElectiva)) {
-    throw new InvalidAcademicInputError("Seleccione una carrera para filtrar por año o nivel.");
-  }
   if (result.data.nivelElectiva && result.data.anioCarrera !== "ELECTIVA") {
     throw new InvalidAcademicInputError("El filtro de nivel solo está disponible para Electivas.");
   }
