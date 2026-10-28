@@ -54,3 +54,26 @@ export function adminSuccessHref(path: string, message: string): string {
   const url = new URL(path, "https://local.invalid"); url.searchParams.set("successMessage", message);
   return `${url.pathname}?${url.searchParams}`;
 }
+
+/** Mantiene la selección original y avisa cuando no incluirá el alta. */
+export function adminCreationHref(path: string, message: string, record: {
+  nombre?: string; nombreCompleto?: string; materiaId?: string; cursadaId?: string; carrera?: string;
+  carreras?: readonly { carrera: string; anioCarrera: string; nivelElectiva?: string | null }[];
+}): string {
+  const url = new URL(adminSuccessHref(path, message), "https://local.invalid");
+  const q = url.searchParams.get("q");
+  const normalize = (text: string) => text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("es");
+  const carrera = url.searchParams.get("carrera");
+  const anio = url.searchParams.get("anioCarrera");
+  const nivel = url.searchParams.get("nivelElectiva");
+  const outside = Boolean(
+    (q && !normalize(record.nombre ?? record.nombreCompleto ?? "").includes(normalize(q))) ||
+    (record.carreras && (carrera || anio || nivel) && !record.carreras.some((row) => (!carrera || row.carrera === carrera) && (!anio || row.anioCarrera === anio) && (!nivel || row.nivelElectiva === nivel))) ||
+    (record.carrera && carrera && record.carrera !== carrera) ||
+    (record.materiaId && url.searchParams.has("materiaId") && record.materiaId !== url.searchParams.get("materiaId")) ||
+    (record.cursadaId && url.searchParams.has("cursadaId") && record.cursadaId !== url.searchParams.get("cursadaId"))
+  );
+  if (outside) url.searchParams.set("creationOutsideFilters", "1");
+  else url.searchParams.delete("creationOutsideFilters");
+  return `${url.pathname}?${url.searchParams}`;
+}

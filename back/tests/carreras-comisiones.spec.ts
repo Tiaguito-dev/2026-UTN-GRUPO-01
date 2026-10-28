@@ -1,3 +1,4 @@
+// Administrative mutations now forward an optional actor for transactional audit.
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { validateCrearMateriaInput } from "../src/academic/application/crear-materia-input.js";
@@ -95,7 +96,6 @@ describe("validateCrearComisionInput: forma con carrera y número", () => {
     ["número como string", { cursadaId, carrera: "S", numero: "1" }],
     ["número negativo", { cursadaId, carrera: "S", numero: -1 }],
     ["carrera sin número", { cursadaId, carrera: "S" }],
-    ["número sin carrera", { cursadaId, numero: 1 }],
     ["carrera desconocida", { cursadaId, carrera: "X", numero: 1 }],
     ["ambas formas a la vez", { cursadaId, nombre: "S-1", carrera: "S", numero: 1 }],
     ["nombre con carrera", { cursadaId, nombre: "S-1", carrera: "S" }],
@@ -143,7 +143,7 @@ describe("CrearMateria con carreras", () => {
     const { crearMateria, materiaRepository } = fixture();
     const carreras = [{ carrera: "S", anioCarrera: "2", nivelElectiva: null }, { carrera: "Q", anioCarrera: "ELECTIVA", nivelElectiva: "4" }];
     await crearMateria.execute({ modalidad: "ANUAL", nombre: "Análisis II", carreras });
-    expect(materiaRepository.create).toHaveBeenCalledWith(expect.objectContaining({ modalidad: "ANUAL", nombre: "Análisis II", carreras }));
+    expect(materiaRepository.create).toHaveBeenCalledWith(expect.objectContaining({ modalidad: "ANUAL", nombre: "Análisis II", carreras }), undefined);
   });
 
   it("la forma legada se rechaza con 400 CAMPOS_NO_PERMITIDOS", async () => {
@@ -232,11 +232,39 @@ describe("CrearComision con carrera y número", () => {
     return { ...f, materia, cursada };
   }
 
+  // La carrera puede omitirse únicamente cuando se resuelve sin ambigüedad desde la materia.
+  it("asigna desde persistencia la única carrera sin exigir un campo oculto", async () => {
+    const f = conCursada();
+    f.setCarreras(f.materia.id, [{ carrera: "Q", anioCarrera: "2", nivelElectiva: null }]);
+    await expect(f.crearComision.execute({ cursadaId: f.cursada.id, numero: 7 })).resolves.toMatchObject({ carrera: "Q", numero: 7 });
+    expect(f.comisionRepository.create).toHaveBeenCalledWith({ cursadaId: f.cursada.id, carrera: "Q", numero: 7 }, undefined);
+  });
+
+  it("exige elegir una carrera si hay varias y no escribe sin selección", async () => {
+    const f = conCursada();
+    await expect(f.crearComision.execute({ cursadaId: f.cursada.id, numero: 7 })).rejects.toThrow("Elegí una carrera de la materia");
+    expect(f.comisionRepository.create).not.toHaveBeenCalled();
+  });
+
+  it("rechaza una carrera manipulada incluso si la materia tiene una sola", async () => {
+    const f = conCursada();
+    f.setCarreras(f.materia.id, [{ carrera: "Q", anioCarrera: "2", nivelElectiva: null }]);
+    await expect(f.crearComision.execute({ cursadaId: f.cursada.id, carrera: "S", numero: 7 })).rejects.toThrow("La carrera no corresponde");
+    expect(f.comisionRepository.create).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, "S"])("explica corregir la materia sin carreras (carrera enviada: %s)", async (carrera) => {
+    const f = conCursada();
+    f.setCarreras(f.materia.id, []);
+    await expect(f.crearComision.execute({ cursadaId: f.cursada.id, carrera, numero: 7 })).rejects.toThrow("La materia no tiene carreras asociadas. Asociá al menos una carrera a la materia antes de crear una comisión.");
+    expect(f.comisionRepository.create).not.toHaveBeenCalled();
+  });
+
   it("arma el nombre como carrera-número y delega carrera y número al puerto", async () => {
     const { crearComision, comisionRepository, cursada } = conCursada();
     const comision = await crearComision.execute({ cursadaId: cursada.id, carrera: "Q", numero: 7 });
     expect(comision).toMatchObject({ cursadaId: cursada.id, nombre: "Q-7" });
-    expect(comisionRepository.create).toHaveBeenCalledWith({ cursadaId: cursada.id, carrera: "Q", numero: 7 });
+    expect(comisionRepository.create).toHaveBeenCalledWith({ cursadaId: cursada.id, carrera: "Q", numero: 7 }, undefined);
   });
 
   it("carrera que no está entre las de la materia tira InvalidAcademicInputError (400)", async () => {
@@ -274,7 +302,7 @@ describe("CrearCursada sin profesor", () => {
     const datos = { materiaId: materia.id, anio: 2026, cuatrimestre: "PRIMERO" as const };
     await expect(crearCursada.execute(datos)).resolves.toMatchObject(datos);
     expect(profesorRepository.findById).not.toHaveBeenCalled();
-    expect(cursadaRepository.create).toHaveBeenCalledWith(datos);
+    expect(cursadaRepository.create).toHaveBeenCalledWith(datos, undefined);
   });
 
   it("con profesorId se rechaza con 400 CAMPOS_NO_PERMITIDOS", async () => {

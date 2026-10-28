@@ -15,6 +15,7 @@ import type { Carrera, MateriaCarrera } from "@/types/materias";
 import { CursadasList } from "./CursadasList";
 import styles from "./ComisionesMateria.module.css";
 import { feedbackOriginParams } from "@/validations/feedback";
+import { adminFormHref, adminListHref } from "@/validations/admin";
 
 type PeriodsResource = { key: string; items: CursadaResumen[]; error: string };
 
@@ -78,7 +79,7 @@ export function ComisionesMateria({ materiaId, materiaNombre, carreras, materias
 
   return <section className={styles.module} aria-labelledby={headingId}>
     <div className={styles.header}><div><h2 id={headingId}>Comisiones</h2><p>Elegí una comisión para consultar y compartir experiencias. La cursada identifica el año y el período.</p></div>
-      {isAdmin && selected ? <Link className="button" href={`/home/admin/comisiones/nueva?cursadaId=${encodeURIComponent(selected.id)}`}>Nueva comisión</Link> : null}
+      {isAdmin && selected ? <Link className="button" href={`${adminFormHref("/home/admin/comisiones/nueva", adminListHref({ seccion: "comisiones", materiaId, cursadaId: selected.id, carrera: career, page }))}&cursadaId=${encodeURIComponent(selected.id)}`}>Nueva comisión</Link> : null}
     </div>
     <div className={styles.filters}>
       <div className={styles.filter}>

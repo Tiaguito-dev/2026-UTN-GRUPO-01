@@ -12,7 +12,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Notice } from "@/components/ui/Notice";
 import { Dialog } from "@/components/ui/Dialog";
-import { adminListHref, adminFormHref, readAdminFilters, type AdminSection, type AdminContext } from "@/validations/admin";
+import { adminCreationHref, adminListHref, adminFormHref, readAdminFilters, type AdminSection, type AdminContext } from "@/validations/admin";
 import { ANIOS_CARRERA, CARRERAS, NIVELES_ELECTIVA, anioCarreraLabel, carreraLabel, nivelElectivaLabel } from "@/validations/materias";
 import { periodoLabel } from "@/lib/format/periodo";
 import { cargoLabel } from "@/lib/format/cargo";
@@ -37,15 +37,17 @@ export function AdminAcademicList({ kind }: { kind: Kind }) {
   const [deleting, setDeleting] = useState<AdminRow | null>(null);
   const [creating, setCreating] = useState(false); const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(""); const [refreshKey, setRefreshKey] = useState(0);
+  const [outsideFilters, setOutsideFilters] = useState(false);
   const context: AdminContext = { seccion: kind, page, materiaId, cursadaId, ...filters };
   const href = adminListHref(context);
   const parentReady = kind !== "cursadas" && kind !== "comisiones" || Boolean(materiaId && (kind !== "comisiones" || cursadaId));
   const changeFilters = (next: Partial<AdminContext>) => router.replace(adminListHref({ ...context, ...next, page: 1 }), { scroll: false });
-  const created = (text: string) => { setCreating(false); setMessage(text); setRefreshKey((value) => value + 1); setPage(1); };
+  const created = (text: string, record: Parameters<typeof adminCreationHref>[2] = {}) => { setOutsideFilters(new URL(adminCreationHref(href, text, record), "https://local.invalid").searchParams.has("creationOutsideFilters")); setCreating(false); setMessage(text); setRefreshKey((value) => value + 1); setPage(1); };
   const active = Boolean(filters.q || filters.carrera || filters.anioCarrera || filters.nivelElectiva);
   return <section className={styles.page} aria-labelledby={headingId}>
     <PageHeader id={headingId} title={LABELS[kind]} description={DESCRIPTIONS[kind]} breadcrumb={[{ label: "Administración", href: "/home/admin" }, { label: LABELS[kind] }]} />
     {message || params.get("successMessage") ? <Notice tone="success">{message || params.get("successMessage")}</Notice> : null}
+    {outsideFilters || params.get("creationOutsideFilters") === "1" ? <Notice tone="warning">El registro se creó correctamente, pero no coincide con los filtros seleccionados. <button className="button button-secondary" type="button" onClick={() => { setOutsideFilters(false); router.replace(adminListHref({ seccion: kind, page: 1 }), { scroll: false }); }}>Limpiar filtros para buscar el registro</button></Notice> : null}
     <div className={styles.toolbar}><div className={styles.filters}>
       {kind === "materias" || kind === "profesores" ? <AdminSearch key={filters.q ?? ""} query={filters.q ?? ""} onSearch={(q) => changeFilters({ q })} /> : <AdminParentFilters kind={kind} materiaId={materiaId} cursadaId={cursadaId} onChange={(materia, cursada) => changeFilters({ materiaId: materia, cursadaId: cursada })} />}
       {kind === "materias" || kind === "comisiones" ? <AdminSelect label="Carrera" all="Todas las carreras" value={filters.carrera ?? ""} options={CARRERAS.map((value) => ({ value, label: carreraLabel(value) }))} onChange={(carrera) => changeFilters({ carrera })} /> : null}
@@ -55,7 +57,7 @@ export function AdminAcademicList({ kind }: { kind: Kind }) {
     {parentReady ? kind === "materias" ? <MateriasResults context={context} href={href} refreshKey={refreshKey} onPageChange={setPage} onDelete={setDeleting} /> : <CatalogResults kind={kind} context={context} href={href} refreshKey={refreshKey} onPageChange={setPage} onDelete={setDeleting} /> : <div className={styles.empty}>Elegí {kind === "cursadas" ? "una materia para ver sus cursadas." : "una materia y un período para ver sus comisiones."}</div>}
     {deleting ? <AcademicDeleteDialog key={deleting.id} kind={kind} id={deleting.id} label={deleting.cells[0]} onClose={() => setDeleting(null)} onSuccess={() => { setDeleting(null); setMessage("El registro se dio de baja correctamente."); setRefreshKey((value) => value + 1); }} /> : null}
     {kind !== "comisiones" ? <Dialog open={creating} onClose={() => setCreating(false)} title={NEW[kind]} busy={saving}>
-      {creating ? kind === "materias" ? <MateriaForm onCancel={() => setCreating(false)} onBusyChange={setSaving} onSuccess={(materia) => created(`Materia creada: ${materia.nombre}.`)} /> : kind === "profesores" ? <AltaProfesor onCancel={() => setCreating(false)} onBusyChange={setSaving} onSuccess={created} /> : materiaId ? <AltaCursada materiaId={materiaId} onCancel={() => setCreating(false)} onBusyChange={setSaving} onSuccess={created} /> : null : null}
+      {creating ? kind === "materias" ? <MateriaForm onCancel={() => setCreating(false)} onBusyChange={setSaving} onSuccess={(materia) => created(`Materia creada: ${materia.nombre}.`, materia)} /> : kind === "profesores" ? <AltaProfesor onCancel={() => setCreating(false)} onBusyChange={setSaving} onSuccess={(text, nombreCompleto) => created(text, { nombreCompleto })} /> : materiaId ? <AltaCursada materiaId={materiaId} onCancel={() => setCreating(false)} onBusyChange={setSaving} onSuccess={(text) => created(text)} /> : null : null}
     </Dialog> : null}
   </section>;
 }

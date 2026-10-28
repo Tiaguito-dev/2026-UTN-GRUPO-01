@@ -9,7 +9,7 @@ import type { Materia } from "@/types/materias";
 const push = vi.fn();
 let search = "";
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push }),
+  useRouter: () => ({ push, refresh: vi.fn() }),
   useSearchParams: () => new URLSearchParams(search),
 }));
 vi.mock("next/link", () => import("./support/next-link"));
@@ -45,7 +45,11 @@ describe("MateriaFormPage", () => {
     const input = screen.getByLabelText("Nombre de la materia");
     await userEvent.clear(input); await userEvent.type(input, "Sistemas II");
     await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
-    expect(push).toHaveBeenCalledWith("/home/admin/materias?page=3&successMessage=Materia%20actualizada%20correctamente.");
+    // Edición vuelve al detalle; el listado de origen sigue disponible para Volver.
+    const target = new URL(String(push.mock.calls.at(-1)?.[0]), "https://local.test");
+    expect(target.pathname).toBe("/home/admin/materias/m-1");
+    expect(target.searchParams.get("returnTo")).toBe("/home/admin/materias?page=3");
+    expect(target.searchParams.get("successMessage")).toBe("Materia actualizada correctamente.");
   });
   it("renderiza PageHeader con h1", () => {
     render(<MateriaFormPage />);
@@ -63,9 +67,9 @@ describe("MateriaFormPage", () => {
     await userEvent.selectOptions(screen.getByLabelText("Año de la carrera"), "3");
     await userEvent.click(screen.getByRole("button", { name: "Crear materia" }));
 
-    expect(push).toHaveBeenCalledWith(
-      "/home/admin/materias?successMessage=Materia%20creada%3A%20Sistemas%20Operativos."
-    );
+    const target = new URL(String(push.mock.calls.at(-1)?.[0]), "https://local.test");
+    expect(target.pathname).toBe("/home/admin/materias");
+    expect(target.searchParams.get("successMessage")).toBe("Materia creada: Sistemas Operativos.");
   });
 
   // TASK-068: los retornos al recorrido público no se aceptan desde administración.
@@ -84,7 +88,7 @@ describe("MateriaFormPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
     expect(push).toHaveBeenCalledWith(
-      "/home/admin/materias/m-1?successMessage=Materia%20actualizada%20correctamente."
+      "/home/admin/materias/m-1?successMessage=Materia+actualizada+correctamente."
     );
   });
 
@@ -102,7 +106,7 @@ describe("MateriaFormPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
     expect(push).toHaveBeenCalledWith(
-      "/home/admin/materias/m-1?successMessage=Materia%20actualizada%20correctamente."
+      "/home/admin/materias/m-1?successMessage=Materia+actualizada+correctamente."
     );
   });
 });

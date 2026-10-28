@@ -5,13 +5,13 @@ import type { Carrera } from "../domain/materia.js";
 
 export interface CrearComisionInput {
   cursadaId: string;
-  carrera: Carrera;
+  carrera?: Carrera;
   numero: number;
 }
 
 const schema = z.strictObject({
   cursadaId: z.string().uuid(),
-  carrera: carreraSchema,
+  carrera: carreraSchema.optional(),
   numero: z.number().int().min(1).max(999),
 });
 

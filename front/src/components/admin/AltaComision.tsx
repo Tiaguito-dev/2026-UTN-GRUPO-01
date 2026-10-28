@@ -15,7 +15,9 @@ import {
   validateSeleccion,
 } from "@/validations/academic";
 import { carreraLabel } from "@/validations/materias";
+import { adminListHref } from "@/validations/admin";
 import { FormField } from "@/components/ui/FormField";
+import { Notice } from "@/components/ui/Notice";
 import { AltaForm } from "./AltaForm";
 import { bloqueoDeOpciones, opcionesListas } from "./opciones";
 
@@ -40,10 +42,11 @@ export function AltaComision() {
 
   const selectedMateria = opcionesListas(materias.state).find((m) => m.id === materiaId);
   const carrerasMateria: Carrera[] = selectedMateria?.carreras.map((c) => c.carrera) ?? [];
+  const carrera = carrerasMateria.length === 1 ? carrerasMateria[0] : carrerasMateria.includes(carreraVal as Carrera) ? carreraVal : "";
 
   const preview =
-    carreraVal && /^[0-9]+$/u.test(numeroVal.trim()) && Number(numeroVal) >= 1 && Number(numeroVal) <= 999
-      ? `${carreraVal}-${Number(numeroVal)}`
+    carrera && /^[0-9]+$/u.test(numeroVal.trim()) && Number(numeroVal) >= NUMERO_COMISION_MINIMO && Number(numeroVal) <= NUMERO_COMISION_MAXIMO
+      ? `${carrera}-${Number(numeroVal)}`
       : "";
 
   const filtro = (
@@ -65,10 +68,11 @@ export function AltaComision() {
     <AltaForm
       breadcrumb={[{ label: "Administración", href: "/home/admin" }, { label: "Nueva comisión" }]}
       heading="Nueva comisión"
-      description="La comisión pertenece a una cursada y a una carrera. El nombre se genera automáticamente (por ejemplo: S-31)."
+      defaultReturnTo={(values) => adminListHref({ seccion: "comisiones", page: 1, materiaId: materiaId || undefined, cursadaId: values.cursadaId || undefined })}
+      description="La comisión pertenece a una cursada y a una carrera de su materia. Ingresá el número de comisión asignado."
       submitLabel="Crear comisión"
       filter={filtro}
-      blocked={bloqueoDeOpciones([
+      blocked={selectedMateria && carrerasMateria.length === 0 ? <Notice tone="warning">Antes de crear la comisión, debés asociar una carrera a esta materia desde su edición.</Notice> : bloqueoDeOpciones([
         {
           ...materias,
           nombre: "materias",
@@ -96,7 +100,7 @@ export function AltaComision() {
           label: "Cursada",
           options: opcionesListas(cursadas.state).map((cursada) => ({
             value: cursada.id,
-            label: periodoLabel(cursada.anio),
+            label: periodoLabel(cursada.anio, cursada.cuatrimestre),
           })),
           defaultValue: opcionesListas(cursadas.state).some((cursada) => cursada.id === cursadaInicial) ? cursadaInicial : undefined,
           validate: (value) =>
@@ -108,6 +112,8 @@ export function AltaComision() {
         {
           name: "carrera",
           label: "Carrera",
+          value: carrera,
+          readOnlyValue: carrerasMateria.length === 1 ? carreraLabel(carrerasMateria[0]) : undefined,
           hint: materiaId ? undefined : "Elegí una materia para ver sus carreras disponibles.",
           options: carrerasMateria.map((c) => ({
             value: c,

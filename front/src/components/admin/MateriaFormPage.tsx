@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { safeAdminReturnTo } from "@/validations/admin";
+import { adminCreationHref, adminSuccessHref, safeAdminReturnTo } from "@/validations/admin";
 import type { Materia } from "@/types/materias";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -28,9 +28,10 @@ export function MateriaFormPage({ materia }: { materia?: Materia }) {
         <MateriaForm
           materia={materia}
           onSuccess={(saved) => {
-            const target = returnTo ?? detailHref ?? backList;
+            const target = materia ? detailHref! : returnTo ?? backList;
             const message = materia ? "Materia actualizada correctamente." : `Materia creada: ${saved.nombre}.`;
-            router.push(`${target}${target.includes("?") ? "&" : "?"}successMessage=${encodeURIComponent(message)}`);
+            router.push(materia ? adminSuccessHref(target, message) : adminCreationHref(target, message, saved));
+            router.refresh();
           }}
         />
       </Card>

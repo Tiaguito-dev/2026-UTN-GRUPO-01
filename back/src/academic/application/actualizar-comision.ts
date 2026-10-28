@@ -19,7 +19,9 @@ export class ActualizarComision {
     const cursada = await this.cursadas.findById(current.cursadaId);
     if (!cursada) throw new CursadaNotFoundError();
     const effective = { ...current, ...result.data };
-    if (!(await this.materias.findCarreras(cursada.materiaId)).includes(effective.carrera)) throw new InvalidAcademicInputError("La carrera no corresponde a la materia de la cursada.");
+    const carreras = await this.materias.findCarreras(cursada.materiaId);
+    if (!carreras.length) throw new InvalidAcademicInputError("La materia no tiene carreras asociadas. Asociá al menos una carrera a la materia antes de editar una comisión.");
+    if (!carreras.includes(effective.carrera)) throw new InvalidAcademicInputError("La carrera no corresponde a la materia de la cursada.");
     const duplicate = await this.comisiones.findByCursadaIdCarreraNumero(current.cursadaId, effective.carrera, effective.numero);
     if (duplicate && duplicate.id !== id) throw new ComisionAlreadyExistsError();
     return actorId ? this.comisiones.update(id, result.data, actorId) : this.comisiones.update(id, result.data);

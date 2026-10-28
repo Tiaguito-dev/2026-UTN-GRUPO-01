@@ -24,6 +24,7 @@ import { PaginatedListView } from "@/components/ui/PaginatedListView";
 import { Notice } from "@/components/ui/Notice";
 import { FilterChips } from "@/components/ui/FilterChips";
 import { periodoLabel } from "@/lib/format/periodo";
+import { adminFormHref, adminListHref } from "@/validations/admin";
 import { Chevron } from "./detalle";
 import styles from "./ComisionesList.module.css";
 
@@ -76,7 +77,7 @@ export function ComisionesList({ materiaId, cursadaId }: { materiaId: string; cu
           <p>Cada comisión, de qué carrera es y quiénes la dictan.</p>
         </div>
         {/* TASK-043 decision 2: the alta page receives the cursada preselected. */}
-        {isAdmin ? <Link className="button" href={`/home/admin/comisiones/nueva?cursadaId=${encodeURIComponent(cursadaId)}`}>Nueva comisión</Link> : null}
+        {isAdmin ? <Link className="button" href={`${adminFormHref("/home/admin/comisiones/nueva", adminListHref({ seccion: "comisiones", page, materiaId: realMateriaId, cursadaId, carrera: carreraFilter }))}&cursadaId=${encodeURIComponent(cursadaId)}`}>Nueva comisión</Link> : null}
       </div>
       <div className="academic-panel-body">
         <PaginatedListView resetKey={cursadaId} page={page} onPageChange={setPage} fetchPage={(next) => listarComisionesPorCursada(cursadaId, { page: next, pageSize: 100 })} loadingMessage="Cargando comisiones…"

@@ -51,6 +51,7 @@ export function AltaCursada({ materiaId: materiaIdProp, onSuccess, onCancel, onB
   }
 
   return <AltaForm
+    defaultReturnTo={(values) => `/home/admin/cursadas?${new URLSearchParams({ materiaId: values.materiaId })}`}
     breadcrumb={[{ label: "Administración", href: "/home/admin" }, { label: "Nueva cursada" }]}
     heading="Nueva cursada"
     description="Una cursada es el dictado de una materia en un período. No puede repetirse la misma materia en el mismo año y período."

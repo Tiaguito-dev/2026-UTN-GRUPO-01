@@ -72,6 +72,7 @@ function ComisionOptions({ comision, returnTo }: { comision: ComisionDetalle; re
   const { materia, error, retry } = useMateria(comision.cursada.materia.id);
   if (error) return <Notice tone="error">{error} <button className="button" type="button" onClick={retry}>Reintentar</button></Notice>;
   if (!materia) return <p role="status">Cargando carreras de la materia…</p>;
+  if (!materia.carreras.length) return <Notice tone="warning">Antes de guardar la comisión, debés asociar una carrera a esta materia desde su edición.</Notice>;
   return <ComisionEditor comision={comision} returnTo={returnTo} carreras={materia.carreras.map((entry) => entry.carrera)} />;
 }
 function ComisionEditor({ comision, returnTo, carreras }: { comision: ComisionDetalle; returnTo: string; carreras: string[] }) {
@@ -84,7 +85,9 @@ function ComisionEditor({ comision, returnTo, carreras }: { comision: ComisionDe
     if (!Object.keys(changes).length) { setSuccess("No hay cambios para guardar."); return; }
     await actualizarComision(comision.id, changes); router.push(adminSuccessHref(detailAfterEdit("comisiones", comision.id, returnTo), "Comisión actualizada correctamente."));
   } });
-  return <><p>La cursada y los docentes asignados se conservan. El nombre se genera con la carrera y el número.</p><SubmitState error={error} success={success} /><form ref={ref} onSubmit={handleSubmit} noValidate aria-busy={busy}><FormField name="carrera" label="Carrera" defaultValue={comision.carrera} options={carreras.filter(isCarrera).map((carrera) => ({ value: carrera, label: `${carrera} — ${carreraLabel(carrera)}` }))} error={errors.carrera} /><FormField name="numero" label="Número de comisión" input={{ numeric: { min: NUMERO_COMISION_MINIMO, max: NUMERO_COMISION_MAXIMO } }} error={errors.numero} /><SaveActions busy={busy} returnTo={returnTo} /></form></>;
+  return <><p>La cursada y los docentes asignados se conservan. Ingresá el número de comisión asignado.</p><SubmitState error={error} success={success} /><form ref={ref} onSubmit={handleSubmit} noValidate aria-busy={busy}>
+    {carreras.length === 1 && isCarrera(carreras[0]) ? <div className="field"><p>Carrera: {carreraLabel(carreras[0])}</p><input type="hidden" name="carrera" value={carreras[0]} />{errors.carrera ? <p className="field-error">{errors.carrera}</p> : null}</div> : <FormField name="carrera" label="Carrera" defaultValue={carreras.includes(comision.carrera) ? comision.carrera : ""} options={carreras.filter(isCarrera).map((carrera) => ({ value: carrera, label: `${carrera} — ${carreraLabel(carrera)}` }))} error={errors.carrera} />}
+    <FormField name="numero" label="Número de comisión" input={{ numeric: { min: NUMERO_COMISION_MINIMO, max: NUMERO_COMISION_MAXIMO } }} error={errors.numero} /><SaveActions busy={busy} returnTo={returnTo} /></form></>;
 }
 
 function definedIssues<K extends string>(issues: Partial<Record<K, string | undefined>>): Partial<Record<K, string>> { for (const key in issues) if (!issues[key]) delete issues[key]; return issues; }
