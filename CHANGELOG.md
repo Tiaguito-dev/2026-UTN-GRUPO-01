@@ -2,6 +2,68 @@
 
 ## [Sin publicar]
 
+### Modalidad de materia y refinamiento del formulario (TASK-062)
+
+- Modalidad Anual o Cuatrimestral (primero/segundo) en materia, incluidas electivas, con
+  validación e historial. Cursada identifica únicamente materia y año. Migración conserva
+  IDs, datos de períodos previos y snapshots de comentarios; se detiene ante duplicados.
+- Regresan las tarjetas compactas de comisiones; selectores con apariencia del sistema
+  y breadcrumb de comisión consistente con el componente compartido.
+- Formulario de experiencias con destinatario antes del texto, radios o selector según
+  cantidad de opciones, identidad pública con nombre o anonimato, contador Unicode y
+  confirmación al cancelar cambios. Texto y selecciones se conservan ante errores.
+- Pruebas focalizadas y migración verificadas en PostgreSQL efímero. Revisión visual
+  manual pendiente; sin nuevas dependencias ni commits.
+
+### Comisiones directas y experiencias generales (TASK-061, revisión visual pendiente)
+
+- Desde una materia se accede directamente a las comisiones; la cursada es un filtro de
+  período, inicialmente el más reciente. Regreso conserva período, página y contexto del
+  catálogo. Las rutas anteriores y la gestión administrativa continúan disponibles.
+- Equipo docente debajo de Experiencias en una sola columna.
+- Experiencias muestra los mismos comentarios de todas las comisiones, con materia,
+  comisión y período. Lectura paginada de nueve, anonimato preservado y acceso al detalle
+  privado únicamente del autor. Sin nuevas migraciones ni dependencias.
+
+### Catálogo de Materias e iconos de navegación (TASK-060, revisión manual pendiente)
+
+- Filtros compactos de carrera, año y nombre combinables, incluso año sin carrera;
+  búsqueda sin distinguir mayúsculas ni tildes y limpieza de filtros.
+- Listas agrupadas por año y electivas con nivel, metadatos relevantes y enlaces nativos.
+  Paginación de nueve materias únicas; una materia compartida figura en sus grupos sin
+  inflar el total. Filtros sobre una misma asociación antes de paginar en PostgreSQL.
+- `lucide-react` incorporado por pedido del usuario para menú compartido, búsqueda y
+  chevrons, conservando permisos, rutas y navegación accesible.
+- Pruebas enfocadas de filtros, asociaciones, paginación, estados y menú; sin migraciones
+  ni nuevos endpoints. Revisión visual manual a cargo del desarrollador.
+
+### Detalle de comisión y título de pestaña (TASK-059, revisión manual pendiente)
+
+- Materia como título, contexto académico real, período con calendario, breadcrumbs locales
+  simples y selector de comisiones del mismo período. Equipo docente en lateral compacto.
+- Experiencias con total real y tarjetas legibles; ayuda secundaria y una sola acción para
+  administrar el comentario propio. Detalle restringido al autor también en backend.
+- Título de navegador fijo Profesor Butchery, conservando títulos visibles de las páginas.
+- Sin nuevas dependencias, endpoints ni cambios al layout o navegación lateral.
+
+### Presentación de Experiencias de comisión (TASK-058, revisión manual pendiente)
+
+- Encabezado con acción principal, aviso informativo del límite con icono y comentarios
+  presentados en tarjetas con texto destacado y metadatos secundarios.
+- Navegación mediante botones dentro de Experiencias. El detalle individual y sus
+  formularios conservan su presentación para un ajuste posterior.
+
+### Comentarios por comisión (TASK-057, alta, edición y baja aceptadas manualmente)
+
+- Publicación textual inmediata por comisión, referencia a uno de sus docentes o a la
+  comisión en general y opción de anonimato. Un comentario vigente por usuario y comisión.
+- Edición propia con diferencias reales, eliminación lógica confirmada y republicación;
+  historial privado de tres eventos por página y comentarios paginados de nueve.
+- Contexto docente y académico conservado al publicar; permisos, validación y protección
+  de duplicados concurrentes en backend. Migración aditiva y rutas del proxy actualizadas.
+- Sin búsqueda por docente, moderación, administración de estado ni dependencias nuevas.
+  Validación automatizada del flujo principal; pruebas manuales a cargo del desarrollador.
+
 ### Instalación de dependencias del check frontend (TASK-056)
 
 - Se restaura `npm ci` raíz: las pruebas de contrato del frontend importan filtros

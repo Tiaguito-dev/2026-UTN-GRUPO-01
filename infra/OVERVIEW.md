@@ -86,6 +86,12 @@ y admiten solamente loopback. Producción conserva Secure y rechaza esta excepci
 
 ## Aislamiento y operación
 
+El módulo de feedback (TASK-057/061) usa la ruta exacta `/feedback` para el listado general,
+`/feedback/` para los detalles privados y `/comisiones/:id/feedback` para cada comisión.
+Ambos proxies enrutan esos endpoints a NestJS; las páginas
+continúan bajo `/home/`. La migración aditiva `20261102000000_feedback_comisiones` debe
+aplicarse antes de iniciar el backend actualizado. No agrega variables de entorno ni servicios.
+
 - Backend y frontend tienen builds por etapas con Node 22.22.3, `npm ci` y lockfile único.
   Backend runtime conserva dependencias de producción; el CLI Prisma vive en la imagen del job.
   Next.js utiliza su salida standalone. Los secretos no entran en los contextos de build.
