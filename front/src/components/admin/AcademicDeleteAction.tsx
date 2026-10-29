@@ -6,7 +6,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { eliminarAcademico, type AcademicAdminKind } from "@/services/admin-academic";
 import { AdminConfirmDialog } from "./AdminConfirmDialog";
 
-const labels: Record<AcademicAdminKind, string> = { materias: "materia", profesores: "profesor", cursadas: "período", comisiones: "comisión" };
+const labels: Record<AcademicAdminKind, string> = { materias: "materia", profesores: "profesor", cursadas: "cursada", comisiones: "comisión" };
 const effects: Record<AcademicAdminKind, string> = {
   materias: "Si tiene períodos de cursada vigentes asociados, la baja se bloqueará. Dales de baja primero.",
   profesores: "Si tiene asignaciones en comisiones vigentes, la baja se bloqueará. Desvinculalo de esas comisiones primero.",

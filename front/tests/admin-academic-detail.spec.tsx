@@ -98,7 +98,8 @@ describe("detalles académicos administrativos", () => {
 
   it("cursada presenta el período real y abre materia, comisiones y edición administrativas", async () => {
     render(<AdminCursadaDetail cursadaId="cu1" />);
-    const heading = await screen.findByRole("heading", { level: 1, name: /Cursada.*2026/ });
+    // El encabezado identifica la entidad con eyebrow y reserva el título para el período real.
+    const heading = await screen.findByRole("heading", { level: 1, name: "2do cuatrimestre 2026" });
     administrativeBreadcrumb(heading.textContent!);
     expect(obtenerCursada).toHaveBeenCalledWith("cu1");
     expect(link(materia.nombre).pathname).toBe("/home/admin/materias/m1");

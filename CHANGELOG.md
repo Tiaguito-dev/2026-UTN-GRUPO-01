@@ -2,6 +2,12 @@
 
 ## [Sin publicar]
 
+### Presentación del detalle administrativo de Cursadas
+
+- Encabezado con período real, contexto de materia y acciones existentes; tarjeta semántica y acceso directo a comisiones con contexto de regreso.
+- Reutiliza los estilos de materias y la auditoría/historial compartidos de usuarios, con períodos legibles y actores sin identificadores técnicos. Confirmación concisa de baja con etiqueta cursada.
+- Pruebas de regresión de períodos, estados, permisos, navegación, teclado, bajas e historial; sin navegador ni commit. Evidencia en `docs/tasks/finished/TASK-cursada-detail-presentation.md`.
+
 ### Mensajes de confirmación de baja académica
 
 - Los modales identifican el registro por su nombre, sin mostrar el ID. Mensajes breves sobre inactividad, conservación de datos e historial y asociaciones vigentes que bloquean la baja según cada entidad.

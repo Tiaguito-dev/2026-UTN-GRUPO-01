@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
-import { BookOpen, CalendarDays, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { BookOpen, CalendarDays, ChevronRight, Pencil, Trash2, Users } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { obtenerDetalleAdministrativo } from "@/services/admin-detail";
 import { cursadaDetalleSchema, materiaSchema, profesorSchema } from "@/services/schemas";
@@ -121,7 +121,11 @@ export function AdminProfesorDetail({ profesorId }: { profesorId: string }) {
 }
 
 export function AdminCursadaDetail({ cursadaId }: { cursadaId: string }) {
+  const headingId = useId();
+  const informationId = useId();
+  const isAdmin = useIsAdmin();
   const [message, setMessage] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [auditVersion, setAuditVersion] = useState(0);
   const params = useSearchParams();
   const { data: cursada, error, retry } = useAdminResource<CursadaDetalle & { deletedAt: string | null }>(cursadaId, loadCursada);
@@ -134,14 +138,34 @@ export function AdminCursadaDetail({ cursadaId }: { cursadaId: string }) {
   const materiaHref = cursada ? materiaDetailHref(cursada.materia.id, materiaReturnTo) : materiaDetailHref(query.get("materiaId") ?? "", materiaReturnTo);
   const commissionsHref = cursada ? comisionesListHref(cursada.materia.id, cursadaId, materiaReturnTo) : fallback;
   const commissionsWithReturn = cursada ? `${commissionsHref}&returnTo=${encodeURIComponent(`/home/admin/cursadas/${encodeURIComponent(cursadaId)}?${new URLSearchParams({ returnTo: back })}`)}` : commissionsHref;
-  const title = cursada ? `Cursada ${periodoLabel(cursada.anio, cursada.cuatrimestre)}` : "Cursada";
-  const breadcrumb = cursada ? [{ label: "Administración", href: "/home/admin" }, { label: "Materias", href: materiaReturnTo }, { label: cursada.materia.nombre, href: materiaHref }, { label: "Cursadas", href: fallback }, { label: title }] : undefined;
-  return <DetailPage title={title} section="cursadas" back={back} listHref={fallback} breadcrumb={breadcrumb}>
+  const title = cursada ? cursada.cuatrimestre ? periodoLabel(cursada.anio, cursada.cuatrimestre) : `${cursada.anio} · No registrado` : "Cursada";
+  const materiaName = cursada?.materia.nombre.trim() || "No registrado";
+  const canManage = isAdmin && cursada && !cursada.deletedAt;
+  const breadcrumb = [{ label: "Administración", href: "/home/admin" }, { label: "Materias", href: materiaReturnTo }, ...(cursada ? [{ label: materiaName, href: materiaHref }] : []), { label: "Cursadas", href: fallback }, { label: title }];
+  return <section className={materiaStyles.page} aria-labelledby={headingId}>
+    <header className={materiaStyles.header}>
+      <PageHeader id={headingId} title={title} eyebrow="Detalle de cursada" description={<span className={!cursada?.materia.nombre.trim() ? materiaStyles.missing : undefined}>{materiaName}</span>} back={{ href: back, label: "contexto administrativo" }} breadcrumb={breadcrumb} focusKey={cursadaId} />
+      {canManage ? <div className={materiaStyles.actions}>
+        <Link className={`button button-secondary ${materiaStyles.edit}`} href={adminFormHref(`/home/admin/cursadas/${encodeURIComponent(cursadaId)}/editar`, back)}><Pencil size={17} aria-hidden="true" />Editar cursada</Link>
+        <button className={`button button-secondary ${materiaStyles.remove}`} type="button" aria-label={`Dar de baja cursada ${title}`} onClick={() => setConfirmDelete(true)}><Trash2 size={17} aria-hidden="true" />Dar de baja</button>
+      </div> : null}
+    </header>
+    {params.get("successMessage") ? <Notice tone="success">{params.get("successMessage")}</Notice> : null}
     {message ? <Notice tone="success">{message}</Notice> : null}
-    {!cursada ? <LoadState error={error} retry={retry} /> : <div className={styles.surface}>
-      <dl className={styles.data}><div><dt>Materia</dt><dd><Link href={materiaHref}>{cursada.materia.nombre}</Link></dd></div><div><dt>Período</dt><dd>{periodoLabel(cursada.anio, cursada.cuatrimestre)}</dd></div><div><dt>Estado</dt><dd>{cursada.deletedAt ? "Inactiva" : "Activa"}</dd></div></dl>
-      <div className={styles.actions}><Link className="button button-secondary" href={commissionsWithReturn}>Ver comisiones</Link>{!cursada.deletedAt ? <><Link className="button button-secondary" href={adminFormHref(`/home/admin/cursadas/${encodeURIComponent(cursadaId)}/editar`, back)}>Editar cursada</Link><AcademicDeleteAction kind="cursadas" id={cursadaId} label={`${periodoLabel(cursada.anio, cursada.cuatrimestre)} de ${cursada.materia.nombre}`} onAttempt={() => setAuditVersion(value => value + 1)} onSuccess={() => { setMessage("El período se dio de baja correctamente."); setAuditVersion(value => value + 1); retry(); }} /></> : null}</div>
-    </div>}
-    {cursada ? <AdminAudit key={`${cursadaId}:${auditVersion}`} kind="cursadas" id={cursadaId} /> : null}
-  </DetailPage>;
+    {!cursada ? <LoadState error={error} retry={retry} /> : <>
+      <section className={materiaStyles.card} aria-labelledby={informationId}>
+        <div className={materiaStyles.cardBody}>
+          <h2 id={informationId}><CalendarDays size={18} aria-hidden="true" />Información de la cursada</h2>
+          <dl className={materiaStyles.data}>
+            <div><dt>Período</dt><dd className={!cursada.cuatrimestre ? materiaStyles.missing : undefined}>{title}</dd></div>
+            <div><dt>Estado</dt><dd><span className={`${materiaStyles.status} ${cursada.deletedAt ? materiaStyles.inactive : materiaStyles.active}`}>{cursada.deletedAt ? "Inactiva" : "Activa"}</span></dd></div>
+            <div><dt>Materia</dt><dd className={!cursada.materia.nombre.trim() ? materiaStyles.missing : undefined}><Link href={materiaHref}>{materiaName}</Link></dd></div>
+          </dl>
+        </div>
+        <footer className={materiaStyles.footer}><p>Las comisiones y sus equipos docentes se consultan dentro de esta cursada</p><Link className={`button button-secondary ${materiaStyles.periods}`} href={commissionsWithReturn}><Users size={18} aria-hidden="true" />Ver comisiones<ChevronRight size={17} aria-hidden="true" /></Link></footer>
+      </section>
+      <AdminSharedAudit key={`${cursadaId}:${auditVersion}`} kind="cursadas" id={cursadaId} />
+    </>}
+    {canManage && confirmDelete ? <AcademicDeleteDialog kind="cursadas" id={cursadaId} label={`${title} de ${materiaName}`} onClose={() => setConfirmDelete(false)} onAttempt={() => setAuditVersion(value => value + 1)} onSuccess={() => { setConfirmDelete(false); setMessage("La cursada se dio de baja correctamente."); setAuditVersion(value => value + 1); retry(); }} /> : null}
+  </section>;
 }
