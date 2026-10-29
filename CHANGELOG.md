@@ -2,6 +2,16 @@
 
 ## [Sin publicar]
 
+### Docentes en edición administrativa de comisiones (TASK-057)
+
+- Se elimina el acceso superior duplicado a asignar, se separa la tarjeta de los botones
+  de guardado y se pliega el formulario tras asignar correctamente, con opción de reabrirlo.
+- Gestión de docentes desde Editar comisión, reutilizada con el detalle académico:
+  asignación múltiple, cambio de cargo y desvinculación sin eliminar profesores.
+- Confirmación del servidor antes de actualizar, prevención de duplicados y doble envío,
+  catálogo paginado completo, mensajes de éxito/error y reintentos; acceso solo ADMIN.
+- Se reutilizan endpoints y relaciones existentes, sin migraciones ni cambios de autenticación.
+
 ### Administración académica HU-11 (TASK-055)
 
 - Corrección del bloqueo de CI en configuración de correo: comprobación equivalente de

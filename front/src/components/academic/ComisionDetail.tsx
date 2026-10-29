@@ -1,24 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import {
-  asignarProfesorComision,
-  CARGOS,
   listarComisionesPorCursada,
-  listarProfesores,
   obtenerComision,
-  quitarProfesorComision,
-  type CargoDocente,
   type Comision,
   type ComisionDetalle,
-  type Profesor,
 } from "@/services/academic";
 import { HttpError } from "@/services/http";
 import {
-  cargoLabel,
   carreraLabel,
   isAnioCarrera,
   isCarrera,
@@ -32,7 +25,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Notice } from "@/components/ui/Notice";
 import { RowLink } from "@/components/ui/RowLink";
 import { periodoLabel } from "@/lib/format/periodo";
-import { PlusIcon, iniciales } from "./detalle";
+import { DocentesComision } from "./DocentesComision";
 
 export function ComisionDetail({
   materiaId,
@@ -56,14 +49,9 @@ export function ComisionDetail({
   const [comision, setComision] = useState<ComisionDetalle | null>(null);
   const [error, setError] = useState("");
   const [notFound, setNotFound] = useState(false);
-  const [actionError, setActionError] = useState("");
-  const [busy, setBusy] = useState(false);
   const [retryToken, setRetryToken] = useState(0);
 
   const [comisionesCursada, setComisionesCursada] = useState<Comision[]>([]);
-  const [profesoresTotales, setProfesoresTotales] = useState<Profesor[]>([]);
-  const [nuevoProfesorId, setNuevoProfesorId] = useState("");
-  const [nuevoCargo, setNuevoCargo] = useState<CargoDocente>("TITULAR");
 
   useEffect(() => {
     let active = true;
@@ -108,22 +96,6 @@ export function ComisionDetail({
     };
   }, [cursadaId, comisionId]);
 
-  // Load all professors for admin selection
-  useEffect(() => {
-    if (!isAdmin) return;
-    let active = true;
-    listarProfesores({ pageSize: 100 })
-      .then((res) => {
-        if (active) setProfesoresTotales(res.items);
-      })
-      .catch(() => {
-        // Soft failure
-      });
-    return () => {
-      active = false;
-    };
-  }, [isAdmin]);
-
   const realMateriaId = comision?.cursada.materia.id ?? materiaId;
   const realCursadaId = comision?.cursada.id ?? cursadaId;
   const materiasHref = materiaListHref(carrera, anio, listadoPage, context);
@@ -140,59 +112,12 @@ export function ComisionDetail({
   const cursadaHref = `/home/materias/${encodeURIComponent(realMateriaId)}/cursadas/${encodeURIComponent(realCursadaId)}${queryString}`;
   const back = <Link href={cursadaHref}>Volver a las comisiones del período</Link>;
 
-  async function handleCambiarCargo(profesorId: string, cargo: CargoDocente) {
-    setActionError("");
-    setBusy(true);
-    try {
-      await asignarProfesorComision(comisionId, profesorId, cargo);
-      setRetryToken((n) => n + 1);
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "No pudimos actualizar el cargo.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleQuitar(profesorId: string) {
-    setActionError("");
-    setBusy(true);
-    try {
-      await quitarProfesorComision(comisionId, profesorId);
-      setRetryToken((n) => n + 1);
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "No pudimos quitar al profesor.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleAsignar(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!nuevoProfesorId) return;
-    setActionError("");
-    setBusy(true);
-    try {
-      await asignarProfesorComision(comisionId, nuevoProfesorId, nuevoCargo);
-      setNuevoProfesorId("");
-      setNuevoCargo("TITULAR");
-      setRetryToken((n) => n + 1);
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "No pudimos asignar al profesor.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   const comisionLabel = comision?.nombre ?? (error ? "Comisión" : "Cargando…");
   const titulo = comision ? `Comisión ${comision.nombre}` : comisionLabel;
   const materiaLabel = comision?.cursada.materia.nombre ?? "Materia";
   const periodoNombre = comision
     ? periodoLabel(comision.cursada.anio, comision.cursada.cuatrimestre)
     : "Período";
-
-  const profesoresDisponibles = profesoresTotales.filter(
-    (pt) => !comision?.profesores.some((p) => p.id === pt.id)
-  );
 
   return (
     <section aria-labelledby={headingId}>
@@ -227,114 +152,7 @@ export function ComisionDetail({
       {comision ? (
         <div className="academic-columns">
           <div className="academic-main">
-            <section className="academic-panel" aria-labelledby={`${headingId}-profesores`}>
-              <div className="academic-panel-header">
-                <div>
-                  <h2 id={`${headingId}-profesores`}>Profesores</h2>
-                  <p>Quiénes dictan esta comisión y con qué cargo.</p>
-                </div>
-                {isAdmin ? (
-                  // TASK-043 decision 2: jumps to the assign form below; focus moves in code.
-                  <a
-                    className="button button-secondary"
-                    href={`#${ASIGNAR_PROFESOR_ID}`}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      document.getElementById(ASIGNAR_PROFESOR_ID)?.focus();
-                    }}
-                  >
-                    <PlusIcon />
-                    Asignar profesor
-                  </a>
-                ) : null}
-              </div>
-              <div className="academic-panel-body">
-                {actionError ? <Notice tone="error">{actionError}</Notice> : null}
-                {comision.profesores.length === 0 ? (
-                  <p className="academic-empty">No hay profesores asignados a esta comisión.</p>
-                ) : (
-                  <ul className="row-list">
-                    {comision.profesores.map((p) => (
-                      <li key={p.id} className="academic-person">
-                        <span className="academic-avatar" aria-hidden="true">{iniciales(p.nombreCompleto)}</span>
-                        <span className="academic-person-name">{p.nombreCompleto}</span>
-                        {isAdmin ? (
-                          <span className="academic-person-actions">
-                            <label htmlFor={`cargo-${p.id}`} className="sr-only">
-                              Cambiar cargo de {p.nombreCompleto}
-                            </label>
-                            <select
-                              id={`cargo-${p.id}`}
-                              value={p.cargo}
-                              disabled={busy}
-                              onChange={(e) => handleCambiarCargo(p.id, e.target.value as CargoDocente)}
-                            >
-                              {CARGOS.map((c) => (
-                                <option key={c} value={c}>
-                                  {cargoLabel(c)}
-                                </option>
-                              ))}
-                            </select>
-                            <button className="button button-secondary"
-                              type="button"
-                              disabled={busy}
-                              onClick={() => handleQuitar(p.id)}
-                            >
-                              Quitar
-                            </button>
-                          </span>
-                        ) : (
-                          <span className="academic-tag">{cargoLabel(p.cargo)}</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                {isAdmin ? (
-                  <form className="academic-assign" onSubmit={handleAsignar} aria-labelledby={`${headingId}-asignar`}>
-                    <h3 id={`${headingId}-asignar`}>Asignar profesor</h3>
-                    <div className="field">
-                      <label htmlFor={ASIGNAR_PROFESOR_ID}>Profesor</label>
-                      <select
-                        id={ASIGNAR_PROFESOR_ID}
-                        value={nuevoProfesorId}
-                        disabled={busy}
-                        onChange={(e) => setNuevoProfesorId(e.target.value)}
-                      >
-                        <option value="">Elegí un profesor</option>
-                        {profesoresDisponibles.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.nombreCompleto}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label htmlFor="asignar-cargo">Cargo</label>
-                      <select
-                        id="asignar-cargo"
-                        value={nuevoCargo}
-                        disabled={busy}
-                        onChange={(e) => setNuevoCargo(e.target.value as CargoDocente)}
-                      >
-                        {CARGOS.map((c) => (
-                          <option key={c} value={c}>
-                            {cargoLabel(c)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <button className="button submit"
-                      type="submit"
-                      disabled={busy || !nuevoProfesorId}
-                    >
-                      {busy ? "Guardando…" : "Asignar profesor"}
-                    </button>
-                  </form>
-                ) : null}
-              </div>
-            </section>
+            <DocentesComision key={comision.id} comisionId={comision.id} profesores={comision.profesores} onChange={(profesores) => setComision((current) => current ? { ...current, profesores } : current)} />
 
             <section className="academic-panel" aria-labelledby={`${headingId}-experiencias`}>
               <div className="academic-panel-header">
@@ -393,5 +211,3 @@ export function ComisionDetail({
     </section>
   );
 }
-
-const ASIGNAR_PROFESOR_ID = "asignar-profesor";

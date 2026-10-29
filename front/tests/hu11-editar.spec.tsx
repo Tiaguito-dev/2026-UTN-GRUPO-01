@@ -9,6 +9,8 @@ import { obtenerCursada, obtenerComision, listarMaterias } from "@/services/acad
 const { router, state } = vi.hoisted(() => ({ router: { push: vi.fn() }, state: { search: "" } }));
 vi.mock("next/link", () => import("./support/next-link"));
 vi.mock("next/navigation", () => ({ useRouter: () => router, useSearchParams: () => new URLSearchParams(state.search) }));
+// TASK-057: docentes se cubre con sesión ADMIN en su suite; esta suite conserva el formulario básico.
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ account: { role: "USER" } }) }));
 vi.mock("@/services/admin-academic", () => ({ obtenerProfesor: vi.fn(), actualizarProfesor: vi.fn(), actualizarCursada: vi.fn(), actualizarComision: vi.fn() }));
 vi.mock("@/services/academic", () => ({ obtenerCursada: vi.fn(), obtenerComision: vi.fn(), listarMaterias: vi.fn() }));
 vi.mock("@/hooks/useMateria", () => ({ useMateria: () => ({ materia: { id: "m1", carreras: [{ carrera: "S" }, { carrera: "Q" }] }, error: "", retry: vi.fn() }) }));

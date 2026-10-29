@@ -55,6 +55,10 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  // TASK-057: el editor compartido refleja la asignación confirmada que devuelve PUT.
+  vi.mocked(asignarProfesorComision).mockImplementation(async (_comisionId, profesorId, cargo) => ({
+    id: profesorId, nombreCompleto: profesorId === "p1" ? "Prof. Rossi" : "Dra. Gomez", cargo,
+  }));
   vi.mocked(obtenerComision).mockResolvedValue(comisionMock);
   vi.mocked(listarComisionesPorCursada).mockResolvedValue({
     items: [
@@ -155,15 +159,20 @@ describe("ComisionDetail", () => {
       expect(screen.getByRole("heading", { level: 2, name: "Datos de la comisión" })).toBeTruthy();
     });
 
-    it("ADMIN: el enlace Asignar profesor lleva el foco al formulario de asignación (decisión 2)", async () => {
+    // TASK-057: el formulario plegable reemplaza el enlace redundante del encabezado.
+    it("ADMIN: Asignar profesor permite plegar y reabrir el formulario sin enlace redundante", async () => {
       authState.role = "ADMIN";
       render(<ComisionDetail materiaId="mat1" cursadaId="cur1" comisionId="com1" />);
-      const link = await screen.findByRole("link", { name: "Asignar profesor" });
-      const form = screen.getByLabelText("Profesor").closest("form")!;
-      expect(link.getAttribute("href")).toMatch(/^#./);
-      expect(form.contains(document.getElementById(link.getAttribute("href")!.slice(1)))).toBe(true);
-      await userEvent.click(link);
-      expect(form.contains(document.activeElement)).toBe(true);
+      await screen.findByLabelText("Profesor");
+      expect(screen.queryByRole("link", { name: "Asignar profesor" })).toBeNull();
+      const details = screen.getByLabelText("Profesor").closest("details")!;
+      expect(details).not.toBeNull();
+      expect(details.open).toBe(true);
+      const summary = within(details).getByText("Asignar profesor", { selector: "summary" });
+      await userEvent.click(summary);
+      expect(details.open).toBe(false);
+      await userEvent.click(summary);
+      expect(details.open).toBe(true);
     });
   });
 
