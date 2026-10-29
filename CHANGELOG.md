@@ -2,6 +2,12 @@
 
 ## [Sin publicar]
 
+### Navegación contextual administrativa académica
+
+- Breadcrumbs de Materias, Cursadas y Comisiones reconstruyen la jerarquía con nombres y relaciones reales; los niveles anteriores apuntan a sus vistas administrativas.
+- `Volver`, edición, guardar y cancelar conservan el listado y contexto de origen. Los retornos se validan por ruta, entidad y relación; el listado global de cursadas sigue disponible.
+- Las rutas administrativas anidadas mantienen Materias activa en el menú lateral. Pruebas focalizadas, TypeScript y lint; revisión de navegador a cargo del desarrollador.
+
 ### Detalle exclusivo de usuarios y marca superior
 
 - Tarjeta de cuenta con iniciales, nombre público, estado, acción superior y nota de propia cuenta basada en sesión; conserva confirmaciones y restricciones reales.

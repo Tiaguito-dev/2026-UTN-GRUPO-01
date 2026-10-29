@@ -36,7 +36,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 function link(name: string | RegExp) {
-  return new URL(screen.getByRole("link", { name }).getAttribute("href")!, "https://local.test");
+  return new URL(screen.getAllByRole("link", { name })[0]!.getAttribute("href")!, "https://local.test");
 }
 function administrativeBreadcrumb(title: string) {
   const breadcrumb = screen.getByRole("navigation", { name: "Ubicación actual" });
@@ -59,6 +59,7 @@ describe("detalles académicos administrativos", () => {
     expect(link(/Volver a/).pathname + link(/Volver a/).search).toBe(origin);
     expect(link("Ver cursadas").pathname).toBe("/home/admin/cursadas");
     expect(link("Ver cursadas").searchParams.get("materiaId")).toBe("m1");
+    expect(link("Ver cursadas").searchParams.get("materiaReturnTo")).toBe("/home/admin/materias");
     expect(link("Editar materia").pathname).toBe("/home/admin/materias/m1/editar");
     expect(link("Editar materia").searchParams.get("returnTo")).toBe(origin);
     // Shared administrative audit replaces the public timeline.
@@ -103,7 +104,9 @@ describe("detalles académicos administrativos", () => {
     expect(link(materia.nombre).pathname).toBe("/home/admin/materias/m1");
     const commissions = link("Ver comisiones");
     expect(commissions.pathname).toBe("/home/admin/comisiones");
-    expect(Object.fromEntries(commissions.searchParams)).toEqual({ materiaId: "m1", cursadaId: "cu1" });
+    expect(commissions.searchParams.get("materiaId")).toBe("m1");
+    expect(commissions.searchParams.get("cursadaId")).toBe("cu1");
+    expect(commissions.searchParams.get("materiaReturnTo")).toBe("/home/admin/materias");
     expect(link("Editar cursada").pathname).toBe("/home/admin/cursadas/cu1/editar");
     expect(link(/Volver a/).searchParams.get("materiaId")).toBe("m1");
     expect(document.querySelector('a[href^="/home/materias"]')).toBeNull();

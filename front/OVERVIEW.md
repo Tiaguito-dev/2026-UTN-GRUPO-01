@@ -65,6 +65,7 @@ ADMIN: sin ese rol muestra "Acceso no permitido" dentro del shell.
 - `/home/admin/profesores/nuevo`: alta de profesores.
 - `/home/admin/cursadas/nueva`: alta de cursada por materia y período (sin profesor responsable).
 - `/home/admin/comisiones/nueva`: alta de comisión por cursada, carrera y número (1 a 999).
+- `/home/admin/materias`, `/home/admin/cursadas` y `/home/admin/comisiones`: las listas y detalles administrativos preservan el contexto de filtros/página y construyen breadcrumbs desde las asociaciones reales; al gestionar cursadas o comisiones, Materias queda activa en el sidebar. Los destinos de retorno son internos y se validan contra la entidad padre.
 - `/home/admin/profesores`: listado paginado de consulta de los profesores cargados.
 - `/home/admin/usuarios`: listado con estado, filtros y administración del acceso de las cuentas registradas.
 - `/account`, `/account/change-password`: perfil y cambio de contraseña protegidos.

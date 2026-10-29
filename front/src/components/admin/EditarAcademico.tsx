@@ -13,7 +13,8 @@ import { Notice } from "@/components/ui/Notice";
 import { FormField } from "@/components/ui/FormField";
 import { validateNombre, validateAnio, validateNumeroComision, ANIO_MINIMO, anioMaximo, NUMERO_COMISION_MINIMO, NUMERO_COMISION_MAXIMO } from "@/validations/academic";
 import { carreraLabel, isCarrera } from "@/validations/materias";
-import { adminListHref, adminSuccessHref, safeAdminReturnTo, type AdminSection } from "@/validations/admin";
+import { adminListHref, adminSuccessHref, safeAdminReturnTo, safeMateriaListOrigin, type AdminSection } from "@/validations/admin";
+import { materiaDetailHref } from "@/validations/admin-academic-navigation";
 import { bloqueoDeOpciones, opcionesListas } from "./opciones";
 
 function detailAfterEdit(section: "profesores" | "cursadas" | "comisiones", id: string, returnTo: string) { return `/home/admin/${section}/${encodeURIComponent(id)}?${new URLSearchParams({ returnTo })}`; }
@@ -61,7 +62,9 @@ function CursadaEditor({ cursada, returnTo, materias }: { cursada: CursadaDetall
     if (values.cuatrimestre !== cursada.cuatrimestre) changes.cuatrimestre = values.cuatrimestre;
     if (!Object.keys(changes).length) { setSuccess("No hay cambios para guardar."); return; }
     await actualizarCursada(cursada.id, changes);
-    const target = changes.materiaId ? adminListHref({ seccion: "cursadas", materiaId: changes.materiaId, page: 1 }) : returnTo;
+    const source = new URL(safeAdminReturnTo(returnTo) ?? "/home/admin/cursadas", "https://local.invalid");
+    const materiaOrigin = safeMateriaListOrigin(source.searchParams.get("materiaReturnTo")) ?? "/home/admin/materias";
+    const target = changes.materiaId ? adminListHref({ seccion: "cursadas", materiaId: changes.materiaId, materiaReturnTo: materiaOrigin, returnTo: materiaDetailHref(changes.materiaId, materiaOrigin), page: 1 }) : returnTo;
     router.push(adminSuccessHref(detailAfterEdit("cursadas", cursada.id, target), "Cursada actualizada correctamente."));
   } });
   return <><Notice tone="warning">Las comisiones y sus profesores permanecen asociados a esta cursada. No se permite moverla a una materia que no ofrezca las carreras de sus comisiones.</Notice><SubmitState error={error} success={success} /><form ref={ref} onSubmit={handleSubmit} noValidate aria-busy={busy}><FormField name="materiaId" label="Materia" defaultValue={cursada.materia.id} options={materias.map((m) => ({ value: m.id, label: m.nombre }))} error={errors.materiaId} /><FormField name="anio" label="Año" input={{ numeric: { min: ANIO_MINIMO, max: anioMaximo() } }} error={errors.anio} /><FormField name="cuatrimestre" label="Período" defaultValue={cursada.cuatrimestre ?? ""} options={[{ value: "PRIMERO", label: "Primer cuatrimestre" }, { value: "SEGUNDO", label: "Segundo cuatrimestre" }, { value: "ANUAL", label: "Anual" }]} error={errors.cuatrimestre} /><SaveActions busy={busy} returnTo={returnTo} /></form></>;

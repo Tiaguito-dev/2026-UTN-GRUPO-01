@@ -130,6 +130,8 @@ describe("SidebarNav", () => {
   it.each([
     ["/home/admin", "Inicio"],
     ["/home/admin/materias/m1", "Materias"],
+    ["/home/admin/cursadas?materiaId=m1", "Materias"],
+    ["/home/admin/comisiones/co1", "Materias"],
     ["/home/admin/profesores/p1/editar", "Profesores"],
     ["/home/admin/usuarios", "Usuarios"],
     ["/home/admin/experiencias?page=2", "Experiencias"],

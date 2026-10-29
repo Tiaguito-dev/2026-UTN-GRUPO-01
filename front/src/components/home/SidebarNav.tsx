@@ -11,7 +11,8 @@ import styles from "./SidebarNav.module.css";
  *  persiste entre navegaciones, incluido el drill-down de /home/materias/**. */
 function isCurrent(pathname: string, href: string): boolean {
   // /account/** marca Inicio: el perfil no tiene sección en el sidebar, se abre desde el menú de cuenta.
-  if (href === "/home" || href === "/home/admin") return pathname === href || pathname === "/account" || pathname.startsWith("/account/") || (href === "/home/admin" && /^\/home\/admin\/(cursadas|comisiones)(\/|$)/.test(pathname));
+  if (href === "/home" || href === "/home/admin") return pathname === href || pathname === "/account" || pathname.startsWith("/account/");
+  if (href === "/home/admin/materias" && /^\/home\/admin\/(cursadas|comisiones)(\/|$)/.test(pathname)) return true;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
