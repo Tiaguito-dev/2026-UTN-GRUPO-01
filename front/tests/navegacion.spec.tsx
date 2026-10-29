@@ -16,6 +16,14 @@ vi.mock("@/hooks/useAuth", () => ({ useAuth: () => auth.value }));
 afterEach(cleanup);
 
 describe("SiteHeader", () => {
+  it.each([["ADMIN", "/home/admin"], ["USER", "/home"]])("marca BookOpen decorativa conserva destino de %s", (role, href) => {
+    auth.value = { status: "authenticated", account: { role } };
+    render(<SiteHeader />);
+    const brand = screen.getByRole("link", { name: "Profesor Butchery" });
+    expect(brand.getAttribute("href")).toBe(href);
+    expect(brand.querySelector("svg.lucide-book-open")?.getAttribute("aria-hidden")).toBe("true");
+    expect(brand.textContent).not.toContain("PB");
+  });
   function setup() {
     auth.value = { status: "authenticated", account: { role: "USER" }, logout: async () => {} };
     render(<><SiteHeader /><p>Contenido</p></>);

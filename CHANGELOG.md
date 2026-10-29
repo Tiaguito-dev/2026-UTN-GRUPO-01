@@ -2,6 +2,20 @@
 
 ## [Sin publicar]
 
+### Detalle exclusivo de usuarios y marca superior
+
+- Tarjeta de cuenta con iniciales, nombre público, estado, acción superior y nota de propia cuenta basada en sesión; conserva confirmaciones y restricciones reales.
+- Auditoría de usuarios con iconografía, distribución responsive y nombres de actores resueltos por backend mediante consulta agrupada exclusiva de este detalle; sin IDs visibles.
+- Historial accesible cerrado con diferencias Campo/Antes/Después y retorno al listado con filtros y página. Marca BookOpen compartida con enlace según rol.
+- Se preserva la presentación actual de detalles académicos. Prueba de navegador a cargo del desarrollador; sin commits.
+
+### Presentación del detalle de usuario y auditoría administrativa
+
+- Resumen compacto de nombre público y estado, campos con jerarquía tipográfica y acciones de acceso responsive; se conservan filtros, confirmaciones y permisos.
+- Auditoría compartida exclusiva de administración, sin ID visible, con bloques de creación, modificación y baja, fechas legibles y horas secundarias.
+- Historial desplegable cerrado inicialmente con contador real y paginación de tres eventos; sin inferir estado ni inventar actores ante datos ausentes.
+- Paleta actual mediante tokens existentes. Sin cambios de endpoints ni commits. Prueba de navegador a cargo del desarrollador.
+
 ### Formularios de comisiones y retorno de altas administrativas
 
 - Carrera única de la materia asignada automáticamente como contexto de lectura; selección restringida cuando hay varias y bloqueo explicativo cuando no hay carreras. Backend resuelve y valida la asociación desde persistencia.

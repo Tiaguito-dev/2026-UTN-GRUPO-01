@@ -1140,3 +1140,14 @@ PATCH mantiene el control de pertenencia también cuando solo cambia el número 
 corregir la asociación si no existen carreras. La persistencia revalida la pertenencia bajo
 los bloqueos existentes de cursada y materia, conservando la protección frente a concurrencia.
 No se asigna ni sugiere numeración disponible; no cambian permisos ADMIN, auditoría ni períodos.
+# Actores del detalle administrativo de usuarios
+
+`GET /admin/users/:id/detalle` mantiene los guards de sesión y rol ADMIN y la paginación de tres
+eventos. `AdminDetailService` agrega a auditoría los campos opcionales `createdByName`,
+`updatedByName`, `deletedByName` y a cada evento `actorName`. Resuelve referencias existentes
+en una única consulta por lote a User, seleccionando solo `id` y `displayName`, dentro de la
+transacción de lectura existente. Los nombres corresponden al nombre público actual disponible;
+no se reconstruyen identidades históricas ni se generan eventos. Una referencia no resoluble
+produce nombre nulo. Se mantienen las referencias internas para trazabilidad; frontend no las muestra.
+No cambia el contrato de actores ni las consultas de materias, cursadas, profesores u otras entidades.
+No hay cambios de permisos, payloads de escritura, estados, migraciones ni variables de entorno.

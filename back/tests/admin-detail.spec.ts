@@ -17,7 +17,7 @@ function fixture() {
     materiaHistorial: { count:vi.fn().mockResolvedValue(0), findFirst:vi.fn().mockResolvedValue(null) },
     feedback: {findUnique:vi.fn().mockResolvedValue({id,createdAt:new Date("2026-01-01"),updatedAt:new Date("2026-02-01"),deletedAt:null})},
     feedbackHistorial:{findMany:vi.fn().mockResolvedValue([]),count:vi.fn().mockResolvedValue(0)},
-    user: { findUnique: vi.fn<(query: unknown) => Promise<unknown>>().mockResolvedValue({ id, displayName: "Persona", createdAt: new Date("2026-01-01"), disabledAt: null }) },
+    user: { findMany: vi.fn().mockResolvedValue([]), findUnique: vi.fn<(query: unknown) => Promise<unknown>>().mockResolvedValue({ id, displayName: "Persona", createdAt: new Date("2026-01-01"), disabledAt: null }) },
     profesor: { findUnique: vi.fn<(query: unknown) => Promise<unknown>>().mockResolvedValue({ id, nombreCompleto: "Docente", createdAt: new Date("2026-01-01"), deletedAt: null }) },
     administracionHistorial: { findMany: vi.fn().mockResolvedValue([]), findFirst: vi.fn().mockResolvedValue(null), count: vi.fn().mockResolvedValue(0) },
   };
@@ -25,6 +25,24 @@ function fixture() {
   return { tx, transaction, service: new AdminDetailService({ $transaction: transaction } as unknown as PrismaService) };
 }
 describe("detalle administrativo: privacidad y evidencia histórica", () => {
+  it("resuelve nombres de actores en lote solo para usuarios sin agregar datos privados", async () => {
+    const { service, tx } = fixture();
+    const actorId = randomUUID();
+    tx.administracionHistorial.findFirst.mockResolvedValue({ actorId, createdAt: new Date() } as never);
+    tx.administracionHistorial.findMany.mockResolvedValue([{ id: randomUUID(), actorId, accion: "ACTIVACION", createdAt: new Date(), cambios: [] }] as never);
+    tx.user.findMany.mockResolvedValue([{ id: actorId, displayName: "Administradora" }] as never);
+    const result = await service.execute("users", id, {});
+    expect(result.auditoria).toMatchObject({ createdByName: "Administradora", updatedByName: "Administradora" });
+    expect(result.historial.items[0]).toMatchObject({ actorName: "Administradora" });
+    expect(tx.user.findMany).toHaveBeenCalledExactlyOnceWith({ where: { id: { in: [actorId] } }, select: { id: true, displayName: true } });
+    tx.user.findMany.mockResolvedValue([]);
+    const unresolved = await service.execute("users", id, {});
+    expect(unresolved.auditoria).toMatchObject({ createdBy: actorId, createdByName: null });
+    expect(unresolved.historial.items[0]).toMatchObject({ actorId, actorName: null });
+    tx.user.findMany.mockClear();
+    await service.execute("profesores", id, {});
+    expect(tx.user.findMany).not.toHaveBeenCalled();
+  });
   it("aplica sesión y roles en todo el controller", () => {
     expect(Reflect.getMetadata(GUARDS_METADATA, AdminDetailController)).toEqual([AuthenticationGuard, RolesGuard]);
     expect(Reflect.getMetadata(ALLOWED_ROLES, AdminDetailController)).toEqual(["ADMIN"]);

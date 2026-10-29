@@ -856,3 +856,25 @@ Pruebas de interacción en `academic-bajas.spec.tsx` cubren cuatro detalles, con
 Los errores conservan los campos. Los formularios mantienen la protección frente a envíos simultáneos. Las asignaciones docentes permanecen en su sección y recargan detalle, opciones y auditoría después de confirmar el éxito; seleccionar el mismo cargo no envía una actualización.
 
 Regresiones: `admin-comision-carreras`, `admin-creation-flows`, `admin-creation-filters`, `admin-creation-list-refresh`, `admin-assignment-flows` y `comisiones-creation-origin`, además de los tests existentes de formularios, filtros, precarga y edición. Pruebas visuales y de navegador a cargo del desarrollador en esta tarea.
+# Presentación de detalles administrativos
+
+`AdminRecordDetail` presenta usuarios mediante `UserAccountCard`, con iniciales, nombre público,
+estado y acciones en la cabecera (debajo de la identidad en móvil), correo y rol en grilla responsive. El contrato actual solo
+expone `displayName`; no se infiere un nombre completo distinto. Conserva retorno con filtros,
+confirmaciones, restricciones sobre la propia cuenta y operaciones reales del service de usuarios.
+
+`UserAudit` y `UserDetail.module.css` definen exclusivamente la presentación del detalle de usuarios:
+tres columnas de auditoría en escritorio, dos intermedias y una móvil; historial nativo desplegable
+con tabla Campo/Antes/Después. Las referencias de actores usan nombres autorizados opcionales del
+endpoint; una referencia sin nombre se presenta como “Usuario no identificado”, sin mostrar IDs.
+No se cambian las vistas académicas. La marca compartida `SiteHeader` usa `BookOpen` decorativo
+y conserva el enlace de destino por rol.
+
+`AdminAudit` y `AdminAuditPanel` restringen auditoría e historial al rol `ADMIN`. El cargador
+compartido no consulta auditoría para otros roles; los endpoints mantienen su autorización backend.
+La presentación usa `AdminAcademicDetail.module.css` y tokens vigentes, etiquetas `dt`, valores `dd`,
+ausencias “No registrado”, fechas largas y hora secundaria en la zona local del navegador.
+Se agrupa creación, modificación y baja/desactivación/eliminación según la entidad; una fecha
+ausente no determina el estado actual. El identificador interno no se muestra en la auditoría.
+El historial usa `details`/`summary`, inicia cerrado, cuenta solo eventos del backend y conserva
+paginación de tres registros. No reemplaza el historial privado de versiones de comentarios.
