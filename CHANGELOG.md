@@ -2,6 +2,12 @@
 
 ## [Sin publicar]
 
+### Integración de desarrollo y compatibilidad de pruebas
+
+- Se incorpora la gestión docente de TASK-057 conservando la navegación contextual administrativa y el guardado inmediato de asignaciones, cargos y desvinculaciones.
+- Pruebas de listados, detalle y edición adaptadas a las relaciones materia/cursada y al retorno jerárquico actual, conservando cobertura de filtros y paginación.
+- Validación automática documentada en la tarea de integración; validación en navegador a cargo del desarrollador, sin capturas.
+
 ### Navegación contextual administrativa académica
 
 - Breadcrumbs de Materias, Cursadas y Comisiones reconstruyen la jerarquía con nombres y relaciones reales; los niveles anteriores apuntan a sus vistas administrativas.
@@ -21,6 +27,18 @@
 - Auditoría compartida exclusiva de administración, sin ID visible, con bloques de creación, modificación y baja, fechas legibles y horas secundarias.
 - Historial desplegable cerrado inicialmente con contador real y paginación de tres eventos; sin inferir estado ni inventar actores ante datos ausentes.
 - Paleta actual mediante tokens existentes. Sin cambios de endpoints ni commits. Prueba de navegador a cargo del desarrollador.
+
+### Docentes en edición administrativa de comisiones (TASK-057)
+
+- Integración con el detalle actualizado de desarrollo, conservando experiencias,
+  navegación administrativa, bajas y actualización del equipo y su auditoría.
+- Se elimina el acceso superior duplicado a asignar, se separa la tarjeta de los botones
+  de guardado y se pliega el formulario tras asignar correctamente, con opción de reabrirlo.
+- Gestión de docentes desde Editar comisión, reutilizada con el detalle académico:
+  asignación múltiple, cambio de cargo y desvinculación sin eliminar profesores.
+- Confirmación del servidor antes de actualizar, prevención de duplicados y doble envío,
+  catálogo paginado completo, mensajes de éxito/error y reintentos; acceso solo ADMIN.
+- Se reutilizan endpoints y relaciones existentes, sin migraciones ni cambios de autenticación.
 
 ### Formularios de comisiones y retorno de altas administrativas
 

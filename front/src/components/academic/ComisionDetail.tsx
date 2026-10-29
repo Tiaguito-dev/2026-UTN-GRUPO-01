@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { CalendarDays, ChevronDown } from "lucide-react";
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { asignarProfesorComision, CARGOS, listarComisionesPorCursada, listarProfesores, obtenerComision, quitarProfesorComision, type CargoDocente, type Comision, type ComisionDetalle, type Profesor } from "@/services/academic";
+import { listarComisionesPorCursada, obtenerComision, type Comision, type ComisionDetalle } from "@/services/academic";
 import { obtenerMateria } from "@/services/materias";
 import { obtenerDetalleAdministrativo } from "@/services/admin-detail";
 import { comisionDetalleSchema } from "@/services/schemas";
@@ -18,6 +18,7 @@ import { ComisionFeedback } from "@/components/feedback/ComisionFeedback";
 import { Notice } from "@/components/ui/Notice";
 import { periodoLabel } from "@/lib/format/periodo";
 import { iniciales } from "./detalle";
+import { DocentesComision } from "./DocentesComision";
 import styles from "./ComisionDetail.module.css";
 import { experienciasBack, feedbackOriginParams } from "@/validations/feedback";
 import { adminFormHref, adminListHref, safeAdminReturnTo, safeMateriaListOrigin } from "@/validations/admin";
@@ -41,7 +42,6 @@ async function loadOptions<T>(fetchPage: (page: number) => Promise<PaginatedResu
 export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, administrative = false }: { materiaId?: string; cursadaId?: string; comisionId: string; administrative?: boolean }) {
   const headingId = useId();
   const selectorId = useId();
-  const assignmentId = useId();
   const isAdmin = useIsAdmin();
   const router = useRouter();
   const params = useSearchParams();
@@ -68,17 +68,6 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
   const [optionsRetry, setOptionsRetry] = useState(0);
   const optionsKey = `${comision?.cursada.id ?? ""}:${optionsRetry}`;
   const options = optionsResult?.key === optionsKey ? optionsResult : null;
-  const [catalog, setCatalog] = useState<Resource<Profesor[]> | null>(null);
-  const [catalogRetry, setCatalogRetry] = useState(0);
-  const catalogKey = `${isAdmin}:${catalogRetry}`;
-  const profesoresTotales = catalog?.key === catalogKey ? catalog.data ?? [] : [];
-  const [nuevoProfesorId, setNuevoProfesorId] = useState("");
-  const [nuevoCargo, setNuevoCargo] = useState<CargoDocente>("TITULAR");
-  const [actionError, setActionError] = useState("");
-  const [actionSuccess, setActionSuccess] = useState("");
-  const [busy, setBusy] = useState(false);
-  const pending = useRef(false);
-
   useEffect(() => {
     let active = true;
     (administrative ? obtenerDetalleAdministrativo("comisiones", comisionId).then((result) => comisionDetalleSchema.parse(result.registro)) : obtenerComision(comisionId)).then((data) => {
@@ -113,17 +102,6 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
     return () => { active = false; };
   }, [actualCursadaId, optionsKey]);
 
-  useEffect(() => {
-    if (!isAdmin) return;
-    let active = true;
-    loadOptions((page) => listarProfesores({ page, pageSize: 100 })).then((data) => {
-      if (active) setCatalog({ key: catalogKey, data, error: "" });
-    }).catch(() => {
-      if (active) setCatalog({ key: catalogKey, data: null, error: "Lo sentimos. No pudimos recuperar los profesores, intentá nuevamente." });
-    });
-    return () => { active = false; };
-  }, [isAdmin, catalogKey]);
-
   const materiasHref = materiaListHref(carrera, anio, listadoPage, context);
   const materiaBaseHref = publicMateriaDetailHref(realMateriaId, carrera, anio, listadoPage, context);
   const comisionesPage = parseMateriaPage(params.get("comisionesPage"));
@@ -151,33 +129,9 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
   const queryString = contextQuery.size ? `?${contextQuery}` : "";
   const back = <Link href={materiaHref}>Volver a las comisiones de la materia</Link>;
 
-  async function manage(operation: () => Promise<void>, success: string) {
-    if (pending.current) return;
-    pending.current = true; setBusy(true); setActionError(""); setActionSuccess("");
-    try { await operation(); setActionSuccess(success); setRetryToken((value) => value + 1); setAuditVersion((value) => value + 1); setOptionsRetry((value) => value + 1); }
-    catch (failure: unknown) { setActionError(failure instanceof Error ? failure.message : "Lo sentimos. No pudimos actualizar el equipo docente, intentá nuevamente."); }
-    finally { pending.current = false; setBusy(false); }
-  }
-  function handleCambiarCargo(profesorId: string, cargo: CargoDocente) {
-    if (comision?.profesores.some((profesor) => profesor.id === profesorId && profesor.cargo === cargo)) return;
-    void manage(async () => { await asignarProfesorComision(comisionId, profesorId, cargo); }, "El cargo se actualizó correctamente.");
-  }
-  function handleQuitar(profesorId: string) {
-    void manage(() => quitarProfesorComision(comisionId, profesorId), "El profesor se desvinculó correctamente.");
-  }
-  function handleAsignar(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!nuevoProfesorId) return;
-    void manage(async () => {
-      await asignarProfesorComision(comisionId, nuevoProfesorId, nuevoCargo);
-      setNuevoProfesorId(""); setNuevoCargo("TITULAR");
-    }, "El profesor se asignó correctamente.");
-  }
-
   const materiaLabel = comision?.cursada.materia.nombre ?? (error ? "Materia" : "Cargando…");
   const classification = materia?.data?.carreras.find((item) => item.carrera === comision?.carrera);
   const eyebrow = comision ? `${carreraLabel(comision.carrera)}${classification ? ` · ${anioCarreraLabel(classification.anioCarrera)}` : ""}` : undefined;
-  const profesoresDisponibles = profesoresTotales.filter((profesor) => !comision?.profesores.some((assigned) => assigned.id === profesor.id));
 
   return <section className={styles.page} aria-labelledby={headingId}>
     <div className={styles.header}>
@@ -218,32 +172,12 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
             </li>)}
           </ul>}
           {isAdmin && !comision.deletedAt ? <>
-            <details className={styles.management}>
-              <summary>Gestionar equipo docente</summary>
-              <div className={styles.managementBody}>
-                {actionError ? <Notice tone="error">{actionError}</Notice> : null}
-                {actionSuccess ? <Notice tone="success">{actionSuccess}</Notice> : null}
-                {comision.profesores.map((profesor) => <div key={profesor.id} className={styles.adminPerson}>
-                  <span>{profesor.nombreCompleto}</span>
-                  <label htmlFor={`${assignmentId}-cargo-${profesor.id}`} className="sr-only">Cambiar cargo de {profesor.nombreCompleto}</label>
-                  <select id={`${assignmentId}-cargo-${profesor.id}`} value={profesor.cargo} disabled={busy} onChange={(event) => handleCambiarCargo(profesor.id, event.target.value as CargoDocente)}>
-                    {CARGOS.map((cargo) => <option key={cargo} value={cargo}>{cargoLabel(cargo)}</option>)}
-                  </select>
-                  <button className="button button-secondary" type="button" disabled={busy} aria-label={`Quitar asignación de ${profesor.nombreCompleto}`} onClick={() => handleQuitar(profesor.id)}>Quitar asignación</button>
-                </div>)}
-                <form className={styles.assignment} onSubmit={handleAsignar} aria-labelledby={`${headingId}-asignar`}>
-                  <h3 id={`${headingId}-asignar`}>Asignar profesor</h3>
-                  {catalog?.key !== catalogKey ? <p className={styles.secondary} role="status">Cargando profesores…</p> : catalog.error ? <Notice tone="error">{catalog.error} <button className="button button-secondary" type="button" onClick={() => setCatalogRetry((value) => value + 1)}>Reintentar profesores</button></Notice> : null}
-                  <div><label htmlFor={`${assignmentId}-profesor`}>Profesor</label><select id={`${assignmentId}-profesor`} value={nuevoProfesorId} disabled={busy} onChange={(event) => setNuevoProfesorId(event.target.value)}>
-                    <option value="">Elegí un profesor</option>{profesoresDisponibles.map((profesor) => <option key={profesor.id} value={profesor.id}>{profesor.nombreCompleto}</option>)}
-                  </select></div>
-                  <div><label htmlFor={`${assignmentId}-cargo`}>Cargo</label><select id={`${assignmentId}-cargo`} value={nuevoCargo} disabled={busy} onChange={(event) => setNuevoCargo(event.target.value as CargoDocente)}>
-                    {CARGOS.map((cargo) => <option key={cargo} value={cargo}>{cargoLabel(cargo)}</option>)}
-                  </select></div>
-                  <button className="button" type="submit" disabled={busy || !nuevoProfesorId}>{busy ? "Guardando…" : "Asignar profesor"}</button>
-                </form>
-              </div>
-            </details>
+            <DocentesComision key={comision.id} comisionId={comision.id} profesores={comision.profesores} gestionSolo readOnly={Boolean(comision.deletedAt)} onChange={(profesores) => {
+              setDetail((current) => current?.key === comisionId && current.data ? { ...current, data: { ...current.data, profesores } } : current);
+              setRetryToken((value) => value + 1);
+              setAuditVersion((value) => value + 1);
+              setOptionsRetry((value) => value + 1);
+            }} />
             <div className={styles.adminData}><h3>Datos de la comisión</h3><dl>
               <div><dt>Estado</dt><dd>{comision.activa ? "Activa" : "Inactiva"}</dd></div>
               <div><dt>Fecha de alta</dt><dd>{new Date(comision.createdAt).toLocaleString("es-AR")}</dd></div>

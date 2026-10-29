@@ -9,6 +9,8 @@ import { obtenerCursada, obtenerComision, listarMaterias } from "@/services/acad
 const { router, state } = vi.hoisted(() => ({ router: { push: vi.fn() }, state: { search: "" } }));
 vi.mock("next/link", () => import("./support/next-link"));
 vi.mock("next/navigation", () => ({ useRouter: () => router, useSearchParams: () => new URLSearchParams(state.search) }));
+// TASK-057: docentes se cubre con sesión ADMIN en su suite; esta suite conserva el formulario básico.
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ account: { role: "USER" } }) }));
 vi.mock("@/services/admin-academic", () => ({ obtenerProfesor: vi.fn(), actualizarProfesor: vi.fn(), actualizarCursada: vi.fn(), actualizarComision: vi.fn() }));
 vi.mock("@/services/academic", () => ({ obtenerCursada: vi.fn(), obtenerComision: vi.fn(), listarMaterias: vi.fn() }));
 vi.mock("@/hooks/useMateria", () => ({ useMateria: () => ({ materia: { id: "m1", carreras: [{ carrera: "S" }, { carrera: "Q" }] }, error: "", retry: vi.fn() }) }));
@@ -60,6 +62,8 @@ describe("HU11 formularios de edición", () => {
     vi.mocked(actualizarProfesor).mockRejectedValueOnce(new Error("No disponible")).mockResolvedValue(profesor);
     render(<EditarProfesor profesorId="p1" />);
     const input = await screen.findByLabelText("Nombre completo") as HTMLInputElement;
+    // Esperar la precarga evita escribir mientras el efecto inicial completa el formulario.
+    await waitFor(() => expect(input.value).toBe("Ada Lovelace"));
     await userEvent.clear(input); await userEvent.type(input, "Alan");
     await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
     expect((await screen.findByRole("alert")).textContent).toContain("No disponible");
@@ -87,7 +91,13 @@ describe("HU11 formularios de edición", () => {
     await waitFor(() => expect(actualizarCursada).toHaveBeenCalledWith("c1", { materiaId: "m2" }));
     const target = new URL(router.push.mock.calls[0][0], "http://local");
     expect(target.pathname).toBe("/home/admin/cursadas/c1");
-    expect(target.searchParams.get("returnTo")).toBe("/home/admin/cursadas?materiaId=m2");
+    // El traslado reconstruye el contexto de la materia destino y reinicia su listado.
+    const destinationList = new URL(target.searchParams.get("returnTo")!, "http://local");
+    expect(destinationList.pathname).toBe("/home/admin/cursadas");
+    expect(Object.fromEntries(destinationList.searchParams)).toEqual({
+      materiaId: "m2", materiaReturnTo: "/home/admin/materias",
+      returnTo: "/home/admin/materias/m2?returnTo=%2Fhome%2Fadmin%2Fmaterias",
+    });
     expect(target.searchParams.get("successMessage")).toBe("Cursada actualizada correctamente.");
   });
   it("comisión edita número sin controles de activa ni traslado", async () => {

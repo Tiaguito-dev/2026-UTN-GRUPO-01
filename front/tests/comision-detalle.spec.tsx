@@ -35,6 +35,10 @@ const alternativas = {
 };
 beforeEach(() => {
   vi.clearAllMocks();
+  // HU11 integrado: el editor compartido consume la asignación confirmada por PUT.
+  vi.mocked(asignarProfesorComision).mockImplementation(async (_comisionId, profesorId, cargo) => ({
+    id: profesorId, nombreCompleto: profesorId === "p1" ? "Prof. Rossi" : "Dra. Gomez", cargo,
+  }));
   vi.mocked(obtenerDetalleAdministrativo).mockImplementation(async () => ({registro:{...comisionMock},auditoria:{id:comisionMock.id,createdAt:comisionMock.createdAt,createdBy:null,updatedAt:null,updatedBy:null,deletedAt:null,deletedBy:null},historial:{items:[],total:0,page:1,pageSize:3}}));
   authState.role = "USER";
   origin.extra = "";
@@ -51,14 +55,14 @@ afterEach(cleanup);
 describe("Detalle de comisión centrado en experiencias", () => {
   it("el detalle administrativo conserva el origen filtrado y abre solo entidades administrativas", async () => {
     authState.role = "ADMIN";
-    const returnTo = "/home/admin/experiencias?carrera=S&materiaId=mat1&page=3";
+    const returnTo = "/home/admin/comisiones?materiaId=mat1&cursadaId=cur1&carrera=S&page=3";
     origin.extra = `&${new URLSearchParams({ returnTo })}`;
     render(<ComisionDetail comisionId="com1" administrative />);
     await screen.findByRole("heading", { name: "Álgebra" });
     const breadcrumb = within(screen.getByRole("navigation", { name: "Ubicación actual" }));
     expect(breadcrumb.getAllByRole("link")[0]!.textContent).toBe("Administración");
-    // Administrative breadcrumb follows Administration > section > record.
-    expect(breadcrumb.getByRole("link", { name: "Comisiones" }).getAttribute("href")).toBe("/home/admin/comisiones");
+    // El origen administrativo debe corresponder a la materia y cursada del registro.
+    expect(breadcrumb.getByRole("link", { name: "Comisiones" }).getAttribute("href")).toBe(returnTo);
     expect(screen.getByRole("link", { name: /Volver a contexto administrativo/ }).getAttribute("href")).toBe(returnTo);
     const teacher = new URL(screen.getByRole("link", { name: "Prof. Rossi" }).getAttribute("href")!, "https://local.test");
     expect(teacher.pathname).toBe("/home/admin/profesores/p1");

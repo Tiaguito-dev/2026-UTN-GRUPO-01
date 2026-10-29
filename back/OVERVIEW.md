@@ -1151,3 +1151,7 @@ no se reconstruyen identidades históricas ni se generan eventos. Una referencia
 produce nombre nulo. Se mantienen las referencias internas para trazabilidad; frontend no las muestra.
 No cambia el contrato de actores ni las consultas de materias, cursadas, profesores u otras entidades.
 No hay cambios de permisos, payloads de escritura, estados, migraciones ni variables de entorno.
+
+## Compatibilidad de la integración docente
+
+La integración de desarrollo con hot-fix/ui mantiene los contratos de asignación docente: `PUT /comisiones/:comisionId/profesores/:profesorId` con `{ cargo }` y `DELETE` sobre la misma ruta. Cada operación conserva permisos ADMIN, validaciones de vigencia, transacción y trazabilidad existentes; no requiere migraciones ni cambios de configuración. Las pruebas HTTP/SQL añadidas por TASK-057 requieren `TEST_DATABASE_URL` exclusivo. La evidencia de integración queda en `docs/tasks/finished/TASK-integracion-desarrollo-docentes.md`.

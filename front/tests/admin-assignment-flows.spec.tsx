@@ -31,6 +31,14 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("Alta de asignación docente dentro de su sección", () => {
+  it("una comisión eliminada conserva la consulta sin cargar catálogo ni controles docentes", async () => {
+    vi.mocked(obtenerDetalleAdministrativo).mockResolvedValue({ registro: { ...comision, deletedAt: date, activa: false }, auditoria: { id: "co1", createdAt: date, createdBy: null, updatedAt: date, updatedBy: null, deletedAt: date, deletedBy: null }, historial: { items: [], total: 0, page: 1, pageSize: 3 } });
+    render(<ComisionDetail comisionId="co1" administrative />);
+    await screen.findByRole("heading", { name: "Equipo docente" });
+    expect(screen.queryByText("Gestionar equipo docente")).toBeNull();
+    expect(screen.queryByLabelText("Profesor")).toBeNull();
+    expect(listarProfesores).not.toHaveBeenCalled();
+  });
   it("conserva docente y cargo tras error; espera éxito sin duplicar y refresca equipo visible", async () => {
     let resolve!: (value: typeof assignment) => void;
     vi.mocked(asignarProfesorComision).mockRejectedValueOnce(new Error("Intentá nuevamente")).mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
@@ -39,18 +47,30 @@ describe("Alta de asignación docente dentro de su sección", () => {
     await screen.findByRole("option", { name: profesor.nombreCompleto });
     await userEvent.selectOptions(screen.getByLabelText("Profesor"), "p1");
     await userEvent.selectOptions(screen.getByLabelText("Cargo"), "JTP");
+    // HU11 integrado: asignar tiene su plegable independiente de la gestión del equipo.
+    const assignmentPanel = screen.getByLabelText("Profesor").closest("details")!;
+    const assignmentSummary = within(assignmentPanel).getByText("Asignar profesor", { selector: "summary" });
+    expect(assignmentPanel.open).toBe(true);
     await userEvent.click(screen.getByRole("button", { name: "Asignar profesor" }));
     expect((await screen.findByRole("alert")).textContent).toContain("Intentá nuevamente");
     expect((screen.getByLabelText("Profesor") as HTMLSelectElement).value).toBe("p1");
     expect((screen.getByLabelText("Cargo") as HTMLSelectElement).value).toBe("JTP");
+    expect(assignmentPanel.open).toBe(true);
     expect(nav.push).not.toHaveBeenCalled();
     const form = screen.getByLabelText("Profesor").closest("form")!;
     fireEvent.submit(form); fireEvent.submit(form);
     expect(asignarProfesorComision).toHaveBeenCalledTimes(2);
     expect(obtenerDetalleAdministrativo).toHaveBeenCalledTimes(1);
+    expect(assignmentPanel.open).toBe(true);
     vi.mocked(obtenerDetalleAdministrativo).mockResolvedValue({ registro: { ...comision, profesores: [assignment] }, auditoria: { id: "co1", createdAt: date, createdBy: null, updatedAt: null, updatedBy: null, deletedAt: null, deletedBy: null }, historial: { items: [], total: 0, page: 1, pageSize: 3 } });
     await act(async () => resolve(assignment));
     await screen.findByText("El profesor se asignó correctamente.");
+    await waitFor(() => expect(obtenerDetalleAdministrativo).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(listarComisionesPorCursada).toHaveBeenCalledTimes(2));
+    expect(assignmentPanel.open).toBe(false);
+    expect(document.activeElement).toBe(assignmentSummary);
+    await userEvent.click(assignmentSummary);
+    expect(assignmentPanel.open).toBe(true);
     const team = screen.getByRole("heading", { name: "Equipo docente" }).closest("section")!;
     await waitFor(() => expect(within(team).getByRole("link", { name: profesor.nombreCompleto })).toBeTruthy());
     expect(screen.queryByRole("option", { name: profesor.nombreCompleto })).toBeNull();

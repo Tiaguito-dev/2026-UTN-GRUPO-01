@@ -4,18 +4,25 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AdminAcademicList } from "@/components/admin/AdminAcademicList";
 import { UsuariosList } from "@/components/admin/UsuariosList";
-import { listarProfesores, listarMaterias, listarComisionesPorCursada } from "@/services/academic";
+import { listarProfesores, listarMaterias, listarComisionesPorCursada, obtenerCursada, type Comision } from "@/services/academic";
+import { obtenerMateria } from "@/services/materias";
 import { listarUsuarios } from "@/services/users";
 import { safeAdminReturnTo } from "@/validations/admin";
+import { materiaFixture, cursadaDetalleFixture } from "./support/academic-fixtures";
 
 const nav = vi.hoisted(() => ({ query: "", path: "/home/admin/profesores", replace: vi.fn(), push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(nav.query), useRouter: () => nav, usePathname: () => nav.path }));
 vi.mock("next/link", () => import("./support/next-link"));
-vi.mock("@/services/academic", async (original) => ({ ...await original<typeof import("@/services/academic")>(), listarProfesores: vi.fn(), listarMaterias: vi.fn(), listarComisionesPorCursada: vi.fn(), listarCursadasPorMateria: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 100 }) }));
+vi.mock("@/services/academic", async (original) => ({ ...await original<typeof import("@/services/academic")>(), obtenerCursada: vi.fn(), listarProfesores: vi.fn(), listarMaterias: vi.fn(), listarComisionesPorCursada: vi.fn(), listarCursadasPorMateria: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 100 }) }));
+vi.mock("@/services/materias", () => ({ obtenerMateria: vi.fn() }));
 vi.mock("@/services/users", () => ({ listarUsuarios: vi.fn() }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ account: { id: "self", role: "ADMIN" } }) }));
 afterEach(cleanup);
-beforeEach(() => { vi.clearAllMocks(); nav.query = ""; nav.path = "/home/admin/profesores"; });
+beforeEach(() => {
+  vi.clearAllMocks(); nav.query = ""; nav.path = "/home/admin/profesores";
+  vi.mocked(obtenerCursada).mockImplementation(async (id) => cursadaDetalleFixture(id));
+  vi.mocked(obtenerMateria).mockImplementation(async (id) => materiaFixture(id));
+});
 
 describe("Tablas administrativas TASK-069", () => {
   it("filtra profesores antes de paginar y conserva el filtro al editar", async () => {
@@ -65,17 +72,23 @@ describe("Tablas administrativas TASK-069", () => {
   it("Comisiones combina carrera y período remotamente al cambiar el filtro", async () => {
     nav.path = "/home/admin/comisiones"; nav.query = "materiaId=m1&cursadaId=c1&carrera=Q";
     vi.mocked(listarMaterias).mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 100 });
-    const items = Array.from({ length: 12 }, (_, i) => ({ id: `c${i}`, cursadaId: "c1", carrera: i === 11 ? "Q" as const : "S" as const, nombre: i === 11 ? "Q-11" : `S-${i}`, numero: i, activa: true, profesores: [], createdAt: "2026-01-01", deletedAt: null }));
+    const items: Comision[] = Array.from({ length: 12 }, (_, i) => ({ id: `co${i + 1}`, cursadaId: "c1", carrera: i === 11 ? "Q" : "S", nombre: i === 11 ? "Q-11" : `S-${i + 1}`, numero: i === 11 ? 11 : i + 1, activa: true, profesores: [], createdAt: "2026-01-01T00:00:00.000Z", deletedAt: null }));
     vi.mocked(listarComisionesPorCursada).mockResolvedValue({ items: items.filter((item) => item.carrera === "Q"), total: 1, page: 1, pageSize: 9 });
     const view = render(<AdminAcademicList kind="comisiones" />);
     expect(await screen.findByRole("cell", { name: "Q-11" })).toBeTruthy();
-    expect(screen.queryByRole("cell", { name: "S-0" })).toBeNull();
+    expect(screen.queryByRole("cell", { name: "S-1" })).toBeNull();
     expect(listarComisionesPorCursada).toHaveBeenCalledWith("c1", { page: 1, pageSize: 9, carrera: "Q" });
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Carrera" }), "S");
-    expect(nav.replace).toHaveBeenLastCalledWith("/home/admin/comisiones?materiaId=m1&cursadaId=c1&carrera=S", { scroll: false });
+    const filteredUrl = new URL(nav.replace.mock.calls.at(-1)![0], "http://local");
+    expect(filteredUrl.pathname).toBe("/home/admin/comisiones");
+    expect(Object.fromEntries(filteredUrl.searchParams)).toEqual({
+      materiaId: "m1", cursadaId: "c1", materiaReturnTo: "/home/admin/materias", carrera: "S",
+      returnTo: `/home/admin/cursadas/c1?${new URLSearchParams({ returnTo: `/home/admin/cursadas?${new URLSearchParams({ materiaId: "m1", materiaReturnTo: "/home/admin/materias", returnTo: "/home/admin/materias/m1?returnTo=%2Fhome%2Fadmin%2Fmaterias" })}` })}`,
+    });
+    expect(nav.replace).toHaveBeenLastCalledWith(`${filteredUrl.pathname}${filteredUrl.search}`, { scroll: false });
     vi.mocked(listarComisionesPorCursada).mockResolvedValue({ items: items.filter((item) => item.carrera === "S").slice(0, 9), total: 11, page: 1, pageSize: 9 });
-    nav.query = "materiaId=m1&cursadaId=c1&carrera=S"; view.rerender(<AdminAcademicList kind="comisiones" />);
-    expect(await screen.findByRole("cell", { name: "S-0" })).toBeTruthy();
+    nav.query = filteredUrl.search; view.rerender(<AdminAcademicList kind="comisiones" />);
+    expect(await screen.findByRole("cell", { name: "S-1" })).toBeTruthy();
     expect(screen.getAllByRole("row")).toHaveLength(10);
     expect(listarComisionesPorCursada).toHaveBeenCalledTimes(2);
   });

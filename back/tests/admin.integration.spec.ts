@@ -529,6 +529,43 @@ describe.skipIf(!testDatabaseUrl)("Alta administrativa del catálogo académico 
       expect((await del(path, userCookie)).status).toBe(403);
     });
 
+    it("TASK-057: sin sesión rechaza PUT y DELETE con 401", async () => {
+      const { path } = await comisionConProfesor();
+      expect((await put(path, { cargo: "TITULAR" })).status).toBe(401);
+      expect((await del(path)).status).toBe(401);
+    });
+
+    it("TASK-057: persiste múltiples docentes, cargos y desvinculación en nuevas lecturas HTTP", async () => {
+      const { comision, profesor, path } = await comisionConProfesor();
+      const segundo = await crearProfesor();
+      const segundoPath = `/comisiones/${comision.id}/profesores/${segundo.id}`;
+      expect((await put(path, { cargo: "TITULAR" }, adminCookie)).status).toBe(200);
+      expect((await put(segundoPath, { cargo: "ADJUNTO" }, adminCookie)).status).toBe(200);
+      const detalle = await get(`/comisiones/${comision.id}`, adminCookie);
+      expect(detalle.status).toBe(200);
+      expect((await detalle.json()).profesores).toEqual(expect.arrayContaining([
+        { id: profesor.id, nombreCompleto: profesor.nombreCompleto, cargo: "TITULAR" },
+        { id: segundo.id, nombreCompleto: segundo.nombreCompleto, cargo: "ADJUNTO" },
+      ]));
+      expect((await put(path, { cargo: "JTP" }, adminCookie)).status).toBe(200);
+      const listado = await get(`/cursadas/${comision.cursadaId}/comisiones?pageSize=100`, adminCookie);
+      expect(listado.status).toBe(200);
+      expect((await listado.json()).items).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: comision.id, profesores: expect.arrayContaining([
+          { id: profesor.id, nombreCompleto: profesor.nombreCompleto, cargo: "JTP" },
+        ]) }),
+      ]));
+      await expect(prisma.comisionProfesor.count({ where: { comisionId: comision.id } })).resolves.toBe(2);
+      expect((await del(path, adminCookie)).status).toBe(204);
+      const recargada = await get(`/comisiones/${comision.id}`, adminCookie);
+      expect((await recargada.json()).profesores).toEqual([
+        { id: segundo.id, nombreCompleto: segundo.nombreCompleto, cargo: "ADJUNTO" },
+      ]);
+      const profesorConservado = await get(`/profesores/${profesor.id}`, adminCookie);
+      expect(profesorConservado.status).toBe(200);
+      expect(await profesorConservado.json()).toMatchObject({ id: profesor.id, deletedAt: null });
+    });
+
     it("ADMIN asigna (200), cambia el cargo con upsert y quita (204)", async () => {
       const { comision, profesor, path } = await comisionConProfesor();
       const asignado = await put(path, { cargo: "TITULAR" }, adminCookie);
