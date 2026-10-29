@@ -13,6 +13,8 @@ vi.setConfig({ testTimeout: 15000 });
 const { router, state } = vi.hoisted(() => ({ router: { push: vi.fn(), refresh: vi.fn() }, state: { carreras: ["S"] } }));
 vi.mock("next/link", () => import("./support/next-link"));
 vi.mock("next/navigation", () => ({ useRouter: () => router, useSearchParams: () => new URLSearchParams() }));
+// HU11: esta suite aísla carrera/número; docentes y permisos ADMIN tienen cobertura propia.
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ account: { role: "USER" } }) }));
 vi.mock("@/services/academic", () => ({ crearComision: vi.fn(), listarMaterias: vi.fn(), listarCursadasPorMateria: vi.fn(), obtenerCursada: vi.fn(), obtenerComision: vi.fn() }));
 vi.mock("@/services/admin-academic", () => ({ actualizarComision: vi.fn(), actualizarCursada: vi.fn(), obtenerProfesor: vi.fn(), actualizarProfesor: vi.fn() }));
 vi.mock("@/hooks/useMateria", () => ({ useMateria: () => ({ materia: { carreras: state.carreras.map((carrera) => ({ carrera })) }, error: "", retry: vi.fn() }) }));

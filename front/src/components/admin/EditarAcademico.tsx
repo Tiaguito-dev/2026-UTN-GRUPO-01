@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Notice } from "@/components/ui/Notice";
 import { FormField } from "@/components/ui/FormField";
+import { DocentesComision } from "@/components/academic/DocentesComision";
 import { validateNombre, validateAnio, validateNumeroComision, ANIO_MINIMO, anioMaximo, NUMERO_COMISION_MINIMO, NUMERO_COMISION_MAXIMO } from "@/validations/academic";
 import { carreraLabel, isCarrera } from "@/validations/materias";
 import { adminListHref, adminSuccessHref, safeAdminReturnTo, type AdminSection } from "@/validations/admin";
@@ -77,6 +78,7 @@ function ComisionOptions({ comision, returnTo }: { comision: ComisionDetalle; re
 }
 function ComisionEditor({ comision, returnTo, carreras }: { comision: ComisionDetalle; returnTo: string; carreras: string[] }) {
   const router = useRouter(); const ref = useInitialInputs({ numero: String(comision.numero) });
+  const [docentesBusy, setDocentesBusy] = useState(false);
   const { busy, errors, error, success, setSuccess, handleSubmit } = useFormSubmission({ fields: ["carrera", "numero"] as const, validate: (values) => definedIssues({ carrera: carreras.includes(values.carrera) ? undefined : "Elegí una carrera de la materia.", numero: validateNumeroComision(values.numero) }), fallbackError: "No pudimos guardar la comisión.", onSubmit: async (values) => {
     if (!isCarrera(values.carrera)) return;
     const changes: { carrera?: typeof values.carrera; numero?: number } = {};
@@ -85,9 +87,7 @@ function ComisionEditor({ comision, returnTo, carreras }: { comision: ComisionDe
     if (!Object.keys(changes).length) { setSuccess("No hay cambios para guardar."); return; }
     await actualizarComision(comision.id, changes); router.push(adminSuccessHref(detailAfterEdit("comisiones", comision.id, returnTo), "Comisión actualizada correctamente."));
   } });
-  return <><p>La cursada y los docentes asignados se conservan. Ingresá el número de comisión asignado.</p><SubmitState error={error} success={success} /><form ref={ref} onSubmit={handleSubmit} noValidate aria-busy={busy}>
-    {carreras.length === 1 && isCarrera(carreras[0]) ? <div className="field"><p>Carrera: {carreraLabel(carreras[0])}</p><input type="hidden" name="carrera" value={carreras[0]} />{errors.carrera ? <p className="field-error">{errors.carrera}</p> : null}</div> : <FormField name="carrera" label="Carrera" defaultValue={carreras.includes(comision.carrera) ? comision.carrera : ""} options={carreras.filter(isCarrera).map((carrera) => ({ value: carrera, label: `${carrera} — ${carreraLabel(carrera)}` }))} error={errors.carrera} />}
-    <FormField name="numero" label="Número de comisión" input={{ numeric: { min: NUMERO_COMISION_MINIMO, max: NUMERO_COMISION_MAXIMO } }} error={errors.numero} /><SaveActions busy={busy} returnTo={returnTo} /></form></>;
+  return <><p>La cursada se conserva. Ingresá el número de comisión asignado.</p><SubmitState error={error} success={success} /><form ref={ref} onSubmit={(event) => { if (docentesBusy) event.preventDefault(); else void handleSubmit(event); }} noValidate aria-busy={busy || docentesBusy}>{carreras.length === 1 && isCarrera(carreras[0]) ? <div className="field"><p>Carrera: {carreraLabel(carreras[0])}</p><input type="hidden" name="carrera" value={carreras[0]} />{errors.carrera ? <p className="field-error">{errors.carrera}</p> : null}</div> : <FormField name="carrera" label="Carrera" defaultValue={carreras.includes(comision.carrera) ? comision.carrera : ""} options={carreras.filter(isCarrera).map((carrera) => ({ value: carrera, label: `${carrera} — ${carreraLabel(carrera)}` }))} error={errors.carrera} />}<FormField name="numero" label="Número de comisión" input={{ numeric: { min: NUMERO_COMISION_MINIMO, max: NUMERO_COMISION_MAXIMO } }} error={errors.numero} /><SaveActions busy={busy || docentesBusy} returnTo={returnTo} /></form><DocentesComision key={comision.id} comisionId={comision.id} profesores={comision.profesores} disabled={busy} onBusyChange={setDocentesBusy} separado /></>;
 }
 
 function definedIssues<K extends string>(issues: Partial<Record<K, string | undefined>>): Partial<Record<K, string>> { for (const key in issues) if (!issues[key]) delete issues[key]; return issues; }

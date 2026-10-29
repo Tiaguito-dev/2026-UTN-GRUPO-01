@@ -35,6 +35,10 @@ const alternativas = {
 };
 beforeEach(() => {
   vi.clearAllMocks();
+  // HU11 integrado: el editor compartido consume la asignación confirmada por PUT.
+  vi.mocked(asignarProfesorComision).mockImplementation(async (_comisionId, profesorId, cargo) => ({
+    id: profesorId, nombreCompleto: profesorId === "p1" ? "Prof. Rossi" : "Dra. Gomez", cargo,
+  }));
   vi.mocked(obtenerDetalleAdministrativo).mockImplementation(async () => ({registro:{...comisionMock},auditoria:{id:comisionMock.id,createdAt:comisionMock.createdAt,createdBy:null,updatedAt:null,updatedBy:null,deletedAt:null,deletedBy:null},historial:{items:[],total:0,page:1,pageSize:3}}));
   authState.role = "USER";
   origin.extra = "";

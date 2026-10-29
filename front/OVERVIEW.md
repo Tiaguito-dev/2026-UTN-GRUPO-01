@@ -584,11 +584,31 @@ anterior. Los modales y altas del recorrido académico permanecen disponibles.
 Nuevas rutas de edición: `/home/admin/profesores/:id/editar`, `/cursadas/:id/editar` y
 `/comisiones/:id/editar`. `EditarAcademico` usa los detalles actuales, campos precargados,
 `useFormSubmission`, `FormField` y `Notice`. Profesor edita su nombre; Cursada edita materia,
-año y cuatrimestre, sin profesor; Comisión edita carrera y número, sin cambiar cursada,
-profesores ni `activa`. Solo se envían diferencias. Cambiar materia en una cursada dirige al
+año y cuatrimestre, sin profesor; Comisión edita carrera y número, sin cambiar cursada
+ni `activa`. Solo se envían diferencias. Cambiar materia en una cursada dirige al
 listado de la materia destino, página uno; las incompatibilidades de carreras se muestran
 como error del backend, preservando los datos ingresados. La edición/historial de materia
 conserva su implementación actual.
+
+TASK-057 agrega la gestión de docentes dentro de la edición de comisión mediante
+`academic/DocentesComision`, compartido con el detalle académico. Permite asignar profesores
+registrados, cambiar TITULAR/ADJUNTO/JTP y desvincular sin eliminar entidades, solo para ADMIN.
+Cada operación guarda inmediatamente mediante los PUT/DELETE existentes, por separado de
+carrera y número; el estado y el éxito cambian únicamente tras confirmación del servidor.
+Ambos formularios bloquean sus guardados mientras el otro está enviando. El selector carga
+el catálogo completo mediante `useAllPages`, excluye docentes ya asignados y muestra carga,
+errores y reintentos, sin publicar opciones incompletas. Se conservan los guards existentes.
+La asignación vive en una sección plegable inicialmente abierta, sin acceso superior repetido;
+se cierra tras la confirmación del servidor y devuelve el foco a su título. El listado y el
+éxito permanecen visibles; se puede reabrir para asignar otro profesor y los errores conservan
+el formulario abierto. En edición administrativa la tarjeta tiene separación local de los
+botones de datos de comisión.
+La integración con desarrollo conserva el detalle de experiencias y su equipo docente con
+enlaces administrativos. En ese detalle el editor compartido usa la presentación de gestión
+desplegable existente; sus operaciones confirmadas refrescan equipo, detalle, opciones de
+comisiones y auditoría. Las comisiones dadas de baja conservan la consulta del equipo sin
+controles de escritura ni consultas al catálogo docente. La edición conserva el contexto de
+carrera única automático y vuelve al detalle administrativo con su destino de retorno.
 
 `services/admin-academic.ts` valida GET/PATCH con los esquemas de respuesta existentes. Los
 PATCH comprueban sesión y no repiten escrituras ambiguas. Las tablas usan estilos locales
