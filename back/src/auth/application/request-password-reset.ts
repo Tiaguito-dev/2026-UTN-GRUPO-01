@@ -26,7 +26,7 @@ export class RequestPasswordReset {
       // Generate and digest even for an unknown account. Never expose the original.
       const token = this.tokens.generate();
       const user = await this.users.findByEmail(values.email);
-      if (user) {
+      if (user && !user.disabledAt) {
         const createdAt = this.now();
         const credentialId = this.id();
         const expiresAt = new Date(createdAt.getTime() + this.ttlSeconds * 1000);

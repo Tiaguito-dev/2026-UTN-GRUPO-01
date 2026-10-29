@@ -1,11 +1,12 @@
 import { validateId } from "./academic-id.js";
 import { CursadaNotFoundError } from "./errors.js";
 import type { CursadaResumen } from "../domain/cursada.js";
+import type { ModalidadMateria } from "../domain/materia.js";
 import type { CursadaRepository } from "./ports/cursada.repository.js";
 import type { MateriaRepository } from "./ports/materia.repository.js";
 
 export interface CursadaDetalle extends CursadaResumen {
-  materia: { id: string; nombre: string };
+  materia: { id: string; nombre: string; modalidad: ModalidadMateria | null };
 }
 
 export class ObtenerCursada {
@@ -21,6 +22,6 @@ export class ObtenerCursada {
     if (!cursada || !materia) throw new CursadaNotFoundError();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars -- descarta materiaId, no viaja en la respuesta de detalle
     const { materiaId: _, ...resumen } = cursada;
-    return { ...resumen, materia: { id: materia.id, nombre: materia.nombre } };
+    return { ...resumen, materia: { id: materia.id, nombre: materia.nombre, modalidad: materia.modalidad } };
   }
 }

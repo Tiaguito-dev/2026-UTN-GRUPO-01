@@ -6,11 +6,12 @@ import { ProfesorNotFoundError, InvalidAcademicInputError, CAMPOS_NO_PERMITIDOS 
 const schema = z.strictObject({ nombreCompleto: nombreSchema(150) });
 export class ActualizarProfesor {
   constructor(private readonly profesores: ProfesorRepository) {}
-  async execute(idInput: unknown, body: unknown) {
+  async execute(idInput: unknown, body: unknown, actorIdInput?: unknown) {
     const id = validateId(idInput);
+    const actorId = actorIdInput === undefined ? undefined : validateId(actorIdInput);
     const result = schema.safeParse(body);
     if (!result.success) throw new InvalidAcademicInputError(result.error.issues.some(i => i.code === "unrecognized_keys") ? CAMPOS_NO_PERMITIDOS : "Indique un nombre valido de hasta 150 caracteres.");
     if (!await this.profesores.findById(id)) throw new ProfesorNotFoundError();
-    return this.profesores.update(id, result.data);
+    return actorId ? this.profesores.update(id, result.data, actorId) : this.profesores.update(id, result.data);
   }
 }

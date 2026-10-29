@@ -14,7 +14,8 @@ function fixture() {
   const accounts = new Map<string, User>();
   const repository: UserRepository = {
     findAll: vi.fn(async (pagination) => {
-      const items = [...accounts.values()].map(toPublicUser);
+      // TASK-070: el listado administrativo incluye estado; auth conserva su proyección pública.
+      const items = [...accounts.values()].map((user) => ({ ...toPublicUser(user), disabledAt: user.disabledAt ?? null }));
       const start = (pagination.page - 1) * pagination.pageSize;
       return { items: items.slice(start, start + pagination.pageSize), total: items.length, page: pagination.page, pageSize: pagination.pageSize };
     }),

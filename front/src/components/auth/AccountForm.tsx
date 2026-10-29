@@ -6,7 +6,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useFormSubmission } from "@/hooks/useFormSubmission";
 import { COORDINATION_NOTICE } from "@/services/session-coordinator";
-import { validateEmail, validateNewPassword, validateDisplayName, validateCurrentPassword, safeReturnPath } from "@/validations/auth";
+import { validateEmail, validateNewPassword, validateDisplayName, validateCurrentPassword } from "@/validations/auth";
+import { roleDestination } from "@/lib/navigation";
 import { FormField } from "@/components/ui/FormField";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -53,10 +54,10 @@ export function AccountForm({ mode }: { mode: Mode }) {
         form.reset();
         router.replace("/login?notice=registered");
       } else if (mode === "login") {
-        const destination = safeReturnPath(new URL(window.location.href).searchParams.get("returnTo"));
-        await auth.login({ email: values.email, password: values.password });
+        const origin = new URL(window.location.href).searchParams.get("returnTo");
+        const account = await auth.login({ email: values.email, password: values.password });
         form.reset();
-        router.replace(destination);
+        router.replace(roleDestination(account.role, origin));
       } else if (mode === "forgot") {
         const message = await auth.forgotPassword({ email: values.email });
         form.reset();

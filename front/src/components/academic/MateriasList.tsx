@@ -1,37 +1,23 @@
 "use client";
 import Link from "next/link";
+import { Search, ChevronRight } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 import { listarMaterias } from "@/services/materias";
-import type { AnioCarrera, Carrera, Materia } from "@/types/materias";
+import type { AnioCarrera, Carrera, Materia, MateriaCarrera } from "@/types/materias";
 import { useFocusOnMount } from "@/hooks/useFocusOnMount";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import {
-  ANIOS_CARRERA,
-  CARRERAS,
-  anioCarreraLabel,
-  carreraShortLabel,
-  carrerasResumenLabel,
-  isAnioCarrera,
-  isCarrera,
-  materiaListHref,
-  materiaDetailHref,
-  parseMateriaPage,
-  parseMateriaContext,
-  validateMateriaSearch,
-  NIVELES_ELECTIVA,
-  nivelElectivaLabel,
-  type MateriaContext,
-} from "@/validations/materias";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
+import { ANIOS_CARRERA, CARRERAS, anioCarreraLabel, carreraLabel, carreraShortLabel, isAnioCarrera, isCarrera, materiaListHref, materiaDetailHref, modalidadLabel, parseMateriaPage, parseMateriaContext, validateMateriaSearch, nivelElectivaLabel, type MateriaContext } from "@/validations/materias";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { PaginatedListView } from "@/components/ui/PaginatedListView";
+import { Pagination } from "@/components/ui/Pagination";
 import { Notice } from "@/components/ui/Notice";
 import { Dialog } from "@/components/ui/Dialog";
-import { FilterChips } from "@/components/ui/FilterChips";
-import { RowLink } from "@/components/ui/RowLink";
 import { MateriaForm } from "@/components/admin/MateriaForm";
 import { PlusIcon } from "./detalle";
 import styles from "./MateriasList.module.css";
+
+const YEAR_GROUP_LABEL: Record<AnioCarrera, string> = { "1": "Primer año", "2": "Segundo año", "3": "Tercer año", "4": "Cuarto año", "5": "Quinto año", ELECTIVA: "Electivas" };
 
 export function MateriasList() {
   const params = useSearchParams();
@@ -39,134 +25,120 @@ export function MateriasList() {
   const rawCarrera = params.get("carrera");
   const carrera = isCarrera(rawCarrera) ? rawCarrera : undefined;
   const rawAnio = params.get("anioCarrera");
-  const anio = carrera && isAnioCarrera(rawAnio) ? rawAnio : undefined;
+  const anio = isAnioCarrera(rawAnio) ? rawAnio : undefined;
   const page = parseMateriaPage(params.get("page"));
   const context = parseMateriaContext(params);
   const headingId = useId();
+  const carreraId = useId();
+  const anioId = useId();
   const isAdmin = useIsAdmin();
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [created, setCreated] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const activeFilters = Boolean(carrera || anio || context.q || context.nivelElectiva);
+  const filterLabels = [carrera ? carreraShortLabel(carrera) : "", anio ? anio === "ELECTIVA" ? "Electivas" : anioCarreraLabel(anio) : "", context.nivelElectiva ? nivelElectivaLabel(context.nivelElectiva) : "", context.q ? `“${context.q}”` : ""].filter(Boolean);
 
-  return <section aria-labelledby={headingId}>
+  return <section className={styles.page} aria-labelledby={headingId}>
     <div className={styles.header}>
-      <PageHeader id={headingId} title="Materias" description="Información para acercarte a cada materia con más contexto antes de cursarla." />
+      <PageHeader id={headingId} title="Materias" description="Explorá las materias por carrera, año o nombre y conocé las experiencias de sus comisiones." />
       {isAdmin ? <button className={`button ${styles.newButton}`} type="button" onClick={() => setCreating(true)}><PlusIcon />Nueva materia</button> : null}
     </div>
     {params.get("successMessage") ? <Notice tone="success">{params.get("successMessage")}</Notice> : null}
     {created ? <Notice tone="success">{created}</Notice> : null}
-    {/* TASK-043: short alta that returns to this list, so it opens in a Dialog; the page stays as fallback. */}
     {isAdmin ? <Dialog open={creating} onClose={() => setCreating(false)} title="Nueva materia" description="El nombre no puede repetirse." busy={saving}>
       {creating ? <MateriaForm onCancel={() => setCreating(false)} onBusyChange={setSaving} onSuccess={(materia) => {
-        setCreating(false);
-        setCreated(`Materia creada: ${materia.nombre}.`);
-        setRefreshKey((key) => key + 1);
+        setCreating(false); setCreated(`Materia creada: ${materia.nombre}.`); setRefreshKey((key) => key + 1);
       }} /> : null}
     </Dialog> : null}
     <div className={styles.filters}>
-      <div className={styles.heading}>
-        <p className={styles.title}>Filtros</p>
-        <p className={styles.description}>Elegí tu carrera y después buscá por nombre o explorá por año.</p>
-      </div>
-      <div className={styles.careerGroup} role="group" aria-labelledby="carrera-label">
-        <p id="carrera-label" className={styles.groupLabel}>Carrera</p>
-        <div className={styles.careers}>
-          <button className={`button ${styles.career}`} type="button" aria-pressed={!carrera} onClick={() => router.replace(materiaListHref(undefined, undefined, 1, { ...context, carrera: undefined, nivelElectiva: undefined }), { scroll: false })}><span className={styles.careerInitial} aria-hidden="true">∗</span>Todas</button>
-          {CARRERAS.map((cod) => <button className={`button ${styles.career}`} key={cod} type="button" aria-pressed={carrera === cod} onClick={() => router.replace(materiaListHref(cod, undefined, 1, { ...context, carrera: cod, nivelElectiva: undefined }), { scroll: false })}><span className={styles.careerInitial} aria-hidden="true">{cod}</span>{carreraShortLabel(cod)}</button>)}
+      <div className={styles.filterFields}>
+        <div className={styles.filterField}>
+          <label htmlFor={carreraId}>Carrera</label>
+          <select id={carreraId} value={carrera ?? ""} onChange={(event) => {
+            const next = isCarrera(event.target.value) ? event.target.value : undefined;
+            router.replace(materiaListHref(next, anio, 1, { ...context, carrera: next }), { scroll: false });
+          }}>
+            <option value="">Todas las carreras</option>{CARRERAS.map((value) => <option key={value} value={value}>{carreraShortLabel(value)}</option>)}
+          </select>
         </div>
+        <div className={styles.filterField}>
+          <label htmlFor={anioId}>Año de la carrera</label>
+          <select id={anioId} value={anio ?? ""} onChange={(event) => {
+            const next = isAnioCarrera(event.target.value) ? event.target.value : undefined;
+            router.replace(materiaListHref(carrera, next, 1, { ...context, nivelElectiva: next === "ELECTIVA" ? context.nivelElectiva : undefined }), { scroll: false });
+          }}>
+            <option value="">Todos los años</option>{ANIOS_CARRERA.map((value) => <option key={value} value={value}>{value === "ELECTIVA" ? "Electivas" : anioCarreraLabel(value)}</option>)}
+          </select>
+        </div>
+        <MateriaSearch key={context.q ?? ""} query={context.q ?? ""} onSearch={(q) => router.replace(materiaListHref(carrera, anio, 1, { ...context, q }), { scroll: false })} />
       </div>
-      <MateriaSearch key={context.q ?? ""} query={context.q ?? ""} onSearch={(q) => router.replace(materiaListHref(carrera, anio, 1, { ...context, q }), { scroll: false })} />
-      {carrera ? (
-        <FilterChips
-          label="Año de la carrera"
-          id="anio-carrera-label"
-          className={styles.filterGroup}
-          options={[
-            { value: "", label: "Todos los años" },
-            ...ANIOS_CARRERA.map((value) => ({
-              value,
-              label: value === "ELECTIVA" ? "Electivas" : anioCarreraLabel(value),
-            })),
-          ]}
-          value={anio ?? ""}
-          onChange={(value) =>
-            router.replace(materiaListHref(carrera, value ? (value as AnioCarrera) : undefined, 1, context), { scroll: false })
-          }
-        />
-      ) : null}
-      {carrera && anio === "ELECTIVA" ? (
-        <FilterChips
-          label="Nivel de electiva"
-          id="nivel-electiva-label"
-          className={`${styles.filterGroup} ${styles.electiveGroup}`}
-          options={[
-            { value: "", label: "Todos los niveles" },
-            ...NIVELES_ELECTIVA.map((nivel) => ({
-              value: nivel,
-              label: nivelElectivaLabel(nivel),
-            })),
-          ]}
-          value={context.nivelElectiva ?? ""}
-          onChange={(value) =>
-            router.replace(
-              materiaListHref(carrera, anio, 1, {
-                ...context,
-                nivelElectiva: value ? (value as typeof context.nivelElectiva) : undefined,
-              }),
-              { scroll: false }
-            )
-          }
-        />
-      ) : null}
+      {activeFilters ? <div className={styles.filterSummary}>
+        <p>Filtros: {filterLabels.join(" · ")}</p>
+        <button className={styles.clearButton} type="button" onClick={() => router.replace("/home/materias", { scroll: false })}>Limpiar filtros</button>
+      </div> : null}
     </div>
     <MateriasResults key={`${carrera ?? "todas"}:${anio ?? "todos"}:${page}:${context.q ?? ""}:${context.nivelElectiva ?? ""}`} carrera={carrera} anio={anio} page={page} context={context} refreshKey={refreshKey} />
   </section>;
 }
 
+function matchingAssociations(materia: Materia, carrera: Carrera | undefined, anio: AnioCarrera | undefined, context: MateriaContext): MateriaCarrera[] {
+  return materia.carreras.filter((association) => (!carrera || association.carrera === carrera) && (!anio || association.anioCarrera === anio) && (!context.nivelElectiva || association.nivelElectiva === context.nivelElectiva));
+}
+
+function compareMaterias(first: Materia, second: Materia): number {
+  const normalize = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("es");
+  return normalize(first.nombre).localeCompare(normalize(second.nombre), "es") || first.id.localeCompare(second.id);
+}
+
+function associationMetadata(association: MateriaCarrera): string {
+  return association.anioCarrera === "ELECTIVA"
+    ? `${carreraLabel(association.carrera)} · Electiva · ${association.nivelElectiva ? `Nivel ${association.nivelElectiva}` : "Sin nivel asignado"}`
+    : `${carreraLabel(association.carrera)} · ${anioCarreraLabel(association.anioCarrera)}`;
+}
+
 function MateriasResults({ carrera, anio, page, context, refreshKey }: { carrera: Carrera | undefined; anio: AnioCarrera | undefined; page: number; context: MateriaContext; refreshKey: number }) {
   const router = useRouter();
+  const groupPrefix = useId();
   const resultsFocus = useFocusOnMount<HTMLDivElement>();
-  const row = (materia: Materia) => {
-    const fila = carrera ? materia.carreras.find((c) => c.carrera === carrera) : undefined;
-    const badge = carrerasResumenLabel(materia.carreras);
-    const detailParts: string[] = [];
-    if (fila?.anioCarrera === "ELECTIVA") detailParts.push(nivelElectivaLabel(fila.nivelElectiva));
-    if (badge) detailParts.push(badge);
-    const detail = detailParts.length ? `— ${detailParts.join(" — ")}` : undefined;
-    return (
-      <RowLink
-        key={materia.id}
-        href={materiaDetailHref(materia.id, carrera, anio, page, context)}
-        detail={detail}
-      >
-        {materia.nombre}
-      </RowLink>
-    );
-  };
+  const resetKey = JSON.stringify(["materias", carrera, anio, context.q, context.nivelElectiva]);
+  const { state, retry } = usePaginatedFetch(resetKey, (next) => listarMaterias({ page: next, carrera, anioCarrera: anio, ...context }), page, refreshKey);
+  const changePage = (next: number) => router.replace(materiaListHref(carrera, anio, next, context), { scroll: false });
+  const filterSummary = [carrera ? carreraShortLabel(carrera) : "Todas las carreras", anio ? YEAR_GROUP_LABEL[anio] : "Todos los años", context.q ? `“${context.q}”` : ""].filter(Boolean).join(" · ");
   return <div ref={resultsFocus} tabIndex={-1} className={styles.results}>
-    <PaginatedListView resetKey="materias" page={page} refreshKey={refreshKey} onPageChange={(next) => router.replace(materiaListHref(carrera, anio, next, context), { scroll: false })} fetchPage={(next) => listarMaterias({ page: next, carrera, anioCarrera: anio, ...context })}
-      loadingMessage="Cargando materias…" errorMessage="Lo sentimos. No pudimos recuperar las materias. Intentá nuevamente." empty={<p>No hay materias que coincidan con la búsqueda y los filtros.</p>}>
-      {(result) => {
-        if (!carrera) return <div className="academic-panel"><ul className="row-list">{result.items.map(row)}</ul></div>;
-        return [...ANIOS_CARRERA, null].map((group) => {
-          const items = result.items.filter((materia) => (materia.carreras.find((c) => c.carrera === carrera)?.anioCarrera ?? null) === group);
-          if (!items.length) return null;
-          const groupId = `materias-grupo-${group ?? "sin-anio"}`;
-          return <section className="academic-panel" key={group ?? "sin-anio"} aria-labelledby={groupId}>
-            <div className={styles.groupHeader}>
-              <h2 id={groupId}><span className={styles.groupBadge} aria-hidden="true">{group === "ELECTIVA" ? "E" : group ?? "–"}</span>{anioCarreraLabel(group)}</h2>
-              <span className={styles.groupCount}>{items.length === 1 ? "1 materia" : `${items.length} materias`}</span>
-            </div>
-            <ul className="row-list">{items.map(row)}</ul>
-          </section>;
+    {state.status === "loading" ? <p role="status">Cargando materias…</p> : state.status === "error" ? <Notice tone="error">Lo sentimos. No pudimos recuperar las materias. Intentá nuevamente. {state.error} <button className="button" type="button" onClick={retry}>Reintentar</button></Notice> : <>
+      <div className={styles.resultSummary}>
+        <p className={styles.resultTotal}>{state.data.total === 1 ? "1 materia" : `${state.data.total} materias`}<span className={styles.resultFilters}> · {filterSummary}</span></p>
+        {state.data.items.length ? <p className={styles.resultRange}>Mostrando {(state.data.page - 1) * state.data.pageSize + 1}–{Math.min(state.data.total, (state.data.page - 1) * state.data.pageSize + state.data.items.length)} de {state.data.total}</p> : null}
+      </div>
+      {!anio && state.data.items.length ? <p className={styles.projectionNote}>Una materia puede aparecer en varios años; se cuenta una sola vez en el total.</p> : null}
+      {state.data.items.length === 0 ? state.data.total === 0 ? <div className={styles.empty}><p>No hay materias que coincidan con la búsqueda y los filtros.</p><button className="button button-secondary" type="button" onClick={() => router.replace("/home/materias", { scroll: false })}>Limpiar búsqueda y filtros</button></div> : <p>No hay materias en esta página. <button className="button button-secondary" type="button" onClick={() => changePage(1)}>Volver a la primera página</button></p> : [...ANIOS_CARRERA, null].map((group) => {
+        const entries = state.data.items.flatMap((materia) => {
+          const associations = matchingAssociations(materia, carrera, anio, context).filter((association) => association.anioCarrera === group);
+          return associations.length || (group === null && !carrera && !anio && !context.nivelElectiva && materia.carreras.length === 0) ? [{ materia, associations }] : [];
         });
-      }}
-    </PaginatedListView>
+        if (!entries.length) return null;
+        entries.sort((first, second) => compareMaterias(first.materia, second.materia));
+        const groupId = `${groupPrefix}-${group ?? "sin-anio"}`;
+        return <section className={styles.group} key={group ?? "sin-anio"} aria-labelledby={groupId}>
+          <div className={styles.groupHeader}><h2 id={groupId}>{group ? YEAR_GROUP_LABEL[group] : "Sin año asignado"}</h2><span className={styles.groupCount}>{entries.length === 1 ? "1 materia" : `${entries.length} materias`}</span></div>
+          <ul className={styles.rows}>{entries.map(({ materia, associations }) => <li key={materia.id}>
+            <Link className={styles.row} href={materiaDetailHref(materia.id, carrera, anio, page, context)}>
+              <span className={styles.rowText}><span className={styles.rowTitle}>{materia.nombre}</span>
+                {associations.length ? <span className={styles.rowMetadata}>{associations.map(associationMetadata).join(" / ")}</span> : null}
+                <span className={styles.rowMetadata}>{modalidadLabel(materia.modalidad)}</span>
+              </span><ChevronRight className={styles.chevron} aria-hidden="true" focusable="false" size={18} strokeWidth={1.75} />
+            </Link>
+          </li>)}</ul>
+        </section>;
+      })}
+      <Pagination page={page} pageSize={state.data.pageSize} total={state.data.total} onChange={changePage} />
+    </>}
   </div>;
 }
 
 function MateriaSearch({ query, onSearch }: { query: string; onSearch: (q: string) => void }) {
+  const searchId = useId();
   const [value, setValue] = useState(query);
   const [error, setError] = useState("");
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -175,8 +147,12 @@ function MateriaSearch({ query, onSearch }: { query: string; onSearch: (q: strin
     setError(issue ?? "");
     if (!issue) onSearch(value.trim());
   }
-  return <form className={styles.search} onSubmit={submit} noValidate role="search">
-    <div className={styles.searchField}><label htmlFor="materia-search">Buscar por nombre</label><div className={styles.searchControls}><input id="materia-search" name="q" type="search" value={value} onChange={(event) => setValue(event.target.value)} placeholder="Nombre de la materia" maxLength={150} aria-invalid={Boolean(error)} aria-describedby={error ? "materia-search-error" : undefined} /><button className={`button ${styles.searchButton}`} type="submit">Buscar</button></div>{error ? <p id="materia-search-error" role="alert" className="field-error">{error}</p> : null}</div>
-    {value || query ? <button className={`button ${styles.clearButton}`} type="button" onClick={() => { setValue(""); setError(""); onSearch(""); }}>Limpiar búsqueda</button> : null}
+  return <form className={`${styles.search} ${styles.filterField}`} onSubmit={submit} noValidate role="search">
+    <label htmlFor={searchId}>Buscar por nombre</label>
+    <div className={styles.searchControls}>
+      <div className={styles.searchInput}><Search className={styles.searchIcon} aria-hidden="true" focusable="false" size={18} strokeWidth={1.75} /><input id={searchId} name="q" type="search" value={value} onChange={(event) => setValue(event.target.value)} placeholder="Nombre de la materia" aria-invalid={Boolean(error)} aria-describedby={error ? `${searchId}-error` : undefined} /></div>
+      <button className={`button ${styles.searchButton}`} type="submit">Buscar</button>
+    </div>
+    {error ? <p id={`${searchId}-error`} role="alert" className="field-error">{error}</p> : null}
   </form>;
 }

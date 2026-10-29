@@ -2,7 +2,7 @@
 
 import { useEffect, useId, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { adminSuccessHref, safeAdminReturnTo } from "@/validations/admin";
+import { adminCreationHref, safeAdminReturnTo } from "@/validations/admin";
 import { useFormSubmission } from "@/hooks/useFormSubmission";
 import type { BreadcrumbItem } from "@/components/ui/Breadcrumb";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -21,6 +21,9 @@ export interface AltaField<K extends string> {
   numeric?: { min: number; max: number };
   /** Valor inicial de un select (precarga por query); se aplica cuando llega o cambia. */
   defaultValue?: string;
+  value?: string;
+  /** Carrera única: contexto visible sin solicitar una selección. */
+  readOnlyValue?: string;
   /** Para selects que condicionan al resto del formulario (materia → cursada). */
   onChange?: (value: string) => void;
   validate: (value: string) => string | undefined;
@@ -36,7 +39,7 @@ export interface AltaFormFieldsProps<K extends string> {
   /** Devuelve el mensaje de confirmación a mostrar. */
   onSubmit: (values: Record<K, string>) => Promise<string>;
   /** Si se pasa, se llama con el mensaje en vez de mostrarlo en el lugar. */
-  onSuccess?: (message: string) => void;
+  onSuccess?: (message: string, values: Record<K, string>) => void;
   onCancel?: () => void;
   /** Dentro de un `Dialog` (TASK-054, "Alta en modal"): su `busy` sigue el envío. */
   onBusyChange?: (busy: boolean) => void;
@@ -67,13 +70,14 @@ export function AltaFormFields<K extends string>({
       return issues;
     },
     onSubmit: async (values, form) => {
+      if (blocked) return;
       const message = await onSubmit(values);
-      form.reset();
       if (onSuccess) {
-        onSuccess(message);
+        onSuccess(message, values);
       } else {
         setSuccess(message);
       }
+      form.reset();
     },
     // El backend ya devuelve el mensaje en español (duplicado, inexistente, entrada inválida).
     fallbackError: "No pudimos registrar el alta. Intentá nuevamente.",
@@ -86,7 +90,7 @@ export function AltaFormFields<K extends string>({
     {success ? <Notice tone="success">{success}</Notice> : null}
     {filter}
     <form onSubmit={handleSubmit} noValidate aria-busy={busy}>
-      {fields.map((field) => <FormField key={field.name} name={field.name} defaultValue={field.defaultValue} label={field.label} hint={field.hint} error={errors[field.name]} input={{ autoComplete: "off", numeric: field.numeric }} options={field.options} onChange={field.onChange} />)}
+      {fields.map((field) => field.readOnlyValue !== undefined ? <div className="field" key={field.name}><span>{field.label}</span><p>{field.readOnlyValue}</p><input type="hidden" name={field.name} value={field.value ?? field.defaultValue ?? ""} />{errors[field.name] ? <p className="field-error" role="alert">{errors[field.name]}</p> : null}</div> : <FormField key={field.name} name={field.name} value={field.value} defaultValue={field.defaultValue} label={field.label} hint={field.hint} error={errors[field.name]} input={{ autoComplete: "off", numeric: field.numeric }} options={field.options} onChange={field.onChange} />)}
       <div className={onCancel ? "dialog-actions" : undefined}>
         {onCancel ? <button type="button" className="button button-secondary" onClick={onCancel}>Cancelar</button> : null}
         <button className={`button ${onCancel ? "" : "submit"}`} disabled={busy || Boolean(blocked)}>{busy ? "Guardando…" : submitLabel}</button>
@@ -99,7 +103,7 @@ export function AltaFormFields<K extends string>({
  * Formulario de alta compartido por las entidades del panel; envuelve a `AltaFormFields`
  * en `section`, `PageHeader` y `Card panel`.
  */
-export function AltaForm<K extends string>({ breadcrumb, heading, description, fields, submitLabel, blocked, filter, onSubmit, onSuccess }: {
+export function AltaForm<K extends string>({ breadcrumb, heading, description, fields, submitLabel, blocked, filter, onSubmit, onSuccess, defaultReturnTo }: {
   breadcrumb: BreadcrumbItem[];
   heading: string;
   description: string;
@@ -112,14 +116,16 @@ export function AltaForm<K extends string>({ breadcrumb, heading, description, f
   /** Devuelve el mensaje de confirmación a mostrar. */
   onSubmit: (values: Record<K, string>) => Promise<string>;
   onSuccess?: (message: string) => void;
+  defaultReturnTo?: string | ((values: Record<K, string>) => string);
 }) {
   const headingId = useId();
   const router = useRouter();
   const params = useSearchParams();
-  const returnTo = safeAdminReturnTo(params.get("returnTo"));
+  const explicitReturnTo = safeAdminReturnTo(params.get("returnTo"));
+  const returnTo = explicitReturnTo ?? (typeof defaultReturnTo === "string" ? defaultReturnTo : undefined);
 
   return <section aria-labelledby={headingId}>
-    <PageHeader id={headingId} title={heading} description={description} breadcrumb={returnTo ? breadcrumb.map((item) => item.href === "/home/admin" ? { ...item, href: returnTo } : item) : breadcrumb} back={returnTo ? { href: returnTo, label: "listado administrativo" } : undefined} />
+    <PageHeader id={headingId} title={heading} description={description} breadcrumb={breadcrumb} back={returnTo ? { href: returnTo, label: "listado administrativo" } : undefined} />
     <Card variant="panel">
       <AltaFormFields
         fields={fields}
@@ -127,7 +133,11 @@ export function AltaForm<K extends string>({ breadcrumb, heading, description, f
         blocked={blocked}
         filter={filter}
         onSubmit={onSubmit}
-        onSuccess={onSuccess ?? (returnTo ? (message) => router.push(adminSuccessHref(returnTo, message)) : undefined)}
+        onSuccess={onSuccess ? (message) => onSuccess(message) : (returnTo || defaultReturnTo ? (message, values) => {
+          const target = returnTo ?? (typeof defaultReturnTo === "function" ? defaultReturnTo(values) : defaultReturnTo)!;
+          router.push(adminCreationHref(target, message, values));
+          router.refresh();
+        } : undefined)}
       />
     </Card>
   </section>;

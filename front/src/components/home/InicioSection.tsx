@@ -20,9 +20,9 @@ export function InicioSection() {
       <PageHeader id={headingId} title={<>Hola, {account?.displayName ?? "bienvenido"}.</>} description={section.description} />
       <EmptyState symbol="PB" title="Este espacio está empezando a tomar forma" action={<Link className="button" href="/account">Ver mi perfil</Link>}>
         <p>Tu cuenta ya está lista. Estamos construyendo las herramientas para compartir información sobre profesores, materias y experiencias universitarias.</p>
-        <p>Ya podés explorar la jerarquía académica desde Materias. El resto de las secciones del menú están en preparación.</p>
+        <p>Desde Materias podés elegir una comisión y compartir tu comentario. En Experiencias encontrás los comentarios publicados por la comunidad.</p>
       </EmptyState>
-      <p className="system-footnote">Las funcionalidades de reseñas y experiencias estarán disponibles en próximas etapas. No hay contenido publicado todavía.</p>
+      <p className="system-footnote">Cada experiencia conserva su materia, comisión y período para ayudarte a interpretar su contexto.</p>
     </section>
   </>;
 }

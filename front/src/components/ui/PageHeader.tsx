@@ -21,10 +21,8 @@ export function PageHeader({ id, title, description, eyebrow, breadcrumb, back, 
 }) {
   const headingFocus = useFocusOnMount<HTMLHeadingElement>(focusKey);
   return <>
-    {back ? <div className="page-nav">
-      <BackLink href={back.href} label={back.label} />
-      {breadcrumb ? <Breadcrumb items={breadcrumb} /> : null}
-    </div> : (breadcrumb ? <Breadcrumb items={breadcrumb} /> : null)}
+    {breadcrumb?.length ? <Breadcrumb items={breadcrumb} back={back} />
+      : back ? <div className="page-nav"><BackLink {...back} /></div> : null}
     {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
     <h1 ref={headingFocus} tabIndex={-1} id={id}>{title}</h1>
     {description ? <p className="system-description">{description}</p> : null}

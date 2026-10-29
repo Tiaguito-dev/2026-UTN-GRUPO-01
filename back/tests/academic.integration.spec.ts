@@ -178,8 +178,10 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     expect((await get("/materias?pageSize=101", cookie)).status).toBe(400);
     const filtered = [...first.items, ...second.items];
     expect(filtered.map(item => item.nombre)).toEqual([rows[1]!.nombre, ...yearFive.map(row => row.nombre).sort()]);
-    // Sin carrera, anioCarrera da 400
-    expect((await get("/materias?anioCarrera=5", cookie)).status).toBe(400);
+    // TASK-060: year is independent; the same unique page is available across careers.
+    const independent = await get(`/materias?anioCarrera=5&q=${prefix}`, cookie);
+    expect(independent.status).toBe(200);
+    expect((await independent.json()).total).toBe(13);
     expect((await get("/materias?carrera=S&anioCarrera=6", cookie)).status).toBe(400);
     expect((await get("/materias?carrera=S&anioCarrera=1&anioCarrera=2", cookie)).status).toBe(400);
   });
@@ -210,6 +212,48 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     expect((await get("/materias?carrera=S&anioCarrera=2&nivelElectiva=4", cookie)).status).toBe(400);
   });
 
+  // TASK-060: folded search escapes user metacharacters and does not require a career.
+  it("busca sin distinguir tildes o mayúsculas y conserva porcentajes, guiones bajos y barras literales", async () => {
+    const cookie = await sessionCookie();
+    const prefix = randomUUID();
+    const expected = await createMateriaConCarreras(`${prefix} Ánálisis %_\\`, [{ carrera: "S", anioCarrera: "2" }]);
+    await createMateriaConCarreras(`${prefix} Analisis AB\\`, [{ carrera: "S", anioCarrera: "2" }]);
+    const params = new URLSearchParams({ q: `${prefix} ANALISIS %_\\`, anioCarrera: "2" });
+    const response = await get(`/materias?${params}`, cookie);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.total).toBe(1);
+    expect(body.items.map((item: { id: string }) => item.id)).toEqual([expected.id]);
+    const reverse = await createMateriaConCarreras(`${prefix} Optica`, [{ carrera: "Q", anioCarrera: "2" }]);
+    const reverseParams = new URLSearchParams({ q: `${prefix} ÓPTICA`, anioCarrera: "2" });
+    expect((await (await get(`/materias?${reverseParams}`, cookie)).json()).items.map((item: { id: string }) => item.id)).toEqual([reverse.id]);
+  });
+
+  it("pagina nueve materias únicas compartidas con orden alfabético sin tildes y total estable", async () => {
+    const cookie = await sessionCookie();
+    const prefix = randomUUID();
+    const ordered = ["Álgebra", "Análisis", "Biología", "Cálculo", "Diseño", "Estadística", "Física", "Geometría", "Historia", "Ingeniería", "Química", "Zoología"];
+    for (const nombre of [...ordered].reverse()) {
+      await createMateriaConCarreras(`${prefix} ${nombre}`, [{ carrera: "S", anioCarrera: "1" }, { carrera: "Q", anioCarrera: "2" }]);
+    }
+    const firstResponse = await get(`/materias?q=${prefix}&anioCarrera=1`, cookie);
+    expect(firstResponse.status).toBe(200);
+    const first = await firstResponse.json();
+    const second = await (await get(`/materias?q=${prefix}&anioCarrera=1&page=2`, cookie)).json();
+    expect(first).toMatchObject({ total: 12, page: 1, pageSize: 9 });
+    expect(second).toMatchObject({ total: 12, page: 2, pageSize: 9 });
+    expect(first.items).toHaveLength(9);
+    expect(second.items).toHaveLength(3);
+    const items = [...first.items, ...second.items] as { id: string; nombre: string; carreras: unknown[] }[];
+    expect(items.map(item => item.nombre)).toEqual(ordered.map(nombre => `${prefix} ${nombre}`));
+    expect(new Set(items.map(item => item.id)).size).toBe(12);
+    expect(items.every(item => item.carreras.length === 2)).toBe(true);
+    const unfiltered = await (await get(`/materias?q=${prefix}`, cookie)).json();
+    expect(unfiltered.total).toBe(12);
+    const crossAssociation = await (await get(`/materias?q=${prefix}&carrera=S&anioCarrera=2`, cookie)).json();
+    expect(crossAssociation).toMatchObject({ total: 0, items: [] });
+  });
+
   it("GET /materias/:id/cursadas con UUID inexistente devuelve 404 con el mensaje de MateriaNotFoundError", async () => {
     const cookie = await sessionCookie();
     const response = await get(`/materias/${randomUUID()}/cursadas`, cookie);
@@ -233,7 +277,7 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     const body = await response.json();
     expect(response.status).toBe(200);
     expect(body.items).toEqual([{
-      id: cursada.id, anio: cursada.anio, cuatrimestre: cursada.cuatrimestre, comisiones: 0, profesores: 0, carreras: [],
+      id: cursada.id, anio: cursada.anio, cuatrimestre: "PRIMERO", comisiones: 0, profesores: 0, carreras: [],
     }]);
   });
 
@@ -245,7 +289,7 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     const response = await get(`/materias/${materia.id}`, cookie);
     expect(response.status).toBe(200);
     expect(await response.json()).toStrictEqual({
-      id: materia.id, nombre: materia.nombre, carreras: [], createdAt: materia.createdAt.toISOString(), deletedAt: null,
+      id: materia.id, nombre: materia.nombre, modalidad: null, carreras: [], createdAt: materia.createdAt.toISOString(), deletedAt: null,
     });
     const listado = await (await get(`/materias?q=${encodeURIComponent(materia.nombre)}`, cookie)).json();
     expect(listado.items).toEqual([await (await get(`/materias/${materia.id}`, cookie)).json()]);
@@ -270,7 +314,7 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     expect(response.status).toBe(200);
     expect(await response.json()).toStrictEqual({
       id: cursada.id, anio: 2025, cuatrimestre: "PRIMERO", comisiones: 0, profesores: 0, carreras: [],
-      materia: { id: materia.id, nombre: materia.nombre },
+      materia: { id: materia.id, nombre: materia.nombre, modalidad: null },
     });
   });
 
@@ -287,9 +331,32 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
   });
 
   describe("lecturas con carreras y comisiones (TASK-041)", () => {
+    it("filtra carrera y cursada antes de paginar, con total único coherente y cero para combinación vacía", async () => {
+      const materia = await createMateriaConCarreras(`Compartida ${randomUUID()}`, [
+        { carrera: "S", anioCarrera: "1" }, { carrera: "I", anioCarrera: "2" }, { carrera: "Q", anioCarrera: "ELECTIVA", nivelElectiva: "4" },
+      ]);
+      const current = await createCursada(materia.id, 2026);
+      const old = await createCursada(materia.id, 2025);
+      for (let numero = 1; numero <= 12; numero++) await createComision(current.id, { carrera: "S", numero });
+      for (let numero = 1; numero <= 4; numero++) await createComision(current.id, { carrera: "I", numero });
+      await createComision(old.id, { carrera: "S", numero: 99 });
+      await createComision(current.id, { carrera: "S", numero: 98, deletedAt: new Date() });
+      const cookie = await sessionCookie();
+      const path = `/cursadas/${current.id}/comisiones`;
+      const page1 = await (await get(`${path}?carrera=S&page=1&pageSize=9`, cookie)).json();
+      const page2 = await (await get(`${path}?carrera=S&page=2&pageSize=9`, cookie)).json();
+      expect(page1).toMatchObject({ total: 12, page: 1, pageSize: 9 });
+      expect(page2).toMatchObject({ total: 12, page: 2, pageSize: 9 });
+      expect([...page1.items, ...page2.items].map((row: { numero: number }) => row.numero)).toEqual(Array.from({ length: 12 }, (_, index) => index + 1));
+      expect(page1.items.every((row: { carrera: string; cursadaId: string }) => row.carrera === "S" && row.cursadaId === current.id)).toBe(true);
+      expect(await (await get(`${path}?carrera=Q`, cookie)).json()).toMatchObject({ total: 0, items: [] });
+      expect(await (await get(path, cookie)).json()).toMatchObject({ total: 16 });
+      expect((await get(`${path}?carrera=INVALIDA`, cookie)).status).toBe(400);
+    });
     const iso = (fecha: Date) => fecha.toISOString();
 
-    it("GET /materias?carrera=Q incluye comunes, respeta año/nivel/q y ordena por año, nivel (nulos al final) y nombre", async () => {
+    // TASK-060: paginate alphabetically by unique subject, not by association/year/level.
+    it("GET /materias?carrera=Q incluye comunes, filtra sobre una asociación y ordena por nombre", async () => {
       const cookie = await sessionCookie();
       const prefix = randomUUID();
       const soloS = await createMateriaConCarreras(`${prefix} A solo S`, [{ carrera: "S", anioCarrera: "1" }]);
@@ -308,21 +375,22 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
         return ((await response.json()).items as { id: string }[]).map((item) => item.id);
       };
 
-      await expect(ids("carrera=Q&pageSize=100")).resolves.toEqual([q1c.id, q1d.id, comun.id, e3.id, e4.id, eSinNivel.id]);
+      await expect(ids("carrera=Q&pageSize=100")).resolves.toEqual([e4.id, comun.id, eSinNivel.id, q1c.id, q1d.id, e3.id]);
       await expect(ids("carrera=Q&anioCarrera=2")).resolves.toEqual([comun.id]);
       await expect(ids("carrera=Q&anioCarrera=ELECTIVA&nivelElectiva=4")).resolves.toEqual([e4.id]);
       await expect(ids("carrera=S")).resolves.toEqual([soloS.id, comun.id]);
       const pagina = await (await get(`/materias?q=${prefix}&carrera=Q&pageSize=2&page=2`, cookie)).json();
       expect(pagina).toMatchObject({ total: 6, page: 2, pageSize: 2 });
-      expect(pagina.items.map((item: { id: string }) => item.id)).toEqual([comun.id, e3.id]);
+      expect(pagina.items.map((item: { id: string }) => item.id)).toEqual([eSinNivel.id, q1c.id]);
       expect((await get("/materias?carrera=X", cookie)).status).toBe(400);
       expect((await get("/materias?carrera=Q&carrera=S", cookie)).status).toBe(400);
 
-      // Sin carrera, anioCarrera da 400
-      expect((await get("/materias?anioCarrera=3", cookie)).status).toBe(400);
+      await expect(ids("anioCarrera=3")).resolves.toEqual([comun.id]);
+      // S belongs to year 3, Q to year 2; filters cannot match separate associations.
+      await expect(ids("carrera=S&anioCarrera=2")).resolves.toEqual([]);
 
       const esperado = {
-        id: comun.id, nombre: comun.nombre,
+        id: comun.id, nombre: comun.nombre, modalidad: null,
         carreras: [{ carrera: "S", anioCarrera: "3", nivelElectiva: null }, { carrera: "Q", anioCarrera: "2", nivelElectiva: null }],
         createdAt: iso(comun.createdAt), deletedAt: null,
       };
@@ -356,7 +424,7 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
       const resumen = { id: cursada.id, anio: 2025, cuatrimestre: "PRIMERO", comisiones: 2, profesores: 2, carreras: ["S", "Q"] };
 
       expect((await (await get(`/materias/${materia.id}/cursadas`, cookie)).json()).items).toStrictEqual([resumen]);
-      expect(await (await get(`/cursadas/${cursada.id}`, cookie)).json()).toStrictEqual({ ...resumen, materia: { id: materia.id, nombre: materia.nombre } });
+      expect(await (await get(`/cursadas/${cursada.id}`, cookie)).json()).toStrictEqual({ ...resumen, materia: { id: materia.id, nombre: materia.nombre, modalidad: null } });
     });
 
     it("GET /cursadas/:id/comisiones ordena por carrera y número, con profesores por cargo y nombre", async () => {
@@ -399,7 +467,7 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
         id: comision.id, cursadaId: cursada.id, nombre: "S-31", activa: false, carrera: "S", numero: 31,
         profesores: [{ id: profesor.id, nombreCompleto: profesor.nombreCompleto, cargo: "TITULAR" }],
         createdAt: iso(comision.createdAt), deletedAt: null,
-        cursada: { id: cursada.id, anio: 2025, cuatrimestre: "PRIMERO", materia: { id: materia.id, nombre: materia.nombre } },
+        cursada: { id: cursada.id, anio: 2025, cuatrimestre: "PRIMERO", materia: { id: materia.id, nombre: materia.nombre, modalidad: null } },
       });
     });
 

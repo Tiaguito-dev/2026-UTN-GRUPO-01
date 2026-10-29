@@ -90,3 +90,37 @@ Next generó 26/26 páginas. `git diff --check` aprobado. Contenedores sin recon
 para visualizar el ajuste en Docker ejecutar
 `docker compose -f docker-compose.dev.yml up -d --build --no-deps frontend`.
 
+## Integración con desarrollo autorizada (2026-10-28)
+
+El desarrollador creó 2be6e27 e inició merge de origin/desarrollo (16bc452).
+Autoriza resolver conflictos y validar, dejando git add, commit de merge y push a su cargo.
+Alcance: cuatro conflictos y adaptaciones de compatibilidad de la funcionalidad docente.
+Conservar nuevas experiencias, navegación, borrado lógico, auditoría y selección de carrera
+de desarrollo. Integrar editor compartido sin duplicar operaciones docentes ni perder cierre,
+espaciado, confirmación del servidor, bloqueo cruzado y permisos. Las asignaciones realizadas
+desde detalle administrativo deben actualizar equipo e historial como en desarrollo.
+CHANGELOG concatena aportes; pruebas preservan cobertura upstream y cubren adaptación.
+No auth, esquema ni migraciones nuevos; no aplicar migraciones a bases locales.
+Restaurar lockfile entrante con npm ci si corresponde, regenerar Prisma y validar tipos/lint,
+tests y builds de ambos módulos. Tests primero para nuevos contratos; registrar omisiones.
+
+Resolución: CHANGELOG conserva ambas entradas; edición conserva carrera única/selector,
+retorno al detalle y editor docente con bloqueo cruzado/espaciado. Detalle conserva cabecera,
+experiencias, navegación, baja y auditoría entrantes; usa el editor compartido en modo gestión
+para evitar duplicar PUT/DELETE. Cada confirmación refresca equipo, opciones e historial.
+Comisiones dadas de baja no cargan catálogo docente. Pruebas del rediseño entrante conservadas.
+RED funcional integración: 2 fallos / 19 aprobadas por catálogo de comisión eliminada y
+ausencia del plegable interno de asignación. Verificaciones tras restaurar npm ci entrante:
+db:generate, typecheck y lint backend aprobados; tests backend 662 aprobadas / 209 omitidas
+sin TEST_DATABASE_URL/SMTP de pruebas. No se ejecutaron migraciones de las ramas entrantes.
+Build backend integrado aprobado. GREEN focal frontend: 38/38 en cinco suites (detalle
+entrante, asignaciones/refresco, edición HU-11, carreras y docentes). Los cuatro archivos
+conflictivos quedaron sin marcadores; se dejan sin git add para que el desarrollador cierre
+el merge. No se creó ningún commit ni se realizó push durante la resolución.
+Suite frontend completa integrada: 568/568 en 65 archivos con dos workers, aprobada.
+Typecheck y lint completos frontend aprobados. Checks ejecutados con Node 24.22.0 disponible,
+no con Node 22.22.3 oficial; se mantiene esa limitación del entorno.
+Build frontend integrado aprobado, 28/28 páginas generadas. `git diff --check` aprobado.
+Validación terminada el 2026-10-29. No se probó recorrido Docker/Playwright ni SQL/SMTP real;
+se conserva pendiente esa verificación con infraestructura exclusiva de pruebas.
+

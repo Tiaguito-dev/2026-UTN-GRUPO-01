@@ -1,8 +1,8 @@
 # Soft Delete
 
-Estándar para entidades nuevas del backend, en general — no exclusivo de `academic`. No es
-retroactivo para `User`/`Session`/etc. de `auth`: evaluar ahí es deuda técnica registrada en
-Trello, condicionada a que exista un caso de uso real de baja de cuenta.
+Estándar para entidades nuevas del backend, en general — no exclusivo de `academic`.
+User conserva identidad y usa desactivación reversible de acceso con `disabledAt` (TASK-070).
+Session y credenciales mantienen revocación/invalidación propias, sin adoptar una baja académica.
 
 ## Regla
 
@@ -29,13 +29,19 @@ Agregar el campo después de que la tabla ya tiene datos y relaciones reales es 
 arriesgada que declararlo vacío desde el principio. El campo no implementa ningún caso de uso
 por sí solo — solo deja el terreno listo.
 
-## Límite conocido, no resuelto
+## Unicidad y reutilización de claves
 
 Los índices únicos de Postgres no filtran por `deletedAt IS NULL` a menos que se declaren como
-índice parcial. Mientras no exista ningún caso de uso real de borrado, esto no importa (nadie
-intenta reutilizar un nombre de un registro "borrado"). El día que exista ese caso de uso, hay
-que convertir los índices únicos afectados a parciales — no antes, porque sería resolver un
-problema que todavía no existe.
+índice parcial. Al implementar una baja real, las claves naturales que deban poder reutilizarse
+se convierten a índices parciales de registros vigentes, conservando IDs y referencias históricos.
+
+TASK-070 implementa esta regla para Materia.nombre, Cursada(materiaId,anio,cuatrimestre) y
+Comision(cursadaId,carrera,numero). Los índices viven en SQL porque Prisma no expresa el
+predicado parcial; los seeds consultan registros vigentes con findFirst. La baja es lógica,
+protegida por ADMIN y rechaza relaciones vigentes en vez de borrar por cascada.
+
+User usa `disabledAt` para desactivar acceso, sin borrar identidad ni comentarios. Es un estado
+administrativo reversible con revocación de sesiones y auditoría, distinto de la baja académica.
 
 ## Referencia
 

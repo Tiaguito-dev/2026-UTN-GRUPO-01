@@ -10,11 +10,11 @@ export class CrearCursada {
     private readonly cursadas: CursadaRepository,
   ) {}
 
-  async execute(input: unknown): Promise<Cursada> {
+  async execute(input: unknown, actorId?: string): Promise<Cursada> {
     const datos = validateCrearCursadaInput(input);
     if (!(await this.materias.findById(datos.materiaId))) throw new MateriaNotFoundError();
     const existente = await this.cursadas.findByPeriodo(datos.materiaId, datos.anio, datos.cuatrimestre);
     if (existente) throw new CursadaAlreadyExistsError();
-    return this.cursadas.create(datos);
+    return this.cursadas.create(datos, actorId);
   }
 }

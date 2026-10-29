@@ -14,6 +14,9 @@ import {
   NIVELES_ELECTIVA,
   isNivelElectiva,
   nivelElectivaLabel,
+  MODALIDADES_MATERIA,
+  isModalidadMateria,
+  modalidadLabel,
 } from "@/validations/materias";
 import { Notice } from "@/components/ui/Notice";
 import { SELECT_PLACEHOLDER } from "@/lib/messages";
@@ -40,6 +43,7 @@ export function MateriaForm({
   );
   const [selectedYear, setSelectedYear] = useState(materia?.carreras[0]?.anioCarrera ?? "");
   const [selectedNivel, setSelectedNivel] = useState(materia?.carreras[0]?.nivelElectiva ?? "");
+  const [selectedModalidad, setSelectedModalidad] = useState(materia?.modalidad ?? "");
 
   const aniosDistintos = materia
     ? new Set(materia.carreras.map((c) => `${c.anioCarrera}:${c.nivelElectiva ?? ""}`)).size > 1
@@ -52,6 +56,7 @@ export function MateriaForm({
     const data = new FormData(form);
     const rawNombre = String(data.get("nombre") ?? "");
     const nombre = rawNombre.trim();
+    const modalidad = data.get("modalidad");
     const anioCarrera = data.get("anioCarrera");
     const rawNivel = data.get("nivelElectiva");
     const nivelElectiva = anioCarrera === "ELECTIVA" && isNivelElectiva(rawNivel) ? rawNivel : null;
@@ -59,6 +64,7 @@ export function MateriaForm({
     const nextErrors: Record<string, string> = {};
     const issue = validateNombre(rawNombre, MAX_NOMBRE_MATERIA);
     if (issue) nextErrors.nombre = issue;
+    if (!isModalidadMateria(modalidad)) nextErrors.modalidad = "Elegí la modalidad de la materia.";
     if (selectedCarreras.length === 0) nextErrors.carreras = "Elegí al menos una carrera.";
     if (!isAnioCarrera(anioCarrera)) nextErrors.anioCarrera = "Elegí un año entre 1 y 5 o Electiva.";
     if (anioCarrera === "ELECTIVA" && !isNivelElectiva(rawNivel)) {
@@ -68,21 +74,25 @@ export function MateriaForm({
     setErrors(nextErrors);
     setError("");
     setNotice("");
-    if (Object.keys(nextErrors).length || !isAnioCarrera(anioCarrera)) {
+    if (Object.keys(nextErrors).length || !isAnioCarrera(anioCarrera) || !isModalidadMateria(modalidad)) {
       const firstKey = Object.keys(nextErrors)[0];
       if (firstKey === "carreras") form.querySelector<HTMLElement>('select[name="carreras"]')?.focus();
       else form.querySelector<HTMLElement>(`[name="${firstKey}"]`)?.focus();
       return;
     }
 
-    const carrerasInput: MateriaCarrera[] = selectedCarreras.map((carrera) => ({
+    const relationFieldsChanged = !materia || selectedYear !== materia.carreras[0]?.anioCarrera
+      || nivelElectiva !== (materia.carreras[0]?.nivelElectiva ?? null)
+      || [...selectedCarreras].sort().join(",") !== materia.carreras.map((row) => row.carrera).sort().join(",");
+    const carrerasInput: MateriaCarrera[] = materia && !relationFieldsChanged ? materia.carreras : selectedCarreras.map((carrera) => ({
       carrera,
       anioCarrera,
       nivelElectiva,
     }));
-    const input: MateriaInput = { nombre, carreras: carrerasInput };
+    const input: MateriaInput = { nombre, modalidad, carreras: carrerasInput };
     const changes: Partial<MateriaInput> = {};
     if (materia?.nombre !== nombre) changes.nombre = nombre;
+    if (materia?.modalidad !== modalidad) changes.modalidad = modalidad;
 
     const prevSerialized = materia?.carreras
       .map((c) => `${c.carrera}:${c.anioCarrera}:${c.nivelElectiva ?? ""}`)
@@ -120,7 +130,7 @@ export function MateriaForm({
     <>
       {aniosDistintos ? (
         <Notice tone="warning">
-          Esta materia tiene años distintos según la carrera. Guardar los cambios igualará todas las carreras al año elegido.
+          Esta materia tiene años distintos según la carrera. Si modificás las carreras o el año, todas usarán el año elegido.
         </Notice>
       ) : null}
       {error ? <Notice tone="error" focusOnShow>{error}</Notice> : null}
@@ -138,6 +148,15 @@ export function MateriaForm({
             aria-describedby={errors.nombre ? "nombre-error" : undefined}
           />
           {errors.nombre ? <p id="nombre-error" className="field-error">{errors.nombre}</p> : null}
+        </div>
+        <div className="field">
+          <label htmlFor="modalidad">Modalidad</label>
+          <select id="modalidad" name="modalidad" value={selectedModalidad} onChange={(event) => setSelectedModalidad(event.target.value)} required aria-invalid={Boolean(errors.modalidad)} aria-describedby={`modalidad-hint${errors.modalidad ? " modalidad-error" : ""}`}>
+            <option value="">{SELECT_PLACEHOLDER}</option>
+            {MODALIDADES_MATERIA.map((value) => <option key={value} value={value}>{modalidadLabel(value)}</option>)}
+          </select>
+          <p id="modalidad-hint" className="hint">Puede ser anual o cuatrimestral, también para materias electivas. La cursada identifica el año.</p>
+          {errors.modalidad ? <p id="modalidad-error" className="field-error">{errors.modalidad}</p> : null}
         </div>
         <div className="field">
           <label htmlFor="carreras">Carreras</label>

@@ -36,7 +36,7 @@ describe("HU11 formularios de edición", () => {
     await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
     await waitFor(() => expect(actualizarCursada).toHaveBeenCalledWith("c1", { cuatrimestre: "ANUAL" }));
   });
-  it("precarga profesor, PATCH solo del nombre y vuelve a la página original", async () => {
+  it("precarga profesor, PATCH solo del nombre y vuelve al detalle con origen y éxito", async () => {
     state.search = new URLSearchParams({ returnTo: "/home/admin/profesores?page=3" }).toString();
     render(<EditarProfesor profesorId="p1" />);
     const input = await screen.findByLabelText("Nombre completo") as HTMLInputElement;
@@ -45,7 +45,10 @@ describe("HU11 formularios de edición", () => {
     await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
     await waitFor(() => expect(actualizarProfesor).toHaveBeenCalledWith("p1", { nombreCompleto: "Alan Turing" }));
     const target = new URL(router.push.mock.calls[0][0], "http://local");
-    expect(target.pathname).toBe("/home/admin/profesores"); expect(target.searchParams.get("page")).toBe("3");
+    // TASK-070: convención de edición: detalle + éxito, conservando el listado para Volver.
+    expect(target.pathname).toBe("/home/admin/profesores/p1");
+    expect(target.searchParams.get("returnTo")).toBe("/home/admin/profesores?page=3");
+    expect(target.searchParams.get("successMessage")).toBe("Profesor actualizado correctamente.");
   });
   it("sin cambios no envía PATCH y conserva el formulario", async () => {
     render(<EditarProfesor profesorId="p1" />);
@@ -53,6 +56,7 @@ describe("HU11 formularios de edición", () => {
     await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
     expect(await screen.findByText("No hay cambios para guardar.")).toBeTruthy();
     expect(actualizarProfesor).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
   });
   it("un error conserva el texto ingresado y permite reintentar", async () => {
     vi.mocked(actualizarProfesor).mockRejectedValueOnce(new Error("No disponible")).mockResolvedValue(profesor);
@@ -84,9 +88,12 @@ describe("HU11 formularios de edición", () => {
     await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
     await waitFor(() => expect(actualizarCursada).toHaveBeenCalledWith("c1", { materiaId: "m2" }));
     const target = new URL(router.push.mock.calls[0][0], "http://local");
-    expect(target.searchParams.get("materiaId")).toBe("m2"); expect(target.searchParams.has("page")).toBe(false);
+    expect(target.pathname).toBe("/home/admin/cursadas/c1");
+    expect(target.searchParams.get("returnTo")).toBe("/home/admin/cursadas?materiaId=m2");
+    expect(target.searchParams.get("successMessage")).toBe("Cursada actualizada correctamente.");
   });
   it("comisión edita número sin controles de activa ni traslado", async () => {
+    state.search = new URLSearchParams({ returnTo: "/home/admin/comisiones?materiaId=m1&cursadaId=c1&carrera=S&page=2" }).toString();
     render(<EditarComision comisionId="co1" />);
     const input = await screen.findByLabelText("Número de comisión") as HTMLInputElement;
     await waitFor(() => expect(input.value).toBe("31"));
@@ -94,6 +101,10 @@ describe("HU11 formularios de edición", () => {
     await userEvent.clear(input); await userEvent.type(input, "32");
     await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
     await waitFor(() => expect(actualizarComision).toHaveBeenCalledWith("co1", { numero: 32 }));
+    const target = new URL(router.push.mock.calls[0][0], "http://local");
+    expect(target.pathname).toBe("/home/admin/comisiones/co1");
+    expect(target.searchParams.get("returnTo")).toBe("/home/admin/comisiones?materiaId=m1&cursadaId=c1&carrera=S&page=2");
+    expect(target.searchParams.get("successMessage")).toBe("Comisión actualizada correctamente.");
   });
   it("rechaza el returnTo externo también al cancelar", async () => {
     state.search = new URLSearchParams({ returnTo: "https://evil.test" }).toString();

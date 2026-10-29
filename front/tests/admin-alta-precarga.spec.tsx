@@ -33,14 +33,14 @@ beforeEach(() => {
   });
   vi.mocked(listarCursadasPorMateria).mockResolvedValue({
     items: [
-      { id: "c1", anio: 2026, cuatrimestre: "PRIMERO", comisiones: 0, profesores: 0, carreras: [] },
-      { id: "c2", anio: 2026, cuatrimestre: "SEGUNDO", comisiones: 0, profesores: 0, carreras: [] },
+      { id: "c1", anio: 2026, comisiones: 0, profesores: 0, carreras: [] },
+      { id: "c2", anio: 2026, comisiones: 0, profesores: 0, carreras: [] },
     ],
     total: 2,
     page: 1,
     pageSize: 100,
   });
-  vi.mocked(obtenerCursada).mockResolvedValue({ id: "c2", anio: 2026, cuatrimestre: "SEGUNDO", materia: { id: "m1", nombre: "Álgebra" } });
+  vi.mocked(obtenerCursada).mockResolvedValue({ id: "c2", anio: 2026, materia: { id: "m1", nombre: "Álgebra" } });
 });
 
 // TASK-043 decision 2: "Nueva cursada" / "Nueva comisión" from a detail navigate here with the parent preselected.

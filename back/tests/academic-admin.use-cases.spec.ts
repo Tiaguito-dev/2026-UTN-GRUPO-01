@@ -1,3 +1,4 @@
+// Administrative mutations now forward an optional actor for transactional audit.
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { validateCrearMateriaInput } from "../src/academic/application/crear-materia-input.js";
@@ -19,29 +20,29 @@ import { fixture } from "./academic-fixture.js";
 describe("CrearMateria", () => {
   it("crea la materia y la delega al puerto con el nombre recortado", async () => {
     const { crearMateria, materiaRepository } = fixture();
-    const materia = await crearMateria.execute({ nombre: "  Álgebra  ", carreras: [{ carrera: "S", anioCarrera: "1" }] });
-    expect(materia).toMatchObject({ nombre: "Álgebra", deletedAt: null });
+    const materia = await crearMateria.execute({ modalidad: "ANUAL", nombre: "  Álgebra  ", carreras: [{ carrera: "S", anioCarrera: "1" }] });
+    expect(materia).toMatchObject({ modalidad: "ANUAL", nombre: "Álgebra", deletedAt: null });
     expect(materia.id).toEqual(expect.any(String));
     expect(materiaRepository.create).toHaveBeenCalledWith(expect.objectContaining({
-      nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "1", nivelElectiva: null }] }));
+      nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "1", nivelElectiva: null }] }), undefined);
   });
 
   it("nombre duplicado tira MateriaAlreadyExistsError sin volver a crear", async () => {
     const { crearMateria, materiaRepository, addMateria } = fixture();
     addMateria("Álgebra");
-    await expect(crearMateria.execute({ nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "1" }] })).rejects.toBeInstanceOf(MateriaAlreadyExistsError);
+    await expect(crearMateria.execute({ modalidad: "ANUAL", nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "1" }] })).rejects.toBeInstanceOf(MateriaAlreadyExistsError);
     expect(materiaRepository.create).not.toHaveBeenCalled();
   });
 
   it("detecta el duplicado después del trim, no sobre el texto crudo", async () => {
     const { crearMateria, addMateria } = fixture();
     addMateria("Álgebra");
-    await expect(crearMateria.execute({ nombre: "  Álgebra  ", carreras: [{ carrera: "S", anioCarrera: "1" }] })).rejects.toBeInstanceOf(MateriaAlreadyExistsError);
+    await expect(crearMateria.execute({ modalidad: "ANUAL", nombre: "  Álgebra  ", carreras: [{ carrera: "S", anioCarrera: "1" }] })).rejects.toBeInstanceOf(MateriaAlreadyExistsError);
   });
 
   it("input inválido no toca el repositorio", async () => {
     const { crearMateria, materiaRepository } = fixture();
-    await expect(crearMateria.execute({ nombre: "   ", carreras: [{ carrera: "S", anioCarrera: "1" }] })).rejects.toBeInstanceOf(InvalidAcademicInputError);
+    await expect(crearMateria.execute({ modalidad: "ANUAL", nombre: "   ", carreras: [{ carrera: "S", anioCarrera: "1" }] })).rejects.toBeInstanceOf(InvalidAcademicInputError);
     expect(materiaRepository.findByNombre).not.toHaveBeenCalled();
     expect(materiaRepository.create).not.toHaveBeenCalled();
   });
@@ -52,7 +53,7 @@ describe("CrearProfesor", () => {
     const { crearProfesor, profesorRepository } = fixture();
     const profesor = await crearProfesor.execute({ nombreCompleto: " Ada Lovelace " });
     expect(profesor).toMatchObject({ nombreCompleto: "Ada Lovelace", deletedAt: null });
-    expect(profesorRepository.create).toHaveBeenCalledWith({ nombreCompleto: "Ada Lovelace" });
+    expect(profesorRepository.create).toHaveBeenCalledWith({ nombreCompleto: "Ada Lovelace" }, undefined);
   });
 
   it("acepta dos profesores con el mismo nombre completo (los homónimos son válidos)", async () => {
@@ -83,7 +84,7 @@ describe("CrearCursada", () => {
     const datos = { materiaId: materia.id, anio: 2026, cuatrimestre: "PRIMERO" as const };
     const cursada = await crearCursada.execute(datos);
     expect(cursada).toMatchObject(datos);
-    expect(cursadaRepository.create).toHaveBeenCalledWith(datos);
+    expect(cursadaRepository.create).toHaveBeenCalledWith(datos, undefined);
   });
 
   it("materia inexistente tira MateriaNotFoundError", async () => {
@@ -129,7 +130,7 @@ describe("CrearComision", () => {
     const { crearComision, comisionRepository, cursada } = conCursada();
     const comision = await crearComision.execute({ cursadaId: cursada.id, carrera: "S", numero: 1 });
     expect(comision).toMatchObject({ cursadaId: cursada.id, carrera: "S", numero: 1, nombre: "S-1", activa: true });
-    expect(comisionRepository.create).toHaveBeenCalledWith({ cursadaId: cursada.id, carrera: "S", numero: 1 });
+    expect(comisionRepository.create).toHaveBeenCalledWith({ cursadaId: cursada.id, carrera: "S", numero: 1 }, undefined);
   });
 
   it("cursada inexistente tira CursadaNotFoundError sin buscar duplicados", async () => {
@@ -184,13 +185,13 @@ describe("ListarProfesores", () => {
 
 describe("validateCrearMateriaInput", () => {
   it("recorta el nombre", () => {
-    expect(validateCrearMateriaInput({ nombre: "  Álgebra  ", carreras: [{ carrera: "S", anioCarrera: "1" }] }))
-      .toMatchObject({ nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "1", nivelElectiva: null }] });
+    expect(validateCrearMateriaInput({ modalidad: "ANUAL", nombre: "  Álgebra  ", carreras: [{ carrera: "S", anioCarrera: "1" }] }))
+      .toMatchObject({ modalidad: "ANUAL", nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "1", nivelElectiva: null }] });
   });
 
   it("acepta 150 caracteres, el límite exacto del VarChar", () => {
     const nombre = "a".repeat(150);
-    expect(validateCrearMateriaInput({ nombre, carreras: [{ carrera: "S", anioCarrera: "1" }] }))
+    expect(validateCrearMateriaInput({ modalidad: "ANUAL", nombre, carreras: [{ carrera: "S", anioCarrera: "1" }] }))
       .toMatchObject({ nombre, carreras: [{ carrera: "S", anioCarrera: "1", nivelElectiva: null }] });
   });
 
@@ -208,7 +209,7 @@ describe("validateCrearMateriaInput", () => {
   });
 
   it("rechaza un cuerpo con campos de más", () => {
-    expect(() => validateCrearMateriaInput({ nombre: "Álgebra", id: randomUUID(), carreras: [{ carrera: "S", anioCarrera: "1" }] })).toThrow(CAMPOS_NO_PERMITIDOS);
+    expect(() => validateCrearMateriaInput({ modalidad: "ANUAL", nombre: "Álgebra", id: randomUUID(), carreras: [{ carrera: "S", anioCarrera: "1" }] })).toThrow(CAMPOS_NO_PERMITIDOS);
   });
 });
 

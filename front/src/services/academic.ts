@@ -12,7 +12,7 @@ import {
   profesorAsignadoSchema,
   profesorSchema,
 } from "./schemas";
-import type { Carrera } from "@/types/materias";
+import type { Carrera, ModalidadMateria } from "@/types/materias";
 
 export type { Materia, Carrera, MateriaCarrera } from "@/types/materias";
 export interface Profesor { id: string; nombreCompleto: string; createdAt: string; deletedAt: string | null }
@@ -20,15 +20,17 @@ export type Cuatrimestre = "PRIMERO" | "SEGUNDO" | "ANUAL";
 export const CARGOS = ["TITULAR", "ADJUNTO", "JTP"] as const;
 export type CargoDocente = typeof CARGOS[number];
 export interface ProfesorAsignado { id: string; nombreCompleto: string; cargo: CargoDocente }
-export interface Cursada { id: string; materiaId: string; anio: number; cuatrimestre: Cuatrimestre; createdAt: string; deletedAt: string | null }
-export interface CursadaResumen { id: string; anio: number; cuatrimestre: Cuatrimestre; comisiones: number; profesores: number; carreras: Carrera[] }
-export interface CursadaDetalle { id: string; anio: number; cuatrimestre: Cuatrimestre; materia: { id: string; nombre: string } }
+export interface Cursada { id: string; materiaId: string; anio: number; cuatrimestre?: Cuatrimestre | null; createdAt: string; deletedAt: string | null }
+export interface CursadaResumen { id: string; anio: number; cuatrimestre?: Cuatrimestre | null; comisiones: number; profesores: number; carreras: Carrera[] }
+export interface CursadaDetalle { id: string; anio: number; cuatrimestre?: Cuatrimestre | null; materia: { id: string; nombre: string; modalidad?: ModalidadMateria | null } }
 export interface Comision { id: string; cursadaId: string; carrera: Carrera; numero: number; nombre: string; activa: boolean; profesores: ProfesorAsignado[]; createdAt: string; deletedAt: string | null }
-export interface ComisionDetalle extends Comision { cursada: { id: string; anio: number; cuatrimestre: Cuatrimestre; materia: { id: string; nombre: string } } }
+export interface ComisionDetalle extends Comision { cursada: { id: string; anio: number; cuatrimestre?: Cuatrimestre | null; materia: { id: string; nombre: string; modalidad?: ModalidadMateria | null } } }
 
 export { listarMaterias, obtenerMateria, crearMateria } from "./materias";
-export function listarProfesores(pagination: PaginationInput = {}): Promise<PaginatedResult<Profesor>> {
-  return getAuthService().protectedGet(`/profesores${toQuery(pagination)}`, paginatedSchema(profesorSchema));
+export function listarProfesores(input: PaginationInput & { q?: string } = {}): Promise<PaginatedResult<Profesor>> {
+  const query = new URLSearchParams(toQuery(input).slice(1));
+  if (input.q?.trim()) query.set("q", input.q.trim());
+  return getAuthService().protectedGet(`/profesores${query.size ? `?${query}` : ""}`, paginatedSchema(profesorSchema));
 }
 export function listarCursadasPorMateria(materiaId: string, pagination: PaginationInput = {}): Promise<PaginatedResult<CursadaResumen>> {
   return getAuthService().protectedGet(`/materias/${encodeURIComponent(materiaId)}/cursadas${toQuery(pagination)}`, paginatedSchema(cursadaResumenSchema));
@@ -36,8 +38,10 @@ export function listarCursadasPorMateria(materiaId: string, pagination: Paginati
 export function obtenerCursada(cursadaId: string): Promise<CursadaDetalle> {
   return getAuthService().protectedGet(`/cursadas/${encodeURIComponent(cursadaId)}`, cursadaDetalleSchema);
 }
-export function listarComisionesPorCursada(cursadaId: string, pagination: PaginationInput = {}): Promise<PaginatedResult<Comision>> {
-  return getAuthService().protectedGet(`/cursadas/${encodeURIComponent(cursadaId)}/comisiones${toQuery(pagination)}`, paginatedSchema(comisionSchema));
+export function listarComisionesPorCursada(cursadaId: string, pagination: PaginationInput & { carrera?: Carrera } = {}): Promise<PaginatedResult<Comision>> {
+  const query = new URLSearchParams(toQuery(pagination).slice(1));
+  if (pagination.carrera) query.set("carrera", pagination.carrera);
+  return getAuthService().protectedGet(`/cursadas/${encodeURIComponent(cursadaId)}/comisiones${query.size ? `?${query}` : ""}`, paginatedSchema(comisionSchema));
 }
 export function obtenerComision(comisionId: string): Promise<ComisionDetalle> {
   return getAuthService().protectedGet(`/comisiones/${encodeURIComponent(comisionId)}`, comisionDetalleSchema);

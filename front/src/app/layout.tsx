@@ -5,7 +5,8 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import { SiteHeader } from "@/components/SiteHeader";
 
 export const metadata: Metadata = {
-  title: "Profesor Butchery | Tu carrera, con más perspectiva",
+  // A constant template keeps child route metadata from changing the browser tab name.
+  title: { default: "Profesor Butchery", template: "Profesor Butchery" },
   description: "Una comunidad de estudiantes para compartir experiencias sobre materias y profesores.",
   referrer: "no-referrer",
 };

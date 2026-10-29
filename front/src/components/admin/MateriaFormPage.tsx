@@ -1,58 +1,40 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { safeAdminReturnTo } from "@/validations/admin";
+import { adminCreationHref, adminSuccessHref, safeAdminReturnTo } from "@/validations/admin";
 import type { Materia } from "@/types/materias";
-import {
-  isAnioCarrera,
-  isCarrera,
-  materiaListHref,
-  parseMateriaContext,
-  parseMateriaPage,
-} from "@/validations/materias";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { MateriaForm } from "./MateriaForm";
 
-export function MateriaFormPage({ materia, detailHref }: { materia?: Materia; detailHref?: string }) {
+export function MateriaFormPage({ materia }: { materia?: Materia }) {
   const router = useRouter();
   const params = useSearchParams();
   const returnTo = safeAdminReturnTo(params.get("returnTo"));
 
-  const listContext = new URL(detailHref ?? "/home/materias", "https://local.invalid").searchParams;
-  const listCarrera = listContext.get("carrera");
-  const listYear = listContext.get("anioCarrera");
-  const backList = materiaListHref(
-    isCarrera(listCarrera) ? listCarrera : undefined,
-    isAnioCarrera(listYear) ? listYear : undefined,
-    parseMateriaPage(listContext.get("listadoPage")),
-    parseMateriaContext(listContext)
-  );
+  const backList = "/home/admin/materias";
+  const detailHref = materia ? `/home/admin/materias/${encodeURIComponent(materia.id)}${returnTo ? `?${new URLSearchParams({ returnTo })}` : ""}` : undefined;
 
   return (
     <section aria-labelledby="materia-form-heading">
       <PageHeader
         id="materia-form-heading"
         title={materia ? "Editar materia" : "Nueva materia"}
-        breadcrumb={[{ label: returnTo ? "Administración" : "Materias", href: returnTo ?? backList }, { label: materia ? "Editar materia" : "Nueva materia" }]}
-        back={returnTo ? { href: returnTo, label: "listado administrativo" } : undefined}
+        description="Definí el nombre, la modalidad y las carreras de la materia."
+        back={{ href: returnTo ?? detailHref ?? backList, label: "contexto administrativo" }}
+        breadcrumb={[{ label: "Administración", href: "/home/admin" }, { label: "Materias", href: backList }, ...(materia ? [{ label: materia.nombre, href: detailHref }] : []), { label: materia ? "Editar materia" : "Nueva materia" }]}
       />
       <Card variant="panel">
         <MateriaForm
           materia={materia}
           onSuccess={(saved) => {
-            const target = returnTo ?? (materia ? detailHref ?? `/home/materias/${encodeURIComponent(materia.id)}` : "/home/materias");
+            const target = materia ? detailHref! : returnTo ?? backList;
             const message = materia ? "Materia actualizada correctamente." : `Materia creada: ${saved.nombre}.`;
-            router.push(`${target}${target.includes("?") ? "&" : "?"}successMessage=${encodeURIComponent(message)}`);
+            router.push(materia ? adminSuccessHref(target, message) : adminCreationHref(target, message, saved));
+            router.refresh();
           }}
         />
       </Card>
-      {materia && !returnTo ? (
-        <div className="form-links">
-          <Link href={detailHref ?? "/home/materias"}>Volver</Link>
-        </div>
-      ) : null}
     </section>
   );
 }

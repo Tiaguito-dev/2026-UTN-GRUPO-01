@@ -16,12 +16,25 @@ afterEach(cleanup);
 const mockMateria: Materia = {
   id: "m-1",
   nombre: "Sistemas Operativos",
+  modalidad: "ANUAL",
   carreras: [{ carrera: "S", anioCarrera: "3", nivelElectiva: null }],
   createdAt: "2026-01-01T00:00:00Z",
   deletedAt: null,
 };
 
 describe("MateriaForm", () => {
+  it("permite una electiva anual y envía la modalidad elegida", async () => {
+    vi.mocked(crearMateria).mockResolvedValue({ ...mockMateria, modalidad: "ANUAL" });
+    render(<MateriaForm onSuccess={vi.fn()} />);
+    await userEvent.selectOptions(screen.getByLabelText("Modalidad"), "ANUAL");
+    await userEvent.type(screen.getByLabelText("Nombre de la materia"), "Electiva anual");
+    await userEvent.selectOptions(screen.getByLabelText("Modalidad"), "ANUAL");
+    await userEvent.selectOptions(screen.getByRole("listbox", { name: "Carreras" }), "S");
+    await userEvent.selectOptions(screen.getByLabelText("Año de la carrera"), "ELECTIVA");
+    await userEvent.selectOptions(screen.getByLabelText("Nivel de electiva"), "4");
+    await userEvent.click(screen.getByRole("button", { name: "Crear materia" }));
+    expect(crearMateria).toHaveBeenCalledWith({ nombre: "Electiva anual", modalidad: "ANUAL", carreras: [{ carrera: "S", anioCarrera: "ELECTIVA", nivelElectiva: "4" }] });
+  });
   it("usa un selector multiple de carreras, precarga dos y conserva su oferta al guardar", async () => {
     const existing: Materia = { ...mockMateria, carreras: [{ carrera: "S", anioCarrera: "3", nivelElectiva: null }, { carrera: "Q", anioCarrera: "3", nivelElectiva: null }] };
     vi.mocked(actualizarMateria).mockResolvedValue(existing);
@@ -38,14 +51,16 @@ describe("MateriaForm", () => {
   it("selecciona dos carreras para alta y envía ambas con el año elegido", async () => {
     vi.mocked(crearMateria).mockResolvedValue(mockMateria);
     render(<MateriaForm onSuccess={vi.fn()} />);
+    await userEvent.selectOptions(screen.getByLabelText("Modalidad"), "ANUAL");
     await userEvent.type(screen.getByLabelText("Nombre de la materia"), "Álgebra");
     await userEvent.selectOptions(screen.getByRole("listbox", { name: "Carreras" }), ["S", "Q"]);
     await userEvent.selectOptions(screen.getByLabelText("Año de la carrera"), "2");
     await userEvent.click(screen.getByRole("button", { name: "Crear materia" }));
-    expect(crearMateria).toHaveBeenCalledWith({ nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "2", nivelElectiva: null }, { carrera: "Q", anioCarrera: "2", nivelElectiva: null }] });
+    expect(crearMateria).toHaveBeenCalledWith({ nombre: "Álgebra", modalidad: "ANUAL", carreras: [{ carrera: "S", anioCarrera: "2", nivelElectiva: null }, { carrera: "Q", anioCarrera: "2", nivelElectiva: null }] });
   });
   it("enfoca el selector de carreras ante selección vacía", async () => {
     render(<MateriaForm onSuccess={vi.fn()} />);
+    await userEvent.selectOptions(screen.getByLabelText("Modalidad"), "ANUAL");
     await userEvent.type(screen.getByLabelText("Nombre de la materia"), "Álgebra");
     await userEvent.selectOptions(screen.getByLabelText("Año de la carrera"), "2");
     await userEvent.click(screen.getByRole("button", { name: "Crear materia" }));
@@ -57,20 +72,32 @@ describe("MateriaForm", () => {
     render(<MateriaForm onSuccess={vi.fn()} />);
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
   });
+  it("editar solo modalidad conserva las asociaciones de distintos años y envía únicamente esa diferencia", async () => {
+    const materia: Materia = { ...mockMateria, carreras: [{ carrera: "S", anioCarrera: "3", nivelElectiva: null }, { carrera: "Q", anioCarrera: "2", nivelElectiva: null }] };
+    vi.mocked(actualizarMateria).mockResolvedValue({ ...materia, modalidad: "SEGUNDO" });
+    render(<MateriaForm materia={materia} onSuccess={vi.fn()} />);
+    await userEvent.selectOptions(screen.getByLabelText("Modalidad"), "SEGUNDO");
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(actualizarMateria).toHaveBeenCalledWith("m-1", { modalidad: "SEGUNDO" });
+  });
 
   it("al guardar con éxito llama a onSuccess con la materia creada y no navega", async () => {
     const onSuccess = vi.fn();
     vi.mocked(crearMateria).mockResolvedValue(mockMateria);
 
     render(<MateriaForm onSuccess={onSuccess} />);
+    await userEvent.selectOptions(screen.getByLabelText("Modalidad"), "ANUAL");
 
     await userEvent.type(screen.getByLabelText("Nombre de la materia"), "Sistemas Operativos");
+    await userEvent.selectOptions(screen.getByLabelText("Modalidad"), "ANUAL");
+    await userEvent.selectOptions(screen.getByRole("listbox", { name: "Carreras" }), "S");
     await userEvent.selectOptions(screen.getByRole("listbox", { name: "Carreras" }), "S");
     await userEvent.selectOptions(screen.getByLabelText("Año de la carrera"), "3");
     await userEvent.click(screen.getByRole("button", { name: "Crear materia" }));
 
     expect(crearMateria).toHaveBeenCalledWith({
       nombre: "Sistemas Operativos",
+  modalidad: "ANUAL",
       carreras: [{ carrera: "S", anioCarrera: "3", nivelElectiva: null }],
     });
     expect(onSuccess).toHaveBeenCalledWith(mockMateria);
@@ -81,8 +108,11 @@ describe("MateriaForm", () => {
     vi.mocked(crearMateria).mockRejectedValue(new Error("Ya existe una materia con ese nombre."));
 
     render(<MateriaForm onSuccess={onSuccess} />);
+    await userEvent.selectOptions(screen.getByLabelText("Modalidad"), "ANUAL");
 
     await userEvent.type(screen.getByLabelText("Nombre de la materia"), "Sistemas Operativos");
+    await userEvent.selectOptions(screen.getByLabelText("Modalidad"), "ANUAL");
+    await userEvent.selectOptions(screen.getByRole("listbox", { name: "Carreras" }), "S");
     await userEvent.selectOptions(screen.getByRole("listbox", { name: "Carreras" }), "S");
     await userEvent.selectOptions(screen.getByLabelText("Año de la carrera"), "3");
     await userEvent.click(screen.getByRole("button", { name: "Crear materia" }));
@@ -96,9 +126,11 @@ describe("MateriaForm", () => {
   it("Cancelar aparece solo con onCancel y al clickearlo lo llama", async () => {
     const onCancel = vi.fn();
     const { rerender } = render(<MateriaForm onSuccess={vi.fn()} />);
+    await userEvent.selectOptions(screen.getByLabelText("Modalidad"), "ANUAL");
     expect(screen.queryByRole("button", { name: "Cancelar" })).toBeNull();
 
     rerender(<MateriaForm onSuccess={vi.fn()} onCancel={onCancel} />);
+    await userEvent.selectOptions(screen.getByLabelText("Modalidad"), "ANUAL");
     const cancelBtn = screen.getByRole("button", { name: "Cancelar" });
     expect(cancelBtn).toBeTruthy();
 

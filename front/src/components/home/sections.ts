@@ -28,8 +28,7 @@ export const SYSTEM_SECTIONS: SystemSection[] = [
   },
   {
     id: "experiencias", title: "Experiencias", symbol: "E", href: "/home/experiencias",
-    description: "Recorridos reales que aportan otra perspectiva a tus decisiones académicas.",
-    detail: "Aquí podrás compartir y descubrir experiencias universitarias. Por ahora no hay publicaciones ni acciones habilitadas.",
+    description: "Comentarios de la comunidad sobre materias, comisiones y docentes.",
   },
   {
     id: "comunidad", title: "Comunidad", symbol: "C", href: "/home/comunidad",
@@ -38,7 +37,7 @@ export const SYSTEM_SECTIONS: SystemSection[] = [
   },
   {
     id: "admin", title: "Administración", symbol: "A", href: "/home/admin",
-    description: "Alta de materias, profesores, cursadas y comisiones, y consulta de las cuentas registradas.",
+    description: "Gestión de la oferta académica y del acceso de las cuentas registradas.",
     role: "ADMIN",
   },
 ];
@@ -47,4 +46,16 @@ export function findSection(id: string): SystemSection {
   const section = SYSTEM_SECTIONS.find((item) => item.id === id);
   if (!section) throw new Error(`Sección desconocida: ${id}`);
   return section;
+}
+
+const ADMIN_NAVIGATION: SystemSection[] = [
+  { id: "inicio", title: "Inicio", href: "/home/admin", symbol: "", description: "Panel administrativo" },
+  { id: "materias", title: "Materias", href: "/home/admin/materias", symbol: "", description: "Oferta académica" },
+  { id: "profesores", title: "Profesores", href: "/home/admin/profesores", symbol: "", description: "Equipo docente" },
+  { id: "usuarios", title: "Usuarios", href: "/home/admin/usuarios", symbol: "", description: "Cuentas registradas" },
+  { id: "experiencias", title: "Experiencias", href: "/home/admin/experiencias", symbol: "", description: "Consulta de comentarios" },
+];
+
+export function sectionsForRole(role?: Role): SystemSection[] {
+  return role === "ADMIN" ? ADMIN_NAVIGATION : SYSTEM_SECTIONS.filter((item) => !item.role);
 }

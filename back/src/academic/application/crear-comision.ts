@@ -12,16 +12,22 @@ export class CrearComision {
     private readonly materias: MateriaRepository,
   ) {}
 
-  async execute(input: unknown): Promise<Comision> {
+  async execute(input: unknown, actorId?: string): Promise<Comision> {
     const datos = validateCrearComisionInput(input);
     const cursada = await this.cursadas.findById(datos.cursadaId);
     if (!cursada) throw new CursadaNotFoundError();
-    if (!(await this.materias.findCarreras(cursada.materiaId)).includes(datos.carrera)) {
+    const carreras = await this.materias.findCarreras(cursada.materiaId);
+    if (!carreras.length) {
+      throw new InvalidAcademicInputError("La materia no tiene carreras asociadas. Asociá al menos una carrera a la materia antes de crear una comisión.");
+    }
+    const carrera = datos.carrera ?? (carreras.length === 1 ? carreras[0] : undefined);
+    if (!carrera) throw new InvalidAcademicInputError("Elegí una carrera de la materia para crear la comisión.");
+    if (!carreras.includes(carrera)) {
       throw new InvalidAcademicInputError("La carrera no corresponde a la materia de la cursada.");
     }
-    if (await this.comisiones.findByCursadaIdCarreraNumero(datos.cursadaId, datos.carrera, datos.numero)) {
+    if (await this.comisiones.findByCursadaIdCarreraNumero(datos.cursadaId, carrera, datos.numero)) {
       throw new ComisionAlreadyExistsError();
     }
-    return this.comisiones.create(datos);
+    return this.comisiones.create({ ...datos, carrera }, actorId);
   }
 }

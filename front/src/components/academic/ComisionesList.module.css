@@ -19,8 +19,11 @@
   gap: var(--space-3);
   padding: var(--space-4);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-sm);
   background: var(--surface);
+  min-height: 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .card:hover {
@@ -66,6 +69,8 @@
   align-items: flex-start;
   gap: var(--space-3);
 }
+
+.cardHead > svg { flex-shrink: 0; color: var(--muted); }
 
 .letter {
   display: grid;

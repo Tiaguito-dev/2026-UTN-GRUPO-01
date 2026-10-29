@@ -29,7 +29,7 @@ primitiva con dominio adentro arrastra ese dominio a cada pantalla que la usa.
 | `Badge` | Etiqueta corta, `tone`: `role` (rol de la cuenta), `upcoming` (Próximamente), `solid` (fondo primario con texto blanco), `soft` (fondo suave con texto primario) u `outline` (superficie con borde y texto atenuado). Los mapeos de dominio (ej. cargo a tono) viven en `lib/format/`. | Texto que no es una etiqueta. |
 | `FormField` | Campo con `label`, `input` (`type`, `autoComplete`, `numeric`) o `<select>` (`options`), `hint` y `error` enlazados con `aria-describedby` y `aria-invalid`. | Controles que no son de un formulario de datos, como los chips de filtro de Materias. |
 | `FilterChips` | Grupo de chips de selección única con `aria-pressed` (`label`, `options: { value, label }[]`, `value`, `onChange`, `labelHidden?`). | Multiselección (para eso se usan checkboxes) o listas que no son de filtrado. |
-| `Breadcrumb` | Ubicación actual, como lista de `{ label, href? }`. Se pasa por `PageHeader`. | Pantallas sin nivel padre (ver [frontend-pantallas.md](./frontend-pantallas.md#encabezado)). |
+| `Breadcrumb` | Ubicación actual, como lista de `{ label, href? }`, y regreso `back?: { href, label }`. Se pasa por `PageHeader`. Compone un único recorrido con Volver separado, Lucide y estilos compartidos; si falta un origen interno válido usa el último ancestro enlazado o `/home`. | Pantallas sin nivel padre (ver [frontend-pantallas.md](./frontend-pantallas.md#encabezado)). |
 | `BackLink` | Enlace "Volver" con destino accesible (`{ href, label }`). Se pasa a `PageHeader` por la prop `back` o se usa suelto en pantallas con nivel padre. | Botones de volver atrás en el historial (va a un destino conocido, no `router.back()`). |
 | `Pagination` | Anterior/Siguiente de un listado paginado. | Directamente en una pantalla de listado: ya la incluye `PaginatedListView`. |
 | `PageHeader` | Encabezado de toda pantalla interna: `id`, `title`, `description?`, `eyebrow?`, `breadcrumb?`, `back?`, `focusKey?`. | Títulos de subsección (`h2`). |
@@ -44,6 +44,12 @@ Una variante nueva de una primitiva se agrega a la primitiva, con su clase en
 `styles/components/`; no se arma la misma estructura a mano en la pantalla. **Por qué:** cuatro
 listados y dos formularios con el mismo markup copiado eran el problema que resolvió TASK-029.
 Cambiar una primitiva cambia todas las pantallas; cambiar una copia, una sola.
+
+Breadcrumb usa los tokens existentes `surface`, `border`, `primary`, `soft-blue`, `muted` y
+`radius-sm`. No se sobrescriben sus estilos ni estos tokens desde un módulo de pantalla.
+Los nombres completos se ajustan en varias líneas, sin elipsis ni scroll horizontal; solo
+el elemento final lleva `aria-current="page"`. Los anteriores enlazan a entidades reales,
+con filtros y página de origen cuando corresponda (TASK-063).
 
 ## Regla 3: formatos y textos repetidos tienen un solo lugar
 

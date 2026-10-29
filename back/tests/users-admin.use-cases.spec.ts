@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { ListarUsuarios } from "../src/users/application/listar-usuarios.js";
-import type { PublicUser } from "../src/users/domain/user.js";
+import type { UsuarioAdministrativo } from "../src/users/domain/user-administration.repository.js";
 import type { UserRepository } from "../src/users/domain/user.repository.js";
 import { InvalidPaginationError } from "../src/shared/domain/errors.js";
 import { paginate } from "./academic-fixture.js";
 
 function fixture() {
-  const usuarios: PublicUser[] = [];
+  const usuarios: UsuarioAdministrativo[] = [];
   const users = {
     findAll: vi.fn(async (pagination) => paginate(usuarios, pagination)),
     findById: vi.fn(async () => null),
@@ -15,8 +15,8 @@ function fixture() {
     create: vi.fn(),
   } as unknown as UserRepository;
 
-  function addUser(email: string): PublicUser {
-    const user: PublicUser = { id: randomUUID(), email, displayName: "Persona", role: "USER", createdAt: new Date() };
+  function addUser(email: string): UsuarioAdministrativo {
+    const user: UsuarioAdministrativo = { id: randomUUID(), email, displayName: "Persona", role: "USER", createdAt: new Date(), disabledAt: null };
     usuarios.push(user);
     return user;
   }
@@ -53,6 +53,7 @@ describe("ListarUsuarios", () => {
     const { listarUsuarios, addUser } = fixture();
     addUser("uno@alu.frlp.utn.edu.ar");
     const result = await listarUsuarios.execute(undefined);
-    expect(Object.keys(result.items[0]!).sort()).toEqual(["createdAt", "displayName", "email", "id", "role"]);
+    // TASK-070: el contrato administrativo agrega estado explícito sin cambiar auth.
+    expect(Object.keys(result.items[0]!).sort()).toEqual(["createdAt", "disabledAt", "displayName", "email", "id", "role"]);
   });
 });

@@ -27,6 +27,7 @@ import type { Materia } from "./domain/materia.js";
 import type { Profesor } from "./domain/profesor.js";
 import type { Cursada, CursadaResumen } from "./domain/cursada.js";
 import type { Comision, ComisionDetalle, ProfesorAsignado } from "./domain/comision.js";
+import { validateId } from "./application/academic-id.js";
 
 // Las lecturas exigen sesión; las altas exigen además rol ADMIN vía @Roles + RolesGuard.
 // Sin @Roles, RolesGuard solo confirma que haya usuario autenticado.
@@ -64,20 +65,20 @@ export class AcademicController {
 
   @Patch("profesores/:profesorId")
   @Roles("ADMIN")
-  editarProfesor(@Param("profesorId") id: string, @Body() body: unknown) {
-    return this.actualizarProfesor.execute(id, body);
+  editarProfesor(@Param("profesorId") id: string, @Body() body: unknown, @Req() request: AuthenticatedRequest) {
+    return this.actualizarProfesor.execute(id, body, validateId(request.authUser?.id));
   }
 
   @Patch("cursadas/:cursadaId")
   @Roles("ADMIN")
-  editarCursada(@Param("cursadaId") id: string, @Body() body: unknown) {
-    return this.actualizarCursada.execute(id, body);
+  editarCursada(@Param("cursadaId") id: string, @Body() body: unknown, @Req() request: AuthenticatedRequest) {
+    return this.actualizarCursada.execute(id, body, validateId(request.authUser?.id));
   }
 
   @Patch("comisiones/:comisionId")
   @Roles("ADMIN")
-  editarComision(@Param("comisionId") id: string, @Body() body: unknown) {
-    return this.actualizarComision.execute(id, body);
+  editarComision(@Param("comisionId") id: string, @Body() body: unknown, @Req() request: AuthenticatedRequest) {
+    return this.actualizarComision.execute(id, body, validateId(request.authUser?.id));
   }
 
   @Get("materias")
@@ -130,38 +131,38 @@ export class AcademicController {
 
   @Post("materias")
   @Roles("ADMIN")
-  nuevaMateria(@Body() body: unknown): Promise<Materia> {
-    return this.crearMateria.execute(body);
+  nuevaMateria(@Body() body: unknown, @Req() request: AuthenticatedRequest): Promise<Materia> {
+    return this.crearMateria.execute(body, validateId(request.authUser?.id));
   }
 
   @Post("profesores")
   @Roles("ADMIN")
-  nuevoProfesor(@Body() body: unknown): Promise<Profesor> {
-    return this.crearProfesor.execute(body);
+  nuevoProfesor(@Body() body: unknown, @Req() request: AuthenticatedRequest): Promise<Profesor> {
+    return this.crearProfesor.execute(body, validateId(request.authUser?.id));
   }
 
   @Post("cursadas")
   @Roles("ADMIN")
-  nuevaCursada(@Body() body: unknown): Promise<Cursada> {
-    return this.crearCursada.execute(body);
+  nuevaCursada(@Body() body: unknown, @Req() request: AuthenticatedRequest): Promise<Cursada> {
+    return this.crearCursada.execute(body, validateId(request.authUser?.id));
   }
 
   @Post("comisiones")
   @Roles("ADMIN")
-  nuevaComision(@Body() body: unknown): Promise<Comision> {
-    return this.crearComision.execute(body);
+  nuevaComision(@Body() body: unknown, @Req() request: AuthenticatedRequest): Promise<Comision> {
+    return this.crearComision.execute(body, validateId(request.authUser?.id));
   }
 
   @Put("comisiones/:comisionId/profesores/:profesorId")
   @Roles("ADMIN")
-  asignarProfesor(@Param("comisionId") comisionId: string, @Param("profesorId") profesorId: string, @Body() body: unknown): Promise<ProfesorAsignado> {
-    return this.asignarProfesorComision.execute(comisionId, profesorId, body);
+  asignarProfesor(@Param("comisionId") comisionId: string, @Param("profesorId") profesorId: string, @Body() body: unknown, @Req() request: AuthenticatedRequest): Promise<ProfesorAsignado> {
+    return this.asignarProfesorComision.execute(comisionId, profesorId, body, validateId(request.authUser?.id));
   }
 
   @Delete("comisiones/:comisionId/profesores/:profesorId")
   @Roles("ADMIN")
   @HttpCode(204)
-  quitarProfesor(@Param("comisionId") comisionId: string, @Param("profesorId") profesorId: string): Promise<void> {
-    return this.quitarProfesorComision.execute(comisionId, profesorId);
+  quitarProfesor(@Param("comisionId") comisionId: string, @Param("profesorId") profesorId: string, @Req() request: AuthenticatedRequest): Promise<void> {
+    return this.quitarProfesorComision.execute(comisionId, profesorId, validateId(request.authUser?.id));
   }
 }
