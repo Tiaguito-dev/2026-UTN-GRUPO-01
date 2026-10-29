@@ -49,7 +49,7 @@
 .tableScroll th, .tableScroll td { padding: var(--space-2); text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: anywhere; }
 .tableScroll thead { color: var(--muted); }
 .empty { margin-top: var(--space-4); }
-@media (max-width: 1000px) { .auditGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5) 0; } .auditGrid section:nth-child(3) { padding-left: 0; border-left: 0; } }
+@media (max-width: 1000px) { .auditGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5) 0; } .auditGrid section:nth-child(2) { padding-right: 0; } .auditGrid section:nth-child(3) { padding-left: 0; padding-top: var(--space-5); border-left: 0; border-top: 1px solid var(--border); } }
 @media (max-width: 600px) {
   .header h1 { font-size: 1.75rem; }
   .card { padding: var(--space-5); }
@@ -58,5 +58,6 @@
   .fields, .auditGrid { grid-template-columns: minmax(0, 1fr); }
   .auditGrid section { padding: var(--space-4) 0 0; border-left: 0; border-top: 1px solid var(--border); }
   .auditGrid section:first-child { padding-top: 0; border-top: 0; }
+  .auditGrid section:nth-child(3) { padding-top: var(--space-4); }
 }
 @media (prefers-reduced-motion: reduce) { .chevron { transition: none; } }

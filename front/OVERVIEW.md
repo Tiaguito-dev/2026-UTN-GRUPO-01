@@ -886,11 +886,11 @@ estado y acciones en la cabecera (debajo de la identidad en móvil), correo y ro
 expone `displayName`; no se infiere un nombre completo distinto. Conserva retorno con filtros,
 confirmaciones, restricciones sobre la propia cuenta y operaciones reales del service de usuarios.
 
-`UserAudit` y `UserDetail.module.css` definen exclusivamente la presentación del detalle de usuarios:
+`UserAudit` y `UserDetail.module.css` definen la presentación compartida de auditoría de usuarios y Materias:
 tres columnas de auditoría en escritorio, dos intermedias y una móvil; historial nativo desplegable
 con tabla Campo/Antes/Después. Las referencias de actores usan nombres autorizados opcionales del
 endpoint; una referencia sin nombre se presenta como “Usuario no identificado”, sin mostrar IDs.
-No se cambian las vistas académicas. La marca compartida `SiteHeader` usa `BookOpen` decorativo
+La ampliación conserva la desactivación de usuarios y usa baja para entidades académicas. Profesores, Cursadas y Comisiones conservan su presentación. La marca compartida `SiteHeader` usa `BookOpen` decorativo
 y conserva el enlace de destino por rol.
 
 `AdminAudit` y `AdminAuditPanel` restringen auditoría e historial al rol `ADMIN`. El cargador
@@ -901,3 +901,11 @@ Se agrupa creación, modificación y baja/desactivación/eliminación según la 
 ausente no determina el estado actual. El identificador interno no se muestra en la auditoría.
 El historial usa `details`/`summary`, inicia cerrado, cuenta solo eventos del backend y conserva
 paginación de tres registros. No reemplaza el historial privado de versiones de comentarios.
+
+## Detalle administrativo de Materias
+
+Los modales académicos de confirmación de baja identifican el registro por su nombre, sin ID visible. Explican que quedará inactivo y se conservarán sus datos e historial. Materias, períodos y profesores aclaran las asociaciones vigentes que bloquean la baja y el paso necesario para resolverlas; Comisiones informa sus restricciones sin anunciar un bloqueo relacional inexistente. Se conservan los mismos handlers, permisos, botones y errores backend.
+
+`AdminMateriaDetail` conserva Volver, breadcrumb y los constructores de navegación contextual existentes. Presenta el nombre real, Detalle de materia y Datos académicos y períodos de cursada, con edición y confirmación de baja existentes únicamente para ADMIN cuando la materia está activa. La tarjeta Información académica distingue Anual de Cuatrimestral; Cuatrimestre aparece solo para PRIMERO/SEGUNDO. Las ausencias se identifican como No registrado. Carreras y año conserva cada asociación formal con su clasificación y nivel de electiva; Ver cursadas abre el listado administrativo real de la materia con su contexto.
+
+La auditoría reutiliza la presentación de usuarios y el hook administrativo existente: tres/dos/una columnas según ancho, fechas y horas locales, actores autorizados o ausencias explícitas e historial cerrado inicialmente con paginación de tres. Modalidad, carreras, años, niveles y operaciones se traducen desde formatos reales; no se infiere una baja desde un valor nulo. Los estilos locales conservan la paleta institucional, un máximo de 1200px y adaptación de textos/acciones sin restricciones de altura. No cambian contratos, backend, sidebar, navbar ni gestión docente. Ver evidencia en `docs/tasks/finished/TASK-materia-detail-user-style.md`; validación de navegador a cargo del desarrollador.

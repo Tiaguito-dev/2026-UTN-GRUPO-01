@@ -1152,6 +1152,10 @@ produce nombre nulo. Se mantienen las referencias internas para trazabilidad; fr
 No cambia el contrato de actores ni las consultas de materias, cursadas, profesores u otras entidades.
 No hay cambios de permisos, payloads de escritura, estados, migraciones ni variables de entorno.
 
+## Contrato consumido por el detalle administrativo de Materias
+
+El refinamiento visual de Materias conserva `GET /admin/materias/:id/detalle?page=1&pageSize=3`, su autorización ADMIN y los contratos de edición/baja existentes. No cambia rutas, reglas, persistencia ni auditoría. Los valores de historial de carreras usan el formato existente `S:2,Q:ELECTIVA:4`; frontend traduce cada asociación con su año y nivel, sin alterar el historial almacenado. Los nombres de actores son opcionales en el contrato frontend: se presentan solo si la respuesta autorizada los incluye. El endpoint de Materias actualmente entrega referencias sin resolver nombres; estas se muestran como Usuario no identificado, sin consultas adicionales ni exposición de UUID. Auditoría sin referencia se presenta No registrado. No hay nuevas migraciones ni variables de entorno.
+
 ## Compatibilidad de la integración docente
 
 La integración de desarrollo con hot-fix/ui mantiene los contratos de asignación docente: `PUT /comisiones/:comisionId/profesores/:profesorId` con `{ cargo }` y `DELETE` sobre la misma ruta. Cada operación conserva permisos ADMIN, validaciones de vigencia, transacción y trazabilidad existentes; no requiere migraciones ni cambios de configuración. Las pruebas HTTP/SQL añadidas por TASK-057 requieren `TEST_DATABASE_URL` exclusivo. La evidencia de integración queda en `docs/tasks/finished/TASK-integracion-desarrollo-docentes.md`.

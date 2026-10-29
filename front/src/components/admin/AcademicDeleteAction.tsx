@@ -8,10 +8,10 @@ import { AdminConfirmDialog } from "./AdminConfirmDialog";
 
 const labels: Record<AcademicAdminKind, string> = { materias: "materia", profesores: "profesor", cursadas: "período", comisiones: "comisión" };
 const effects: Record<AcademicAdminKind, string> = {
-  materias: "No se podrá usar para crear nuevos períodos. Si tiene períodos vigentes, la operación se bloqueará.",
-  profesores: "No se ofrecerá para nuevas asignaciones. Si tiene asignaciones en comisiones vigentes, primero deberás desvincularlo de esas comisiones. Dar de baja al profesor es distinto de quitar una asignación.",
-  cursadas: "No se podrá usar para crear nuevas comisiones. Si tiene comisiones vigentes, la operación se bloqueará.",
-  comisiones: "Quedará inactiva y no admitirá nuevas experiencias, ediciones ni asignaciones docentes. Se conservarán sus asignaciones y referencias históricas.",
+  materias: "Si tiene períodos de cursada vigentes asociados, la baja se bloqueará. Dales de baja primero.",
+  profesores: "Si tiene asignaciones en comisiones vigentes, la baja se bloqueará. Desvinculalo de esas comisiones primero.",
+  cursadas: "Si tiene comisiones vigentes asociadas, la baja se bloqueará. Dales de baja primero.",
+  comisiones: "No admitirá nuevas experiencias, ediciones ni asignaciones docentes. Se conservarán las relaciones existentes.",
 };
 
 export function AcademicDeleteDialog({ kind, id, label, onClose, onSuccess, onAttempt }: { kind: AcademicAdminKind; id: string; label: ReactNode; onClose: () => void; onSuccess: () => void; onAttempt?: () => void }) {
@@ -21,8 +21,7 @@ export function AcademicDeleteDialog({ kind, id, label, onClose, onSuccess, onAt
     onSuccess();
   }}>
     <p>¿Querés dar de baja {label}?</p>
-    <p>Identificador: {id}</p>
-    <p>La baja es lógica: dejará de aparecer en los listados y selectores de registros vigentes. Se conservarán el registro, sus experiencias, relaciones y el historial.</p>
+    <p>El registro quedará inactivo. Se conservarán sus datos y el historial.</p>
     <p>{effects[kind]}</p>
   </AdminConfirmDialog>;
 }

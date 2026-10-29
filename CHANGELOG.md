@@ -2,6 +2,17 @@
 
 ## [Sin publicar]
 
+### Mensajes de confirmación de baja académica
+
+- Los modales identifican el registro por su nombre, sin mostrar el ID. Mensajes breves sobre inactividad, conservación de datos e historial y asociaciones vigentes que bloquean la baja según cada entidad.
+- Sin cambios a permisos, operaciones, confirmaciones ni restricciones del backend.
+
+### Presentación del detalle administrativo de Materias
+
+- Encabezado contextual y acciones existentes de edición/baja, información académica semántica y asociaciones completas de carrera, año y nivel de electiva.
+- Auditoría e historial reutilizan la presentación de usuarios, con etiquetas de baja académica, valores legibles y actores sin identificadores internos.
+- Regresiones automáticas y disponibilidad del stack local documentadas en la tarea; revisión de navegador a cargo del desarrollador, sin capturas ni commit.
+
 ### Integración de desarrollo y compatibilidad de pruebas
 
 - Se incorpora la gestión docente de TASK-057 conservando la navegación contextual administrativa y el guardado inmediato de asignaciones, cargos y desvinculaciones.
