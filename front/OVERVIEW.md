@@ -1,5 +1,20 @@
 # Frontend
 
+## Eliminación de experiencias
+
+Un ADMIN puede eliminar un comentario vigente desde su detalle administrativo mediante
+`AdminExperienceDeleteAction`: botón secundario rojo con Trash2 y `AdminConfirmDialog` compartido.
+Cancelar/Escape no llaman al servidor, la confirmación bloquea envíos repetidos y los errores
+permiten reintentar. Tras el éxito permanece en detalle, conserva el contexto de retorno y recarga
+registro y auditoría en página uno, mostrando Eliminado y el actor real. La acción desaparece para
+registros eliminados y no se ofrece a otros roles en este recorrido.
+
+El autor mantiene su acción Eliminar en Tu comentario, accesible desde Administrar mi comentario;
+conserva confirmación, regreso al listado/comisión filtrado y mensaje de éxito. También puede
+retirarlo con comisión inactiva. Ambos recorridos usan `eliminarFeedback` y DELETE /feedback/:id,
+con permisos verificados en servidor. No hay restauración, borrado definitivo ni edición de
+comentarios ajenos. El historial privado del autor y la auditoría administrativa siguen separados.
+
 ## Detalle administrativo de Experiencias
 
 `AdminRecordDetail` conserva el origen de Experiencias o comisión y presenta el registro con

@@ -1,7 +1,13 @@
 import { FeedbackClosedError, FeedbackForbiddenError, FeedbackInputError } from "./errors.js";
+import type { UserRole } from "../../users/domain/user.js";
 
 export function assertFeedbackOwner(autorId: string, viewer: string): void {
   if (autorId !== viewer) throw new FeedbackForbiddenError();
+}
+
+/** Moderation grants removal only; ownership still governs editing and private history. */
+export function assertFeedbackRemoval(autorId: string, viewer: string, role: UserRole): void {
+  if (role !== "ADMIN") assertFeedbackOwner(autorId, viewer);
 }
 
 export function assertFeedbackOpen(activa: boolean): void {

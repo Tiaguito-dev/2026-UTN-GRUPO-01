@@ -2,6 +2,12 @@
 
 ## [Sin publicar]
 
+### Eliminación de experiencias por autor o administrador
+
+- ADMIN puede eliminar comentarios de cualquier autor desde el detalle administrativo con confirmación, cancelación y estilo de baja existente. Conserva la eliminación del autor desde Tu comentario.
+- DELETE /feedback/:id valida autor o rol ADMIN de la sesión y conserva soft delete, snapshot y actor real en auditoría; eliminaciones concurrentes generan un único evento. Funciona en comisiones inactivas.
+- Recarga estado e historial tras eliminar y mantiene contexto, datos y relaciones. No amplía edición ni historial privado, ni incorpora restauración o borrado definitivo.
+
 ### Presentación del detalle administrativo de Experiencias
 
 - Encabezado y ficha alineados con materias, profesores y usuarios: autor con iniciales, estado explícito, contenido completo y contexto académico registrado, adaptables a móvil y nombres largos.

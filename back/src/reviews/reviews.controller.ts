@@ -53,7 +53,7 @@ export class ReviewsController {
   @Delete("feedback/:id")
   @HttpCode(204)
   @Header("Cache-Control", "no-store")
-  remove(@Param("id") id: string, @Req() request: AuthenticatedRequest) { return this.feedback.remove(id, user(request)); }
+  remove(@Param("id") id: string, @Req() request: AuthenticatedRequest) { return this.feedback.remove(id, user(request), request.authUser?.role); }
 
   @Get("feedback/:id/historial")
   @Header("Cache-Control", "no-store")

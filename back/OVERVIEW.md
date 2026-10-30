@@ -56,7 +56,7 @@ conservan Origin/CSRF del transporte existente. La autoría se obtiene exclusiva
 | `POST /comisiones/:id/feedback` | `{texto, anonimo, profesorId?}`; responde 201 con el comentario. |
 | `GET /feedback/:id` | Detalle vigente exclusivo del autor (403 para otras cuentas, incluido ADMIN), sin email ni identificador del autor. |
 | `PATCH /feedback/:id` | Solo autor; `{texto?, anonimo?}`. No permite cambiar comisión ni docente. |
-| `DELETE /feedback/:id` | Solo autor; baja lógica y revisión en transacción, responde 204. |
+| `DELETE /feedback/:id` | Autor o ADMIN; baja lógica y revisión en transacción, responde 204. |
 | `GET /feedback/:id/historial?page=1&pageSize=3` | Solo autor, incluso tras eliminación; creación, edición y eliminación. |
 
 Listados: `{items,total,page,pageSize}`; máximo nueve comentarios por página y tres revisiones.
@@ -68,6 +68,15 @@ Revisión: `{id,accion,texto,anonimo,createdAt}`, con acción CREACION, EDICION 
 Las fechas se serializan como ISO. El anonimato oculta la identidad incluso al propio autor
 en la proyección pública; `propio` habilita sus acciones sin exponer identificadores.
 El historial es privado del autor: un ADMIN ajeno tampoco accede a él.
+
+La eliminación admite al autor o a un ADMIN según la identidad y el rol de la sesión autenticada,
+sin aceptar identidad/rol del cliente. No amplía GET/PATCH ni el historial privado. Revalida el
+registro bajo bloqueo de comisión y registra el actor real, el snapshot de eliminación y la fecha
+en una única transacción. Funciona con comisión inactiva; conserva relaciones y versiones,
+retira el comentario de los feeds y permite al autor publicar otro si la comisión admite altas.
+Sin sesión responde 401, sin CSRF o sin permiso 403, y ante un registro inexistente o ya eliminado
+404. Dos eliminaciones concurrentes generan un único evento; la segunda recibe 404. No requiere
+migraciones. El detalle administrativo conserva la consulta autorizada de auditoría y actor.
 
 La consulta general de Experiencias (TASK-061) reutiliza los mismos comentarios, proyección
 pública y paginación: nueve por defecto y máximo nueve. Devuelve `{items,total,page,pageSize}`,

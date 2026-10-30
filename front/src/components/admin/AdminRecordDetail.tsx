@@ -13,6 +13,7 @@ import { cambiarEstadoUsuario } from "@/services/users";
 import { AdminConfirmDialog } from "./AdminConfirmDialog";
 import { useAdminDetail } from "./useAdminDetail";
 import { AdminExperienceCard } from "./AdminExperienceCard";
+import { AdminExperienceDeleteAction } from "./AdminExperienceDeleteAction";
 import { UserAccountCard, userValue } from "./UserAccountCard";
 import { UserAudit } from "./UserAudit";
 import { useAdminCommissionOrigin, useDiscardInvalidAdminOrigin } from "./useAdminCommissionOrigin";
@@ -48,7 +49,10 @@ export function AdminRecordDetail({ kind, id }: { kind: "users" | "feedback"; id
   return <section className={kind === "users" ? userStyles.page : styles.page} aria-labelledby={headingId}>
     {kind === "users" ? <div className={userStyles.header}>{header}</div> : <header className={styles.header}>
       {header}
-      {typeof record?.comisionId === "string" ? <div className={styles.actions}><Link className={`button button-secondary ${styles.edit}`} href={source.data?.id === record.comisionId && !source.error ? back : comisionDetailHref(record.comisionId, commissionParent)}>Ver comisión<ArrowRight size={17} aria-hidden="true" /></Link></div> : null}
+      {record ? <div className={styles.actions}>
+        {typeof record.comisionId === "string" ? <Link className={`button button-secondary ${styles.edit}`} href={source.data?.id === record.comisionId && !source.error ? back : comisionDetailHref(record.comisionId, commissionParent)}>Ver comisión<ArrowRight size={17} aria-hidden="true" /></Link> : null}
+        {!record.deletedAt ? <AdminExperienceDeleteAction key={id} id={id} onSuccess={() => { setMessage("El comentario se eliminó correctamente."); setPage(1); retry(); }} /> : null}
+      </div> : null}
     </header>}
     {message ? <Notice tone="success">{message}</Notice> : null}
     {error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la información. Intentá nuevamente. <button className="button button-secondary" type="button" onClick={retry}>Reintentar</button></Notice> : !data ? <p role="status">Cargando registro…</p> : <>

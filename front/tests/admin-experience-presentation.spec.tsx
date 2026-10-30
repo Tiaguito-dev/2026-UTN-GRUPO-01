@@ -57,7 +57,9 @@ describe("presentación administrativa de Experiencias", () => {
     expect(field("Cargo en esta comisión").textContent).toBe("Titular");
     expect(container.textContent).not.toContain(reference);
     expect(container.querySelector("img")).toBeNull();
-    expect(screen.queryByRole("button", { name: /Editar|Eliminar|Restaurar|Dar de baja/i })).toBeNull();
+    // TASK-feedback-removal-permissions agrega eliminación administrativa con confirmación.
+    expect(screen.getByRole("button", { name: "Eliminar comentario" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Editar|Restaurar|Dar de baja/i })).toBeNull();
   });
 
   it("mantiene nombre autorizado del autor aunque la publicación sea anónima", async () => {

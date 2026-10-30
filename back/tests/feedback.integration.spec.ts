@@ -312,12 +312,13 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     expect((await publish(f.path)).profesor).toBeNull();
   });
 
-  it("solo el autor edita o elimina; historial privado incluso para ADMIN", async () => {
+  it("solo el autor edita y el historial privado no se amplía para ADMIN", async () => {
     const f = await fixture();
     const created = await publish(f.path);
     for (const cookie of [otro.cookie, admin.cookie]) {
       expect((await request(`/feedback/${created.id}`, "PATCH", { texto: "Manipulado" }, cookie)).status).toBe(403);
-      expect((await request(`/feedback/${created.id}`, "DELETE", undefined, cookie)).status).toBe(403);
+      // TASK-feedback-removal-permissions: ADMIN ahora puede eliminar; tercero USER sigue bloqueado.
+      if (cookie === otro.cookie) expect((await request(`/feedback/${created.id}`, "DELETE", undefined, cookie)).status).toBe(403);
       expect((await request(`/feedback/${created.id}/historial`, "GET", undefined, cookie)).status).toBe(403);
     }
     const changed = await request(`/feedback/${created.id}`, "PATCH", { texto: "Explica con ejemplos", anonimo: false }, autor.cookie);
@@ -342,6 +343,65 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     const again = await publish(f.path);
     expect(again.id).not.toBe(created.id);
     expect((await (await request(f.path, "GET", undefined, autor.cookie)).json()).total).toBe(1);
+  });
+
+  it("ADMIN elimina un comentario ajeno anónimo y registra su identidad real sin alterar snapshots", async () => {
+    const f = await fixture();
+    const created = await publish(f.path);
+    const before = await prisma.feedback.findUniqueOrThrow({ where: { id: created.id } });
+    expect((await request(`/feedback/${created.id}`, "DELETE", undefined, admin.cookie)).status).toBe(204);
+    const after = await prisma.feedback.findUniqueOrThrow({ where: { id: created.id } });
+    expect(after.deletedAt).not.toBeNull();
+    for (const key of ["autorId", "texto", "anonimo", "comisionId", "materiaId", "materiaNombre", "profesorId", "profesorNombre", "profesorCargo", "cursadaId", "anio", "cuatrimestre", "modalidad"] as const) expect(after[key]).toEqual(before[key]);
+    const removed = await prisma.administracionHistorial.findMany({ where: { entidad: "feedback", entidadId: created.id, accion: "ELIMINACION" } });
+    expect(removed).toHaveLength(1);
+    expect(removed[0]!.actorId).toBe(admin.id);
+    const snapshot = await prisma.feedbackHistorial.findUniqueOrThrow({ where: { id: removed[0]!.id } });
+    expect(snapshot).toMatchObject({ feedbackId: created.id, accion: "ELIMINACION", texto: created.texto, anonimo: true });
+    const auditResponse = await request(`/admin/feedback/${created.id}/detalle`, "GET", undefined, admin.cookie);
+    expect(auditResponse.status).toBe(200);
+    const audit = await auditResponse.json();
+    expect(audit.auditoria).toMatchObject({ deletedBy: admin.id, deletedByName: "Administrador", updatedBy: admin.id });
+    expect(audit.historial.items[0]).toMatchObject({ actorId: admin.id, actorName: "Administrador", accion: "ELIMINACION" });
+    const feed = await (await request(f.path, "GET", undefined, otro.cookie)).json();
+    expect(feed.items.some((entry: { id: string }) => entry.id === created.id)).toBe(false);
+    expect((await request(`/feedback/${created.id}`, "DELETE", undefined, admin.cookie)).status).toBe(404);
+    expect(await prisma.administracionHistorial.count({ where: { entidadId: created.id, accion: "ELIMINACION" } })).toBe(1);
+  });
+
+  it("ADMIN elimina su publicación propia y un comentario de una comisión inactiva", async () => {
+    const own = await fixture(0);
+    const createdOwn = await publish(own.path, admin.cookie);
+    expect((await request(`/feedback/${createdOwn.id}`, "DELETE", undefined, admin.cookie)).status).toBe(204);
+    const inactive = await fixture();
+    const createdOther = await publish(inactive.path);
+    await prisma.comision.update({ where: { id: inactive.comision.id }, data: { activa: false } });
+    expect((await request(`/feedback/${createdOther.id}`, "DELETE", undefined, admin.cookie)).status).toBe(204);
+    expect(await prisma.comisionProfesor.count({ where: { comisionId: inactive.comision.id } })).toBe(1);
+    expect(await prisma.feedbackHistorial.count({ where: { feedbackId: createdOther.id } })).toBe(2);
+  });
+
+  it("la eliminación exige sesión y CSRF e ignora cualquier pretensión de rol desde el cliente", async () => {
+    const f = await fixture();
+    const created = await publish(f.path);
+    const path = `/feedback/${created.id}`;
+    expect((await request(path, "DELETE")).status).toBe(401);
+    const noCsrf = await fetch(`${baseUrl}${path}`, { method: "DELETE", headers: { Cookie: admin.cookie, "Content-Type": "application/json" } });
+    expect(noCsrf.status).toBe(403);
+    expect((await request(`${path}?role=ADMIN`, "DELETE", { role: "ADMIN", autorId: autor.id }, otro.cookie)).status).toBe(403);
+    expect((await prisma.feedback.findUniqueOrThrow({ where: { id: created.id } })).deletedAt).toBeNull();
+    expect(await prisma.feedbackHistorial.count({ where: { feedbackId: created.id, accion: "ELIMINACION" } })).toBe(0);
+  });
+
+  it("eliminaciones simultáneas de autor y ADMIN generan un único evento y un actor real", async () => {
+    const f = await fixture();
+    const created = await publish(f.path);
+    const results = await Promise.all([request(`/feedback/${created.id}`, "DELETE", undefined, autor.cookie), request(`/feedback/${created.id}`, "DELETE", undefined, admin.cookie)]);
+    expect(results.map(response => response.status).sort()).toEqual([204, 404]);
+    const events = await prisma.administracionHistorial.findMany({ where: { entidadId: created.id, accion: "ELIMINACION" } });
+    expect(events).toHaveLength(1);
+    expect([autor.id, admin.id]).toContain(events[0]!.actorId);
+    expect(await prisma.feedbackHistorial.count({ where: { feedbackId: created.id, accion: "ELIMINACION" } })).toBe(1);
   });
 
   it("inactiva cierra altas y ediciones pero permite retirar", async () => {
