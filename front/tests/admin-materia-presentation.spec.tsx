@@ -98,7 +98,8 @@ describe("presentación administrativa de Materias", () => {
     state.query = new URLSearchParams({ returnTo: origin }).toString();
     await renderDetail();
     expect(href(/Volver a/).pathname + href(/Volver a/).search).toBe(origin);
-    expect(href("Editar materia").searchParams.get("returnTo")).toBe(origin);
+    // TASK-admin-navigation-context: cancelar edición recupera el detalle, no salta al listado.
+    expect(href("Editar materia").searchParams.get("returnTo")).toBe(`/home/admin/materias/m1?${new URLSearchParams({ returnTo: origin })}`);
     const cursadas = href("Ver cursadas");
     expect(cursadas.pathname).toBe("/home/admin/cursadas");
     expect(cursadas.searchParams.get("materiaId")).toBe("m1");

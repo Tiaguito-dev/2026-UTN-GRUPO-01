@@ -34,7 +34,9 @@ beforeEach(() => {
   vi.resetAllMocks(); state.role = "ADMIN"; state.query = "";
   profesor = { id: "p1", nombreCompleto: "María de los Ángeles Fernández del Valle", createdAt: date, deletedAt: null };
   history = { items: [], total: 0, page: 1, pageSize: 3 };
-  vi.mocked(obtenerDetalleAdministrativo).mockImplementation(async (_kind, _id, page = 1) => detail(page));
+  vi.mocked(obtenerDetalleAdministrativo).mockImplementation(async (kind, _id, page = 1) => kind === "comisiones" ? {
+    ...detail(page), registro: { id: "co1", cursadaId: "cu1", carrera: "S", numero: 31, nombre: "S-31", activa: true, createdAt: date, deletedAt: null, profesores: [], cursada: { id: "cu1", anio: 2026, cuatrimestre: "PRIMERO", materia: { id: "m1", nombre: "Álgebra" } } },
+  } : detail(page));
   vi.mocked(eliminarAcademico).mockImplementation(async () => { profesor = { ...profesor, deletedAt: date }; });
 });
 afterEach(cleanup);
@@ -92,7 +94,8 @@ describe("presentación administrativa de Profesores", () => {
     expect(within(breadcrumb).getByRole("link", { name: "Profesores" }).getAttribute("href")).toBe(list);
     expect(within(breadcrumb).getByText(profesor.nombreCompleto).getAttribute("aria-current")).toBe("page");
     expect(href("Editar profesor").pathname).toBe("/home/admin/profesores/p1/editar");
-    expect(href("Editar profesor").searchParams.get("returnTo")).toBe(list);
+    // TASK-admin-navigation-context: la edición conserva el detalle como destino de cancelar.
+    expect(href("Editar profesor").searchParams.get("returnTo")).toBe(`/home/admin/profesores/p1?${new URLSearchParams({ returnTo: list })}`);
     expect(screen.getByText("Profesor actualizado correctamente.")).toBeTruthy();
   });
 
@@ -100,7 +103,22 @@ describe("presentación administrativa de Profesores", () => {
     state.query = new URLSearchParams({ returnTo }).toString();
     await renderDetail();
     expect(href(/Volver a/).pathname + href(/Volver a/).search).toBe("/home/admin/profesores");
-    expect(href("Editar profesor").searchParams.get("returnTo")).toBe("/home/admin/profesores");
+    expect(href("Editar profesor").searchParams.get("returnTo")).toBe(`/home/admin/profesores/p1?${new URLSearchParams({ returnTo: "/home/admin/profesores" })}`);
+  });
+
+  it("un profesor abierto desde equipo docente regresa a esa comisión y conserva Experiencias", async () => {
+    const list = "/home/admin/experiencias?carrera=S&materiaId=m1&page=3";
+    const commission = `/home/admin/comisiones/co1?${new URLSearchParams({ returnTo: list })}`;
+    state.query = new URLSearchParams({ returnTo: commission }).toString();
+    await renderDetail();
+    await screen.findByRole("link", { name: "Comisión S-31" });
+    expect(href(/Volver a/).pathname + href(/Volver a/).search).toBe(commission);
+    const breadcrumb = within(screen.getByRole("navigation", { name: "Ubicación actual" }));
+    expect(breadcrumb.getByRole("link", { name: "Experiencias" }).getAttribute("href")).toBe(list);
+    expect(breadcrumb.getByRole("link", { name: /Comisión/ }).getAttribute("href")).toBe(commission);
+    const edit = new URL(href("Editar profesor").searchParams.get("returnTo")!, "https://local.test");
+    expect(edit.pathname).toBe("/home/admin/profesores/p1");
+    expect(edit.searchParams.get("returnTo")).toBe(commission);
   });
 
   it("conserva auditoría del profesor inactivo sin ofrecer editar ni baja", async () => {

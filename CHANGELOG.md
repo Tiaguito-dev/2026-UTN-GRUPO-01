@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### Contexto de navegación administrativa
+
+- Experiencias → comisión conserva filtros, página, breadcrumb contextual y sección activa.
+- Los accesos académicos conservan su jerarquía y los enlaces directos reconstruyen los padres reales. Retornos internos validados, sin mensajes transitorios ni cadenas ilimitadas.
+- Auditoría de comentarios, profesores del equipo y edición conservan sus destinos de origen; guardar/cancelar desde detalle no anida copias del mismo detalle.
+- Sin cambios de diseño, permisos ni backend. 709 pruebas frontend, tipos, lint, build y 16 comprobaciones HTTP aprobados; frontend del stack actualizado. Recorridos en navegador a cargo del desarrollador; evidencia en `docs/tasks/finished/TASK-admin-navigation-context.md`.
+
 ### Actores de auditoría en todos los módulos administrativos
 
 - Resolución uniforme de nombres en materias, cursadas, comisiones y experiencias, conservando usuarios/profesores. Incluye el actor de la última modificación de MateriaHistorial fuera de la página visible.

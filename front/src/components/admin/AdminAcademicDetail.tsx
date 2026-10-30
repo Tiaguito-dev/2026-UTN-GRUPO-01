@@ -12,11 +12,12 @@ import { type CursadaDetalle, type Profesor } from "@/services/academic";
 import { periodoLabel } from "@/lib/format/periodo";
 import { carreraLabel } from "@/lib/format/carrera";
 import { adminFormHref, safeAdminReturnTo, safeMateriaListOrigin } from "@/validations/admin";
-import { academicListReturnTo, comisionesListHref, cursadasListHref, materiaDetailBack, materiaDetailHref } from "@/validations/admin-academic-navigation";
+import { academicListReturnTo, administrativeDetailHref, comisionesListHref, cursadasListHref, materiaDetailBack, materiaDetailHref, profesorDetailBack } from "@/validations/admin-academic-navigation";
 import { anioCarreraLabel, nivelElectivaLabel } from "@/validations/materias";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Notice } from "@/components/ui/Notice";
 import { AcademicDeleteDialog } from "./AcademicDeleteAction";
+import { useAdminCommissionOrigin, useDiscardInvalidAdminOrigin } from "./useAdminCommissionOrigin";
 import { AdminSharedAudit } from "./AdminSharedAudit";
 import materiaStyles from "./AdminMateriaDetail.module.css";
 import profesorStyles from "./AdminProfesorDetail.module.css";
@@ -63,7 +64,7 @@ export function AdminMateriaDetail({ materiaId }: { materiaId: string }) {
     <header className={materiaStyles.header}>
       <PageHeader id={headingId} title={title} eyebrow="Detalle de materia" description="Datos académicos y períodos de cursada" back={{ href: back, label: "contexto administrativo" }} breadcrumb={[{ label: "Administración", href: "/home/admin" }, { label: "Materias", href: materiaReturnTo }, { label: title }]} />
       {canManage ? <div className={materiaStyles.actions}>
-        <Link className={`button button-secondary ${materiaStyles.edit}`} href={adminFormHref(`/home/admin/materias/${encodeURIComponent(materiaId)}/editar`, safeAdminReturnTo(back) ?? "/home/admin/materias")}><Pencil size={17} aria-hidden="true" />Editar materia</Link>
+        <Link className={`button button-secondary ${materiaStyles.edit}`} href={adminFormHref(`/home/admin/materias/${encodeURIComponent(materiaId)}/editar`, materiaDetailHref(materiaId, back))}><Pencil size={17} aria-hidden="true" />Editar materia</Link>
         <button className={`button button-secondary ${materiaStyles.remove}`} type="button" aria-label={`Dar de baja materia ${materia.nombre}`} onClick={() => setConfirmDelete(true)}><Trash2 size={17} aria-hidden="true" />Dar de baja</button>
       </div> : null}
     </header>
@@ -98,19 +99,25 @@ export function AdminProfesorDetail({ profesorId }: { profesorId: string }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [auditVersion, setAuditVersion] = useState(0);
   const params = useSearchParams();
-  const origin = safeAdminReturnTo(params.get("returnTo"));
-  const back = origin && new URL(origin, "https://local.invalid").pathname === "/home/admin/profesores" ? origin : "/home/admin/profesores";
+  const origin = profesorDetailBack(params.get("returnTo"));
+  const source = useAdminCommissionOrigin(origin);
+  useDiscardInvalidAdminOrigin(source.error);
+  const back = source.error ? "/home/admin/profesores" : origin;
   const { data: profesor, error, retry } = useAdminResource<Profesor>(profesorId, loadProfesor);
   const name = profesor?.nombreCompleto.trim() || "";
   const title = profesor ? name || "No registrado" : "Profesor";
+  const commissionContext = source.navigation;
+  const breadcrumb = commissionContext && source.data && !source.error
+    ? [...commissionContext.breadcrumb.slice(0, -1), { label: `Comisión ${source.data.nombre}`, href: back }, { label: title }]
+    : [{ label: "Administración", href: "/home/admin" }, { label: "Profesores", href: back }, { label: title }];
   const parts = name ? name.split(/\s+/u) : [];
   const initials = (parts.length > 1 ? [parts[0]!, parts[parts.length - 1]!] : parts).map(part => Array.from(part)[0]).join("").toLocaleUpperCase("es-AR");
   const canManage = isAdmin && profesor && !profesor.deletedAt;
   return <section className={materiaStyles.page} aria-labelledby={headingId}>
     <header className={materiaStyles.header}>
-      <PageHeader id={headingId} title={title} eyebrow="Detalle de profesor" description="Registro del catálogo de profesores" back={{ href: back, label: "listado de profesores" }} breadcrumb={[{ label: "Administración", href: "/home/admin" }, { label: "Profesores", href: back }, { label: title }]} focusKey={profesorId} />
+      <PageHeader id={headingId} title={title} eyebrow="Detalle de profesor" description="Registro del catálogo de profesores" back={{ href: back, label: source.id && !source.error ? "comisión" : "listado de profesores" }} breadcrumb={breadcrumb} focusKey={profesorId} />
       {canManage ? <div className={materiaStyles.actions}>
-        <Link className={`button button-secondary ${materiaStyles.edit}`} href={adminFormHref(`/home/admin/profesores/${encodeURIComponent(profesorId)}/editar`, back)}><Pencil size={17} aria-hidden="true" />Editar profesor</Link>
+        <Link className={`button button-secondary ${materiaStyles.edit}`} href={adminFormHref(`/home/admin/profesores/${encodeURIComponent(profesorId)}/editar`, administrativeDetailHref("profesores", profesorId, back))}><Pencil size={17} aria-hidden="true" />Editar profesor</Link>
         <button className={`button button-secondary ${materiaStyles.remove}`} type="button" aria-label={`Dar de baja profesor ${title}`} onClick={() => setConfirmDelete(true)}><Trash2 size={17} aria-hidden="true" />Dar de baja</button>
       </div> : null}
     </header>
@@ -156,7 +163,7 @@ export function AdminCursadaDetail({ cursadaId }: { cursadaId: string }) {
     <header className={materiaStyles.header}>
       <PageHeader id={headingId} title={title} eyebrow="Detalle de cursada" description={<span className={!cursada?.materia.nombre.trim() ? materiaStyles.missing : undefined}>{materiaName}</span>} back={{ href: back, label: "contexto administrativo" }} breadcrumb={breadcrumb} focusKey={cursadaId} />
       {canManage ? <div className={materiaStyles.actions}>
-        <Link className={`button button-secondary ${materiaStyles.edit}`} href={adminFormHref(`/home/admin/cursadas/${encodeURIComponent(cursadaId)}/editar`, back)}><Pencil size={17} aria-hidden="true" />Editar cursada</Link>
+        <Link className={`button button-secondary ${materiaStyles.edit}`} href={adminFormHref(`/home/admin/cursadas/${encodeURIComponent(cursadaId)}/editar`, administrativeDetailHref("cursadas", cursadaId, back))}><Pencil size={17} aria-hidden="true" />Editar cursada</Link>
         <button className={`button button-secondary ${materiaStyles.remove}`} type="button" aria-label={`Dar de baja cursada ${title}`} onClick={() => setConfirmDelete(true)}><Trash2 size={17} aria-hidden="true" />Dar de baja</button>
       </div> : null}
     </header>

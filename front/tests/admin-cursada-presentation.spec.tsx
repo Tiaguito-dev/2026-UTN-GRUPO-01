@@ -77,7 +77,8 @@ describe("presentación administrativa de Cursadas", () => {
     expect(within(breadcrumb).getByRole("link", { name: "Cursadas" })).toBeTruthy();
     expect(within(breadcrumb).getByText("Anual 2026").getAttribute("aria-current")).toBe("page");
     expect(href(/Volver a/).pathname + href(/Volver a/).search).toBe(list);
-    expect(href("Editar cursada").searchParams.get("returnTo")).toBe(list);
+    // TASK-admin-navigation-context: edición conserva el detalle como destino de cancelación.
+    expect(href("Editar cursada").searchParams.get("returnTo")).toBe(`/home/admin/cursadas/cu1?${new URLSearchParams({ returnTo: list })}`);
     const materia = new URL(within(field("Materia")).getByRole("link").getAttribute("href")!, "https://local.test");
     expect(materia.pathname).toBe("/home/admin/materias/m1");
     expect(materia.searchParams.get("returnTo")).toBe(origin);

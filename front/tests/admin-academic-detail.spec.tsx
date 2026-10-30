@@ -56,12 +56,13 @@ describe("detalles académicos administrativos", () => {
     expect(screen.getByText("Ingeniería en Sistemas de Información")).toBeTruthy();
     expect(screen.getByText("Ingeniería Industrial")).toBeTruthy();
     expect(screen.getByText(/Electiva.*4\.º Nivel/)).toBeTruthy();
-    expect(link(/Volver a/).pathname + link(/Volver a/).search).toBe(origin);
+    // TASK-admin-navigation-context: la gestión explícita de materia inicia el recorrido académico.
+    expect(link(/Volver a/).pathname + link(/Volver a/).search).toBe("/home/admin/materias");
     expect(link("Ver cursadas").pathname).toBe("/home/admin/cursadas");
     expect(link("Ver cursadas").searchParams.get("materiaId")).toBe("m1");
     expect(link("Ver cursadas").searchParams.get("materiaReturnTo")).toBe("/home/admin/materias");
     expect(link("Editar materia").pathname).toBe("/home/admin/materias/m1/editar");
-    expect(link("Editar materia").searchParams.get("returnTo")).toBe(origin);
+    expect(link("Editar materia").searchParams.get("returnTo")).toBe(`/home/admin/materias/m1?${new URLSearchParams({ returnTo: "/home/admin/materias" })}`);
     // Shared administrative audit replaces the public timeline.
     expect(await screen.findByRole("heading", {name:"Auditoría"})).toBeTruthy();
     expect(obtenerDetalleAdministrativo).toHaveBeenCalledWith("materias", "m1");
@@ -86,7 +87,7 @@ describe("detalles académicos administrativos", () => {
     administrativeBreadcrumb("Docente de nombre extenso");
     expect(link(/Volver a/).pathname + link(/Volver a/).search).toBe(origin);
     expect(link("Editar profesor").pathname).toBe("/home/admin/profesores/p1/editar");
-    expect(link("Editar profesor").searchParams.get("returnTo")).toBe(origin);
+    expect(link("Editar profesor").searchParams.get("returnTo")).toBe(`/home/admin/profesores/p1?${new URLSearchParams({ returnTo: origin })}`);
   });
 
   it.each(["https://evil.test", "/home/materias/m1"])('profesor rechaza el origen no administrativo %s', async (returnTo) => {

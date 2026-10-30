@@ -1,5 +1,28 @@
 # Frontend
 
+## Contexto de navegación administrativa
+
+`validations/admin-academic-navigation.ts` resuelve el origen compartido de comisiones,
+profesores, auditoría y edición. `returnTo` conserva filtros y páginas por URL, incluso al
+recargar o compartir un enlace. `validations/admin.ts` valida destinos internos, parámetros
+permitidos, profundidad y longitud, y elimina mensajes transitorios del retorno.
+
+- Experiencias → comisión: Administración → Experiencias → Comisión con código real;
+  Volver y Experiencias apuntan al mismo listado filtrado. El menú conserva Experiencias.
+- Materias → cursadas → comisiones: conserva los padres reales, filtros y páginas. Un acceso
+  directo o un origen incompatible reconstruye el padre académico de la comisión.
+- Auditoría de comentario y profesor desde equipo docente: conservan la comisión de entrada
+  y su página de comentarios; no acumulan detalles de comentarios como padres de la comisión.
+- Editar desde detalle permite cancelar o guardar regresando al mismo detalle sin anidar su URL.
+  El enlace explícito de materia desde Experiencias inicia el recorrido académico.
+- `admin/useAdminCommissionOrigin.ts` consulta el padre autorizado cuando hace falta su nombre
+  real. Un origen descartado se retira de la URL para alinear menú y destino alternativo.
+
+No hay estado global ni nuevos permisos. Los guards y autorizaciones del servidor permanecen
+vigentes. La posición exacta de scroll no se persiste: depende de la restauración nativa del
+navegador/Next; los listados no disponen de un mecanismo propio de recuperación de scroll.
+Los recorridos manuales en navegador quedan a cargo del desarrollador.
+
 ## Contenedor
 
 `front/Dockerfile` utiliza build por etapas con Node 22.22.3, lockfile raíz y salida

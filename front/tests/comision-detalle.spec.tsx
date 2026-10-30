@@ -66,16 +66,63 @@ describe("Detalle de comisión centrado en experiencias", () => {
     expect(screen.getByRole("link", { name: /Volver a contexto administrativo/ }).getAttribute("href")).toBe(returnTo);
     const teacher = new URL(screen.getByRole("link", { name: "Prof. Rossi" }).getAttribute("href")!, "https://local.test");
     expect(teacher.pathname).toBe("/home/admin/profesores/p1");
-    expect(teacher.searchParams.get("returnTo")).toBe(returnTo);
+    // TASK-admin-navigation-context: los accesos desde el detalle regresan a la comisión.
+    const detailHref = `/home/admin/comisiones/com1?${new URLSearchParams({ returnTo })}`;
+    expect(teacher.searchParams.get("returnTo")).toBe(detailHref);
     const edit = new URL(screen.getByRole("link", { name: "Editar comisión" }).getAttribute("href")!, "https://local.test");
     expect(edit.pathname).toBe("/home/admin/comisiones/com1/editar");
-    expect(edit.searchParams.get("returnTo")).toBe(returnTo);
+    expect(edit.searchParams.get("returnTo")).toBe(detailHref);
     expect(screen.getByTestId("feedback-comision").getAttribute("data-administrative")).toBe("true");
     await userEvent.selectOptions(await screen.findByRole("combobox", { name: "Comisión del período" }), "com2");
     const destination = new URL(String(push.mock.calls.at(-1)?.[0]), "https://local.test");
     expect(destination.pathname).toBe("/home/admin/comisiones/com2");
     expect(destination.searchParams.get("returnTo")).toBe(returnTo);
     expect(document.querySelector('a[href^="/home/materias"]')).toBeNull();
+  });
+
+  it("el ingreso administrativo desde Experiencias conserva breadcrumb, filtros y página al recargar", async () => {
+    authState.role = "ADMIN";
+    const returnTo = "/home/admin/experiencias?carrera=S&materiaId=mat1&page=3";
+    origin.extra = `&${new URLSearchParams({ returnTo })}`;
+    const assertContext = async () => {
+      await screen.findByRole("heading", { name: "Álgebra" });
+      const breadcrumb = screen.getByRole("navigation", { name: "Ubicación actual" });
+      expect(Array.from(breadcrumb.querySelectorAll("li")).map(item => item.textContent)).toEqual(["Administración", "Experiencias", "Comisión S-31"]);
+      expect(within(breadcrumb).getByRole("link", { name: "Experiencias" }).getAttribute("href")).toBe(returnTo);
+      expect(within(breadcrumb).getByText("Comisión S-31").getAttribute("aria-current")).toBe("page");
+      expect(screen.getByRole("link", { name: /Volver a/ }).getAttribute("href")).toBe(returnTo);
+      expect(within(breadcrumb).queryByRole("link", { name: "Materias" })).toBeNull();
+      expect(within(breadcrumb).queryByText(/comentario/i)).toBeNull();
+      expect(document.querySelector('a[href^="/home/materias"]')).toBeNull();
+    };
+    const view = render(<ComisionDetail comisionId="com1" administrative />);
+    await assertContext();
+    view.unmount();
+    render(<ComisionDetail comisionId="com1" administrative />);
+    await assertContext();
+    await userEvent.selectOptions(await screen.findByRole("combobox", { name: "Comisión del período" }), "com2");
+    const next = new URL(String(push.mock.calls.at(-1)?.[0]), "https://local.test");
+    expect(next.pathname).toBe("/home/admin/comisiones/com2");
+    expect(next.searchParams.get("returnTo")).toBe(returnTo);
+  });
+
+  it.each([
+    "", "https://externo.test/home/admin/experiencias", "/home/admin/usuarios?page=3",
+    "/home/admin/comisiones?materiaId=mat2&cursadaId=cur2&page=9",
+    "/home/admin/comisiones/com1", "/home/admin/experiencias?page=0",
+  ])("sin origen compatible %s reconstruye los padres reales", async (returnTo) => {
+    authState.role = "ADMIN";
+    origin.extra = `&${new URLSearchParams({ returnTo })}`;
+    render(<ComisionDetail comisionId="com1" administrative />);
+    await screen.findByRole("heading", { name: "Álgebra" });
+    const breadcrumb = within(screen.getByRole("navigation", { name: "Ubicación actual" }));
+    expect(breadcrumb.getByRole("link", { name: "Materias" })).toBeTruthy();
+    expect(breadcrumb.queryByRole("link", { name: "Experiencias" })).toBeNull();
+    const back = new URL(screen.getByRole("link", { name: /Volver a/ }).getAttribute("href")!, "https://local.test");
+    expect(back.pathname).toBe("/home/admin/comisiones");
+    expect(back.searchParams.get("materiaId")).toBe("mat1");
+    expect(back.searchParams.get("cursadaId")).toBe("cur1");
+    expect(back.searchParams.get("page")).toBeNull();
   });
 
   it("regresa a Experiencias con sus filtros y conserva el origen al cambiar comisión", async () => {

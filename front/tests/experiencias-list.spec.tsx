@@ -34,7 +34,8 @@ describe("Experiencias generales", () => {
     for (const [name, expected] of [["Álgebra", "/home/admin/materias/mat1"], [/Ver comisión/, "/home/admin/comisiones/com1"]] as const) {
       const target = new URL(screen.getByRole("link", { name }).getAttribute("href")!, "https://local.test");
       expect(target.pathname).toBe(expected);
-      expect(target.searchParams.get("returnTo")).toBe("/home/admin/experiencias?carrera=S&materiaId=mat1&page=2");
+      // TASK-admin-navigation-context: la materia abre explícitamente su gestión académica.
+      expect(target.searchParams.get("returnTo")).toBe(expected.includes("/comisiones/") ? "/home/admin/experiencias?carrera=S&materiaId=mat1&page=2" : null);
     }
   });
 

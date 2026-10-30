@@ -5,6 +5,7 @@ import { Pencil, ArrowRight, Eye } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import type { Feedback } from "@/types/feedback";
 import { iniciales } from "@/components/academic/detalle";
+import { comisionDetailHref, materiaDetailHref } from "@/validations/admin-academic-navigation";
 import { feedbackComisionHref } from "@/validations/feedback";
 import { periodoLabel } from "@/lib/format/periodo";
 import { modalidadLabel } from "@/validations/materias";
@@ -18,10 +19,8 @@ export function ExperienceCard({ feedback, onManage, showContext = false, origin
   const query = origin?.size ? `?${origin}` : "";
   const subjectQuery = new URLSearchParams(origin);
   if (feedback.contexto.carrera) subjectQuery.set("carrera", feedback.contexto.carrera);
-  const adminQuery = new URLSearchParams(returnTo ? { returnTo } : {});
-  const adminSuffix = adminQuery.size ? `?${adminQuery}` : "";
-  const subjectHref = administrative ? `/home/admin/materias/${encodeURIComponent(feedback.contexto.materiaId)}${adminSuffix}` : `/home/materias/${encodeURIComponent(feedback.contexto.materiaId)}${subjectQuery.size ? `?${subjectQuery}` : ""}`;
-  const commissionHref = administrative ? `/home/admin/comisiones/${encodeURIComponent(feedback.contexto.comisionId)}${adminSuffix}` : `${feedbackComisionHref(feedback.contexto)}${query}`;
+  const subjectHref = administrative ? materiaDetailHref(feedback.contexto.materiaId) : `/home/materias/${encodeURIComponent(feedback.contexto.materiaId)}${subjectQuery.size ? `?${subjectQuery}` : ""}`;
+  const commissionHref = administrative ? comisionDetailHref(feedback.contexto.comisionId, returnTo ?? "/home/admin/experiencias") : `${feedbackComisionHref(feedback.contexto)}${query}`;
   return <article className={`${styles.experienceCard}${feedback.propio ? ` ${styles.experienceCardOwn}` : ""}`} aria-label={`Comentario de ${author}`}>
     <header className={styles.experienceCardHeader}>
       <span className={styles.experienceAvatar} aria-hidden="true">{feedback.anonimo ? "?" : iniciales(author)}</span>

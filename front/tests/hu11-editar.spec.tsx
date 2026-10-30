@@ -29,6 +29,26 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("HU11 formularios de edición", () => {
+  it.each(["profesores", "cursadas", "comisiones"] as const)("cancelar %s vuelve al mismo detalle y guardar no lo anida", async (section) => {
+    const source = section === "profesores" ? "/home/admin/profesores?q=Ada&page=3" : section === "cursadas" ? "/home/admin/cursadas?materiaId=m1&page=3" : "/home/admin/experiencias?carrera=S&materiaId=m1&page=3";
+    const id = section === "profesores" ? "p1" : section === "cursadas" ? "c1" : "co1";
+    const detailHref = `/home/admin/${section}/${id}?${new URLSearchParams({ returnTo: source })}`;
+    state.search = new URLSearchParams({ returnTo: detailHref }).toString();
+    render(section === "profesores" ? <EditarProfesor profesorId={id} /> : section === "cursadas" ? <EditarCursada cursadaId={id} /> : <EditarComision comisionId={id} />);
+    const field = await screen.findByLabelText(section === "profesores" ? "Nombre completo" : section === "cursadas" ? "Año" : "Número de comisión") as HTMLInputElement;
+    await waitFor(() => expect(field.value).toBe(section === "profesores" ? "Ada Lovelace" : section === "cursadas" ? "2026" : "31"));
+    expect(screen.getByRole("link", { name: "Cancelar" }).getAttribute("href")).toBe(detailHref);
+    expect(screen.getByRole("link", { name: /Volver a/ }).getAttribute("href")).toBe(detailHref);
+    await userEvent.clear(field);
+    await userEvent.type(field, section === "profesores" ? "Ada Byron" : section === "cursadas" ? "2027" : "32");
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() => expect(router.push).toHaveBeenCalledOnce());
+    const target = new URL(String(router.push.mock.calls[0][0]), "https://local.test");
+    expect(target.pathname).toBe(`/home/admin/${section}/${id}`);
+    expect(target.searchParams.get("returnTo")).toBe(source);
+    expect(target.searchParams.has("successMessage")).toBe(true);
+  });
+
   it("edita el Período de cursada a Anual con PATCH parcial", async () => {
     render(<EditarCursada cursadaId="c1" />);
     const periodo = await screen.findByLabelText("Período");
@@ -117,6 +137,7 @@ describe("HU11 formularios de edición", () => {
   it("rechaza el returnTo externo también al cancelar", async () => {
     state.search = new URLSearchParams({ returnTo: "https://evil.test" }).toString();
     render(<EditarProfesor profesorId="p1" />);
-    expect((await screen.findByRole("link", { name: "Cancelar" })).getAttribute("href")).toBe("/home/admin/profesores");
+    // TASK-admin-navigation-context: sin origen válido, cancelar regresa al detalle real.
+    expect((await screen.findByRole("link", { name: "Cancelar" })).getAttribute("href")).toBe("/home/admin/profesores/p1");
   });
 });
