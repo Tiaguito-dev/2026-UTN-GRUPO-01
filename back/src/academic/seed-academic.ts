@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 import { resolve } from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient, type CargoDocente, type Carrera, type ModalidadMateria } from "../generated/prisma/client.js";
+import { PrismaClient } from "../generated/prisma/client.js";
 
 config({
   path: [resolve(process.cwd(), ".env"), resolve(process.cwd(), "../.env")],
@@ -9,58 +9,17 @@ config({
 });
 
 /**
- * Contenido de demostración para la jerarquía académica (ver
- * docs/temporal/05-consulta-de-contenido.md). Los nombres de materia siguen el estilo de la
- * carrera, pero LOS PROFESORES SON FICTICIOS: esta plataforma existe para que estudiantes
- * opinen sobre docentes, así que no se cargan personas reales como dato de demo.
+ * Datos de QA para las cinco carreras; el catálogo adicional es ilustrativo (Demo).
+ * Sistemas: materias / nivel del plan CARRERA(2).pdf aportado para HU-12.
+ * Otras carreras: materias ilustrativas, no planes oficiales.
+ * Docentes, cursadas, comisiones, cargos y vigencia son FICTICIOS.
  *
- * El seed es aditivo e idempotente: puede correrse más de una vez sin duplicar y nunca borra
- * ni modifica nada preexistente.
+ * Seed ADITIVO e IDEMPOTENTE: no elimina ni sobrescribe filas existentes.
+ * Puede añadir asociaciones faltantes a materias y comisiones ya creadas.
+ * NOTA: si una materia ya existe con otro año/carrera, no lo corrige.
+ * Ejecutar solo en una base local o aislada de QA, nunca directamente en producción.
  */
-interface ComisionSeed { carrera: Carrera; numero: number; activa?: boolean; profesores: [string, CargoDocente][] }
-interface CursadaSeed { anio: number; cuatrimestre?: ModalidadMateria; comisiones: ComisionSeed[] }
-interface MateriaSeed { nombre: string; modalidad: ModalidadMateria; carreras: { carrera: Carrera; anioCarrera: string }[]; cursadas: CursadaSeed[] }
-
-const TODAS: Carrera[] = ["S", "C", "Q", "I", "M"];
-
-const MATERIAS: MateriaSeed[] = [
-  {
-    nombre: "Análisis Matemático II",
-    modalidad: "PRIMERO",
-    carreras: TODAS.map((carrera) => ({ carrera, anioCarrera: "2" })),
-    cursadas: [
-      { anio: 2026, comisiones: [
-        { carrera: "S", numero: 1, profesores: [["Mariana Rivas", "TITULAR"], ["Héctor Balcedo", "JTP"]] },
-        { carrera: "Q", numero: 1, profesores: [["Mariana Rivas", "TITULAR"]] },
-      ] },
-      { anio: 2025, comisiones: [
-        { carrera: "S", numero: 1, profesores: [["Héctor Balcedo", "TITULAR"]] },
-      ] },
-    ],
-  },
-  {
-    nombre: "Algoritmos y Estructuras de Datos",
-    modalidad: "ANUAL",
-    carreras: [{ carrera: "S", anioCarrera: "1" }],
-    cursadas: [
-      { anio: 2026, comisiones: [
-        { carrera: "S", numero: 1, profesores: [["Lucía Ferreyra", "TITULAR"], ["Pablo Quiroga", "ADJUNTO"], ["Sofía Medina", "JTP"]] },
-        { carrera: "S", numero: 2, profesores: [["Lucía Ferreyra", "TITULAR"]] },
-      ] },
-    ],
-  },
-  {
-    nombre: "Sistemas Operativos",
-    modalidad: "SEGUNDO",
-    carreras: [{ carrera: "S", anioCarrera: "3" }],
-    cursadas: [
-      { anio: 2026, comisiones: [
-        { carrera: "S", numero: 1, profesores: [["Daniel Ocampo", "TITULAR"]] },
-        { carrera: "S", numero: 2, activa: false, profesores: [["Daniel Ocampo", "TITULAR"], ["Sofía Medina", "JTP"]] },
-      ] },
-    ],
-  },
-];
+import { MATERIAS } from "./seed-academic-data.js";
 
 async function seed(): Promise<void> {
   const connectionString = process.env["DATABASE_URL"];
@@ -71,17 +30,21 @@ async function seed(): Promise<void> {
   }
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
   try {
-    let materiasCreadas = 0, cursadasCreadas = 0, comisionesCreadas = 0;
+    let materiasCreadas = 0, cursadasCreadas = 0, comisionesCreadas = 0, profesoresCreados = 0;
     // Profesor.nombreCompleto no es único a propósito (puede haber homónimos reales),
     // así que la idempotencia se resuelve buscando por nombre antes de crear.
-    const profesorId = async (nombreCompleto: string): Promise<string> =>
-      (await prisma.profesor.findFirst({ where: { nombreCompleto, deletedAt: null } })
-        ?? await prisma.profesor.create({ data: { nombreCompleto } })).id;
+    const profesorId = async (nombreCompleto: string): Promise<string> => {
+      const existente = await prisma.profesor.findFirst({ where: { nombreCompleto, deletedAt: null } });
+      if (existente) return existente.id;
+      const nuevo = await prisma.profesor.create({ data: { nombreCompleto } });
+      profesoresCreados += 1;
+      return nuevo.id;
+    };
 
     for (const materiaSeed of MATERIAS) {
       const existente = await prisma.materia.findFirst({ where: { nombre: materiaSeed.nombre, deletedAt: null } });
       const materia = existente ?? await prisma.materia.create({
-        data: { nombre: materiaSeed.nombre, modalidad: materiaSeed.modalidad },
+        data: { nombre: materiaSeed.nombre },
       });
       if (!existente) materiasCreadas += 1;
       await prisma.materiaCarrera.createMany({
@@ -90,12 +53,11 @@ async function seed(): Promise<void> {
       });
 
       for (const cursadaSeed of materiaSeed.cursadas) {
-        const cuatrimestre = cursadaSeed.cuatrimestre ?? materiaSeed.modalidad;
         const cursadaExistente = await prisma.cursada.findFirst({
-          where: { materiaId: materia.id, anio: cursadaSeed.anio, cuatrimestre, deletedAt: null },
+          where: { materiaId: materia.id, anio: cursadaSeed.anio, cuatrimestre: cursadaSeed.cuatrimestre, deletedAt: null },
         });
         const cursada = cursadaExistente ?? await prisma.cursada.create({
-          data: { materiaId: materia.id, anio: cursadaSeed.anio, cuatrimestre },
+          data: { materiaId: materia.id, anio: cursadaSeed.anio, cuatrimestre: cursadaSeed.cuatrimestre },
         });
         if (!cursadaExistente) cursadasCreadas += 1;
 
@@ -115,8 +77,8 @@ async function seed(): Promise<void> {
         }
       }
     }
-    console.log(`Contenido de demostración listo. Nuevos: ${materiasCreadas} materias, ${cursadasCreadas} cursadas, ${comisionesCreadas} comisiones.`);
-    console.log("El seed es aditivo: lo que ya existía quedó intacto.");
+    console.log(`Contenido de demostración listo. Nuevos: ${materiasCreadas} materias, ${profesoresCreados} profesores, ${cursadasCreadas} cursadas, ${comisionesCreadas} comisiones.`);
+    console.log("El seed es aditivo: no se eliminaron ni sobrescribieron registros existentes.");
   } catch {
     console.error("No se pudo cargar el contenido de demostración. Revise DATABASE_URL y que las migraciones estén aplicadas.");
     process.exitCode = 1;
