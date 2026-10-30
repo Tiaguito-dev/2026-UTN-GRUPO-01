@@ -2,6 +2,12 @@
 
 ## [Sin publicar]
 
+### Seed de demostración de todas las carreras
+
+- Catálogo ilustrativo para Civil, Química, Industrial y Mecánica, conservando las 43 materias de Sistemas: 135 materias en total.
+- Todas las materias tienen oferta 2025/2026 con comisiones y docentes demo. Carga aditiva sin modificar datos existentes.
+- Carga local completada; segunda ejecución con cero altas. Seis pruebas de cobertura e identidades, build, tipos y lint backend aprobados (host Node 24.22.0).
+
 ### Eliminación de experiencias por autor o administrador
 
 - ADMIN puede eliminar comentarios de cualquier autor desde el detalle administrativo con confirmación, cancelación y estilo de baja existente. Conserva la eliminación del autor desde Tu comentario.
@@ -82,6 +88,13 @@
 - Auditoría compartida exclusiva de administración, sin ID visible, con bloques de creación, modificación y baja, fechas legibles y horas secundarias.
 - Historial desplegable cerrado inicialmente con contador real y paginación de tres eventos; sin inferir estado ni inventar actores ante datos ausentes.
 - Paleta actual mediante tokens existentes. Sin cambios de endpoints ni commits. Prueba de navegador a cargo del desarrollador.
+
+### Semilla académica local para HU12
+
+- Incorporados datos del ZIP de QA: 43 materias, 11 profesores demo, 17 cursadas y 20 comisiones.
+- Búsquedas adaptadas a índices únicos parciales y bajas lógicas del esquema actual.
+- Build backend correcto y carga Docker local verificada: segunda ejecución sin nuevas altas. Pruebas de interfaz HU12 pendientes de sesión USER.
+
 
 ### Docentes en edición administrativa de comisiones (TASK-057)
 
