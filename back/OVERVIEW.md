@@ -1149,12 +1149,24 @@ en una única consulta por lote a User, seleccionando solo `id` y `displayName`,
 transacción de lectura existente. Los nombres corresponden al nombre público actual disponible;
 no se reconstruyen identidades históricas ni se generan eventos. Una referencia no resoluble
 produce nombre nulo. Se mantienen las referencias internas para trazabilidad; frontend no las muestra.
-No cambia el contrato de actores ni las consultas de materias, cursadas, profesores u otras entidades.
+Todas las entidades del detalle administrativo resuelven estos nombres mediante el contrato común descrito más abajo.
 No hay cambios de permisos, payloads de escritura, estados, migraciones ni variables de entorno.
+
+## Actores de auditoría de profesores
+
+`GET /admin/profesores/:id/detalle` incluye `createdByName`, `updatedByName`, `deletedByName` y `actorName` en cada evento, mediante la misma consulta agrupada a User que usa el detalle de usuarios. Solo selecciona `id` y `displayName`, conserva guards ADMIN, aislamiento de lectura, orden y paginación de tres. Las referencias no resolubles producen nombre nulo y los registros legados no generan actores ni eventos supuestos.
+
+Alta y edición reciben el actor validado de la sesión en `AcademicController`; `PrismaProfesorRepository` escribe el registro y el evento CREACION/EDICION dentro de una misma transacción. La edición registra solo diferencias reales de nombre. La baja lógica y el intento bloqueado por asignaciones vigentes registran ELIMINACION/BAJA_BLOQUEADA en `PrismaAcademicAdministrationRepository`; un bloqueo no cambia la última modificación ni el actor de baja. Los errores del historial impiden informar éxito. Esta corrección cambia la lectura de nombres, no las operaciones, permisos ni la evidencia persistida.
 
 ## Contrato consumido por el detalle administrativo de Materias
 
-El refinamiento visual de Materias conserva `GET /admin/materias/:id/detalle?page=1&pageSize=3`, su autorización ADMIN y los contratos de edición/baja existentes. No cambia rutas, reglas, persistencia ni auditoría. Los valores de historial de carreras usan el formato existente `S:2,Q:ELECTIVA:4`; frontend traduce cada asociación con su año y nivel, sin alterar el historial almacenado. Los nombres de actores son opcionales en el contrato frontend: se presentan solo si la respuesta autorizada los incluye. El endpoint de Materias actualmente entrega referencias sin resolver nombres; estas se muestran como Usuario no identificado, sin consultas adicionales ni exposición de UUID. Auditoría sin referencia se presenta No registrado. No hay nuevas migraciones ni variables de entorno.
+El refinamiento visual de Materias conserva `GET /admin/materias/:id/detalle?page=1&pageSize=3`, su autorización ADMIN y los contratos de edición/baja existentes. No cambia rutas, reglas, persistencia ni auditoría. Los valores de historial de carreras usan el formato existente `S:2,Q:ELECTIVA:4`; frontend traduce cada asociación con su año y nivel, sin alterar el historial almacenado. El endpoint resuelve los nombres autorizados del historial y de la auditoría, incluyendo el actor de la última modificación en MateriaHistorial aunque no esté en la página visible ni en AdministracionHistorial. Una referencia sin nombre resoluble se presenta Usuario no identificado y un actor ausente No registrado. No hay nuevas migraciones ni variables de entorno.
+
+## Resolución uniforme de actores administrativos
+
+`AdminDetailService` entrega `createdByName`, `updatedByName`, `deletedByName` y `actorName` para materias, profesores, cursadas, comisiones, users y feedback. Consulta User una sola vez por respuesta, deduplicando las referencias de los metadatos y de los eventos de la página actual, y selecciona únicamente id/displayName. El nombre de última modificación usa exactamente la misma referencia que updatedBy, incluido el historial propio de materias. Mantiene autorización ADMIN, transacción RepeatableRead, paginación, orden, filtrado de campos y ausencia de identidades históricas no registradas. Los snapshots antiguos de feedback sin evidencia de actor siguen sin atribución; no se deduce el actor a partir del autor del comentario.
+
+Las mutaciones académicas reciben el actor de sesión validado y escriben la auditoría junto al cambio. Materias conserva MateriaHistorial para las ediciones; las otras entidades académicas usan AdministracionHistorial. Asignaciones y desvinculaciones docentes pertenecen al historial de la comisión. Feedback comparte identificador entre snapshot y ledger transaccional; los cambios de estado de usuarios registran el administrador responsable. Esta corrección amplía la lectura de nombres y no agrega eventos ni modifica operaciones existentes.
 
 ## Compatibilidad de la integración docente
 

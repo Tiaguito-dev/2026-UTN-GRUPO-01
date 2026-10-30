@@ -890,7 +890,7 @@ confirmaciones, restricciones sobre la propia cuenta y operaciones reales del se
 tres columnas de auditoría en escritorio, dos intermedias y una móvil; historial nativo desplegable
 con tabla Campo/Antes/Después. Las referencias de actores usan nombres autorizados opcionales del
 endpoint; una referencia sin nombre se presenta como “Usuario no identificado”, sin mostrar IDs.
-La ampliación conserva la desactivación de usuarios y usa baja para entidades académicas. Profesores, Cursadas y Comisiones conservan su presentación. La marca compartida `SiteHeader` usa `BookOpen` decorativo
+La ampliación conserva la desactivación de usuarios y usa baja para entidades académicas. Los detalles académicos reutilizan progresivamente esta presentación según las secciones siguientes. La marca compartida `SiteHeader` usa `BookOpen` decorativo
 y conserva el enlace de destino por rol.
 
 `AdminAudit` y `AdminAuditPanel` restringen auditoría e historial al rol `ADMIN`. El cargador
@@ -915,3 +915,15 @@ La auditoría reutiliza la presentación de usuarios y el hook administrativo ex
 `AdminCursadaDetail` reutiliza los estilos del detalle de materias, PageHeader, AdminSharedAudit y AcademicDeleteDialog. El encabezado muestra el período registrado y la materia como contexto; la tarjeta semántica expone período, estado y enlace administrativo a materia. Ver comisiones abre el listado real con materiaId, cursadaId, origen de materias y regreso al detalle. La modalidad de materia no determina el período. Los períodos ausentes conservan el año disponible junto a No registrado.
 
 Editar cursada y Dar de baja se ofrecen solo a ADMIN con cursada activa. La confirmación conserva las restricciones por comisiones vigentes, cancelación, errores y actualización de datos/auditoría. El historial compartido traduce los códigos de período y pagina de tres; no expone UUID ni crea eventos. Sin cambios a contratos, servicios, backend ni navegación global. Evidencia y límites de revisión manual en `docs/tasks/finished/TASK-cursada-detail-presentation.md`.
+
+## Detalle administrativo de Profesores
+
+`AdminProfesorDetail` reutiliza el encabezado, acciones y estilos de materias junto a `PageHeader`, el breadcrumb compartido y `AdminSharedAudit`. La ficha semántica compacta muestra únicamente nombre completo y estado. El avatar decorativo usa la primera letra del primer y último término del nombre disponible (una sola letra para nombres de un término), sin fotografías ni iniciales inventadas cuando falta el nombre. Las ausencias muestran No registrado y los nombres largos pueden ocupar varias líneas. El CSS local solo organiza avatar y ficha, con nombre y estado apilados en móvil.
+
+Editar profesor y Dar de baja se ofrecen a ADMIN con registro activo. Se conserva `AcademicDeleteDialog`, cancelación, bloqueo por asignaciones en comisiones vigentes y actualización del registro/auditoría tras la operación. No se muestran cargos ni asignaciones como atributos del catálogo. Volver, el breadcrumb y la edición conservan búsqueda y página del listado administrativo de profesores; un origen inválido o de otra sección usa ese listado como alternativa. Auditoría e historial mantienen fechas locales, actores autorizados, ausencias explícitas, eventos reales y paginación de tres. Sin cambios de contratos, backend ni componentes globales. Validación automática y revisión manual pendiente del usuario en `docs/tasks/finished/TASK-profesor-detail-presentation.md`.
+
+El ajuste posterior de actores en backend agrega los nombres autorizados ya aceptados por `services/admin-detail.ts`: creación, modificación, baja y eventos muestran el nombre público disponible. Se mantiene Usuario no identificado solo cuando hay referencia sin nombre resoluble, y No registrado cuando falta el actor. No se muestran UUID ni se reconstruyen identidades históricas. Ver `docs/tasks/finished/TASK-profesor-audit-actors.md`.
+
+## Actores de auditoría de todos los módulos
+
+Los detalles administrativos de materias, profesores, cursadas, comisiones, usuarios y experiencias consumen nombres de actores resueltos por backend, tanto en metadatos como en el historial paginado. `UserAudit` y la presentación anterior `AdminAuditPanel` usan el nombre autorizado cuando existe, Usuario no identificado cuando solo existe la referencia y No registrado cuando falta el dato. AdminAuditPanel conserva su presentación y comportamiento para comisiones/experiencias; deja de mostrar referencias técnicas como actores. Sin cambios de permisos, operaciones, navegación ni reconstrucción de eventos. Materias recibe también el nombre de la última modificación desde su historial propio aunque el evento no esté en la página abierta. Evidencia en `docs/tasks/finished/TASK-system-audit-actors.md`.

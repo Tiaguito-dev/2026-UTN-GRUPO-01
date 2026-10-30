@@ -2,6 +2,24 @@
 
 ## [Sin publicar]
 
+### Actores de auditoría en todos los módulos administrativos
+
+- Resolución uniforme de nombres en materias, cursadas, comisiones y experiencias, conservando usuarios/profesores. Incluye el actor de la última modificación de MateriaHistorial fuera de la página visible.
+- Comisiones y experiencias consumen los nombres autorizados en su auditoría e historial, sin mostrar referencias de actor como identificadores técnicos ni inventar atribuciones ausentes.
+- Validación completa: 895 pruebas backend con integraciones y 640 frontend aprobadas, tipos/lint/builds correctos y migraciones sin diferencias. Stack regenerado y saludable con 16 comprobaciones HTTP aprobadas. Commits reservados al usuario.
+
+### Actores de auditoría de Profesores
+
+- El detalle administrativo ahora resuelve los nombres de creación, modificación, baja e historial mediante consulta agrupada autorizada, como usuarios. Conserva las ausencias reales sin inventar atribuciones.
+- Verificada la escritura transaccional de acciones y actor de sesión: 101 pruebas backend y 17 frontend aprobadas; alta/edición/baja comprobadas en PostgreSQL con reversión completa. Sin cambios de permisos ni eventos históricos.
+- Stack local reconstruido y reiniciado, servicios saludables y 16 comprobaciones HTTP aprobadas. Los registros legados sin auditoría conservan las ausencias reales.
+
+### Presentación del detalle administrativo de Profesores
+
+- Encabezado y acciones coherentes con materias y cursadas; ficha compacta de nombre, iniciales reales y estado explícito, adaptable a móvil y nombres largos.
+- Reutiliza auditoría e historial compartidos con actores sin identificadores técnicos. Volver conserva búsqueda y página del listado de profesores, con alternativa segura ante origen inválido.
+- Conserva permisos, confirmación/cancelación y restricciones de baja sin modificar asignaciones ni backend. Validación automática en la tarea; revisión visual a cargo del desarrollador.
+
 ### Presentación del detalle administrativo de Cursadas
 
 - Encabezado con período real, contexto de materia y acciones existentes; tarjeta semántica y acceso directo a comisiones con contexto de regreso.
