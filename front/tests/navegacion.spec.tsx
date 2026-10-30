@@ -7,15 +7,23 @@ import { SidebarNav } from "@/components/home/SidebarNav";
 
 const { auth, location } = vi.hoisted(() => ({
   auth: { value: { status: "authenticated", account: { role: "USER" }, logout: async () => {} } as Record<string, unknown> },
-  location: { pathname: "/home", replace: vi.fn() },
+  location: { pathname: "/home", query: "", replace: vi.fn() },
 }));
 vi.mock("next/link", () => import("./support/next-link"));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: location.replace }), usePathname: () => location.pathname }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: location.replace }), usePathname: () => location.pathname, useSearchParams: () => new URLSearchParams(location.query) }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => auth.value }));
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); location.query = ""; });
 
 describe("SiteHeader", () => {
+  it.each([["ADMIN", "/home/admin"], ["USER", "/home"]])("marca BookOpen decorativa conserva destino de %s", (role, href) => {
+    auth.value = { status: "authenticated", account: { role } };
+    render(<SiteHeader />);
+    const brand = screen.getByRole("link", { name: "Profesor Butchery" });
+    expect(brand.getAttribute("href")).toBe(href);
+    expect(brand.querySelector("svg.lucide-book-open")?.getAttribute("aria-hidden")).toBe("true");
+    expect(brand.textContent).not.toContain("PB");
+  });
   function setup() {
     auth.value = { status: "authenticated", account: { role: "USER" }, logout: async () => {} };
     render(<><SiteHeader /><p>Contenido</p></>);
@@ -66,6 +74,53 @@ describe("SiteHeader", () => {
 
 describe("SidebarNav", () => {
   const current = () => screen.getAllByRole("link").filter((link) => link.getAttribute("aria-current") === "page").map((link) => link.textContent);
+
+  it.each(["/home/admin/comisiones/co1", "/home/admin/comisiones/co1/editar"])("mantiene Experiencias seleccionado en %s con origen persistido en URL", (pathname) => {
+    const list = "/home/admin/experiencias?carrera=S&materiaId=m1&page=3";
+    const returnTo = pathname.endsWith("/editar") ? `/home/admin/comisiones/co1?${new URLSearchParams({ returnTo: list })}` : list;
+    location.pathname = pathname;
+    location.query = new URLSearchParams({ returnTo }).toString();
+    auth.value = { status: "authenticated", account: { role: "ADMIN" } };
+    render(<SidebarNav />);
+    expect(current()).toEqual(["Experiencias"]);
+  });
+
+  it("deja de conservar Experiencias cuando se abre explícitamente una materia", () => {
+    location.pathname = "/home/admin/materias/m1";
+    location.query = new URLSearchParams({ returnTo: "/home/admin/experiencias?page=3" }).toString();
+    auth.value = { status: "authenticated", account: { role: "ADMIN" } };
+    render(<SidebarNav />);
+    expect(current()).toEqual(["Materias"]);
+  });
+
+  it.each([
+    ["/home/admin/experiencias?carrera=S&page=3", "Experiencias"],
+    ["/home/admin/comisiones?materiaId=m1&cursadaId=cu1&page=2", "Materias"],
+  ])("comentario desde comisión conserva la sección de %s", (origin, expected) => {
+    const commission = `/home/admin/comisiones/co1?${new URLSearchParams({ returnTo: origin, page: "2" })}`;
+    location.pathname = "/home/admin/experiencias/f1";
+    location.query = new URLSearchParams({ returnTo: commission }).toString();
+    auth.value = { status: "authenticated", account: { role: "ADMIN" } };
+    render(<SidebarNav />);
+    expect(current()).toEqual([expected]);
+  });
+
+  it.each(["https://externo.test", "/home/admin/usuarios?page=2", "/home/admin/experiencias?page=0"])("un origen inválido %s no cambia el recorrido académico", (returnTo) => {
+    location.pathname = "/home/admin/comisiones/co1";
+    location.query = new URLSearchParams({ returnTo }).toString();
+    auth.value = { status: "authenticated", account: { role: "ADMIN" } };
+    render(<SidebarNav />);
+    expect(current()).toEqual(["Materias"]);
+  });
+
+  it("conserva el menú estudiantil aunque la URL contenga un origen administrativo", () => {
+    location.pathname = "/home/materias/m1/cursadas/cu1/comisiones/co1";
+    location.query = new URLSearchParams({ returnTo: "/home/admin/experiencias?page=3" }).toString();
+    auth.value = { status: "authenticated", account: { role: "USER" } };
+    render(<SidebarNav />);
+    expect(current()).toEqual(["Materias"]);
+    expect(screen.queryByText("Administración")).toBeNull();
+  });
 
   it.each([
     ["/home", "Inicio"],
@@ -122,6 +177,8 @@ describe("SidebarNav", () => {
   it.each([
     ["/home/admin", "Inicio"],
     ["/home/admin/materias/m1", "Materias"],
+    ["/home/admin/cursadas?materiaId=m1", "Materias"],
+    ["/home/admin/comisiones/co1", "Materias"],
     ["/home/admin/profesores/p1/editar", "Profesores"],
     ["/home/admin/usuarios", "Usuarios"],
     ["/home/admin/experiencias?page=2", "Experiencias"],

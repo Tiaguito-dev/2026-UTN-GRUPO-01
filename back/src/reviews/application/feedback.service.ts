@@ -1,4 +1,5 @@
 import type { FeedbackRepository } from "./ports/feedback.repository.js";
+import type { UserRole } from "../../users/domain/user.js";
 import { validateCreateFeedback, validateFeedbackId, validateFeedbackPagination, validateGeneralFeedbackQuery, validateUpdateFeedback } from "./feedback-input.js";
 
 /** Application boundary: all external inputs are normalized before reaching persistence. */
@@ -13,6 +14,6 @@ export class FeedbackService {
   create(id: unknown, viewer: string, body: unknown) { return this.repository.create(validateFeedbackId(id), viewer, validateCreateFeedback(body)); }
   get(id: unknown, viewer: string) { return this.repository.get(validateFeedbackId(id), viewer); }
   update(id: unknown, viewer: string, body: unknown) { return this.repository.update(validateFeedbackId(id), viewer, validateUpdateFeedback(body)); }
-  remove(id: unknown, viewer: string) { return this.repository.remove(validateFeedbackId(id), viewer); }
+  remove(id: unknown, viewer: string, role: UserRole = "USER") { return this.repository.remove(validateFeedbackId(id), viewer, role); }
   history(id: unknown, viewer: string, query: unknown) { return this.repository.history(validateFeedbackId(id), viewer, validateFeedbackPagination(query, true)); }
 }

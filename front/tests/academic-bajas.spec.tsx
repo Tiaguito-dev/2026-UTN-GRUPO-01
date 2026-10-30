@@ -55,9 +55,20 @@ describe("bajas administrativas académicas", () => {
     expect(action.querySelector("svg.lucide-trash-2")).toBeTruthy();
     await userEvent.click(action);
     let dialog = screen.getByRole("dialog");
-    expect(dialog.textContent).toContain(`Identificador: ${id}`);
-    expect(dialog.textContent).toContain("La baja es lógica");
-    expect(dialog.textContent).toContain("Se conservarán el registro, sus experiencias, relaciones y el historial");
+    expect(dialog.textContent).not.toContain("Identificador");
+    expect(dialog.textContent).not.toMatch(new RegExp(`\\b${id}\\b`));
+    expect(dialog.textContent).not.toMatch(/[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}/iu);
+    const names = { materias: materia.nombre, profesores: profesor.nombreCompleto, cursadas: materia.nombre, comisiones: comision.nombre };
+    expect(dialog.textContent).toContain(names[kind]);
+    expect(dialog.textContent).toContain("El registro quedará inactivo. Se conservarán sus datos y el historial.");
+    const warnings = {
+      materias: "Si tiene períodos de cursada vigentes asociados, la baja se bloqueará. Dales de baja primero.",
+      profesores: "Si tiene asignaciones en comisiones vigentes, la baja se bloqueará. Desvinculalo de esas comisiones primero.",
+      cursadas: "Si tiene comisiones vigentes asociadas, la baja se bloqueará. Dales de baja primero.",
+      comisiones: "No admitirá nuevas experiencias, ediciones ni asignaciones docentes. Se conservarán las relaciones existentes.",
+    };
+    expect(dialog.textContent).toContain(warnings[kind]);
+    if (kind === "comisiones") expect(dialog.textContent).not.toContain("la baja se bloqueará");
     await userEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
     expect(eliminarAcademico).not.toHaveBeenCalled();
     await userEvent.click(action);
@@ -78,8 +89,9 @@ describe("bajas administrativas académicas", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Confirmar baja" }));
     expect(await within(dialog).findByRole("alert")).toHaveProperty("textContent", expect.stringContaining("Dales de baja primero"));
     expect(await screen.findByText("Baja bloqueada")).toBeTruthy();
-    expect(screen.getByText("Resultado de la operación")).toBeTruthy();
-    expect(screen.getByText("Motivo del bloqueo")).toBeTruthy();
+    // Materias adopta la tabla compartida de auditoría con las etiquetas del detalle de usuarios.
+    expect(screen.getByRole("rowheader", { name: "Resultado" })).toBeTruthy();
+    expect(screen.getByRole("rowheader", { name: "Motivo" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Editar materia" })).toBeTruthy();
     expect(screen.getByRole("dialog")).toBe(dialog);
   });
@@ -90,7 +102,7 @@ describe("bajas administrativas académicas", () => {
     vi.mocked(listarProfesores).mockImplementation(async (input = {}) => ({ items: input.page === 2 ? deleted ? [] : [profesor] : firstPage, total: deleted ? 9 : 10, page: input.page ?? 1, pageSize: 9 }));
     const view = render(<AdminAcademicList kind="profesores" />);
     await userEvent.click(await screen.findByRole("button", { name: "Dar de baja Ana García" }));
-    expect(screen.getByRole("dialog").textContent).toContain("Dar de baja al profesor es distinto de quitar una asignación");
+    expect(screen.getByRole("dialog").textContent).toContain("Desvinculalo de esas comisiones primero.");
     await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirmar baja" }));
     await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/home/admin/profesores?q=Ana", { scroll: false }));
     nav.query = "q=Ana"; view.rerender(<AdminAcademicList kind="profesores" />);

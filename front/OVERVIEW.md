@@ -1,5 +1,56 @@
 # Frontend
 
+## Eliminación de experiencias
+
+Un ADMIN puede eliminar un comentario vigente desde su detalle administrativo mediante
+`AdminExperienceDeleteAction`: botón secundario rojo con Trash2 y `AdminConfirmDialog` compartido.
+Cancelar/Escape no llaman al servidor, la confirmación bloquea envíos repetidos y los errores
+permiten reintentar. Tras el éxito permanece en detalle, conserva el contexto de retorno y recarga
+registro y auditoría en página uno, mostrando Eliminado y el actor real. La acción desaparece para
+registros eliminados y no se ofrece a otros roles en este recorrido.
+
+El autor mantiene su acción Eliminar en Tu comentario, accesible desde Administrar mi comentario;
+conserva confirmación, regreso al listado/comisión filtrado y mensaje de éxito. También puede
+retirarlo con comisión inactiva. Ambos recorridos usan `eliminarFeedback` y DELETE /feedback/:id,
+con permisos verificados en servidor. No hay restauración, borrado definitivo ni edición de
+comentarios ajenos. El historial privado del autor y la auditoría administrativa siguen separados.
+
+## Detalle administrativo de Experiencias
+
+`AdminRecordDetail` conserva el origen de Experiencias o comisión y presenta el registro con
+el encabezado y las superficies de los detalles de materias. `AdminExperienceCard` agrupa autor
+autorizado con iniciales, estado Publicado/Eliminado, contenido completo y contexto académico
+registrado. El cargo docente corresponde a la comisión del comentario. Las referencias técnicas
+permanecen en los enlaces y contratos, sin mostrarse como campos UUID de la ficha.
+
+Reutiliza `UserAudit` con `kind="feedback"` y los datos ya cargados: fechas y nombres de actores,
+eliminación e historial inicialmente cerrado con tres eventos por página. Los cambios de texto
+se conservan literalmente y el anonimato tiene una etiqueta legible. No modifica comentarios
+públicos, permisos, operaciones ni snapshots históricos. Revisión visual a cargo del desarrollador.
+
+## Contexto de navegación administrativa
+
+`validations/admin-academic-navigation.ts` resuelve el origen compartido de comisiones,
+profesores, auditoría y edición. `returnTo` conserva filtros y páginas por URL, incluso al
+recargar o compartir un enlace. `validations/admin.ts` valida destinos internos, parámetros
+permitidos, profundidad y longitud, y elimina mensajes transitorios del retorno.
+
+- Experiencias → comisión: Administración → Experiencias → Comisión con código real;
+  Volver y Experiencias apuntan al mismo listado filtrado. El menú conserva Experiencias.
+- Materias → cursadas → comisiones: conserva los padres reales, filtros y páginas. Un acceso
+  directo o un origen incompatible reconstruye el padre académico de la comisión.
+- Auditoría de comentario y profesor desde equipo docente: conservan la comisión de entrada
+  y su página de comentarios; no acumulan detalles de comentarios como padres de la comisión.
+- Editar desde detalle permite cancelar o guardar regresando al mismo detalle sin anidar su URL.
+  El enlace explícito de materia desde Experiencias inicia el recorrido académico.
+- `admin/useAdminCommissionOrigin.ts` consulta el padre autorizado cuando hace falta su nombre
+  real. Un origen descartado se retira de la URL para alinear menú y destino alternativo.
+
+No hay estado global ni nuevos permisos. Los guards y autorizaciones del servidor permanecen
+vigentes. La posición exacta de scroll no se persiste: depende de la restauración nativa del
+navegador/Next; los listados no disponen de un mecanismo propio de recuperación de scroll.
+Los recorridos manuales en navegador quedan a cargo del desarrollador.
+
 ## Contenedor
 
 `front/Dockerfile` utiliza build por etapas con Node 22.22.3, lockfile raíz y salida
@@ -65,6 +116,7 @@ ADMIN: sin ese rol muestra "Acceso no permitido" dentro del shell.
 - `/home/admin/profesores/nuevo`: alta de profesores.
 - `/home/admin/cursadas/nueva`: alta de cursada por materia y período (sin profesor responsable).
 - `/home/admin/comisiones/nueva`: alta de comisión por cursada, carrera y número (1 a 999).
+- `/home/admin/materias`, `/home/admin/cursadas` y `/home/admin/comisiones`: las listas y detalles administrativos preservan el contexto de filtros/página y construyen breadcrumbs desde las asociaciones reales; al gestionar cursadas o comisiones, Materias queda activa en el sidebar. Los destinos de retorno son internos y se validan contra la entidad padre.
 - `/home/admin/profesores`: listado paginado de consulta de los profesores cargados.
 - `/home/admin/usuarios`: listado con estado, filtros y administración del acceso de las cuentas registradas.
 - `/account`, `/account/change-password`: perfil y cambio de contraseña protegidos.
@@ -841,6 +893,8 @@ La revisión visual es responsabilidad del usuario.
 
 ## Detalle administrativo y auditoría
 
+La integración de TASK-057 con la navegación contextual conserva los parámetros de origen en filtros, paginación, detalle y edición. Las pruebas usan relaciones completas de materia y cursada para habilitar los listados dependientes; primero esperan su carga y después verifican el resultado. Asignar, cambiar cargo o desvincular docentes guarda cada operación inmediatamente, por separado de Guardar cambios de la comisión. Cancelar la edición de sus datos no revierte operaciones docentes confirmadas. Evidencia automática en `docs/tasks/finished/TASK-integracion-desarrollo-docentes.md`; revisión en navegador a cargo del desarrollador.
+
 Los accesos Eye de materias, profesores, cursadas y comisiones abren detalles bajo `/home/admin`. Usuarios dispone de `/home/admin/usuarios/[usuarioId]` y comentarios de `/home/admin/experiencias/[feedbackId]`, separados del detalle privado del autor. Cada tarjeta de Experiencias ofrece al administrador Ver detalle y auditoría; `returnTo` conserva la URL con filtros y página, validada como destino interno. Los usuarios comunes no reciben esta acción.
 
 `services/admin-detail.ts` valida con Zod el contrato protegido `GET /admin/:kind/:id/detalle?page=1&pageSize=3`. `useAdminDetail` es un hook local al módulo. `AdminAudit`/`AdminAuditPanel` presentan metadatos y eventos reales con paginación de tres. Los datos ausentes se explicitan y la fecha de actualización se distingue del historial. Los campos de usuario/comentario visibles son una lista explícita; no se renderizan objetos de respuesta ni secretos. Usuarios permite confirmar cambios de estado excepto para la propia cuenta; el backend aplica la autorización definitiva. No se agrega moderación de comentarios.
@@ -876,3 +930,51 @@ Pruebas de interacción en `academic-bajas.spec.tsx` cubren cuatro detalles, con
 Los errores conservan los campos. Los formularios mantienen la protección frente a envíos simultáneos. Las asignaciones docentes permanecen en su sección y recargan detalle, opciones y auditoría después de confirmar el éxito; seleccionar el mismo cargo no envía una actualización.
 
 Regresiones: `admin-comision-carreras`, `admin-creation-flows`, `admin-creation-filters`, `admin-creation-list-refresh`, `admin-assignment-flows` y `comisiones-creation-origin`, además de los tests existentes de formularios, filtros, precarga y edición. Pruebas visuales y de navegador a cargo del desarrollador en esta tarea.
+# Presentación de detalles administrativos
+
+`AdminRecordDetail` presenta usuarios mediante `UserAccountCard`, con iniciales, nombre público,
+estado y acciones en la cabecera (debajo de la identidad en móvil), correo y rol en grilla responsive. El contrato actual solo
+expone `displayName`; no se infiere un nombre completo distinto. Conserva retorno con filtros,
+confirmaciones, restricciones sobre la propia cuenta y operaciones reales del service de usuarios.
+
+`UserAudit` y `UserDetail.module.css` definen la presentación compartida de auditoría de usuarios y Materias:
+tres columnas de auditoría en escritorio, dos intermedias y una móvil; historial nativo desplegable
+con tabla Campo/Antes/Después. Las referencias de actores usan nombres autorizados opcionales del
+endpoint; una referencia sin nombre se presenta como “Usuario no identificado”, sin mostrar IDs.
+La ampliación conserva la desactivación de usuarios y usa baja para entidades académicas. Los detalles académicos reutilizan progresivamente esta presentación según las secciones siguientes. La marca compartida `SiteHeader` usa `BookOpen` decorativo
+y conserva el enlace de destino por rol.
+
+`AdminAudit` y `AdminAuditPanel` restringen auditoría e historial al rol `ADMIN`. El cargador
+compartido no consulta auditoría para otros roles; los endpoints mantienen su autorización backend.
+La presentación usa `AdminAcademicDetail.module.css` y tokens vigentes, etiquetas `dt`, valores `dd`,
+ausencias “No registrado”, fechas largas y hora secundaria en la zona local del navegador.
+Se agrupa creación, modificación y baja/desactivación/eliminación según la entidad; una fecha
+ausente no determina el estado actual. El identificador interno no se muestra en la auditoría.
+El historial usa `details`/`summary`, inicia cerrado, cuenta solo eventos del backend y conserva
+paginación de tres registros. No reemplaza el historial privado de versiones de comentarios.
+
+## Detalle administrativo de Materias
+
+Los modales académicos de confirmación de baja identifican el registro por su nombre, sin ID visible. Explican que quedará inactivo y se conservarán sus datos e historial. Materias, períodos y profesores aclaran las asociaciones vigentes que bloquean la baja y el paso necesario para resolverlas; Comisiones informa sus restricciones sin anunciar un bloqueo relacional inexistente. Se conservan los mismos handlers, permisos, botones y errores backend.
+
+`AdminMateriaDetail` conserva Volver, breadcrumb y los constructores de navegación contextual existentes. Presenta el nombre real, Detalle de materia y Datos académicos y períodos de cursada, con edición y confirmación de baja existentes únicamente para ADMIN cuando la materia está activa. La tarjeta Información académica distingue Anual de Cuatrimestral; Cuatrimestre aparece solo para PRIMERO/SEGUNDO. Las ausencias se identifican como No registrado. Carreras y año conserva cada asociación formal con su clasificación y nivel de electiva; Ver cursadas abre el listado administrativo real de la materia con su contexto.
+
+La auditoría reutiliza la presentación de usuarios y el hook administrativo existente: tres/dos/una columnas según ancho, fechas y horas locales, actores autorizados o ausencias explícitas e historial cerrado inicialmente con paginación de tres. Modalidad, carreras, años, niveles y operaciones se traducen desde formatos reales; no se infiere una baja desde un valor nulo. Los estilos locales conservan la paleta institucional, un máximo de 1200px y adaptación de textos/acciones sin restricciones de altura. No cambian contratos, backend, sidebar, navbar ni gestión docente. Ver evidencia en `docs/tasks/finished/TASK-materia-detail-user-style.md`; validación de navegador a cargo del desarrollador.
+
+## Detalle administrativo de Cursadas
+
+`AdminCursadaDetail` reutiliza los estilos del detalle de materias, PageHeader, AdminSharedAudit y AcademicDeleteDialog. El encabezado muestra el período registrado y la materia como contexto; la tarjeta semántica expone período, estado y enlace administrativo a materia. Ver comisiones abre el listado real con materiaId, cursadaId, origen de materias y regreso al detalle. La modalidad de materia no determina el período. Los períodos ausentes conservan el año disponible junto a No registrado.
+
+Editar cursada y Dar de baja se ofrecen solo a ADMIN con cursada activa. La confirmación conserva las restricciones por comisiones vigentes, cancelación, errores y actualización de datos/auditoría. El historial compartido traduce los códigos de período y pagina de tres; no expone UUID ni crea eventos. Sin cambios a contratos, servicios, backend ni navegación global. Evidencia y límites de revisión manual en `docs/tasks/finished/TASK-cursada-detail-presentation.md`.
+
+## Detalle administrativo de Profesores
+
+`AdminProfesorDetail` reutiliza el encabezado, acciones y estilos de materias junto a `PageHeader`, el breadcrumb compartido y `AdminSharedAudit`. La ficha semántica compacta muestra únicamente nombre completo y estado. El avatar decorativo usa la primera letra del primer y último término del nombre disponible (una sola letra para nombres de un término), sin fotografías ni iniciales inventadas cuando falta el nombre. Las ausencias muestran No registrado y los nombres largos pueden ocupar varias líneas. El CSS local solo organiza avatar y ficha, con nombre y estado apilados en móvil.
+
+Editar profesor y Dar de baja se ofrecen a ADMIN con registro activo. Se conserva `AcademicDeleteDialog`, cancelación, bloqueo por asignaciones en comisiones vigentes y actualización del registro/auditoría tras la operación. No se muestran cargos ni asignaciones como atributos del catálogo. Volver, el breadcrumb y la edición conservan búsqueda y página del listado administrativo de profesores; un origen inválido o de otra sección usa ese listado como alternativa. Auditoría e historial mantienen fechas locales, actores autorizados, ausencias explícitas, eventos reales y paginación de tres. Sin cambios de contratos, backend ni componentes globales. Validación automática y revisión manual pendiente del usuario en `docs/tasks/finished/TASK-profesor-detail-presentation.md`.
+
+El ajuste posterior de actores en backend agrega los nombres autorizados ya aceptados por `services/admin-detail.ts`: creación, modificación, baja y eventos muestran el nombre público disponible. Se mantiene Usuario no identificado solo cuando hay referencia sin nombre resoluble, y No registrado cuando falta el actor. No se muestran UUID ni se reconstruyen identidades históricas. Ver `docs/tasks/finished/TASK-profesor-audit-actors.md`.
+
+## Actores de auditoría de todos los módulos
+
+Los detalles administrativos de materias, profesores, cursadas, comisiones, usuarios y experiencias consumen nombres de actores resueltos por backend, tanto en metadatos como en el historial paginado. `UserAudit` y la presentación anterior `AdminAuditPanel` usan el nombre autorizado cuando existe, Usuario no identificado cuando solo existe la referencia y No registrado cuando falta el dato. AdminAuditPanel conserva su presentación y comportamiento para comisiones/experiencias; deja de mostrar referencias técnicas como actores. Sin cambios de permisos, operaciones, navegación ni reconstrucción de eventos. Materias recibe también el nombre de la última modificación desde su historial propio aunque el evento no esté en la página abierta. Evidencia en `docs/tasks/finished/TASK-system-audit-actors.md`.

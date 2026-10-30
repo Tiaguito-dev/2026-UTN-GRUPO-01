@@ -123,4 +123,3 @@ no con Node 22.22.3 oficial; se mantiene esa limitación del entorno.
 Build frontend integrado aprobado, 28/28 páginas generadas. `git diff --check` aprobado.
 Validación terminada el 2026-10-29. No se probó recorrido Docker/Playwright ni SQL/SMTP real;
 se conserva pendiente esa verificación con infraestructura exclusiva de pruebas.
-

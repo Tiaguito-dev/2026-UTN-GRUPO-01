@@ -9,6 +9,7 @@ import { Notice } from "@/components/ui/Notice";
 import { useUrlPagination } from "@/hooks/useUrlPagination";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import { Pagination } from "@/components/ui/Pagination";
+import { comisionNavigation } from "@/validations/admin-academic-navigation";
 import { feedbackDetalleHref, feedbackOriginParams } from "@/validations/feedback";
 import { useFeedbackResource } from "./useFeedbackResource";
 import { ExperienceCard } from "./ExperienceCard";
@@ -21,6 +22,10 @@ export function ComisionFeedback({ comision, administrative = false }: { comisio
   const publishQuery = feedbackOriginParams(params);
   publishQuery.set("comisionId", comision.id);
   const { page, setPage } = useUrlPagination();
+  const navigation = comisionNavigation(params.get("returnTo"), comision);
+  const detailUrl = new URL(navigation.detailHref, "https://local.invalid");
+  if (page > 1) detailUrl.searchParams.set("page", String(page));
+  const returnTo = administrative ? `${detailUrl.pathname}?${detailUrl.searchParams}` : undefined;
   const own = useFeedbackResource(`propio:${comision.id}:${administrative}`, () => administrative ? Promise.resolve(null) : obtenerFeedbackPropio(comision.id));
   const comments = usePaginatedFetch(`feedback:${comision.id}`, (next) => listarFeedbackComision(comision.id, { page: next, pageSize: 9 }), page);
   const result = comments.state.status === "ready" ? comments.state.data : undefined;
@@ -42,7 +47,7 @@ export function ComisionFeedback({ comision, administrative = false }: { comisio
       {comments.state.status === "loading" ? <p role="status">Cargando comentarios…</p> : null}
       {comments.state.status === "error" ? <Notice tone="error">{comments.state.error} <button className="button" type="button" onClick={comments.retry}>Reintentar cargar comentarios</button></Notice> : null}
       {result ? <>
-        {result.items.length ? <ul className={styles.experienceList}>{result.items.map((feedback) => <li key={feedback.id}><ExperienceCard feedback={feedback} administrative={administrative} onManage={() => router.push(feedbackDetalleHref(feedback.id, params))} /></li>)}</ul> : <p className={styles.experienceEmpty}>Todavía no hay comentarios en esta comisión.</p>}
+        {result.items.length ? <ul className={styles.experienceList}>{result.items.map((feedback) => <li key={feedback.id}><ExperienceCard feedback={feedback} administrative={administrative} returnTo={returnTo} onManage={() => router.push(feedbackDetalleHref(feedback.id, params))} /></li>)}</ul> : <p className={styles.experienceEmpty}>Todavía no hay comentarios en esta comisión.</p>}
         <Pagination page={result.page} pageSize={result.pageSize} total={result.total} onChange={setPage} />
       </> : null}
     </div>

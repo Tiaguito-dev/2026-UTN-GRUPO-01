@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { adminCreationHref, adminSuccessHref, safeAdminReturnTo } from "@/validations/admin";
+import { adminCreationHref, adminSuccessHref, safeAdminReturnTo, safeMateriaListOrigin } from "@/validations/admin";
+import { administrativeDetailHref, adminEditReturnTo } from "@/validations/admin-academic-navigation";
 import type { Materia } from "@/types/materias";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -10,10 +11,10 @@ import { MateriaForm } from "./MateriaForm";
 export function MateriaFormPage({ materia }: { materia?: Materia }) {
   const router = useRouter();
   const params = useSearchParams();
-  const returnTo = safeAdminReturnTo(params.get("returnTo"));
+  const returnTo = materia ? adminEditReturnTo("materias", materia.id, params.get("returnTo")) : safeAdminReturnTo(params.get("returnTo"));
 
-  const backList = "/home/admin/materias";
-  const detailHref = materia ? `/home/admin/materias/${encodeURIComponent(materia.id)}${returnTo ? `?${new URLSearchParams({ returnTo })}` : ""}` : undefined;
+  const backList = safeMateriaListOrigin(returnTo) ?? (returnTo ? safeMateriaListOrigin(new URL(returnTo, "https://local.invalid").searchParams.get("returnTo")) : undefined) ?? "/home/admin/materias";
+  const detailHref = materia ? administrativeDetailHref("materias", materia.id, returnTo) : undefined;
 
   return (
     <section aria-labelledby="materia-form-heading">
@@ -27,6 +28,7 @@ export function MateriaFormPage({ materia }: { materia?: Materia }) {
       <Card variant="panel">
         <MateriaForm
           materia={materia}
+          onCancel={materia ? () => router.push(returnTo ?? detailHref!) : undefined}
           onSuccess={(saved) => {
             const target = materia ? detailHref! : returnTo ?? backList;
             const message = materia ? "Materia actualizada correctamente." : `Materia creada: ${saved.nombre}.`;

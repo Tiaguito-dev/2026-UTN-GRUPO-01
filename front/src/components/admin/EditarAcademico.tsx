@@ -14,11 +14,12 @@ import { FormField } from "@/components/ui/FormField";
 import { DocentesComision } from "@/components/academic/DocentesComision";
 import { validateNombre, validateAnio, validateNumeroComision, ANIO_MINIMO, anioMaximo, NUMERO_COMISION_MINIMO, NUMERO_COMISION_MAXIMO } from "@/validations/academic";
 import { carreraLabel, isCarrera } from "@/validations/materias";
-import { adminListHref, adminSuccessHref, safeAdminReturnTo, type AdminSection } from "@/validations/admin";
+import { adminListHref, adminSuccessHref, safeAdminReturnTo, safeMateriaListOrigin } from "@/validations/admin";
+import { administrativeDetailHref, adminEditReturnTo, materiaDetailHref } from "@/validations/admin-academic-navigation";
 import { bloqueoDeOpciones, opcionesListas } from "./opciones";
 
-function detailAfterEdit(section: "profesores" | "cursadas" | "comisiones", id: string, returnTo: string) { return `/home/admin/${section}/${encodeURIComponent(id)}?${new URLSearchParams({ returnTo })}`; }
-function useReturnTo(section: AdminSection) { const params = useSearchParams(); return safeAdminReturnTo(params.get("returnTo")) ?? adminListHref({ seccion: section, page: 1 }); }
+const detailAfterEdit = administrativeDetailHref;
+function useReturnTo(section: "profesores" | "cursadas" | "comisiones", id: string) { const params = useSearchParams(); return adminEditReturnTo(section, id, params.get("returnTo")); }
 function EditorPage({ title, returnTo, children }: { title: string; returnTo: string; children: ReactNode }) {
   const headingId = useId();
   return <section aria-labelledby={headingId}><PageHeader id={headingId} title={title} breadcrumb={[{ label: "Administración", href: "/home/admin" }, { label: title }]} back={{ href: returnTo, label: "listado administrativo" }} /><Card variant="panel">{children}</Card></section>;
@@ -39,13 +40,13 @@ function useInitialInputs(values: Record<string, string>) {
 }
 function SubmitState({ error, success }: { error: string; success: string }) { return <>{error ? <Notice tone="error" focusOnShow>{error}</Notice> : null}{success ? <Notice tone="success">{success}</Notice> : null}</>; }
 function SaveActions({ busy, returnTo }: { busy: boolean; returnTo: string }) { return <div className="dialog-actions"><Link className="button button-secondary" href={returnTo}>Cancelar</Link><button className="button" disabled={busy}>{busy ? "Guardando…" : "Guardar cambios"}</button></div>; }
-export function EditarProfesor({ profesorId }: { profesorId: string }) { const returnTo = useReturnTo("profesores"); return <EditorPage title="Editar profesor" returnTo={returnTo}><DetailEditor id={profesorId} load={obtenerProfesor}>{(profesor) => <ProfesorEditor key={profesor.id} profesor={profesor} returnTo={returnTo} />}</DetailEditor></EditorPage>; }
+export function EditarProfesor({ profesorId }: { profesorId: string }) { const returnTo = useReturnTo("profesores", profesorId); return <EditorPage title="Editar profesor" returnTo={returnTo}><DetailEditor id={profesorId} load={obtenerProfesor}>{(profesor) => <ProfesorEditor key={profesor.id} profesor={profesor} returnTo={returnTo} />}</DetailEditor></EditorPage>; }
 function ProfesorEditor({ profesor, returnTo }: { profesor: Profesor; returnTo: string }) {
   const router = useRouter(); const ref = useInitialInputs({ nombreCompleto: profesor.nombreCompleto });
   const { busy, errors, error, success, setSuccess, handleSubmit } = useFormSubmission({ fields: ["nombreCompleto"] as const, validate: (values) => definedIssues({ nombreCompleto: validateNombre(values.nombreCompleto, 150) }), fallbackError: "No pudimos guardar el profesor.", onSubmit: async (values) => { const nombreCompleto = values.nombreCompleto.trim(); if (nombreCompleto === profesor.nombreCompleto) { setSuccess("No hay cambios para guardar."); return; } await actualizarProfesor(profesor.id, { nombreCompleto }); router.push(adminSuccessHref(detailAfterEdit("profesores", profesor.id, returnTo), "Profesor actualizado correctamente.")); } });
   return <><SubmitState error={error} success={success} /><form ref={ref} onSubmit={handleSubmit} noValidate aria-busy={busy}><FormField name="nombreCompleto" label="Nombre completo" error={errors.nombreCompleto} /><SaveActions busy={busy} returnTo={returnTo} /></form></>;
 }
-export function EditarCursada({ cursadaId }: { cursadaId: string }) { const returnTo = useReturnTo("cursadas"); return <EditorPage title="Editar cursada" returnTo={returnTo}><DetailEditor id={cursadaId} load={obtenerCursada}>{(cursada) => <CursadaOptions key={cursada.id} cursada={cursada} returnTo={returnTo} />}</DetailEditor></EditorPage>; }
+export function EditarCursada({ cursadaId }: { cursadaId: string }) { const returnTo = useReturnTo("cursadas", cursadaId); return <EditorPage title="Editar cursada" returnTo={returnTo}><DetailEditor id={cursadaId} load={obtenerCursada}>{(cursada) => <CursadaOptions key={cursada.id} cursada={cursada} returnTo={returnTo} />}</DetailEditor></EditorPage>; }
 function CursadaOptions({ cursada, returnTo }: { cursada: CursadaDetalle; returnTo: string }) {
   const materias = useAllPages("materias", (page) => listarMaterias({ page, pageSize: 100 }));
   const blocked = bloqueoDeOpciones([{ ...materias, nombre: "materias", vacio: "No hay materias disponibles." }]);
@@ -62,13 +63,15 @@ function CursadaEditor({ cursada, returnTo, materias }: { cursada: CursadaDetall
     if (values.cuatrimestre !== cursada.cuatrimestre) changes.cuatrimestre = values.cuatrimestre;
     if (!Object.keys(changes).length) { setSuccess("No hay cambios para guardar."); return; }
     await actualizarCursada(cursada.id, changes);
-    const target = changes.materiaId ? adminListHref({ seccion: "cursadas", materiaId: changes.materiaId, page: 1 }) : returnTo;
+    const source = new URL(safeAdminReturnTo(returnTo) ?? "/home/admin/cursadas", "https://local.invalid");
+    const materiaOrigin = safeMateriaListOrigin(source.searchParams.get("materiaReturnTo")) ?? "/home/admin/materias";
+    const target = changes.materiaId ? adminListHref({ seccion: "cursadas", materiaId: changes.materiaId, materiaReturnTo: materiaOrigin, returnTo: materiaDetailHref(changes.materiaId, materiaOrigin), page: 1 }) : returnTo;
     router.push(adminSuccessHref(detailAfterEdit("cursadas", cursada.id, target), "Cursada actualizada correctamente."));
   } });
   return <><Notice tone="warning">Las comisiones y sus profesores permanecen asociados a esta cursada. No se permite moverla a una materia que no ofrezca las carreras de sus comisiones.</Notice><SubmitState error={error} success={success} /><form ref={ref} onSubmit={handleSubmit} noValidate aria-busy={busy}><FormField name="materiaId" label="Materia" defaultValue={cursada.materia.id} options={materias.map((m) => ({ value: m.id, label: m.nombre }))} error={errors.materiaId} /><FormField name="anio" label="Año" input={{ numeric: { min: ANIO_MINIMO, max: anioMaximo() } }} error={errors.anio} /><FormField name="cuatrimestre" label="Período" defaultValue={cursada.cuatrimestre ?? ""} options={[{ value: "PRIMERO", label: "Primer cuatrimestre" }, { value: "SEGUNDO", label: "Segundo cuatrimestre" }, { value: "ANUAL", label: "Anual" }]} error={errors.cuatrimestre} /><SaveActions busy={busy} returnTo={returnTo} /></form></>;
 }
 function isCuatrimestre(value: string): value is Cuatrimestre { return value === "PRIMERO" || value === "SEGUNDO" || value === "ANUAL"; }
-export function EditarComision({ comisionId }: { comisionId: string }) { const returnTo = useReturnTo("comisiones"); return <EditorPage title="Editar comisión" returnTo={returnTo}><DetailEditor id={comisionId} load={obtenerComision}>{(comision) => <ComisionOptions key={comision.id} comision={comision} returnTo={returnTo} />}</DetailEditor></EditorPage>; }
+export function EditarComision({ comisionId }: { comisionId: string }) { const returnTo = useReturnTo("comisiones", comisionId); return <EditorPage title="Editar comisión" returnTo={returnTo}><DetailEditor id={comisionId} load={obtenerComision}>{(comision) => <ComisionOptions key={comision.id} comision={comision} returnTo={returnTo} />}</DetailEditor></EditorPage>; }
 function ComisionOptions({ comision, returnTo }: { comision: ComisionDetalle; returnTo: string }) {
   const { materia, error, retry } = useMateria(comision.cursada.materia.id);
   if (error) return <Notice tone="error">{error} <button className="button" type="button" onClick={retry}>Reintentar</button></Notice>;

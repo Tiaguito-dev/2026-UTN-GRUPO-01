@@ -2,6 +2,87 @@
 
 ## [Sin publicar]
 
+### Eliminación de experiencias por autor o administrador
+
+- ADMIN puede eliminar comentarios de cualquier autor desde el detalle administrativo con confirmación, cancelación y estilo de baja existente. Conserva la eliminación del autor desde Tu comentario.
+- DELETE /feedback/:id valida autor o rol ADMIN de la sesión y conserva soft delete, snapshot y actor real en auditoría; eliminaciones concurrentes generan un único evento. Funciona en comisiones inactivas.
+- Recarga estado e historial tras eliminar y mantiene contexto, datos y relaciones. No amplía edición ni historial privado, ni incorpora restauración o borrado definitivo.
+
+### Presentación del detalle administrativo de Experiencias
+
+- Encabezado y ficha alineados con materias, profesores y usuarios: autor con iniciales, estado explícito, contenido completo y contexto académico registrado, adaptables a móvil y nombres largos.
+- Auditoría compartida con tres bloques e historial integrado, etiquetas legibles de contenido/anonimato y texto histórico literal. Reutiliza los datos ya cargados sin solicitudes duplicadas.
+- Conserva el breadcrumb contextual, Volver y Ver comisión, permisos y operaciones. Sin cambios backend ni comentarios públicos; revisión en navegador reservada al desarrollador.
+- Validación: 721 pruebas frontend, tipos, lint, build Docker y 16 comprobaciones HTTP aprobados. Frontend actualizado en el stack; evidencia en `docs/tasks/finished/TASK-experience-detail-presentation.md`.
+
+### Contexto de navegación administrativa
+
+- Experiencias → comisión conserva filtros, página, breadcrumb contextual y sección activa.
+- Los accesos académicos conservan su jerarquía y los enlaces directos reconstruyen los padres reales. Retornos internos validados, sin mensajes transitorios ni cadenas ilimitadas.
+- Auditoría de comentarios, profesores del equipo y edición conservan sus destinos de origen; guardar/cancelar desde detalle no anida copias del mismo detalle.
+- Sin cambios de diseño, permisos ni backend. 709 pruebas frontend, tipos, lint, build y 16 comprobaciones HTTP aprobados; frontend del stack actualizado. Recorridos en navegador a cargo del desarrollador; evidencia en `docs/tasks/finished/TASK-admin-navigation-context.md`.
+
+### Actores de auditoría en todos los módulos administrativos
+
+- Resolución uniforme de nombres en materias, cursadas, comisiones y experiencias, conservando usuarios/profesores. Incluye el actor de la última modificación de MateriaHistorial fuera de la página visible.
+- Comisiones y experiencias consumen los nombres autorizados en su auditoría e historial, sin mostrar referencias de actor como identificadores técnicos ni inventar atribuciones ausentes.
+- Validación completa: 895 pruebas backend con integraciones y 640 frontend aprobadas, tipos/lint/builds correctos y migraciones sin diferencias. Stack regenerado y saludable con 16 comprobaciones HTTP aprobadas. Commits reservados al usuario.
+
+### Actores de auditoría de Profesores
+
+- El detalle administrativo ahora resuelve los nombres de creación, modificación, baja e historial mediante consulta agrupada autorizada, como usuarios. Conserva las ausencias reales sin inventar atribuciones.
+- Verificada la escritura transaccional de acciones y actor de sesión: 101 pruebas backend y 17 frontend aprobadas; alta/edición/baja comprobadas en PostgreSQL con reversión completa. Sin cambios de permisos ni eventos históricos.
+- Stack local reconstruido y reiniciado, servicios saludables y 16 comprobaciones HTTP aprobadas. Los registros legados sin auditoría conservan las ausencias reales.
+
+### Presentación del detalle administrativo de Profesores
+
+- Encabezado y acciones coherentes con materias y cursadas; ficha compacta de nombre, iniciales reales y estado explícito, adaptable a móvil y nombres largos.
+- Reutiliza auditoría e historial compartidos con actores sin identificadores técnicos. Volver conserva búsqueda y página del listado de profesores, con alternativa segura ante origen inválido.
+- Conserva permisos, confirmación/cancelación y restricciones de baja sin modificar asignaciones ni backend. Validación automática en la tarea; revisión visual a cargo del desarrollador.
+
+### Presentación del detalle administrativo de Cursadas
+
+- Encabezado con período real, contexto de materia y acciones existentes; tarjeta semántica y acceso directo a comisiones con contexto de regreso.
+- Reutiliza los estilos de materias y la auditoría/historial compartidos de usuarios, con períodos legibles y actores sin identificadores técnicos. Confirmación concisa de baja con etiqueta cursada.
+- Pruebas de regresión de períodos, estados, permisos, navegación, teclado, bajas e historial; sin navegador ni commit. Evidencia en `docs/tasks/finished/TASK-cursada-detail-presentation.md`.
+
+### Mensajes de confirmación de baja académica
+
+- Los modales identifican el registro por su nombre, sin mostrar el ID. Mensajes breves sobre inactividad, conservación de datos e historial y asociaciones vigentes que bloquean la baja según cada entidad.
+- Sin cambios a permisos, operaciones, confirmaciones ni restricciones del backend.
+
+### Presentación del detalle administrativo de Materias
+
+- Encabezado contextual y acciones existentes de edición/baja, información académica semántica y asociaciones completas de carrera, año y nivel de electiva.
+- Auditoría e historial reutilizan la presentación de usuarios, con etiquetas de baja académica, valores legibles y actores sin identificadores internos.
+- Regresiones automáticas y disponibilidad del stack local documentadas en la tarea; revisión de navegador a cargo del desarrollador, sin capturas ni commit.
+
+### Integración de desarrollo y compatibilidad de pruebas
+
+- Se incorpora la gestión docente de TASK-057 conservando la navegación contextual administrativa y el guardado inmediato de asignaciones, cargos y desvinculaciones.
+- Pruebas de listados, detalle y edición adaptadas a las relaciones materia/cursada y al retorno jerárquico actual, conservando cobertura de filtros y paginación.
+- Validación automática documentada en la tarea de integración; validación en navegador a cargo del desarrollador, sin capturas.
+
+### Navegación contextual administrativa académica
+
+- Breadcrumbs de Materias, Cursadas y Comisiones reconstruyen la jerarquía con nombres y relaciones reales; los niveles anteriores apuntan a sus vistas administrativas.
+- `Volver`, edición, guardar y cancelar conservan el listado y contexto de origen. Los retornos se validan por ruta, entidad y relación; el listado global de cursadas sigue disponible.
+- Las rutas administrativas anidadas mantienen Materias activa en el menú lateral. Pruebas focalizadas, TypeScript y lint; revisión de navegador a cargo del desarrollador.
+
+### Detalle exclusivo de usuarios y marca superior
+
+- Tarjeta de cuenta con iniciales, nombre público, estado, acción superior y nota de propia cuenta basada en sesión; conserva confirmaciones y restricciones reales.
+- Auditoría de usuarios con iconografía, distribución responsive y nombres de actores resueltos por backend mediante consulta agrupada exclusiva de este detalle; sin IDs visibles.
+- Historial accesible cerrado con diferencias Campo/Antes/Después y retorno al listado con filtros y página. Marca BookOpen compartida con enlace según rol.
+- Se preserva la presentación actual de detalles académicos. Prueba de navegador a cargo del desarrollador; sin commits.
+
+### Presentación del detalle de usuario y auditoría administrativa
+
+- Resumen compacto de nombre público y estado, campos con jerarquía tipográfica y acciones de acceso responsive; se conservan filtros, confirmaciones y permisos.
+- Auditoría compartida exclusiva de administración, sin ID visible, con bloques de creación, modificación y baja, fechas legibles y horas secundarias.
+- Historial desplegable cerrado inicialmente con contador real y paginación de tres eventos; sin inferir estado ni inventar actores ante datos ausentes.
+- Paleta actual mediante tokens existentes. Sin cambios de endpoints ni commits. Prueba de navegador a cargo del desarrollador.
+
 ### Docentes en edición administrativa de comisiones (TASK-057)
 
 - Integración con el detalle actualizado de desarrollo, conservando experiencias,

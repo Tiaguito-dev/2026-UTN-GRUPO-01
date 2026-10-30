@@ -36,7 +36,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 function link(name: string | RegExp) {
-  return new URL(screen.getByRole("link", { name }).getAttribute("href")!, "https://local.test");
+  return new URL(screen.getAllByRole("link", { name })[0]!.getAttribute("href")!, "https://local.test");
 }
 function administrativeBreadcrumb(title: string) {
   const breadcrumb = screen.getByRole("navigation", { name: "Ubicación actual" });
@@ -56,11 +56,13 @@ describe("detalles académicos administrativos", () => {
     expect(screen.getByText("Ingeniería en Sistemas de Información")).toBeTruthy();
     expect(screen.getByText("Ingeniería Industrial")).toBeTruthy();
     expect(screen.getByText(/Electiva.*4\.º Nivel/)).toBeTruthy();
-    expect(link(/Volver a/).pathname + link(/Volver a/).search).toBe(origin);
+    // TASK-admin-navigation-context: la gestión explícita de materia inicia el recorrido académico.
+    expect(link(/Volver a/).pathname + link(/Volver a/).search).toBe("/home/admin/materias");
     expect(link("Ver cursadas").pathname).toBe("/home/admin/cursadas");
     expect(link("Ver cursadas").searchParams.get("materiaId")).toBe("m1");
+    expect(link("Ver cursadas").searchParams.get("materiaReturnTo")).toBe("/home/admin/materias");
     expect(link("Editar materia").pathname).toBe("/home/admin/materias/m1/editar");
-    expect(link("Editar materia").searchParams.get("returnTo")).toBe(origin);
+    expect(link("Editar materia").searchParams.get("returnTo")).toBe(`/home/admin/materias/m1?${new URLSearchParams({ returnTo: "/home/admin/materias" })}`);
     // Shared administrative audit replaces the public timeline.
     expect(await screen.findByRole("heading", {name:"Auditoría"})).toBeTruthy();
     expect(obtenerDetalleAdministrativo).toHaveBeenCalledWith("materias", "m1");
@@ -85,7 +87,7 @@ describe("detalles académicos administrativos", () => {
     administrativeBreadcrumb("Docente de nombre extenso");
     expect(link(/Volver a/).pathname + link(/Volver a/).search).toBe(origin);
     expect(link("Editar profesor").pathname).toBe("/home/admin/profesores/p1/editar");
-    expect(link("Editar profesor").searchParams.get("returnTo")).toBe(origin);
+    expect(link("Editar profesor").searchParams.get("returnTo")).toBe(`/home/admin/profesores/p1?${new URLSearchParams({ returnTo: origin })}`);
   });
 
   it.each(["https://evil.test", "/home/materias/m1"])('profesor rechaza el origen no administrativo %s', async (returnTo) => {
@@ -97,13 +99,16 @@ describe("detalles académicos administrativos", () => {
 
   it("cursada presenta el período real y abre materia, comisiones y edición administrativas", async () => {
     render(<AdminCursadaDetail cursadaId="cu1" />);
-    const heading = await screen.findByRole("heading", { level: 1, name: /Cursada.*2026/ });
+    // El encabezado identifica la entidad con eyebrow y reserva el título para el período real.
+    const heading = await screen.findByRole("heading", { level: 1, name: "2do cuatrimestre 2026" });
     administrativeBreadcrumb(heading.textContent!);
     expect(obtenerCursada).toHaveBeenCalledWith("cu1");
     expect(link(materia.nombre).pathname).toBe("/home/admin/materias/m1");
     const commissions = link("Ver comisiones");
     expect(commissions.pathname).toBe("/home/admin/comisiones");
-    expect(Object.fromEntries(commissions.searchParams)).toEqual({ materiaId: "m1", cursadaId: "cu1" });
+    expect(commissions.searchParams.get("materiaId")).toBe("m1");
+    expect(commissions.searchParams.get("cursadaId")).toBe("cu1");
+    expect(commissions.searchParams.get("materiaReturnTo")).toBe("/home/admin/materias");
     expect(link("Editar cursada").pathname).toBe("/home/admin/cursadas/cu1/editar");
     expect(link(/Volver a/).searchParams.get("materiaId")).toBe("m1");
     expect(document.querySelector('a[href^="/home/materias"]')).toBeNull();

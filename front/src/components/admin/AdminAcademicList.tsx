@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useState } from "react";
-import { listarMaterias, listarProfesores, listarCursadasPorMateria, listarComisionesPorCursada, obtenerCursada } from "@/services/academic";
+import { listarMaterias, listarProfesores, listarCursadasPorMateria, listarComisionesPorCursada, obtenerCursada, type CursadaDetalle } from "@/services/academic";
 import type { PaginatedResult } from "@/services/pagination";
 import { useUrlPagination } from "@/hooks/useUrlPagination";
 import { obtenerMateria } from "@/services/materias";
@@ -12,7 +12,9 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Notice } from "@/components/ui/Notice";
 import { Dialog } from "@/components/ui/Dialog";
-import { adminCreationHref, adminListHref, adminFormHref, readAdminFilters, type AdminSection, type AdminContext } from "@/validations/admin";
+import { adminCreationHref, adminListHref, adminFormHref, readAdminFilters, safeAdminReturnTo, safeMateriaListOrigin, type AdminSection, type AdminContext } from "@/validations/admin";
+import { academicListReturnTo, cursadaDetailHref, cursadaDetailReturnTo, cursadaListOrigin, materiaDetailHref, materiaDetailReturnTo } from "@/validations/admin-academic-navigation";
+import type { BreadcrumbItem } from "@/components/ui/Breadcrumb";
 import { ANIOS_CARRERA, CARRERAS, NIVELES_ELECTIVA, anioCarreraLabel, carreraLabel, nivelElectivaLabel } from "@/validations/materias";
 import { periodoLabel } from "@/lib/format/periodo";
 import { cargoLabel } from "@/lib/format/cargo";
@@ -33,19 +35,52 @@ export function AdminAcademicList({ kind }: { kind: Kind }) {
   const headingId = useId(); const router = useRouter(); const params = useSearchParams();
   const { page, setPage } = useUrlPagination();
   const materiaId = params.get("materiaId") ?? ""; const cursadaId = params.get("cursadaId") ?? "";
+  const materiaReturnTo = safeMateriaListOrigin(params.get("materiaReturnTo")) ?? "/home/admin/materias";
+  const requestedBack = safeAdminReturnTo(params.get("returnTo"));
   const filters = readAdminFilters(params);
   const [deleting, setDeleting] = useState<AdminRow | null>(null);
   const [creating, setCreating] = useState(false); const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(""); const [refreshKey, setRefreshKey] = useState(0);
   const [outsideFilters, setOutsideFilters] = useState(false);
-  const context: AdminContext = { seccion: kind, page, materiaId, cursadaId, ...filters };
+  const [parentResult, setParentResult] = useState<{ key: string; data: { materia?: { id: string; nombre: string }; cursada?: Pick<CursadaDetalle, "id" | "anio" | "cuatrimestre"> } } | null>(null);
+  const parentKey = `${kind}:${materiaId}:${cursadaId}`;
+  const parent = parentResult?.key === parentKey ? parentResult.data : null;
+  useEffect(() => {
+    if (!materiaId || (kind === "comisiones" && !cursadaId)) return;
+    let active = true;
+    const load = kind === "comisiones" ? obtenerCursada(cursadaId).then(cursada => {
+      if (cursada.id !== cursadaId || cursada.materia.id !== materiaId) throw new Error("El período no pertenece a la materia seleccionada.");
+      return { materia: cursada.materia, cursada };
+    }) : obtenerMateria(materiaId).then(materia => {
+      if (materia.id !== materiaId) throw new Error("No se encontró la materia seleccionada.");
+      return { materia };
+    });
+    load.then(value => { if (active) setParentResult({ key: parentKey, data: value }); }, () => { if (active) setParentResult({ key: parentKey, data: {} }); });
+    return () => { active = false; };
+  }, [kind, materiaId, cursadaId, parentKey]);
+  const contextual = (kind === "cursadas" && Boolean(materiaId)) || (kind === "comisiones" && Boolean(materiaId && cursadaId));
+  const parentHref = kind === "cursadas" ? materiaDetailHref(materiaId, materiaReturnTo) : parent?.cursada ? cursadaDetailHref(parent.cursada.id, adminListHref({ seccion: "cursadas", materiaId, materiaReturnTo, returnTo: materiaDetailHref(materiaId, materiaReturnTo), page: 1 })) : "/home/admin/cursadas";
+  const validParent = kind === "cursadas" ? materiaDetailReturnTo(requestedBack, materiaId) : kind === "comisiones" && parent?.cursada ? cursadaDetailReturnTo(requestedBack, parent.cursada.id, materiaId) : undefined;
+  const returnTo = contextual ? validParent ?? parentHref : requestedBack;
+  const generatedCursadasHref = adminListHref({ seccion: "cursadas", materiaId, materiaReturnTo, returnTo: materiaDetailHref(materiaId, materiaReturnTo), page: 1 });
+  const parentCursadasHref = kind === "comisiones" && parent?.cursada
+    ? cursadaListOrigin(returnTo, parent.cursada.id, materiaId) ?? generatedCursadasHref
+    : generatedCursadasHref;
+  const context: AdminContext = { seccion: kind, page, materiaId, cursadaId, materiaReturnTo, returnTo: contextual ? returnTo : undefined, ...filters };
   const href = adminListHref(context);
-  const parentReady = kind !== "cursadas" && kind !== "comisiones" || Boolean(materiaId && (kind !== "comisiones" || cursadaId));
+  const parentReady = kind !== "cursadas" && kind !== "comisiones" || Boolean(materiaId && parent?.materia && (kind !== "comisiones" || parent.cursada));
+  const hierarchy: BreadcrumbItem[] = contextual && parent?.materia ? [
+    { label: "Administración", href: "/home/admin" },
+    { label: "Materias", href: materiaReturnTo },
+    { label: parent.materia.nombre, href: materiaDetailHref(materiaId, materiaReturnTo) },
+    ...(kind === "comisiones" && parent.cursada ? [{ label: "Cursadas", href: parentCursadasHref }, { label: `Cursada ${periodoLabel(parent.cursada.anio, parent.cursada.cuatrimestre)}`, href: cursadaDetailHref(parent.cursada.id, parentCursadasHref) }] : []),
+    { label: LABELS[kind] },
+  ] : [{ label: "Administración", href: "/home/admin" }, { label: LABELS[kind] }];
   const changeFilters = (next: Partial<AdminContext>) => router.replace(adminListHref({ ...context, ...next, page: 1 }), { scroll: false });
   const created = (text: string, record: Parameters<typeof adminCreationHref>[2] = {}) => { setOutsideFilters(new URL(adminCreationHref(href, text, record), "https://local.invalid").searchParams.has("creationOutsideFilters")); setCreating(false); setMessage(text); setRefreshKey((value) => value + 1); setPage(1); };
   const active = Boolean(filters.q || filters.carrera || filters.anioCarrera || filters.nivelElectiva);
   return <section className={styles.page} aria-labelledby={headingId}>
-    <PageHeader id={headingId} title={LABELS[kind]} description={DESCRIPTIONS[kind]} breadcrumb={[{ label: "Administración", href: "/home/admin" }, { label: LABELS[kind] }]} />
+    <PageHeader id={headingId} title={LABELS[kind]} description={DESCRIPTIONS[kind]} back={contextual && returnTo ? { href: returnTo, label: "contexto administrativo" } : undefined} breadcrumb={hierarchy} />
     {message || params.get("successMessage") ? <Notice tone="success">{message || params.get("successMessage")}</Notice> : null}
     {outsideFilters || params.get("creationOutsideFilters") === "1" ? <Notice tone="warning">El registro se creó correctamente, pero no coincide con los filtros seleccionados. <button className="button button-secondary" type="button" onClick={() => { setOutsideFilters(false); router.replace(adminListHref({ seccion: kind, page: 1 }), { scroll: false }); }}>Limpiar filtros para buscar el registro</button></Notice> : null}
     <div className={styles.toolbar}><div className={styles.filters}>

@@ -1,4 +1,5 @@
 import type { Feedback, FeedbackRevision } from "../../domain/feedback.js";
+import type { UserRole } from "../../../users/domain/user.js";
 import type { PaginatedResult, Pagination } from "../../../shared/domain/pagination.js";
 import type { CreateFeedbackInput, UpdateFeedbackInput, FeedbackFilters } from "../feedback-input.js";
 
@@ -10,6 +11,6 @@ export interface FeedbackRepository {
   create(id: string, viewer: string, input: CreateFeedbackInput): Promise<Feedback>;
   get(id: string, viewer: string): Promise<Feedback>;
   update(id: string, viewer: string, input: UpdateFeedbackInput): Promise<Feedback>;
-  remove(id: string, viewer: string): Promise<void>;
+  remove(id: string, viewer: string, role?: UserRole): Promise<void>;
   history(id: string, viewer: string, pagination: Pagination): Promise<PaginatedResult<FeedbackRevision>>;
 }

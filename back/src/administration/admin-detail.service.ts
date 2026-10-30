@@ -57,10 +57,17 @@ export class AdminDetailService {
         total = await tx.feedbackHistorial.count({ where: { feedbackId: id } });
       }
       const dates = registro as {createdAt: Date; updatedAt?: Date; deletedAt?: Date | null; disabledAt?: Date | null};
+      // Resolve authorized display names in one batch; preserve absent historical actors.
+      const updatedBy = materiaLatest?.actorId ?? edition?.actorId ?? null;
+      const actorIds = [...new Set([creation?.actorId, updatedBy, deletion?.actorId, ...history.map(entry => entry.actorId)].filter((value): value is string => Boolean(value)))];
+      const actors = actorIds.length ? await tx.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, displayName: true } }) : [];
+      const names = new Map(actors.map(actor => [actor.id, actor.displayName]));
+      const actorName = (actorId: string | null | undefined) => actorId ? names.get(actorId) ?? null : null;
       return { registro, auditoria: { id, createdAt: dates.createdAt, createdBy: creation?.actorId ?? null,
-        updatedAt: dates.updatedAt ?? materiaLatest?.createdAt ?? edition?.createdAt ?? null, updatedBy: materiaLatest?.actorId ?? edition?.actorId ?? null,
+        createdByName: actorName(creation?.actorId), updatedByName: actorName(updatedBy), deletedByName: (dates.deletedAt || dates.disabledAt) ? actorName(deletion?.actorId) : null,
+        updatedAt: dates.updatedAt ?? materiaLatest?.createdAt ?? edition?.createdAt ?? null, updatedBy,
         deletedAt: dates.deletedAt ?? dates.disabledAt ?? null, deletedBy: (dates.deletedAt || dates.disabledAt) ? deletion?.actorId ?? null : null },
-        historial: { items: history, total, ...pagination } };
+        historial: { items: history.map(entry => ({ ...entry, actorName: actorName(entry.actorId) })), total, ...pagination } };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
   }
   private async record(tx: Prisma.TransactionClient, kind: string, id: string) {

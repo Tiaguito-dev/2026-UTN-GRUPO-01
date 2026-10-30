@@ -25,6 +25,28 @@ afterEach(cleanup);
 beforeEach(() => { vi.resetAllMocks(); nav.query = ""; nav.account = { id: "self", role: "ADMIN" }; });
 
 describe("administración del acceso de usuarios", () => {
+  it.each(["/home/admin/profesores", "https://externo.test", "/home/admin/usuarios/u2"])("rechaza un origen ajeno al listado: %s", async (returnTo) => {
+    nav.query = new URLSearchParams({ returnTo }).toString();
+    vi.mocked(obtenerDetalleAdministrativo).mockResolvedValue(detail(null));
+    render(<AdminRecordDetail kind="users" id="u1" />);
+    await screen.findByRole("region", { name: "Cuenta de usuario" });
+    expect(screen.getByRole("link", { name: /Volver/ }).getAttribute("href")).toBe("/home/admin/usuarios");
+    expect(within(screen.getByRole("navigation", { name: "Ubicación actual" })).getByText("Ana")).toBeTruthy();
+    expect(screen.queryByText("No podés desactivar tu propia cuenta")).toBeNull();
+  });
+  it("conserva textos largos, campos ausentes y el regreso al listado filtrado", async () => {
+    const origin = "/home/admin/usuarios?q=Ana&estado=ACTIVO&page=3";
+    nav.query = new URLSearchParams({ returnTo: origin }).toString();
+    const longName = "Nombre público completo ".repeat(12);
+    const data = detail(null);
+    data.registro = { ...data.registro, displayName: longName, email: null };
+    vi.mocked(obtenerDetalleAdministrativo).mockResolvedValue(data);
+    render(<AdminRecordDetail kind="users" id="u1" />);
+    expect((await screen.findAllByText(longName.trim())).every(node => node.textContent === longName)).toBe(true);
+    expect(screen.getAllByText("No registrado").length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: /Volver/ }).getAttribute("href")).toBe(origin);
+    expect(screen.queryByText("u1")).toBeNull();
+  });
   it("identifica cuentas homónimas, permite cancelar y refresca resultados filtrados después de desactivar", async () => {
     nav.query = "estado=ACTIVO";
     vi.mocked(listarUsuarios).mockResolvedValueOnce({ items: [user, { ...user, id: "u2", email: "otra@utn.edu" }], total: 2, page: 1, pageSize: 9 }).mockResolvedValue({ items: [{ ...user, id: "u2", email: "otra@utn.edu" }], total: 1, page: 1, pageSize: 9 });
@@ -51,6 +73,8 @@ describe("administración del acceso de usuarios", () => {
     vi.mocked(obtenerDetalleAdministrativo).mockImplementation(async (_kind, _id, page) => detail(disabledAt, page));
     vi.mocked(cambiarEstadoUsuario).mockImplementation(async () => { disabledAt = null; return user; });
     render(<AdminRecordDetail kind="users" id="u1" />);
+    // El historial ahora inicia cerrado y se abre antes de paginar.
+    await userEvent.click(await screen.findByText(/Historial de cambios/));
     await userEvent.click(await screen.findByRole("button", { name: "Página siguiente" }));
     await waitFor(() => expect(obtenerDetalleAdministrativo).toHaveBeenLastCalledWith("users", "u1", 2));
     await userEvent.click(await screen.findByRole("button", { name: "Reactivar usuario Ana (ana@utn.edu)" }));
@@ -62,9 +86,9 @@ describe("administración del acceso de usuarios", () => {
     expect(action.querySelector("svg.lucide-user-x")).toBeTruthy();
     expect(cambiarEstadoUsuario).toHaveBeenCalledExactlyOnceWith("u1", true);
     expect(obtenerDetalleAdministrativo).toHaveBeenLastCalledWith("users", "u1", 1);
-    expect(screen.getByText("Activo")).toBeTruthy();
+    expect(within(screen.getByRole("region", { name: "Cuenta de usuario" })).getByText("Activo")).toBeTruthy();
     expect(screen.getByText("Activación")).toBeTruthy();
-    expect(screen.getByText("Actor: self")).toBeTruthy();
+    expect(screen.getByText("Actor: Usuario no identificado")).toBeTruthy();
     expect(screen.getByText("Usuario reactivado correctamente.")).toBeTruthy();
   });
 
@@ -77,14 +101,19 @@ describe("administración del acceso de usuarios", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Confirmar desactivación" }));
     expect((await within(dialog).findByRole("alert")).textContent).toContain("administrador activo");
     expect(screen.queryByText("Usuario desactivado correctamente.")).toBeNull();
-    expect(screen.getByText("Activo")).toBeTruthy();
+    expect(within(screen.getByRole("region", { name: "Cuenta de usuario" })).getByText("Activo")).toBeTruthy();
   });
 
   it.each([{ id: "u1", role: "ADMIN" }, { id: "self", role: "USER" }])("no ofrece cambiar estado a la propia cuenta ni a usuarios sin rol administrativo: %j", async (account) => {
     nav.account = account;
     vi.mocked(obtenerDetalleAdministrativo).mockResolvedValue(detail(null));
     render(<AdminRecordDetail kind="users" id="u1" />);
-    await screen.findByRole("heading", { name: "Datos actuales" });
+    await screen.findByRole("region", { name: "Cuenta de usuario" });
     expect(screen.queryByRole("button", { name: /Desactivar usuario/ })).toBeNull();
+    if (account.id === "u1") expect(screen.getByText("No podés desactivar tu propia cuenta")).toBeTruthy();
+    if (account.role === "USER") {
+      expect(screen.queryByRole("heading", { name: "Auditoría" })).toBeNull();
+      expect(screen.queryByText(/Historial de cambios/)).toBeNull();
+    }
   });
 });

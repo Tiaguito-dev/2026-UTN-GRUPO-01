@@ -56,7 +56,7 @@ conservan Origin/CSRF del transporte existente. La autoría se obtiene exclusiva
 | `POST /comisiones/:id/feedback` | `{texto, anonimo, profesorId?}`; responde 201 con el comentario. |
 | `GET /feedback/:id` | Detalle vigente exclusivo del autor (403 para otras cuentas, incluido ADMIN), sin email ni identificador del autor. |
 | `PATCH /feedback/:id` | Solo autor; `{texto?, anonimo?}`. No permite cambiar comisión ni docente. |
-| `DELETE /feedback/:id` | Solo autor; baja lógica y revisión en transacción, responde 204. |
+| `DELETE /feedback/:id` | Autor o ADMIN; baja lógica y revisión en transacción, responde 204. |
 | `GET /feedback/:id/historial?page=1&pageSize=3` | Solo autor, incluso tras eliminación; creación, edición y eliminación. |
 
 Listados: `{items,total,page,pageSize}`; máximo nueve comentarios por página y tres revisiones.
@@ -68,6 +68,15 @@ Revisión: `{id,accion,texto,anonimo,createdAt}`, con acción CREACION, EDICION 
 Las fechas se serializan como ISO. El anonimato oculta la identidad incluso al propio autor
 en la proyección pública; `propio` habilita sus acciones sin exponer identificadores.
 El historial es privado del autor: un ADMIN ajeno tampoco accede a él.
+
+La eliminación admite al autor o a un ADMIN según la identidad y el rol de la sesión autenticada,
+sin aceptar identidad/rol del cliente. No amplía GET/PATCH ni el historial privado. Revalida el
+registro bajo bloqueo de comisión y registra el actor real, el snapshot de eliminación y la fecha
+en una única transacción. Funciona con comisión inactiva; conserva relaciones y versiones,
+retira el comentario de los feeds y permite al autor publicar otro si la comisión admite altas.
+Sin sesión responde 401, sin CSRF o sin permiso 403, y ante un registro inexistente o ya eliminado
+404. Dos eliminaciones concurrentes generan un único evento; la segunda recibe 404. No requiere
+migraciones. El detalle administrativo conserva la consulta autorizada de auditoría y actor.
 
 La consulta general de Experiencias (TASK-061) reutiliza los mismos comentarios, proyección
 pública y paginación: nueve por defecto y máximo nueve. Devuelve `{items,total,page,pageSize}`,
@@ -1140,3 +1149,34 @@ PATCH mantiene el control de pertenencia también cuando solo cambia el número 
 corregir la asociación si no existen carreras. La persistencia revalida la pertenencia bajo
 los bloqueos existentes de cursada y materia, conservando la protección frente a concurrencia.
 No se asigna ni sugiere numeración disponible; no cambian permisos ADMIN, auditoría ni períodos.
+# Actores del detalle administrativo de usuarios
+
+`GET /admin/users/:id/detalle` mantiene los guards de sesión y rol ADMIN y la paginación de tres
+eventos. `AdminDetailService` agrega a auditoría los campos opcionales `createdByName`,
+`updatedByName`, `deletedByName` y a cada evento `actorName`. Resuelve referencias existentes
+en una única consulta por lote a User, seleccionando solo `id` y `displayName`, dentro de la
+transacción de lectura existente. Los nombres corresponden al nombre público actual disponible;
+no se reconstruyen identidades históricas ni se generan eventos. Una referencia no resoluble
+produce nombre nulo. Se mantienen las referencias internas para trazabilidad; frontend no las muestra.
+Todas las entidades del detalle administrativo resuelven estos nombres mediante el contrato común descrito más abajo.
+No hay cambios de permisos, payloads de escritura, estados, migraciones ni variables de entorno.
+
+## Actores de auditoría de profesores
+
+`GET /admin/profesores/:id/detalle` incluye `createdByName`, `updatedByName`, `deletedByName` y `actorName` en cada evento, mediante la misma consulta agrupada a User que usa el detalle de usuarios. Solo selecciona `id` y `displayName`, conserva guards ADMIN, aislamiento de lectura, orden y paginación de tres. Las referencias no resolubles producen nombre nulo y los registros legados no generan actores ni eventos supuestos.
+
+Alta y edición reciben el actor validado de la sesión en `AcademicController`; `PrismaProfesorRepository` escribe el registro y el evento CREACION/EDICION dentro de una misma transacción. La edición registra solo diferencias reales de nombre. La baja lógica y el intento bloqueado por asignaciones vigentes registran ELIMINACION/BAJA_BLOQUEADA en `PrismaAcademicAdministrationRepository`; un bloqueo no cambia la última modificación ni el actor de baja. Los errores del historial impiden informar éxito. Esta corrección cambia la lectura de nombres, no las operaciones, permisos ni la evidencia persistida.
+
+## Contrato consumido por el detalle administrativo de Materias
+
+El refinamiento visual de Materias conserva `GET /admin/materias/:id/detalle?page=1&pageSize=3`, su autorización ADMIN y los contratos de edición/baja existentes. No cambia rutas, reglas, persistencia ni auditoría. Los valores de historial de carreras usan el formato existente `S:2,Q:ELECTIVA:4`; frontend traduce cada asociación con su año y nivel, sin alterar el historial almacenado. El endpoint resuelve los nombres autorizados del historial y de la auditoría, incluyendo el actor de la última modificación en MateriaHistorial aunque no esté en la página visible ni en AdministracionHistorial. Una referencia sin nombre resoluble se presenta Usuario no identificado y un actor ausente No registrado. No hay nuevas migraciones ni variables de entorno.
+
+## Resolución uniforme de actores administrativos
+
+`AdminDetailService` entrega `createdByName`, `updatedByName`, `deletedByName` y `actorName` para materias, profesores, cursadas, comisiones, users y feedback. Consulta User una sola vez por respuesta, deduplicando las referencias de los metadatos y de los eventos de la página actual, y selecciona únicamente id/displayName. El nombre de última modificación usa exactamente la misma referencia que updatedBy, incluido el historial propio de materias. Mantiene autorización ADMIN, transacción RepeatableRead, paginación, orden, filtrado de campos y ausencia de identidades históricas no registradas. Los snapshots antiguos de feedback sin evidencia de actor siguen sin atribución; no se deduce el actor a partir del autor del comentario.
+
+Las mutaciones académicas reciben el actor de sesión validado y escriben la auditoría junto al cambio. Materias conserva MateriaHistorial para las ediciones; las otras entidades académicas usan AdministracionHistorial. Asignaciones y desvinculaciones docentes pertenecen al historial de la comisión. Feedback comparte identificador entre snapshot y ledger transaccional; los cambios de estado de usuarios registran el administrador responsable. Esta corrección amplía la lectura de nombres y no agrega eventos ni modifica operaciones existentes.
+
+## Compatibilidad de la integración docente
+
+La integración de desarrollo con hot-fix/ui mantiene los contratos de asignación docente: `PUT /comisiones/:comisionId/profesores/:profesorId` con `{ cargo }` y `DELETE` sobre la misma ruta. Cada operación conserva permisos ADMIN, validaciones de vigencia, transacción y trazabilidad existentes; no requiere migraciones ni cambios de configuración. Las pruebas HTTP/SQL añadidas por TASK-057 requieren `TEST_DATABASE_URL` exclusivo. La evidencia de integración queda en `docs/tasks/finished/TASK-integracion-desarrollo-docentes.md`.

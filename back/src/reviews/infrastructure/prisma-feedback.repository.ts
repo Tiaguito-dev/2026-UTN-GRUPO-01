@@ -6,7 +6,8 @@ import type { Feedback } from "../domain/feedback.js";
 import type { FeedbackRepository } from "../application/ports/feedback.repository.js";
 import type { CreateFeedbackInput, UpdateFeedbackInput, FeedbackFilters } from "../application/feedback-input.js";
 import { FeedbackDuplicateError, FeedbackNotFoundError } from "../application/errors.js";
-import { assertFeedbackOpen, assertFeedbackOwner, selectFeedbackProfesor } from "../application/feedback-policy.js";
+import { assertFeedbackOpen, assertFeedbackOwner, assertFeedbackRemoval, selectFeedbackProfesor } from "../application/feedback-policy.js";
+import type { UserRole } from "../../users/domain/user.js";
 import { ComisionNotFoundError } from "../../academic/application/errors.js";
 
 type Transaction = Prisma.TransactionClient;
@@ -148,11 +149,18 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
     });
   }
 
-  async remove(id: string, viewer: string) {
-    const original = await this.owned(id, viewer);
+  private async removable(id: string, viewer: string, role: UserRole, tx: Transaction = this.prisma) {
+    const row = await tx.feedback.findUnique({ where: { id }, include: includeAutor });
+    if (!row || row.deletedAt) throw new FeedbackNotFoundError();
+    assertFeedbackRemoval(row.autorId, viewer, role);
+    return row;
+  }
+
+  async remove(id: string, viewer: string, role: UserRole = "USER") {
+    const original = await this.removable(id, viewer, role);
     await this.prisma.$transaction(async (tx) => {
       await this.lockComision(tx, original.comisionId);
-      const row = await this.owned(id, viewer, tx);
+      const row = await this.removable(id, viewer, role, tx);
       const now = new Date();
       const eventId = randomUUID();
       await tx.feedback.update({ where: { id }, data: {

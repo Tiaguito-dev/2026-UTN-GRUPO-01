@@ -1,14 +1,23 @@
 import { isAnioCarrera, isCarrera, isNivelElectiva, validateMateriaSearch } from "./materias";
+import { internalDestination } from "@/lib/navigation";
 
 export const ADMIN_SECTIONS = ["materias", "profesores", "cursadas", "comisiones", "usuarios"] as const;
 export type AdminSection = typeof ADMIN_SECTIONS[number];
 import type { AnioCarrera, Carrera, NivelElectiva } from "@/types/materias";
 
-export interface AdminContext { seccion: AdminSection; page: number; materiaId?: string; cursadaId?: string; q?: string; carrera?: string; anioCarrera?: string; nivelElectiva?: string; rol?: string; estado?: string }
+export interface AdminContext { seccion: AdminSection; page: number; materiaId?: string; cursadaId?: string; materiaReturnTo?: string; returnTo?: string; q?: string; carrera?: string; anioCarrera?: string; nivelElectiva?: string; rol?: string; estado?: string }
 export function adminListHref(context: AdminContext): string {
   const query = new URLSearchParams();
   if ((context.seccion === "cursadas" || context.seccion === "comisiones") && context.materiaId) query.set("materiaId", context.materiaId);
   if (context.seccion === "comisiones" && context.materiaId && context.cursadaId) query.set("cursadaId", context.cursadaId);
+  if ((context.seccion === "cursadas" || context.seccion === "comisiones") && context.materiaId && context.materiaReturnTo) {
+    const origin = safeMateriaListOrigin(context.materiaReturnTo);
+    if (origin) query.set("materiaReturnTo", origin);
+  }
+  if ((context.seccion === "cursadas" || context.seccion === "comisiones") && context.materiaId && context.returnTo) {
+    const origin = safeAdminReturnTo(context.returnTo);
+    if (origin) query.set("returnTo", origin);
+  }
   if (["materias", "profesores", "usuarios"].includes(context.seccion) && context.q?.trim() && !validateMateriaSearch(context.q)) query.set("q", context.q.trim());
   if (["materias", "comisiones"].includes(context.seccion) && isCarrera(context.carrera)) query.set("carrera", context.carrera);
   if (context.seccion === "materias" && isAnioCarrera(context.anioCarrera)) query.set("anioCarrera", context.anioCarrera);
@@ -18,11 +27,32 @@ export function adminListHref(context: AdminContext): string {
   if (Number.isSafeInteger(context.page) && context.page > 1) query.set("page", String(context.page));
   return `/home/admin/${context.seccion}${query.size ? `?${query}` : ""}`;
 }
-export function safeAdminReturnTo(raw: string | null | undefined): string | undefined {
-  if (!raw || !raw.startsWith("/home/admin/") || raw.includes("\\")) return undefined;
+export function safeAdminReturnTo(raw: string | null | undefined, depth = 0): string | undefined {
+  if (depth > 8 || !raw || raw.length > 12000 || !internalDestination(raw) || !raw.startsWith("/home/admin/")) return undefined;
   for (const character of raw) { const code = character.charCodeAt(0); if (code < 32 || code === 127) return undefined; }
   try {
     const url = new URL(raw, "https://local.invalid");
+    for (const key of ["successMessage", "creationOutsideFilters"]) url.searchParams.delete(key);
+    const detail = url.pathname.match(/^\/home\/admin\/(materias|profesores|cursadas|comisiones)\/([^/]+)$/);
+    if (detail && url.origin === "https://local.invalid" && !url.hash && /^[a-zA-Z0-9_-]+$/.test(detail[2]!)) {
+      const allowed = detail[1] === "comisiones" ? ["returnTo", "materiaReturnTo", "page"] : ["returnTo", "materiaReturnTo"];
+      if ([...url.searchParams.keys()].some(key => !allowed.includes(key)) || [...url.searchParams.keys()].some(key => url.searchParams.getAll(key).length !== 1)) return undefined;
+      const returnTo = url.searchParams.get("returnTo");
+      const safeReturn = returnTo ? safeAdminReturnTo(returnTo, depth + 1) : undefined;
+      if (returnTo && !safeReturn) return undefined;
+      const materiaReturnTo = url.searchParams.get("materiaReturnTo");
+      const safeMateriaReturn = materiaReturnTo ? safeMateriaListOrigin(materiaReturnTo) : undefined;
+      if (materiaReturnTo && !safeMateriaReturn) return undefined;
+      const query = new URLSearchParams();
+      if (safeReturn) query.set("returnTo", safeReturn);
+      if (safeMateriaReturn) query.set("materiaReturnTo", safeMateriaReturn);
+      if (url.searchParams.has("page")) {
+        const page = Number(url.searchParams.get("page"));
+        if (!Number.isSafeInteger(page) || page < 1) return undefined;
+        if (page > 1) query.set("page", String(page));
+      }
+      return `${url.pathname}${query.size ? `?${query}` : ""}`;
+    }
     if (url.pathname === "/home/admin/experiencias" && url.origin === "https://local.invalid" && !url.hash) {
       for (const key of url.searchParams.keys()) if (!["page", "carrera", "materiaId"].includes(key) || url.searchParams.getAll(key).length !== 1) return undefined;
       const page = Number(url.searchParams.get("page") ?? 1);
@@ -33,14 +63,30 @@ export function safeAdminReturnTo(raw: string | null | undefined): string | unde
     }
     const seccion = ADMIN_SECTIONS.find((section) => url.pathname === `/home/admin/${section}`);
     if (!seccion || url.origin !== "https://local.invalid" || url.hash) return undefined;
-    const allowed = seccion === "comisiones" ? ["page", "materiaId", "cursadaId", "carrera"] : seccion === "cursadas" ? ["page", "materiaId"] : seccion === "materias" ? ["page", "q", "carrera", "anioCarrera", "nivelElectiva"] : seccion === "usuarios" ? ["page", "q", "rol", "estado"] : ["page", "q"];
+    const allowed = seccion === "comisiones" ? ["page", "materiaId", "cursadaId", "carrera", "materiaReturnTo", "returnTo"] : seccion === "cursadas" ? ["page", "materiaId", "materiaReturnTo", "returnTo"] : seccion === "materias" ? ["page", "q", "carrera", "anioCarrera", "nivelElectiva"] : seccion === "usuarios" ? ["page", "q", "rol", "estado"] : ["page", "q"];
     for (const key of url.searchParams.keys()) if (!allowed.includes(key) || url.searchParams.getAll(key).length !== 1) return undefined;
     const page = Number(url.searchParams.get("page") ?? 1);
     if (!Number.isSafeInteger(page) || page < 1) return undefined;
     const filters = readAdminFilters(url.searchParams);
     for (const key of ["q", "carrera", "anioCarrera", "nivelElectiva", "rol", "estado"] as const) if (url.searchParams.has(key) && !filters[key]) return undefined;
-    return adminListHref({ seccion, page, ...filters, materiaId: url.searchParams.get("materiaId") ?? undefined, cursadaId: url.searchParams.get("cursadaId") ?? undefined });
+    const materiaId = url.searchParams.get("materiaId") ?? undefined;
+    const cursadaId = url.searchParams.get("cursadaId") ?? undefined;
+    const materiaReturnTo = url.searchParams.get("materiaReturnTo") ?? undefined;
+    const returnTo = url.searchParams.get("returnTo") ?? undefined;
+    if (seccion === "cursadas" && !materiaId && materiaReturnTo) return undefined;
+    if (seccion === "comisiones" && (!materiaId || !cursadaId) && materiaReturnTo) return undefined;
+    if (materiaReturnTo && safeMateriaListOrigin(materiaReturnTo) !== materiaReturnTo) return undefined;
+    const parent = returnTo ? safeAdminReturnTo(returnTo, depth + 1) : undefined;
+    if (returnTo && !parent) return undefined;
+    if ([materiaId, cursadaId].some(id => id !== undefined && !/^[a-zA-Z0-9_-]+$/.test(id))) return undefined;
+    return adminListHref({ seccion, page, ...filters, materiaId, cursadaId, materiaReturnTo, returnTo: parent });
   } catch { return undefined; }
+}
+
+export function safeMateriaListOrigin(raw: string | null | undefined): string | undefined {
+  const safe = safeAdminReturnTo(raw);
+  if (!safe || new URL(safe, "https://local.invalid").pathname !== "/home/admin/materias") return undefined;
+  return safe;
 }
 export interface AdminFilters { q?: string; carrera?: Carrera; anioCarrera?: AnioCarrera; nivelElectiva?: NivelElectiva; rol?: "ADMIN" | "USER"; estado?: "ACTIVO" | "INACTIVO" }
 export function readAdminFilters(params: { get: (key: string) => string | null }): AdminFilters {
