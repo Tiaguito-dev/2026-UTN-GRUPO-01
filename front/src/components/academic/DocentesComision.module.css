@@ -1,0 +1,18 @@
+@layer components {
+  .separated {
+    margin-block-start: var(--space-6);
+  }
+
+  .assignmentToggle {
+    cursor: pointer;
+    padding-block: var(--space-3);
+    font-weight: var(--weight-semibold);
+  }
+
+  .controls {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+  }
+}

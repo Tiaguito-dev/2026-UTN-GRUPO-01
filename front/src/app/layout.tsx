@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
+import { AuthProvider } from "@/components/auth/AuthProvider";
+import { SiteHeader } from "@/components/SiteHeader";
 
 export const metadata: Metadata = {
-  title: "UTN Grupo 01",
-  description: "Aplicación del proyecto 2026 UTN Grupo 01",
+  // A constant template keeps child route metadata from changing the browser tab name.
+  title: { default: "Profesor Butchery", template: "Profesor Butchery" },
+  description: "Una comunidad de estudiantes para compartir experiencias sobre materias y profesores.",
+  referrer: "no-referrer",
 };
 
 interface RootLayoutProps {
@@ -14,7 +18,7 @@ interface RootLayoutProps {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body><AuthProvider><a href="#main-content" className="skip-link">Saltar al contenido</a><SiteHeader />{children}</AuthProvider></body>
     </html>
   );
 }

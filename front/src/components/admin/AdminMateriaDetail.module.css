@@ -1,0 +1,60 @@
+@layer components {
+  .page {
+    --text: #18263E;
+    --background: #F6F7F9;
+    --border: #DFE4ED;
+    display: grid;
+    gap: var(--space-5);
+    width: 100%;
+    max-width: 1200px;
+    min-width: 0;
+    margin-inline: auto;
+    color: var(--text);
+    background: var(--background);
+    overflow-wrap: anywhere;
+  }
+
+  .header { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-6); row-gap: var(--space-2); min-width: 0; }
+  .header > :first-child { grid-column: 1 / -1; margin-bottom: var(--space-4); }
+  .header > p { grid-column: 1; margin: 0; max-width: none; color: var(--muted); font-size: var(--text-md); }
+  .header > p:first-of-type { font-size: var(--text-xs); font-weight: normal; letter-spacing: normal; text-transform: none; }
+  .header h1 { grid-column: 1; margin: 0; font-size: var(--text-2xl); line-height: 1.2; font-weight: var(--weight-bold); min-width: 0; }
+  .actions { grid-column: 2; grid-row: 2 / span 3; display: flex; flex-wrap: wrap; align-self: center; justify-content: flex-end; gap: var(--space-2); max-width: 100%; }
+  .actions > a, .actions > button, .periods { border-radius: var(--radius-sm); gap: var(--space-2); min-height: 44px; padding: var(--space-2) var(--space-3); font-size: var(--text-md); white-space: normal; }
+  .actions svg, .periods svg, .card h2 svg { flex-shrink: 0; }
+  .actions .edit, .periods { color: var(--primary); }
+  .actions .remove { color: var(--error); }
+  .actions .remove:hover { background: var(--error-background); color: var(--error); border-color: var(--error); }
+  .card { min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .cardBody { padding: var(--space-6); }
+  .card h2 { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-base); font-weight: var(--weight-medium); margin: 0 0 var(--space-5); }
+  .card h2 svg { color: var(--primary); }
+  .data { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: var(--space-5); margin: 0; }
+  .data > div { min-width: 0; }
+  .data dt { font-size: var(--text-sm); color: var(--muted); font-weight: normal; }
+  .data dd { margin: var(--space-2) 0 0; color: var(--text); font-size: var(--text-base); font-weight: var(--weight-medium); }
+  .status { display: inline-flex; border-radius: var(--radius-pill); padding: var(--space-1) var(--space-3); font-size: var(--text-sm); font-weight: var(--weight-medium); }
+  .active { background: var(--success-background); color: var(--success); }
+  .inactive { background: var(--background); color: var(--muted); border: 1px solid var(--border); }
+  .careers { border-top: 1px solid var(--border); margin-top: var(--space-6); padding-top: var(--space-5); }
+  .careers h3 { margin: 0 0 var(--space-4); font-size: var(--text-sm); color: var(--muted); font-weight: normal; }
+  .associations { display: grid; gap: var(--space-4); margin: 0; }
+  .associations > div { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2) var(--space-5); min-width: 0; }
+  .associations dt { font-size: var(--text-base); color: var(--text); font-weight: var(--weight-medium); min-width: 0; }
+  .associations dd { margin: 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--background); color: var(--muted); font-size: var(--text-sm); font-weight: normal; }
+  .footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-4) var(--space-6); border-top: 1px solid var(--border); }
+  .footer p { margin: 0; color: var(--muted); font-size: var(--text-sm); }
+  .data dd.missing, .missing { color: var(--muted); font-weight: normal; }
+  @media (max-width: 800px) {
+    .header { grid-template-columns: minmax(0, 1fr); }
+    .actions { grid-column: 1; grid-row: auto; justify-content: flex-start; margin-top: var(--space-2); }
+  }
+  @media (max-width: 600px) {
+    .header h1 { font-size: calc(var(--text-2xl) - var(--space-1)); }
+    .cardBody { padding: var(--space-5); }
+    .data { grid-template-columns: minmax(0, 1fr); }
+    .associations > div { flex-direction: column; align-items: flex-start; }
+    .footer { padding: var(--space-4) var(--space-5); align-items: flex-start; flex-direction: column; }
+    .actions > a, .actions > button, .periods { max-width: 100%; }
+  }
+}

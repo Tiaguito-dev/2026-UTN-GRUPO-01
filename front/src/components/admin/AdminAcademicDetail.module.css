@@ -1,0 +1,39 @@
+.page { display: grid; gap: var(--space-5); min-width: 0; overflow-wrap: anywhere; }
+.surface { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-5); min-width: 0; }
+.surface h2 { margin: 0 0 var(--space-4); font-size: var(--text-base); }
+.data { display: grid; gap: var(--space-2); margin: 0; }
+.data > div { display: grid; gap: var(--space-1); }
+.data dt, .associations span { color: var(--muted); font-size: var(--text-sm); font-weight: normal; }
+.data dd { margin: 0; color: var(--text); font-size: var(--text-base); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
+.associations { list-style: none; margin: 0; padding: 0; }
+.associations li { display: grid; gap: var(--space-1); padding: var(--space-3) 0; border-bottom: 1px solid var(--border); }
+.associations strong { font-weight: var(--weight-medium); }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); }
+@media (max-width: 600px) { .surface { padding: var(--space-4); } }
+.content { white-space: pre-wrap; }
+
+.recordGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(14rem, .45fr); gap: var(--space-5); }
+.recordGrid > div { min-width: 0; }
+.summary { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-8); margin: 0 0 var(--space-5); padding-bottom: var(--space-4); border-bottom: 1px solid var(--border); }
+.summary dt { color: var(--muted); font-size: var(--text-sm); }
+.summary dd { margin: var(--space-1) 0 0; font-size: var(--text-xl); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
+.status { display: inline-block; padding: var(--space-1) var(--space-3); background: var(--soft-blue); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-pill); font-size: var(--text-md); }
+.fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.access { border-left: 1px solid var(--border); padding-left: var(--space-5); }
+.access h3, .auditGrid h3 { font-size: var(--text-md); margin: 0 0 var(--space-3); }
+.access button { max-width: 100%; white-space: normal; }
+.auditGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); }
+.auditGrid section { min-width: 0; }
+.data dd.missing, .data dd .missing, .summary dd.missing, .missing { color: var(--muted); font-weight: normal; }
+.time { display: block; color: var(--muted); font-size: var(--text-sm); font-weight: normal; }
+.note { color: var(--muted); font-size: var(--text-sm); margin: var(--space-4) 0; }
+.history { border-top: 1px solid var(--border); padding-top: var(--space-3); }
+.history summary { cursor: pointer; color: var(--primary); font-weight: var(--weight-medium); }
+.history summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; }
+.history ol { padding-left: var(--space-5); }
+.history li { padding-bottom: var(--space-3); border-bottom: 1px solid var(--border); }
+@media (max-width: 800px) {
+  .recordGrid { grid-template-columns: minmax(0, 1fr); }
+  .access { border-left: 0; border-top: 1px solid var(--border); padding: var(--space-4) 0 0; }
+}
+@media (max-width: 600px) { .fields, .auditGrid { grid-template-columns: minmax(0, 1fr); } }

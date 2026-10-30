@@ -1,0 +1,48 @@
+.page { display: grid; gap: var(--space-6); min-width: 0; font-size: var(--text-base); }
+.header { display: grid; gap: var(--space-3); min-width: 0; }
+.header h1 { margin: 0; overflow-wrap: anywhere; }
+.header :global(.eyebrow) { margin: 0; color: var(--muted); font-size: var(--text-md); font-weight: var(--weight-medium); letter-spacing: 0; }
+.contextRow { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4); }
+.context { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); color: var(--muted); }
+.commissionLabel { color: var(--text); font-weight: var(--weight-semibold); }
+.period { display: inline-flex; align-items: center; gap: var(--space-2); }
+.period svg { flex-shrink: 0; color: var(--muted); }
+.selector { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); min-width: 0; }
+.selector label { margin: 0; color: var(--muted); font-size: var(--text-md); font-weight: var(--weight-medium); }
+.selectorControl { position: relative; max-width: 100%; }
+.selectorControl select { appearance: none; width: 100%; max-width: 100%; min-height: 44px; padding: var(--space-3) var(--space-10) var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; font-size: var(--text-md); cursor: pointer; }
+.selectorControl select:hover { border-color: var(--primary); }
+.selectorControl select:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.selectorControl > svg { position: absolute; top: 50%; right: var(--space-3); transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.secondary { margin: 0; color: var(--muted); font-size: var(--text-md); }
+.retry { background: transparent; color: var(--primary); border: 0; border-radius: var(--radius-sm); padding: var(--space-2); font-size: inherit; text-decoration: underline; }
+.content { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-6); min-width: 0; }
+.main { min-width: 0; }
+.team { display: grid; gap: var(--space-4); padding: var(--space-5); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); min-width: 0; }
+.team h2 { margin: 0; font-size: var(--text-base); letter-spacing: 0; }
+.teamList { display: grid; gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
+.person { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.person + .person { padding-top: var(--space-4); border-top: 1px solid var(--border); }
+.avatar { display: grid; place-items: center; flex: 0 0 var(--space-10); width: var(--space-10); height: var(--space-10); border-radius: var(--radius-round); background: var(--soft-blue); color: var(--primary); font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.personText { display: grid; gap: var(--space-1); min-width: 0; }
+.personName { font-size: var(--text-md); font-weight: var(--weight-semibold); overflow-wrap: anywhere; }
+.personRole { color: var(--muted); font-size: var(--text-sm); }
+.management { padding-top: var(--space-4); border-top: 1px solid var(--border); min-width: 0; }
+.management summary { color: var(--primary); font-size: var(--text-md); font-weight: var(--weight-medium); cursor: pointer; border-radius: var(--radius-sm); }
+.managementBody { display: grid; gap: var(--space-4); padding-top: var(--space-4); }
+.managementBody h3, .adminData h3 { margin: 0; font-size: var(--text-md); letter-spacing: 0; }
+.managementBody select { min-height: 44px; padding: var(--space-2); font-size: var(--text-md); border-radius: var(--radius-sm); }
+.adminPerson { display: grid; gap: var(--space-2); padding-bottom: var(--space-3); border-bottom: 1px solid var(--border); min-width: 0; }
+.adminPerson > span { font-size: var(--text-md); overflow-wrap: anywhere; }
+.adminPerson button { justify-self: start; }
+.assignment { display: grid; gap: var(--space-3); }
+.assignment label { margin-bottom: var(--space-1); }
+.adminData { display: grid; gap: var(--space-3); padding-top: var(--space-4); border-top: 1px solid var(--border); }
+.adminData dl { display: grid; gap: var(--space-2); margin: 0; }
+.adminData dt { margin: 0; color: var(--muted); font-size: var(--text-sm); font-weight: var(--weight-medium); }
+.adminData dd { margin: 0; font-size: var(--text-md); }
+@media (max-width: 1000px) {
+  .team { padding: var(--space-4); }
+  .contextRow { align-items: flex-start; }
+}
+@media (max-width: 600px) { .selector { width: 100%; } .selectorControl { flex: 1; min-width: 0; } }

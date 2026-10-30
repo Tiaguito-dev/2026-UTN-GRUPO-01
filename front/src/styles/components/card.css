@@ -1,0 +1,30 @@
+@layer components {
+  /* Card: shared surface; each variant keeps the padding, width and shadow of the class it replaced. */
+  .card { border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); }
+  .card-auth { width: min(100%, 32rem); margin-inline: auto; padding: clamp(1.5rem, 4vw, 2.5rem); box-shadow: var(--shadow-card); }
+  .card-auth h1 { text-align: center; }
+  .card-profile { padding: clamp(1.5rem, 4vw, 2.5rem); box-shadow: var(--shadow-card); }
+  .profile-identity { display: flex; align-items: center; gap: var(--space-5); padding-bottom: var(--space-6); border-bottom: 1px solid var(--border); }
+  .profile-identity > div { min-width: 0; }
+  .profile-identity h2 { margin: 0 0 var(--space-2); overflow-wrap: anywhere; font-size: var(--text-xl); }
+  .profile-avatar { display: grid; place-items: center; flex: 0 0 4rem; height: 4rem; border-radius: var(--radius-lg); font-weight: var(--weight-heavy); font-size: 1.35rem; color: var(--primary); background: var(--soft-blue); }
+  .profile-details { margin: var(--space-6) 0 0; display: grid; gap: var(--space-5); }
+  .profile-details dt { margin: 0 0 var(--space-1); }
+  .profile-details dd { font-size: var(--text-base); }
+  .profile-options { padding-top: var(--space-2); }
+  .profile-options h2 { margin-bottom: var(--space-2); font-size: 1.15rem; }
+  .profile-options > p { margin-top: 0; color: var(--muted); font-size: var(--text-md); }
+  .profile-actions { display: flex; gap: var(--space-3); align-items: flex-start; flex-wrap: wrap; }
+  .profile-actions .logout-control { flex: 1 1 12rem; }
+  .profile-actions > .button { flex: 1 1 12rem; }
+  .profile-actions .logout-control > button { width: 100%; }
+  .card-empty { padding: clamp(1.5rem, 4vw, 3rem); max-width: 50rem; }
+  .empty-symbol { display: grid; place-items: center; width: 3.5rem; height: 3.5rem; background: var(--soft-blue); color: var(--primary); border-radius: var(--radius-lg); font-weight: var(--weight-heavy); margin-bottom: var(--space-5); }
+  .card-empty h2 { margin: var(--space-4) 0; font-size: clamp(1.4rem, 3vw, 1.8rem); }
+  .card-empty p { color: var(--muted); max-width: 38rem; }
+  .card-empty .button, .card-empty button { margin-top: var(--space-3); }
+  .system-footnote { color: var(--muted); font-size: var(--text-sm); max-width: 50rem; margin-top: var(--space-6); }
+  .card-panel { padding: clamp(1.25rem, 3vw, 2rem); max-width: 50rem; }
+  /* Fondo de la ficha de datos (MateriaDetail), que antes venía del selector `dl`. */
+  .card-panel dl { padding: var(--space-4) var(--space-5); border-radius: var(--radius-md); background: var(--background); }
+}

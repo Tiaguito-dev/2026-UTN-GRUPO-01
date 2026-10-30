@@ -1,20 +1,18 @@
-:root {
-  color-scheme: light;
-  font-family: Arial, Helvetica, sans-serif;
-  background: #f5f6f8;
-  color: #1f2937;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-}
-
-main {
-  width: min(100% - 2rem, 72rem);
-  margin-inline: auto;
-  padding-block: 4rem;
-}
+@layer reset, tokens, base, layout, components, utilities;
+@import "../styles/reset.css";
+@import "../styles/tokens.css";
+@import "../styles/base.css";
+@import "../styles/layout.css";
+@import "../styles/components/button.css";
+@import "../styles/components/notice.css";
+@import "../styles/components/form.css";
+@import "../styles/components/breadcrumb.css";
+@import "../styles/components/pagination.css";
+@import "../styles/components/card.css";
+@import "../styles/components/badge.css";
+@import "../styles/components/dialog.css";
+@import "../styles/components/chip.css";
+@import "../styles/components/list.css";
+@import "../styles/components/account-menu.css";
+@import "../styles/components/landing.css";
+@import "../styles/components/academic.css";

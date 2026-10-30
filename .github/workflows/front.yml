@@ -1,0 +1,40 @@
+name: front
+
+# Verification only: nothing here deploys (Render and Vercel keep their autodeploy, see TASK-021).
+on:
+  pull_request:
+    branches: [desarrollo, main]
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # Contract tests import backend filters, so both workspaces are required.
+      - name: Install dependencies
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if npm ci; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Dependency installation failed; retrying in 5 seconds ($attempt/3)."
+              sleep 5
+            fi
+          done
+          exit 1
+      - run: npm run typecheck --workspace=front
+      - run: npm run lint --workspace=front
+      - run: npm run test --workspace=front
+      - run: npm run build --workspace=front
+        env:
+          # services/http.ts validates this in the browser, not during the build.
+          NEXT_PUBLIC_API_URL: https://api.example.invalid

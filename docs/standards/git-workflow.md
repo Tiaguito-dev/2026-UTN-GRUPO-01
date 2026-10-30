@@ -20,6 +20,21 @@ Tipos comunes: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `style`, `per
 
 ## Flujo
 
+### Entrega acumulada de autenticación y Docker
+
+`desarrollo` es una rama protegida y recibe los cambios mediante PR. Para esta entrega,
+el desarrollador solicitó la rama `feature/auth`, con commits atómicos en español.
+
+1. Acumular los commits relacionados en `feature/auth`, separados por responsabilidad.
+2. El desarrollador realiza el push de esa rama; no lo ejecuta el agente.
+3. El desarrollador abre una única PR de `feature/auth` hacia `desarrollo`, con todos los commits.
+4. La integración posterior de `desarrollo` hacia `main` es una entrega independiente.
+
+No crear commits directamente en `desarrollo` ni hacer push directo a ramas protegidas.
+Una PR puede incluir varios commits atómicos; no se necesita una por cada cambio.
+
+### Ramas de feature (flujo general)
+
 1. Crear la rama desde `desarrollo` usando la convención de nombres de arriba.
 2. Commitear usando Conventional Commits.
 3. Pushear la rama.

@@ -1,0 +1,46 @@
+.page { width: 100%; min-width: 0; }
+.tableWrap { width: 100%; max-width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: var(--text-md); }
+.table caption { text-align: left; padding: var(--space-3) var(--space-4); color: var(--muted); font-size: var(--text-sm); }
+.table th, .table td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; overflow-wrap: anywhere; }
+.table th { font-weight: var(--weight-medium); background: var(--background); white-space: nowrap; }
+.table tbody tr:last-child td { border-bottom: 0; }
+.table .actions { width: 160px; text-align: right; white-space: nowrap; }
+.rowActions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+.toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--space-3); margin-bottom: var(--space-4); }
+.toolbar :global(.button) { min-height: 40px; padding: var(--space-2) var(--space-3); font-size: var(--text-md); }
+.filters { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); min-width: 0; }
+.filterField { display: grid; gap: var(--space-1); flex: 1 1 140px; min-width: 0; max-width: 22rem; }
+.filterField label, .search label { font-size: var(--text-sm); }
+.filterField select { width: 100%; min-width: 0; min-height: 40px; font-size: var(--text-md); padding-block: var(--space-2); }
+.search { display: grid; gap: var(--space-1); flex: 1 1 240px; min-width: 0; max-width: 28rem; }
+.searchControls { display: flex; gap: var(--space-2); }
+.searchInput { position: relative; flex: 1; min-width: 0; }
+.searchInput svg { position: absolute; left: var(--space-2); top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.searchInput input { width: 100%; min-width: 0; min-height: 40px; padding: var(--space-2) var(--space-2) var(--space-2) var(--space-8); font-size: var(--text-md); }
+.toolbar .create { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); margin-left: auto; min-height: 40px; white-space: nowrap; }
+.summary { margin: var(--space-3) 0; color: var(--muted); font-size: var(--text-md); }
+.empty { padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.action { position: relative; display: inline-flex; }
+.iconButton { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: var(--text); background: var(--surface); border: 1px solid var(--input-border); border-radius: var(--radius-sm); }
+.iconButton:hover { background: var(--soft-blue); }
+.iconButton:focus-visible, .tableWrap:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.tooltip { display: none; position: absolute; right: 0; bottom: 100%; z-index: var(--z-popover); width: max-content; max-width: 240px; white-space: normal; padding: var(--space-2); background: var(--text); color: var(--surface); border-radius: var(--radius-sm); font-size: var(--text-sm); text-align: left; }
+.action:hover .tooltip:not([hidden]), .action:focus-within .tooltip:not([hidden]) { display: block; }
+.history { padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.history h2 { font-size: var(--text-base); margin-top: 0; }
+.historyList { padding-left: var(--space-5); margin: 0; }
+.historyList li { padding-block: var(--space-2); border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.historyList li:last-child { border-bottom: 0; }
+.historyList p { margin: 0 0 var(--space-2); font-size: var(--text-md); }
+.historyList dl { display: grid; gap: var(--space-2); margin: 0; }
+.historyList dd { display: grid; gap: var(--space-1); margin-left: 0; font-size: var(--text-md); }
+.selectorLabel { font-size: var(--text-sm); font-weight: var(--weight-medium); }
+.selectorButton { width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.selectorOptions { display: grid; gap: var(--space-2); padding: 0; list-style: none; }
+@media (max-width: 600px) {
+  .toolbar { grid-template-columns: minmax(0, 1fr); }
+  .filters { flex-direction: column; align-items: stretch; }
+  .filters, .filterField, .search { flex: auto; max-width: none; }
+  .toolbar .create { margin-left: 0; width: 100%; }
+}

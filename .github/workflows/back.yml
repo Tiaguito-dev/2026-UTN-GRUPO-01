@@ -1,0 +1,63 @@
+name: back
+
+# Verification only: nothing here deploys (Render keeps its autodeploy, see TASK-021).
+on:
+  pull_request:
+    branches: [desarrollo, main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend-ci:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: back_ci
+          POSTGRES_PASSWORD: back_ci
+          POSTGRES_DB: back_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U back_ci -d back_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      # Habilita las pruebas de registro/recuperación/verificación de correo, que entregan
+      # un email real; sin buzón, esos flujos responden 503 y las pruebas fallan en masa.
+      mailpit:
+        image: axllent/mailpit:v1.29.2
+        ports:
+          - 1025:1025
+          - 8025:8025
+    env:
+      DATABASE_URL: postgresql://back_ci:back_ci@localhost:5432/back_ci?schema=public
+      SHADOW_DATABASE_URL: postgresql://back_ci:back_ci@localhost:5432/back_ci_shadow?schema=public
+      TEST_DATABASE_URL: postgresql://back_ci:back_ci@localhost:5432/back_ci?schema=public
+      TEST_MAILPIT_API_URL: http://localhost:8025
+      # Holgado a propósito: el runner comparte un único mailpit entre todas las suites de
+      # integración y el default de 1500ms (tests/auth-test.config.ts:11) es ajustado bajo carga.
+      TEST_SMTP_TIMEOUT_MS: "8000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate --workspace=back
+      - name: Crear base shadow para migrate-check
+        run: PGPASSWORD=back_ci psql -h localhost -U back_ci -d back_ci -c "CREATE DATABASE back_ci_shadow;"
+      - name: Verificar que prisma/migrations esté al día con schema.prisma
+        working-directory: back
+        run: npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url "$SHADOW_DATABASE_URL" --exit-code
+      - run: npm run db:deploy --workspace=back
+      - run: npm run typecheck --workspace=back
+      - run: npm run lint --workspace=back
+      - name: test
+        # Las pruebas de integración comparten un único Postgres/mailpit del job; correr los
+        # archivos en paralelo satura esas conexiones compartidas y produce fallas intermitentes.
+        run: npm run test --workspace=back -- --no-file-parallelism
+      - run: npm run build --workspace=back
