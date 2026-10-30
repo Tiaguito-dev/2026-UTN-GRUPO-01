@@ -1,5 +1,18 @@
 # Frontend
 
+## Detalle administrativo de Experiencias
+
+`AdminRecordDetail` conserva el origen de Experiencias o comisión y presenta el registro con
+el encabezado y las superficies de los detalles de materias. `AdminExperienceCard` agrupa autor
+autorizado con iniciales, estado Publicado/Eliminado, contenido completo y contexto académico
+registrado. El cargo docente corresponde a la comisión del comentario. Las referencias técnicas
+permanecen en los enlaces y contratos, sin mostrarse como campos UUID de la ficha.
+
+Reutiliza `UserAudit` con `kind="feedback"` y los datos ya cargados: fechas y nombres de actores,
+eliminación e historial inicialmente cerrado con tres eventos por página. Los cambios de texto
+se conservan literalmente y el anonimato tiene una etiqueta legible. No modifica comentarios
+públicos, permisos, operaciones ni snapshots históricos. Revisión visual a cargo del desarrollador.
+
 ## Contexto de navegación administrativa
 
 `validations/admin-academic-navigation.ts` resuelve el origen compartido de comisiones,

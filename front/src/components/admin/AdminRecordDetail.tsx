@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { useId, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -11,15 +12,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { cambiarEstadoUsuario } from "@/services/users";
 import { AdminConfirmDialog } from "./AdminConfirmDialog";
 import { useAdminDetail } from "./useAdminDetail";
-import { AdminAuditPanel } from "./AdminAudit";
+import { AdminExperienceCard } from "./AdminExperienceCard";
 import { UserAccountCard, userValue } from "./UserAccountCard";
 import { UserAudit } from "./UserAudit";
 import { useAdminCommissionOrigin, useDiscardInvalidAdminOrigin } from "./useAdminCommissionOrigin";
 import userStyles from "./UserDetail.module.css";
-import styles from "./AdminAcademicDetail.module.css";
+import styles from "./AdminMateriaDetail.module.css";
 
 const text = (value: unknown) => (typeof value === "string" && value.trim()) || typeof value === "number" ? String(value) : "No registrado";
-const commentFields = [["texto", "Contenido completo"], ["comisionNombre", "Comisión"], ["comisionId", "Identificador de comisión"], ["materiaNombre", "Materia"], ["materiaId", "Identificador de materia"], ["anio", "Año"], ["cuatrimestre", "Período"], ["modalidad", "Modalidad"], ["profesorNombre", "Profesor"], ["profesorCargo", "Cargo docente"]] as const;
 
 export function AdminRecordDetail({ kind, id }: { kind: "users" | "feedback"; id: string }) {
   const params = useSearchParams();
@@ -41,25 +41,19 @@ export function AdminRecordDetail({ kind, id }: { kind: "users" | "feedback"; id
   const experienceOrigin = experienciasListReturnTo(back) ?? "/home/admin/experiencias";
   const commissionParent = source.navigation?.back ?? experienceOrigin;
   const title = kind === "users" ? "Detalle de usuario" : "Detalle de comentario";
-  const fields = commentFields;
-  const author = record?.autor && typeof record.autor === "object" && "displayName" in record.autor ? text(record.autor.displayName) : "No registrado";
   const breadcrumb = source.navigation && source.data && !source.error
     ? [...source.navigation.breadcrumb.slice(0, -1), { label: `Comisión ${source.data.nombre}`, href: back }, { label: title }]
     : [{ label: "Administración", href: "/home/admin" }, { label: section, href: kind === "feedback" ? experienceOrigin : back }, { label: kind === "users" ? record ? userValue(record.displayName) : "Usuario" : title }];
-  const header = <PageHeader description={kind === "users" ? "Información de la cuenta y trazabilidad de sus cambios" : undefined} id={headingId} title={title} back={{ href: back, label: "listado" }} breadcrumb={breadcrumb} />;
+  const header = <PageHeader eyebrow={kind === "feedback" ? "Detalle de experiencia" : undefined} description={kind === "users" ? "Información de la cuenta y trazabilidad de sus cambios" : "Contenido publicado y contexto académico registrado"} id={headingId} title={title} back={{ href: back, label: "listado" }} breadcrumb={breadcrumb} focusKey={id} />;
   return <section className={kind === "users" ? userStyles.page : styles.page} aria-labelledby={headingId}>
-    {kind === "users" ? <div className={userStyles.header}>{header}</div> : header}
+    {kind === "users" ? <div className={userStyles.header}>{header}</div> : <header className={styles.header}>
+      {header}
+      {typeof record?.comisionId === "string" ? <div className={styles.actions}><Link className={`button button-secondary ${styles.edit}`} href={source.data?.id === record.comisionId && !source.error ? back : comisionDetailHref(record.comisionId, commissionParent)}>Ver comisión<ArrowRight size={17} aria-hidden="true" /></Link></div> : null}
+    </header>}
     {message ? <Notice tone="success">{message}</Notice> : null}
     {error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la información. Intentá nuevamente. <button className="button button-secondary" type="button" onClick={retry}>Reintentar</button></Notice> : !data ? <p role="status">Cargando registro…</p> : <>
-      {kind === "users" ? <UserAccountCard record={data.registro} ownAccount={account?.role === "ADMIN" && account.id === id} canManage={account?.role === "ADMIN" && account.id !== id} onManage={() => setConfirm(true)} /> : <section className={styles.surface} aria-label="Datos actuales">
-        <h2>Datos actuales</h2>
-        {typeof record?.comisionId === "string" ? <Link className="button button-secondary" href={source.data?.id === record.comisionId && !source.error ? back : comisionDetailHref(record.comisionId, commissionParent)}>Ver comisión</Link> : null}
-        <dl className={`${styles.data} ${styles.fields}`}>{fields.map(([field, label]) => <div key={field}><dt>{label}</dt><dd className={text(record?.[field]) === "No registrado" ? styles.missing : field === "texto" ? styles.content : undefined}>{text(record?.[field])}</dd></div>)}
-          <div><dt>Autor</dt><dd>{author}</dd></div><div><dt>Identificador del autor</dt><dd>{text(record?.autorId)}</dd></div><div><dt>Publicación anónima</dt><dd>{record?.anonimo ? "Sí" : "No"}</dd></div>
-          {kind === "feedback" ? <div><dt>Estado</dt><dd>{record?.deletedAt ? "Eliminado" : "Publicado"}</dd></div> : null}
-        </dl>
-      </section>}
-      {kind === "users" ? <UserAudit data={data} page={page} onPageChange={setPage} /> : <AdminAuditPanel kind={kind} data={data} page={page} onPageChange={setPage} />}
+      {kind === "users" ? <UserAccountCard record={data.registro} ownAccount={account?.role === "ADMIN" && account.id === id} canManage={account?.role === "ADMIN" && account.id !== id} onManage={() => setConfirm(true)} /> : <AdminExperienceCard record={data.registro} />}
+      <UserAudit kind={kind} data={data} page={page} onPageChange={setPage} />
     </>}
     {confirm && record ? <AdminConfirmDialog title={record.disabledAt ? "Reactivar usuario" : "Desactivar usuario"} confirmLabel={record.disabledAt ? "Confirmar reactivación" : "Confirmar desactivación"} onClose={() => setConfirm(false)} onConfirm={async () => { await cambiarEstadoUsuario(id, Boolean(record.disabledAt)); setConfirm(false); setMessage(record.disabledAt ? "Usuario reactivado correctamente." : "Usuario desactivado correctamente."); setPage(1); retry(); }}><p>¿Querés {record.disabledAt ? "reactivar" : "desactivar"} a {text(record.displayName)} ({text(record.email)})? {record.disabledAt ? "Deberá iniciar sesión nuevamente; las sesiones revocadas no se restaurarán." : "Se cerrarán sus sesiones y no podrá acceder hasta que se reactive su cuenta. Se conservarán su cuenta, sus comentarios y su historial."}</p></AdminConfirmDialog> : null}
   </section>;

@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### Presentación del detalle administrativo de Experiencias
+
+- Encabezado y ficha alineados con materias, profesores y usuarios: autor con iniciales, estado explícito, contenido completo y contexto académico registrado, adaptables a móvil y nombres largos.
+- Auditoría compartida con tres bloques e historial integrado, etiquetas legibles de contenido/anonimato y texto histórico literal. Reutiliza los datos ya cargados sin solicitudes duplicadas.
+- Conserva el breadcrumb contextual, Volver y Ver comisión, permisos y operaciones. Sin cambios backend ni comentarios públicos; revisión en navegador reservada al desarrollador.
+- Validación: 721 pruebas frontend, tipos, lint, build Docker y 16 comprobaciones HTTP aprobados. Frontend actualizado en el stack; evidencia en `docs/tasks/finished/TASK-experience-detail-presentation.md`.
+
 ### Contexto de navegación administrativa
 
 - Experiencias → comisión conserva filtros, página, breadcrumb contextual y sección activa.

@@ -19,7 +19,7 @@ function actorName(id: string | null, name?: string | null) {
 }
 
 const actions: Record<string, string> = { CREACION: "Creación", EDICION: "Edición", DESACTIVACION: "Desactivación", REACTIVACION: "Reactivación", ACTIVACION: "Activación", BAJA_BLOQUEADA: "Baja bloqueada", VINCULACION: "Vinculación", DESVINCULACION: "Desvinculación" };
-const fields: Record<string, string> = { estado: "Estado", disabledAt: "Fecha de desactivación", displayName: "Nombre público", email: "Correo electrónico", role: "Rol", resultado: "Resultado", motivo: "Motivo", nombre: "Nombre", nombreCompleto: "Nombre completo", modalidad: "Modalidad", carreras: "Carreras", anioCarrera: "Año de carrera", nivelElectiva: "Nivel de electiva", deletedAt: "Fecha de baja", materiaId: "Materia", anio: "Año", cuatrimestre: "Cuatrimestre", carrera: "Carrera", numero: "Número", activa: "Estado" };
+const fields: Record<string, string> = { texto: "Contenido", anonimo: "Publicación anónima", estado: "Estado", disabledAt: "Fecha de desactivación", displayName: "Nombre público", email: "Correo electrónico", role: "Rol", resultado: "Resultado", motivo: "Motivo", nombre: "Nombre", nombreCompleto: "Nombre completo", modalidad: "Modalidad", carreras: "Carreras", anioCarrera: "Año de carrera", nivelElectiva: "Nivel de electiva", deletedAt: "Fecha de baja", materiaId: "Materia", anio: "Año", cuatrimestre: "Cuatrimestre", carrera: "Carrera", numero: "Número", activa: "Estado" };
 const values: Record<string, string> = { ACTIVO: "Activo", INACTIVO: "Inactivo", ADMIN: "Administrador", USER: "Usuario", true: "Sí", false: "No", BLOQUEADA: "Bloqueada", EXITOSA: "Exitosa" };
 
 /** El historial de carreras usa el contrato compacto carrera:año[:nivel], separado por comas. */
@@ -35,6 +35,7 @@ function careerChanges(value: string) {
 function changeValue(field: string, value: string | null) {
   if (value === null) return <span className={styles.missing}>No registrado</span>;
   if (value === "") return <span className={styles.missing}>Vacío</span>;
+  if (field === "texto") return value;
   if (field === "disabledAt" || field === "deletedAt") return <AuditDate value={value} />;
   if (field === "modalidad") return isModalidadMateria(value) ? modalidadLabel(value) : "Modalidad no disponible";
   if (field === "carreras") return careerChanges(value);
