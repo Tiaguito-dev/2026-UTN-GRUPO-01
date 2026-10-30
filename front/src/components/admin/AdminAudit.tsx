@@ -23,21 +23,21 @@ export function AdminAuditPanel({ data, page, onPageChange, kind }: { kind?: Adm
   const audit = data.auditoria;
   if (!isAdmin) return null;
   const removal = kind === "users" ? "desactivación" : kind === "feedback" ? "eliminación" : "baja";
-  const actor = (value: string | null) => value || <span className={styles.missing}>{unavailable}</span>;
+  const actor = (reference: string | null, name?: string | null) => reference && name?.trim() ? name.trim() : <span className={styles.missing}>{reference ? "Usuario no identificado" : unavailable}</span>;
   return <section className={styles.surface} aria-labelledby={headingId}>
     <h2 id={headingId}>Auditoría</h2>
     <div className={styles.auditGrid}>
       <section><h3>Creación</h3><dl className={styles.data}>
         <dt>Fecha de creación</dt><dd>{date(audit.createdAt)}</dd>
-        <dt>Creado por</dt><dd>{actor(audit.createdBy)}</dd>
+        <dt>Creado por</dt><dd>{actor(audit.createdBy, audit.createdByName)}</dd>
       </dl></section>
       <section><h3>Última modificación</h3><dl className={styles.data}>
         <dt>Fecha de modificación</dt><dd>{date(audit.updatedAt)}</dd>
-        <dt>Modificado por</dt><dd>{actor(audit.updatedBy)}</dd>
+        <dt>Modificado por</dt><dd>{actor(audit.updatedBy, audit.updatedByName)}</dd>
       </dl></section>
       <section><h3>{kind === "users" ? "Desactivación" : kind === "feedback" ? "Eliminación" : "Baja"}</h3><dl className={styles.data}>
         <dt>Fecha de {removal}</dt><dd>{date(audit.deletedAt)}</dd>
-        <dt>{kind === "users" ? "Desactivado por" : kind === "feedback" ? "Eliminado por" : "Dado de baja por"}</dt><dd>{actor(audit.deletedBy)}</dd>
+        <dt>{kind === "users" ? "Desactivado por" : kind === "feedback" ? "Eliminado por" : "Dado de baja por"}</dt><dd>{actor(audit.deletedBy, audit.deletedByName)}</dd>
       </dl></section>
     </div>
     <p className={styles.note}>La fecha de actualización no constituye un historial completo de cambios</p>
@@ -45,7 +45,7 @@ export function AdminAuditPanel({ data, page, onPageChange, kind }: { kind?: Adm
     <summary>Historial de cambios{data.historial.total > 0 ? ` (${data.historial.total})` : ""}</summary>
     {data.historial.items.length ? <ol>{data.historial.items.map((entry) => <li key={entry.id}>
       <p><strong>{ACTIONS[entry.accion] ?? entry.accion}</strong> · {date(entry.createdAt)}</p>
-      <p>Actor: {entry.actorId ?? unavailable}</p>
+      <p>Actor: {actor(entry.actorId, entry.actorName)}</p>
       {entry.cambios.length ? <dl className={styles.data}>{entry.cambios.map((change, index) => <div key={`${change.campo}:${index}`}><dt>{FIELDS[change.campo] ?? change.campo}</dt><dd>Antes: {change.anterior ?? "No disponible"}<br />Después: {change.nuevo ?? "Sin valor registrado"}</dd></div>)}</dl> : <p>No se registraron cambios de campos para este evento.</p>}
     </li>)}</ol> : <p>No hay eventos registrados</p>}
     <Pagination page={page} pageSize={3} total={data.historial.total} onChange={onPageChange} />
