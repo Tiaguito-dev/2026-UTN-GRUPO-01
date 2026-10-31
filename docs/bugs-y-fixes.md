@@ -135,6 +135,21 @@ Mismo procedimiento que la validación del 2026-10-31:
   3. Que el back traduzca la violación del índice al mismo mensaje de "nombre repetido" que ya usa.
   4. Profesores: si el equipo quiere el mismo criterio, aplicar la misma unicidad. Ojo: dos docentes
      pueden llamarse igual, así que esto requiere decisión.
+- **Estado (2026-10-31):** corregido en código. Falta correr el SQL de datos en producción (fusión
+  de las dos materias y de los dos "Daniel Ocampo", ver el plan del Bloque B) **antes** de
+  desplegar la migración, y después los casos B1–B5 con Chrome.
+  - Migración `20261107000000_materia_nombre_normalizado`: el índice pasa a ser
+    `"Materia_nombre_normalizado_activa_key"`, con la misma expresión que la búsqueda
+    (`lower(translate(normalize(nombre, NFD), U+0300..U+036F, ''))`), solo sobre vigentes.
+  - `findByNombre` compara con esa misma expresión, así que alta y edición responden 409 con el
+    mensaje de nombre repetido antes de llegar al índice.
+  - Profesores sin unicidad (los homónimos son una decisión tomada). En el seed, "Daniel Ocampo
+    (Demo)" pasa a llamarse "Daniel Ocampo".
+- **Resultado de las pruebas automáticas:** typecheck, lint y test del back (912 pruebas)
+  aprobados, y `prisma migrate diff` sin diferencias. Los casos nuevos de
+  `academic.integration.spec.ts` (variantes de mayúsculas y tildes en alta, edición y directo en
+  la base; baja lógica que no bloquea; renombrar a una variante del propio nombre) fallaban antes
+  del cambio.
 
 ### Pruebas con Chrome — Bloque B
 

@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### Unicidad de nombres de materia (Bloque B)
+
+- DATA-01: dos materias vigentes no pueden llamarse igual aunque difieran en mayúsculas o tildes. El índice único pasa a ser funcional (`Materia_nombre_normalizado_activa_key`), con la misma expresión que la búsqueda; `findByNombre` compara igual, así que alta y edición responden 409 con el mensaje de nombre repetido.
+- Seed: "Daniel Ocampo (Demo)" pasa a "Daniel Ocampo". Los profesores siguen sin unicidad de nombre.
+- Antes de desplegar la migración hay que fusionar por SQL los duplicados de producción (plan del Bloque B); si quedan otros duplicados normalizados, `migrate deploy` falla.
+- Typecheck, lint, 912 pruebas backend y `prisma migrate diff` sin diferencias.
+
 ### Formularios y navegación del panel (Bloque A)
 
 - BUG-03: en los formularios del panel, Feedback y Cuenta, el error de un campo se borra apenas se cambia ese campo, sin revalidar en vivo.
