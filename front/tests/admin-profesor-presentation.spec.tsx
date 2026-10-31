@@ -3,6 +3,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AdminProfesorDetail } from "@/components/admin/AdminAcademicDetail";
+import { comisionDetailHref } from "@/validations/admin-academic-navigation";
 import { obtenerDetalleAdministrativo, type AdminRecord } from "@/services/admin-detail";
 import { eliminarAcademico } from "@/services/admin-academic";
 import type { Profesor } from "@/services/academic";
@@ -94,8 +95,8 @@ describe("presentación administrativa de Profesores", () => {
     expect(within(breadcrumb).getByRole("link", { name: "Profesores" }).getAttribute("href")).toBe(list);
     expect(within(breadcrumb).getByText(profesor.nombreCompleto).getAttribute("aria-current")).toBe("page");
     expect(href("Editar profesor").pathname).toBe("/home/admin/profesores/p1/editar");
-    // TASK-admin-navigation-context: la edición conserva el detalle como destino de cancelar.
-    expect(href("Editar profesor").searchParams.get("returnTo")).toBe(`/home/admin/profesores/p1?${new URLSearchParams({ returnTo: list })}`);
+    // TASK-admin-navigation-context: la edición conserva el detalle como destino de cancelar (BUG-02: un nivel).
+    expect(href("Editar profesor").searchParams.get("returnTo")).toBe("/home/admin/profesores/p1");
     expect(screen.getByText("Profesor actualizado correctamente.")).toBeTruthy();
   });
 
@@ -103,12 +104,13 @@ describe("presentación administrativa de Profesores", () => {
     state.query = new URLSearchParams({ returnTo }).toString();
     await renderDetail();
     expect(href(/Volver a/).pathname + href(/Volver a/).search).toBe("/home/admin/profesores");
-    expect(href("Editar profesor").searchParams.get("returnTo")).toBe(`/home/admin/profesores/p1?${new URLSearchParams({ returnTo: "/home/admin/profesores" })}`);
+    expect(href("Editar profesor").searchParams.get("returnTo")).toBe("/home/admin/profesores/p1");
   });
 
   it("un profesor abierto desde equipo docente regresa a esa comisión y conserva Experiencias", async () => {
     const list = "/home/admin/experiencias?carrera=S&materiaId=m1&page=3";
-    const commission = `/home/admin/comisiones/co1?${new URLSearchParams({ returnTo: list })}`;
+    // BUG-02: la comisión llega plana, con origen=experiencias, como la arma su detalle.
+    const commission = comisionDetailHref("co1", list);
     state.query = new URLSearchParams({ returnTo: commission }).toString();
     await renderDetail();
     await screen.findByRole("link", { name: "Comisión S-31" });
@@ -116,9 +118,7 @@ describe("presentación administrativa de Profesores", () => {
     const breadcrumb = within(screen.getByRole("navigation", { name: "Ubicación actual" }));
     expect(breadcrumb.getByRole("link", { name: "Experiencias" }).getAttribute("href")).toBe(list);
     expect(breadcrumb.getByRole("link", { name: /Comisión/ }).getAttribute("href")).toBe(commission);
-    const edit = new URL(href("Editar profesor").searchParams.get("returnTo")!, "https://local.test");
-    expect(edit.pathname).toBe("/home/admin/profesores/p1");
-    expect(edit.searchParams.get("returnTo")).toBe(commission);
+    expect(href("Editar profesor").searchParams.get("returnTo")).toBe("/home/admin/profesores/p1");
   });
 
   it("conserva auditoría del profesor inactivo sin ofrecer editar ni baja", async () => {

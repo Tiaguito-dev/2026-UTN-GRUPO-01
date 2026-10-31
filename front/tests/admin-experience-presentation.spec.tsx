@@ -4,6 +4,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { AdminRecordDetail } from "@/components/admin/AdminRecordDetail";
 import { obtenerDetalleAdministrativo, type AdminRecord } from "@/services/admin-detail";
+import { experienciasOriginHref } from "@/validations/admin";
 
 const state = vi.hoisted(() => ({ role: "ADMIN", query: "" }));
 vi.mock("next/link", () => import("./support/next-link"));
@@ -111,7 +112,7 @@ describe("presentación administrativa de Experiencias", () => {
     expect(breadcrumb.getByRole("link", { name: "Experiencias" }).getAttribute("href")).toBe(origin);
     const commission = new URL(screen.getByRole("link", { name: "Ver comisión" }).getAttribute("href")!, "https://local.test");
     expect(commission.pathname).toBe("/home/admin/comisiones/co1");
-    expect(commission.searchParams.get("returnTo")).toBe(origin);
+    expect(experienciasOriginHref(commission.searchParams)).toBe(origin);
   });
 
   it("reutiliza auditoría con nombres y fechas legibles e historial cerrado inicialmente", async () => {

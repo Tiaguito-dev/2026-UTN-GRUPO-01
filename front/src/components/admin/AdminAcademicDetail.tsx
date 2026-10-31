@@ -11,8 +11,8 @@ import type { Materia } from "@/types/materias";
 import { type CursadaDetalle, type Profesor } from "@/services/academic";
 import { periodoLabel } from "@/lib/format/periodo";
 import { carreraLabel } from "@/lib/format/carrera";
-import { adminFormHref, safeAdminReturnTo, safeMateriaListOrigin } from "@/validations/admin";
-import { academicListReturnTo, administrativeDetailHref, comisionesListHref, cursadasListHref, materiaDetailBack, materiaDetailHref, profesorDetailBack } from "@/validations/admin-academic-navigation";
+import { adminFormHref, joinedReturnTo, safeMateriaListOrigin } from "@/validations/admin";
+import { academicListReturnTo, administrativeDetailHref, comisionesListHref, cursadasListHref, materiaDetailBack, materiaDetailHref, materiaOrigin, profesorDetailBack } from "@/validations/admin-academic-navigation";
 import { anioCarreraLabel, nivelElectivaLabel } from "@/validations/materias";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Notice } from "@/components/ui/Notice";
@@ -54,7 +54,7 @@ export function AdminMateriaDetail({ materiaId }: { materiaId: string }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [auditVersion, setAuditVersion] = useState(0);
   const params = useSearchParams();
-  const back = materiaDetailBack(params.get("returnTo")) ?? "/home/admin/materias";
+  const back = materiaDetailBack(params.get("returnTo")) ?? safeMateriaListOrigin(params.get("materiaReturnTo")) ?? "/home/admin/materias";
   const materiaReturnTo = safeMateriaListOrigin(back) ?? "/home/admin/materias";
   const { data: materia, error, retry } = useAdminResource<Materia>(materiaId, loadMateria);
   const title = materia ? materia.nombre.trim() || "No registrado" : "Materia";
@@ -99,7 +99,7 @@ export function AdminProfesorDetail({ profesorId }: { profesorId: string }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [auditVersion, setAuditVersion] = useState(0);
   const params = useSearchParams();
-  const origin = profesorDetailBack(params.get("returnTo"));
+  const origin = profesorDetailBack(joinedReturnTo(params));
   const source = useAdminCommissionOrigin(origin);
   useDiscardInvalidAdminOrigin(source.error);
   const back = source.error ? "/home/admin/profesores" : origin;
@@ -147,14 +147,11 @@ export function AdminCursadaDetail({ cursadaId }: { cursadaId: string }) {
   const params = useSearchParams();
   const { data: cursada, error, retry } = useAdminResource<CursadaDetalle & { deletedAt: string | null }>(cursadaId, loadCursada);
   const query = new URLSearchParams(params.toString());
-  const rawList = safeAdminReturnTo(params.get("returnTo"));
-  const rawOrigin = rawList ? new URL(rawList, "https://local.invalid").searchParams.get("materiaReturnTo") : null;
-  const materiaReturnTo = safeMateriaListOrigin(rawOrigin) ?? "/home/admin/materias";
+  const materiaReturnTo = materiaOrigin(params);
   const fallback = cursadasListHref(cursada?.materia.id ?? query.get("materiaId") ?? "", materiaReturnTo);
-  const back = (cursada && academicListReturnTo(params.get("returnTo"), "cursadas", cursada.materia.id)) || fallback;
+  const back = (cursada && academicListReturnTo(joinedReturnTo(params), "cursadas", cursada.materia.id)) || fallback;
   const materiaHref = cursada ? materiaDetailHref(cursada.materia.id, materiaReturnTo) : materiaDetailHref(query.get("materiaId") ?? "", materiaReturnTo);
   const commissionsHref = cursada ? comisionesListHref(cursada.materia.id, cursadaId, materiaReturnTo) : fallback;
-  const commissionsWithReturn = cursada ? `${commissionsHref}&returnTo=${encodeURIComponent(`/home/admin/cursadas/${encodeURIComponent(cursadaId)}?${new URLSearchParams({ returnTo: back })}`)}` : commissionsHref;
   const title = cursada ? cursada.cuatrimestre ? periodoLabel(cursada.anio, cursada.cuatrimestre) : `${cursada.anio} · No registrado` : "Cursada";
   const materiaName = cursada?.materia.nombre.trim() || "No registrado";
   const canManage = isAdmin && cursada && !cursada.deletedAt;
@@ -179,7 +176,7 @@ export function AdminCursadaDetail({ cursadaId }: { cursadaId: string }) {
             <div><dt>Materia</dt><dd className={!cursada.materia.nombre.trim() ? materiaStyles.missing : undefined}><Link href={materiaHref}>{materiaName}</Link></dd></div>
           </dl>
         </div>
-        <footer className={materiaStyles.footer}><p>Las comisiones y sus equipos docentes se consultan dentro de esta cursada</p><Link className={`button button-secondary ${materiaStyles.periods}`} href={commissionsWithReturn}><Users size={18} aria-hidden="true" />Ver comisiones<ChevronRight size={17} aria-hidden="true" /></Link></footer>
+        <footer className={materiaStyles.footer}><p>Las comisiones y sus equipos docentes se consultan dentro de esta cursada</p><Link className={`button button-secondary ${materiaStyles.periods}`} href={commissionsHref}><Users size={18} aria-hidden="true" />Ver comisiones<ChevronRight size={17} aria-hidden="true" /></Link></footer>
       </section>
       <AdminSharedAudit key={`${cursadaId}:${auditVersion}`} kind="cursadas" id={cursadaId} />
     </>}

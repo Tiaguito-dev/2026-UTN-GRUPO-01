@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### Formularios y navegación del panel (Bloque A)
+
+- BUG-03: en los formularios del panel, Feedback y Cuenta, el error de un campo se borra apenas se cambia ese campo, sin revalidar en vivo.
+- BUG-02: `returnTo` guarda un solo nivel. Los ancestros del breadcrumb salen de los IDs del registro. Los filtros de Materias (`materiaReturnTo`) y el origen Experiencias (`origen=experiencias`) viajan como parámetros planos. "Editar comisión" baja de más de 600 caracteres a unos 200, sin `%25` por anidamiento.
+- Los links viejos con `returnTo` anidado, externos o de otra materia degradan al recorrido por IDs. Al volver de una edición, la página de la lista intermedia arranca en 1.
+- 752 pruebas frontend, tipos, lint y build aprobados. Prueba manual pendiente; detalle en `docs/tasks/in-progress/TASK-bloque-a-navegacion-formularios.md`.
+
 ### Seed de demostración de todas las carreras
 
 - Catálogo ilustrativo para Civil, Química, Industrial y Mecánica, conservando las 43 materias de Sistemas: 135 materias en total.

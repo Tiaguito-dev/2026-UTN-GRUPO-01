@@ -22,7 +22,7 @@ export function ComisionFeedback({ comision, administrative = false }: { comisio
   const publishQuery = feedbackOriginParams(params);
   publishQuery.set("comisionId", comision.id);
   const { page, setPage } = useUrlPagination();
-  const navigation = comisionNavigation(params.get("returnTo"), comision);
+  const navigation = comisionNavigation(params, comision);
   const detailUrl = new URL(navigation.detailHref, "https://local.invalid");
   if (page > 1) detailUrl.searchParams.set("page", String(page));
   const returnTo = administrative ? `${detailUrl.pathname}?${detailUrl.searchParams}` : undefined;

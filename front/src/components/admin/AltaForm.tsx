@@ -2,7 +2,7 @@
 
 import { useEffect, useId, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { adminCreationHref, safeAdminReturnTo } from "@/validations/admin";
+import { adminCreationHref, joinedReturnTo } from "@/validations/admin";
 import { useFormSubmission } from "@/hooks/useFormSubmission";
 import type { BreadcrumbItem } from "@/components/ui/Breadcrumb";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -59,7 +59,7 @@ export function AltaFormFields<K extends string>({
   onCancel,
   onBusyChange,
 }: AltaFormFieldsProps<K>) {
-  const { busy, errors, error, success, setSuccess, handleSubmit } = useFormSubmission({
+  const { busy, errors, error, success, setSuccess, handleSubmit, handleChange } = useFormSubmission({
     fields: fields.map((field) => field.name),
     validate: (values) => {
       const issues: Partial<Record<K, string>> = {};
@@ -89,7 +89,7 @@ export function AltaFormFields<K extends string>({
     {error ? <Notice tone="error" focusOnShow>{error}</Notice> : null}
     {success ? <Notice tone="success">{success}</Notice> : null}
     {filter}
-    <form onSubmit={handleSubmit} noValidate aria-busy={busy}>
+    <form onSubmit={handleSubmit} onChange={handleChange} noValidate aria-busy={busy}>
       {fields.map((field) => field.readOnlyValue !== undefined ? <div className="field" key={field.name}><span>{field.label}</span><p>{field.readOnlyValue}</p><input type="hidden" name={field.name} value={field.value ?? field.defaultValue ?? ""} />{errors[field.name] ? <p className="field-error" role="alert">{errors[field.name]}</p> : null}</div> : <FormField key={field.name} name={field.name} value={field.value} defaultValue={field.defaultValue} label={field.label} hint={field.hint} error={errors[field.name]} input={{ autoComplete: "off", numeric: field.numeric }} options={field.options} onChange={field.onChange} />)}
       <div className={onCancel ? "dialog-actions" : undefined}>
         {onCancel ? <button type="button" className="button button-secondary" onClick={onCancel}>Cancelar</button> : null}
@@ -121,7 +121,7 @@ export function AltaForm<K extends string>({ breadcrumb, heading, description, f
   const headingId = useId();
   const router = useRouter();
   const params = useSearchParams();
-  const explicitReturnTo = safeAdminReturnTo(params.get("returnTo"));
+  const explicitReturnTo = joinedReturnTo(params);
   const returnTo = explicitReturnTo ?? (typeof defaultReturnTo === "string" ? defaultReturnTo : undefined);
 
   return <section aria-labelledby={headingId}>

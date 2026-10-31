@@ -86,7 +86,7 @@ function FeedbackEditor({ comision, original, cancelHref }: { comision: Comision
   const targets = comision.profesores.length === 1
     ? [{ value: comision.profesores[0].id, title: comision.profesores[0].nombreCompleto, description: cargoLabel(comision.profesores[0].cargo) }]
     : [{ value: "", title: "La comisión en general", description: "La experiencia de cursar en esta comisión" }, ...comision.profesores.map((profesor) => ({ value: profesor.id, title: profesor.nombreCompleto, description: cargoLabel(profesor.cargo) }))];
-  const { busy, errors, error, success, setSuccess, handleSubmit } = useFormSubmission({
+  const { busy, errors, error, success, setSuccess, handleSubmit, handleChange } = useFormSubmission({
     fields: ["texto", "anonimo", "profesorId"] as const,
     validate: (values) => {
       const textError = validarTextoFeedback(values.texto);
@@ -113,7 +113,7 @@ function FeedbackEditor({ comision, original, cancelHref }: { comision: Comision
     else router.push(cancelHref);
   }
   return <>
-    <div className={styles.editorSurface}><form onSubmit={handleSubmit} noValidate className={styles.editorForm} aria-busy={busy}>
+    <div className={styles.editorSurface}><form onSubmit={handleSubmit} onChange={handleChange} noValidate className={styles.editorForm} aria-busy={busy}>
       {error ? <Notice tone="error" focusOnShow>{error}</Notice> : null}
       {success ? <Notice tone="success" focusOnShow>{success}</Notice> : null}
       <fieldset className={styles.editorBlock}>

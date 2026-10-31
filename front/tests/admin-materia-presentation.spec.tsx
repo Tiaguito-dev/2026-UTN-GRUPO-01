@@ -99,11 +99,19 @@ describe("presentación administrativa de Materias", () => {
     await renderDetail();
     expect(href(/Volver a/).pathname + href(/Volver a/).search).toBe(origin);
     // TASK-admin-navigation-context: cancelar edición recupera el detalle, no salta al listado.
-    expect(href("Editar materia").searchParams.get("returnTo")).toBe(`/home/admin/materias/m1?${new URLSearchParams({ returnTo: origin })}`);
+    // BUG-02: un solo nivel en returnTo; los filtros de Materias viajan al lado.
+    expect(href("Editar materia").searchParams.get("returnTo")).toBe("/home/admin/materias/m1");
+    expect(href("Editar materia").searchParams.get("materiaReturnTo")).toBe(origin);
     const cursadas = href("Ver cursadas");
     expect(cursadas.pathname).toBe("/home/admin/cursadas");
     expect(cursadas.searchParams.get("materiaId")).toBe("m1");
     expect(cursadas.searchParams.get("materiaReturnTo")).toBe(origin);
+  });
+  it("al volver de la edición conserva los filtros de Materias que viajan al lado", async () => {
+    const origin = "/home/admin/materias?q=Redes&carrera=S&page=3";
+    state.query = new URLSearchParams({ materiaReturnTo: origin }).toString();
+    await renderDetail();
+    expect(href(/Volver a/).pathname + href(/Volver a/).search).toBe(origin);
   });
   it("oculta edición y baja para materias inactivas, conservando auditoría e historial", async () => {
     materia.deletedAt = date;

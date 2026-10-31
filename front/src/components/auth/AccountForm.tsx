@@ -28,7 +28,7 @@ export function AccountForm({ mode }: { mode: Mode }) {
   const initialized = useRef(false);
   const resetToken = useRef<string | null>(null);
   const [tokenReady, setTokenReady] = useState(mode !== "reset");
-  const { busy, errors, error, setError, success, setSuccess, handleSubmit } = useFormSubmission({
+  const { busy, errors, error, setError, success, setSuccess, handleSubmit, handleChange } = useFormSubmission({
     fields,
     validate: (values) => {
       const nextErrors: Partial<Record<Field, string>> = {};
@@ -110,7 +110,7 @@ export function AccountForm({ mode }: { mode: Mode }) {
     {mode === "login" && !auth.coordinationAvailable ? <Notice tone="warning">{COORDINATION_NOTICE}</Notice> : null}
     {error ? <Notice tone="error" focusOnShow>{error}</Notice> : null}
     {success ? <Notice tone="success">{success}</Notice> : null}
-    <form ref={formRef} onSubmit={handleSubmit} noValidate aria-busy={busy}>
+    <form ref={formRef} onSubmit={handleSubmit} onChange={handleChange} noValidate aria-busy={busy}>
       {mode === "register" ? <FormField name="displayName" label="Nombre visible" input={{ autoComplete: "nickname" }} error={errors.displayName} /> : null}
       {hasEmail ? <FormField name="email" label="Email" input={{ type: "email", autoComplete: mode === "login" ? "username" : "email" }} error={errors.email} /> : null}
       {["login", "register"].includes(mode) ? <FormField name="password" label="Contraseña" input={{ type: "password", autoComplete: mode === "login" ? "current-password" : "new-password" }} error={errors.password} hint={mode === "register" ? passwordHint : undefined} /> : null}

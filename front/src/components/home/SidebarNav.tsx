@@ -24,7 +24,7 @@ export function SidebarNav() {
   // Una sección con rol se muestra solo con la sesión ya confirmada: mientras se comprueba no
   // aparece ni desaparece, queda oculta.
   const administrative = status === "authenticated" && account?.role === "ADMIN";
-  const section = administrative ? adminNavigationSection(pathname, params.get("returnTo")) : undefined;
+  const section = administrative ? adminNavigationSection(pathname, params) : undefined;
   const selectedPath = section ? `/home/admin/${section}` : pathname;
   const sections = sectionsForRole(administrative ? "ADMIN" : undefined);
   return <aside className="system-sidebar">
