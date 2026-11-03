@@ -1,5 +1,14 @@
 # Backend
 
+## Revisión de expiración de sesiones (hotfix)
+
+`AUTH_ACCESS_TTL_SECONDS` configura el acceso (900 segundos por defecto) y
+`AUTH_SESSION_TTL_SECONDS` el límite absoluto de la sesión (604800 segundos por defecto).
+Login fija `Session.expiresAt`; refresh rota credenciales sin extender esa fecha y limita
+la vigencia del nuevo JWT al tiempo restante. Tanto autenticación como refresh rechazan
+sesiones vencidas o revocadas. No existe un plazo adicional por inactividad. Este hotfix
+conserva endpoints, cookies, permisos, auditoría y configuración de duración existentes.
+
 ## Modalidad de materia y cursadas por año (TASK-062)
 
 Este es el contrato vigente para materias/cursadas; reemplaza las descripciones históricas

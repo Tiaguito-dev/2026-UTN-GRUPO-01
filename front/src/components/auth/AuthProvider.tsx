@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [coordinationAvailable, setCoordinationAvailable] = useState(true);
   const generation = useRef(0);
+  const backgroundPending = useRef(false);
   const clear = useCallback(() => {
     generation.current += 1;
     setAccount(null); setError(null); setStatus("anonymous");
@@ -79,6 +80,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void checkSession();
     return () => { active = false; generation.current += 1; unsubscribe(); };
   }, [checkSession, clear, failure]);
+  const monitorSession = Boolean(account) && (status === "authenticated" || status === "temporary-error");
+  useEffect(() => {
+    if (!monitorSession) return;
+    let active = true;
+    const service = getAuthService();
+    async function revalidate() {
+      if (document.visibilityState !== "visible" || backgroundPending.current) return;
+      backgroundPending.current = true;
+      const version = generation.current;
+      const observed = service.coordinator.read()?.id;
+      const currentResultAllowed = () => {
+        const latest = service.coordinator.read();
+        return active && generation.current === version && (latest?.id === observed || !latest || ["refresh", "refresh-uncertain", "expired"].includes(latest.kind));
+      };
+      try {
+        const user = await service.me();
+        if (!currentResultAllowed()) return;
+        setAccount(user); setError(null); setStatus("authenticated");
+      } catch (caught) { if (currentResultAllowed()) failure(caught); }
+      finally { backgroundPending.current = false; }
+    }
+    const onResume = () => { void revalidate(); };
+    const timer = window.setInterval(onResume, 60_000);
+    window.addEventListener("focus", onResume);
+    document.addEventListener("visibilitychange", onResume);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onResume);
+      document.removeEventListener("visibilitychange", onResume);
+    };
+  }, [monitorSession, failure]);
   const login = async (input: LoginInput) => {
     return getAuthService().login(input, (user) => {
       // Success is applied before releasing the cookie lock; later tab events can supersede it.
