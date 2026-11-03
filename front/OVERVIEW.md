@@ -1,5 +1,20 @@
 # Frontend
 
+## Hotfix de sesiones y confirmaciones
+
+`AuthProvider` vuelve a comprobar la sesión mediante `AuthService.me()` cada minuto mientras
+la pestaña está visible y al recuperar foco o visibilidad. Las comprobaciones se realizan
+en segundo plano, sin pasar por el estado de carga inicial; no se solapan y sus resultados
+se descartan si cambió la cuenta o se desmontó el proveedor. Un 401 lleva a estado anónimo;
+un fallo transitorio conserva la cuenta con el estado recuperable de error existente.
+La renovación mantiene el límite absoluto impuesto por el backend, sin añadir cierre por
+inactividad. No se modifican guards ni contratos HTTP.
+
+`ExperienciasList` muestra el `successMessage` del retorno tras eliminar un comentario,
+tanto en el listado público autenticado como administrativo. `DocentesComision` solicita
+confirmación antes de desvincular un profesor; cancelar no envía la operación. Conserva
+permisos de ADMIN, mensajes, control de solicitudes duplicadas y validaciones existentes.
+
 ## Eliminación de experiencias
 
 Un ADMIN puede eliminar un comentario vigente desde su detalle administrativo mediante

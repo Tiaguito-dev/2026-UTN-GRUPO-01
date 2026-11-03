@@ -8,6 +8,7 @@ import { MAX_PAGE_SIZE } from "@/services/pagination";
 import { cargoLabel } from "@/lib/format/cargo";
 import { FormField } from "@/components/ui/FormField";
 import { Notice } from "@/components/ui/Notice";
+import { Dialog } from "@/components/ui/Dialog";
 import { iniciales } from "./detalle";
 import styles from "./DocentesComision.module.css";
 import detailStyles from "./ComisionDetail.module.css";
@@ -35,6 +36,7 @@ export function DocentesComision({ comisionId, profesores: initial, onChange, on
   const summaryRef = useRef<HTMLElement>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [desvincular, setDesvincular] = useState<ProfesorAsignado | null>(null);
   const locked = busy || disabled;
   const canManage = isAdmin && !readOnly;
   const catalogo = useAllPages(canManage ? "profesores" : "", (page) => listarProfesores({ page, pageSize: MAX_PAGE_SIZE }));
@@ -77,6 +79,7 @@ export function DocentesComision({ comisionId, profesores: initial, onChange, on
   function quitar(profesorId: string) {
     void guardar(async () => {
       await quitarProfesorComision(comisionId, profesorId);
+      setDesvincular(null);
       return profesores.filter((entry) => entry.id !== profesorId);
     }, gestionSolo ? "El profesor se desvinculó correctamente." : "Profesor desvinculado correctamente.");
   }
@@ -95,15 +98,22 @@ export function DocentesComision({ comisionId, profesores: initial, onChange, on
     return <>
       <label htmlFor={`${id}-cargo-${profesor.id}`} className="sr-only">Cambiar cargo de {profesor.nombreCompleto}</label>
       <select id={`${id}-cargo-${profesor.id}`} value={profesor.cargo} disabled={locked} onChange={(event) => cambiarCargo(profesor, event.target.value)}>{CARGOS.map((c) => <option key={c} value={c}>{cargoLabel(c)}</option>)}</select>
-      <button className="button button-secondary" type="button" disabled={locked} aria-label={gestionSolo ? `Quitar asignación de ${profesor.nombreCompleto}` : undefined} onClick={() => quitar(profesor.id)}>{gestionSolo ? "Quitar asignación" : "Quitar"}</button>
+      <button className="button button-secondary" type="button" disabled={locked} aria-label={gestionSolo ? `Quitar asignación de ${profesor.nombreCompleto}` : undefined} onClick={() => { setError(""); setDesvincular(profesor); }}>{gestionSolo ? "Quitar asignación" : "Quitar"}</button>
     </>;
   }
 
   const feedback = <>
-    {error ? <Notice tone="error" focusOnShow>{error}</Notice> : null}
+    {error && !desvincular ? <Notice tone="error" focusOnShow>{error}</Notice> : null}
     {success ? <Notice tone="success">{success}</Notice> : null}
     {busy ? <p role="status">Guardando docentes…</p> : null}
   </>;
+  const confirmacion = canManage && desvincular ? <Dialog open title="Quitar asignación docente" description={`¿Querés desvincular a ${desvincular.nombreCompleto} de esta comisión? Se conservarán el profesor y el historial.`} busy={busy} onClose={() => setDesvincular(null)}>
+    {error ? <Notice tone="error" focusOnShow>{error}</Notice> : null}
+    <div className="dialog-actions">
+      <button className="button button-secondary" type="button" disabled={busy} onClick={() => setDesvincular(null)} data-autofocus>Cancelar</button>
+      <button className="button" type="button" disabled={locked} aria-busy={busy} onClick={() => quitar(desvincular.id)}>{busy ? "Desvinculando…" : "Confirmar desvinculación"}</button>
+    </div>
+  </Dialog> : null;
   const asignacion = canManage ? <details className={gestionSolo ? undefined : "academic-assign"} open={asignacionAbierta} onToggle={(event) => setAsignacionAbierta(event.currentTarget.open)}>
     <summary ref={summaryRef} id={`${id}-asignar`} className={styles.assignmentToggle}>Asignar profesor</summary>
     <form className={gestionSolo ? detailStyles.assignment : undefined} onSubmit={asignar} aria-labelledby={`${id}-asignar`} aria-busy={busy}>
@@ -124,6 +134,7 @@ export function DocentesComision({ comisionId, profesores: initial, onChange, on
       {feedback}
       {profesores.map((profesor) => <div key={profesor.id} className={detailStyles.adminPerson}><span>{profesor.nombreCompleto}</span>{controles(profesor)}</div>)}
       {asignacion}
+      {confirmacion}
     </div>
   </details> : null;
 
@@ -132,7 +143,7 @@ export function DocentesComision({ comisionId, profesores: initial, onChange, on
       <div><h2 id={`${id}-profesores`}>Profesores</h2><p>Quiénes dictan esta comisión y con qué cargo.</p></div>
     </div>
     <div className="academic-panel-body" aria-busy={busy}>
-      {canManage ? <p>Cada asignación, cambio de cargo y desvinculación se guarda inmediatamente, por separado de los datos de la comisión.</p> : null}
+      {canManage ? <p>Cada asignación y cambio de cargo se guarda por separado de los datos de la comisión. Las desvinculaciones requieren confirmación.</p> : null}
       {feedback}
       {profesores.length ? <ul className="row-list">{profesores.map((p) => <li key={p.id} className="academic-person">
         <span className="academic-avatar" aria-hidden="true">{iniciales(p.nombreCompleto)}</span>
@@ -140,6 +151,7 @@ export function DocentesComision({ comisionId, profesores: initial, onChange, on
         {canManage ? <span className="academic-person-actions">{controles(p)}</span> : <span className="academic-tag">{cargoLabel(p.cargo)}</span>}
       </li>)}</ul> : <p className="academic-empty">No hay profesores asignados a esta comisión.</p>}
       {asignacion}
+      {confirmacion}
     </div>
   </section>;
 }

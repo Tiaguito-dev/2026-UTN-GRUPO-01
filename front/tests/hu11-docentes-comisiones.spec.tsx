@@ -17,6 +17,8 @@ const ada = { id: "p1", nombreCompleto: "Ada Lovelace", createdAt: "2026-01-01",
 const alan = { ...ada, id: "p2", nombreCompleto: "Alan Turing" };
 let stored: ComisionDetalle;
 beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  HTMLDialogElement.prototype.close = function () { this.open = false; };
   vi.resetAllMocks(); auth.role = "ADMIN";
   stored = { id: "co1", cursadaId: "c1", carrera: "S", numero: 31, nombre: "S-31", activa: true, profesores: [{ id: ada.id, nombreCompleto: ada.nombreCompleto, cargo: "TITULAR" }], createdAt: "2026-01-01", deletedAt: null, cursada: { id: "c1", anio: 2026, cuatrimestre: "ANUAL", materia: { id: "m1", nombre: "Álgebra" } } };
   vi.mocked(obtenerComision).mockImplementation(async () => structuredClone(stored));
@@ -53,6 +55,9 @@ describe("HU11 docentes en edición administrativa de comisión", () => {
     await waitFor(() => expect(asignarProfesorComision).toHaveBeenCalledWith("co1", "p1", "JTP"));
     await waitFor(() => expect((screen.getByLabelText("Cambiar cargo de Ada Lovelace") as HTMLSelectElement).value).toBe("JTP"));
     await userEvent.click(screen.getByRole("button", { name: "Quitar" }));
+    // Hotfix: desvincular requiere confirmar antes de escribir.
+    expect(quitarProfesorComision).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar desvinculación" }));
     await waitFor(() => expect(quitarProfesorComision).toHaveBeenCalledWith("co1", "p1"));
     await waitFor(() => expect(screen.queryByLabelText("Cambiar cargo de Ada Lovelace")).toBeNull());
     expect(within(screen.getByLabelText("Profesor")).getByRole("option", { name: ada.nombreCompleto })).toBeTruthy();
@@ -84,6 +89,33 @@ describe("HU11 docentes en edición administrativa de comisión", () => {
     expect(plegable.open).toBe(true);
     expect((screen.getByLabelText("Profesor") as HTMLSelectElement).value).toBe("");
     expect((screen.getByLabelText("Cargo") as HTMLSelectElement).value).toBe("TITULAR");
+  });
+  it("cancelar una desvinculación conserva la asociación y no llama al servidor", async () => {
+    await editor();
+    await userEvent.click(screen.getByRole("button", { name: "Quitar" }));
+    const dialog = screen.getByRole("dialog", { name: "Quitar asignación docente" });
+    expect(dialog.textContent).toContain(ada.nombreCompleto);
+    expect(quitarProfesorComision).not.toHaveBeenCalled();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByLabelText("Cambiar cargo de Ada Lovelace")).toBeTruthy();
+    expect(quitarProfesorComision).not.toHaveBeenCalled();
+  });
+  it("bloquea cierre y doble envío mientras confirma una desvinculación", async () => {
+    let finish!: () => void;
+    vi.mocked(quitarProfesorComision).mockReturnValueOnce(new Promise<void>((resolve) => { finish = resolve; }));
+    await editor();
+    await userEvent.click(screen.getByRole("button", { name: "Quitar" }));
+    await userEvent.dblClick(screen.getByRole("button", { name: "Confirmar desvinculación" }));
+    expect(quitarProfesorComision).toHaveBeenCalledTimes(1);
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("button", { name: "Cancelar" }).matches(":disabled")).toBe(true);
+    expect(within(dialog).getByRole("button", { name: "Cerrar" }).matches(":disabled")).toBe(true);
+    expect(screen.queryByText("Profesor desvinculado correctamente.")).toBeNull();
+    finish();
+    await screen.findByText("Profesor desvinculado correctamente.");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByLabelText("Cambiar cargo de Ada Lovelace")).toBeNull();
   });
   it("muestra error de escritura, mantiene selección y permite reintentar", async () => {
     vi.mocked(asignarProfesorComision).mockRejectedValueOnce(new Error("No disponible"));
@@ -127,6 +159,7 @@ describe("HU11 docentes en edición administrativa de comisión", () => {
     expect((await screen.findByRole("alert")).textContent).toContain("Cargo rechazado");
     expect((screen.getByLabelText("Cambiar cargo de Ada Lovelace") as HTMLSelectElement).value).toBe("TITULAR");
     await userEvent.click(screen.getByRole("button", { name: "Quitar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar desvinculación" }));
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Desvinculación rechazada"));
     expect(screen.getByLabelText("Cambiar cargo de Ada Lovelace")).toBeTruthy();
     expect(within(screen.getByLabelText("Profesor")).queryByRole("option", { name: ada.nombreCompleto })).toBeNull();
