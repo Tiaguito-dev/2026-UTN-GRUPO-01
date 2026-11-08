@@ -2,6 +2,10 @@
 
 ## [Sin publicar]
 
+### Nombre visible de la aplicación
+
+- Nombre actualizado a `Professors' butchery` en encabezado, portada, inicio y títulos de páginas del frontend.
+
 ### Rediseño visual del frontend (en progreso)
 
 - Paleta bordó y crema, encabezado compacto, navegación lateral y estilos compartidos de botones y tarjetas.

@@ -479,7 +479,7 @@ El propio se identifica con un acento azul y una única acción Administrar mi c
 Los comentarios ajenos se leen en la lista y no acceden al detalle privado; el backend
 rechaza ese acceso con 403. La ayuda de reglas usa un details/summary nativo, sin modal nuevo.
 
-La pestaña del navegador conserva siempre Profesor Butchery: metadata raíz con default y
+La pestaña del navegador conserva siempre Professors' butchery: metadata raíz con default y
 template constantes, sin asignaciones document.title al cargar materias o comisiones.
 Esta política no cambia los encabezados visibles ni la navegación global.
 
