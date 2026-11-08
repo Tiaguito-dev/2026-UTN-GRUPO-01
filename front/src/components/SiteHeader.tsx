@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen } from "lucide-react";
+import { BrandMark } from "@/components/BrandMark";
 import { useEffect, useId, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { LogoutButton } from "@/components/auth/LogoutButton";
@@ -29,7 +29,7 @@ export function SiteHeader() {
 
   function close() { setOpen(false); }
   return <header className={`site-header${status === "authenticated" ? " site-header-auth" : ""}`}>
-    <Link href={status === "authenticated" ? roleHome(account?.role) : "/"} className="brand"><span className="brand-mark" aria-hidden="true"><BookOpen size={24} strokeWidth={2} aria-hidden="true" focusable="false" /></span><span>Professors&apos; butchery</span></Link>
+    <Link href={status === "authenticated" ? roleHome(account?.role) : "/"} className="brand"><span className="brand-mark" aria-hidden="true"><BrandMark /></span><span>Professors&apos; butchery</span></Link>
     {status === "authenticated" ? <div className="account-menu" ref={containerRef} onBlur={(event) => {
       if (!event.currentTarget.contains(event.relatedTarget)) close();
     }}>

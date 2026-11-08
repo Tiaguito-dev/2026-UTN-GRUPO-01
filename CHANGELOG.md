@@ -2,6 +2,10 @@
 
 ## [Sin publicar]
 
+### Logo de cuchillas
+
+- Símbolo SVG de una cuchilla de carnicero sobre un libro abierto en el encabezado, conservando el nombre y la navegación de la marca.
+
 ### Nombre visible de la aplicación
 
 - Nombre actualizado a `Professors' butchery` en encabezado, portada, inicio y títulos de páginas del frontend.
