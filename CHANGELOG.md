@@ -2,6 +2,12 @@
 
 ## [Sin publicar]
 
+### Rediseño visual del frontend (en progreso)
+
+- Paleta bordó y crema, encabezado compacto, navegación lateral y estilos compartidos de botones y tarjetas.
+- Portada en dos columnas adaptable a móvil y materias con tarjetas individuales; se conservan las funcionalidades existentes.
+- Tipos, lint, build y 727 pruebas aprobados. Revisión visual completa pendiente: las capturas locales iniciales mostraron el aviso de conexión. Sin integración en desarrollo ni cambios en main.
+
 ### Seed de demostración de todas las carreras
 
 - Catálogo ilustrativo para Civil, Química, Industrial y Mecánica, conservando las 43 materias de Sistemas: 135 materias en total.
