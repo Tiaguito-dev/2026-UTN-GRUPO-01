@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### HU-04 — Normas de convivencia
+
+- Aceptación obligatoria de las normas vigentes antes de publicar, registrada con usuario, fecha y versión en la transacción de creación.
+- Documento consultable desde el editor sin perder el borrador y nueva aceptación ante cambios de versión. Protección también en la API.
+- Tipos, lint, builds, 56 pruebas backend y 755 frontend aprobados en Node 22.22.3.
+
+
 ### Logo de cuchillas
 
 - Símbolo SVG de una cuchilla de carnicero sobre un libro abierto en el encabezado, conservando el nombre y la navegación de la marca.
