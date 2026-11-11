@@ -83,6 +83,11 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     autor = await account("USER", "Autor confidencial");
     otro = await account("USER", "Otra persona");
     admin = await account("ADMIN", "Administrador");
+    // Los casos históricos de publicación usan cuentas que ya aceptaron las normas.
+    const normas = await request("/feedback/normas", "GET", undefined, autor.cookie);
+    expect(normas.status).toBe(200);
+    const { version } = await normas.json() as { version: string };
+    await prisma.aceptacionNormas.createMany({ data: [autor, otro, admin].map(({ id }) => ({ usuarioId: id, version })) });
   }, 30_000);
 
   afterAll(async () => {
@@ -100,6 +105,7 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
       await prisma.session.deleteMany({ where: { userId: { in: ids.users } } });
       await prisma.emailVerificationCredential.deleteMany({ where: { userId: { in: ids.users } } });
       await prisma.administracionHistorial.deleteMany({ where: { actorId: { in: ids.users } } });
+      await prisma.aceptacionNormas.deleteMany({ where: { usuarioId: { in: ids.users } } });
       await prisma.user.deleteMany({ where: { id: { in: ids.users } } });
     }
     if (app) await app.close();
@@ -135,6 +141,50 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     expect((await request(f.path, "POST", { texto: "Bien", anonimo: true, autorId: otro.id }, autor.cookie)).status).toBe(400);
     const response = await fetch(`${baseUrl}${f.path}`, { method: "POST", headers: { Cookie: autor.cookie, "Content-Type": "application/json" }, body: JSON.stringify({ texto: "Bien", anonimo: true }) });
     expect(response.status).toBe(403);
+  });
+
+  it("exige la versión vigente vía HTTP y conserva fecha, versión y usuario solo al publicar válidamente", async () => {
+    expect((await request("/feedback/normas")).status).toBe(401);
+    const estudiante = await account("USER", "Estudiante HU04");
+    const getNormas = () => request("/feedback/normas", "GET", undefined, estudiante.cookie);
+    const estado = await getNormas();
+    expect(estado.status).toBe(200);
+    const normas = await estado.json() as { version: string; reglas: string[]; aceptada: boolean };
+    expect(normas.aceptada).toBe(false);
+    const documento = normas.reglas.join(" ");
+    for (const prohibicion of [/insult/i, /acos/i, /amenaz/i, /(?:información|datos) personal/i]) {
+      expect(documento).toMatch(prohibicion);
+    }
+    const primera = await fixture(1);
+    const siguiente = await fixture(0);
+    const body = { texto: "Buen acompañamiento", anonimo: true };
+    const post = (path: string, data: unknown) => request(path, "POST", data, estudiante.cookie);
+    // Emula una actualización de las reglas sin modificar la versión global del entorno.
+    await prisma.aceptacionNormas.create({ data: { usuarioId: estudiante.id, version: "anterior" } });
+    expect((await (await getNormas()).json()).aceptada).toBe(false);
+    for (const data of [body, { ...body, versionNormas: "anterior" }]) {
+      const intento = await post(primera.path, data);
+      expect(intento.status).toBe(409);
+      expect(await intento.text()).toMatch(/aceptar las normas/i);
+    }
+    expect(await prisma.feedback.count({ where: { autorId: estudiante.id } })).toBe(0);
+    const vigente = { usuarioId: estudiante.id, version: normas.version };
+    const invalido = await post(primera.path, { ...body, versionNormas: normas.version, profesorId: randomUUID() });
+    expect(invalido.status).toBe(400);
+    expect(await prisma.aceptacionNormas.count({ where: vigente })).toBe(0);
+    const primeraPublicacion = await post(primera.path, { ...body, versionNormas: normas.version });
+    expect(primeraPublicacion.status).toBe(201);
+    const registro = await prisma.aceptacionNormas.findFirstOrThrow({ where: vigente });
+    expect(registro.aceptadaEn).toBeInstanceOf(Date);
+    expect((await (await getNormas()).json()).aceptada).toBe(true);
+    const segundaPublicacion = await post(siguiente.path, body);
+    expect(segundaPublicacion.status).toBe(201);
+    expect(await prisma.aceptacionNormas.findMany({ where: vigente })).toEqual([registro]);
+    // El escenario posterior comprueba una lista pública inicialmente vacía.
+    for (const response of [primeraPublicacion, segundaPublicacion]) {
+      const { id } = await response.json() as PublicFeedback;
+      expect((await request(`/feedback/${id}`, "DELETE", undefined, estudiante.cookie)).status).toBe(204);
+    }
   });
 
   // TASK-061: the general feed exposes the same public snapshots across commissions.
