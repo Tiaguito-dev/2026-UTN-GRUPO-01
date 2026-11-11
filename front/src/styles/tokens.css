@@ -1,8 +1,8 @@
 @layer tokens {
   :root {
-    --primary: #1240C9; --primary-rgb: 18 64 201; --primary-hover: #1E4CD4; --accent: #2169FC; --link: var(--primary);
-    --surface: #ffffff; --background: #f7f9fe; --text: #17233d; --muted: #56647a;
-    --border: #d8e0ed; --input-border: #8190a8; --soft-blue: #edf2ff;
+    --primary: #990f13; --primary-rgb: 153 15 19; --primary-hover: #780b10; --accent: #b51a20; --link: var(--primary);
+    --surface: #fffaf5; --background: #fcf3eb; --text: #231a18; --muted: #6c5851;
+    --border: #e4d2c7; --input-border: #a18a7e; --soft-blue: #f9d7cd;
     --error: #a61b1b; --error-background: #fff1f1; --success: #166534; --success-background: #f0fdf4; --warning: #854d0e; --warning-background: #fffbeb;
     /* Espaciado: --space-N vale N × .25rem. */
     --space-1: .25rem; --space-2: .5rem; --space-3: .75rem; --space-4: 1rem; --space-5: 1.25rem;
@@ -13,11 +13,11 @@
     --text-xs: .75rem; --text-sm: .8rem; --text-md: .9rem; --text-base: 1rem; --text-xl: 1.5rem; --text-2xl: 2rem;
     --weight-medium: 600; --weight-semibold: 650; --weight-bold: 700; --weight-heavy: 750;
     /* Sombras: mismo tono que --text */
-    --shadow-rgb: 23 35 61;
+    --shadow-rgb: 65 27 20;
     --shadow-popover: 0 14px 35px rgb(var(--shadow-rgb) / 12%); --shadow-card: 0 18px 55px rgb(var(--shadow-rgb) / 6%); --shadow-floating: 0 20px 40px rgb(var(--shadow-rgb) / 8%);
     --shadow-sheet: 0 -14px 35px rgb(var(--shadow-rgb) / 12%); --backdrop: rgb(var(--shadow-rgb) / 45%);
     /* Layout y capas */
-    --header-h: 5.5rem; --sidebar-w: 15rem; --content-max: 72rem; --content-max-app: 83rem;
+    --header-h: 4.5rem; --sidebar-w: 13rem; --content-max: 72rem; --content-max-app: 83rem;
     --z-skip-link: 10; --z-popover: 20; --z-header: 30; --z-modal: 40;
     /* breakpoints: 800px shell, 600px landing y auth (las media queries no aceptan variables CSS) */
     /* Los valores que no coinciden con una escala quedan literales hasta normalizarlos: ver TASK-024, sección 6. */

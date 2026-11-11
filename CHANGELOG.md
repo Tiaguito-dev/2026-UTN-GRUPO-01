@@ -2,6 +2,21 @@
 
 ## [Sin publicar]
 
+### Nombre visible de la aplicación
+
+- Nombre actualizado a `Professors' butchery` en encabezado, portada, inicio y títulos de páginas del frontend.
+
+### Resolución local de conflictos de los PR de estética
+
+- Integra las correcciones funcionales de desarrollo conservando rediseño, nombre y logo en sus respectivas ramas, sin modificar main.
+- Tipos, lint y build con Webpack de la combinación final aprobados; Vitest quedó sin resultado y se interrumpió. Limitaciones y publicación pendiente documentadas en TASK-resolver-prs-estetica.
+
+### Rediseño visual del frontend (en progreso)
+
+- Paleta bordó y crema, encabezado compacto, navegación lateral y estilos compartidos de botones y tarjetas.
+- Portada en dos columnas adaptable a móvil y materias con tarjetas individuales; se conservan las funcionalidades existentes.
+- Tipos, lint, build y 727 pruebas aprobados. Revisión visual completa pendiente: las capturas locales iniciales mostraron el aviso de conexión. Sin integración en desarrollo ni cambios en main.
+
 ### Unicidad de nombres de materia (Bloque B)
 
 - DATA-01: dos materias vigentes no pueden llamarse igual aunque difieran en mayúsculas o tildes. El índice único pasa a ser funcional (`Materia_nombre_normalizado_activa_key`), con la misma expresión que la búsqueda; `findByNombre` compara igual, así que alta y edición responden 409 con el mensaje de nombre repetido.

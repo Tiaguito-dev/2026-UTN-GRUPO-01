@@ -21,7 +21,7 @@ describe("SiteHeader", () => {
   it.each([["ADMIN", "/home/admin"], ["USER", "/home"]])("marca BookOpen decorativa conserva destino de %s", (role, href) => {
     auth.value = { status: "authenticated", account: { role } };
     render(<SiteHeader />);
-    const brand = screen.getByRole("link", { name: "Profesor Butchery" });
+    const brand = screen.getByRole("link", { name: "Professors' butchery" });
     expect(brand.getAttribute("href")).toBe(href);
     expect(brand.querySelector("svg.lucide-book-open")?.getAttribute("aria-hidden")).toBe("true");
     expect(brand.textContent).not.toContain("PB");
@@ -64,7 +64,7 @@ describe("SiteHeader", () => {
     const logout = vi.fn().mockResolvedValue(undefined);
     auth.value = { status: "authenticated", account: { role: "ADMIN" }, logout };
     render(<SiteHeader />);
-    expect(screen.getByRole("link", { name: /Profesor Butchery/ }).getAttribute("href")).toBe("/home/admin");
+    expect(screen.getByRole("link", { name: /Professors' butchery/ }).getAttribute("href")).toBe("/home/admin");
     await userEvent.click(screen.getByRole("button", { name: "Opciones de cuenta" }));
     expect(screen.getByRole("link", { name: "Mi perfil" }).getAttribute("href")).toBe("/account");
     expect(screen.getByRole("link", { name: "Cambiar contraseña" }).getAttribute("href")).toBe("/account/change-password");

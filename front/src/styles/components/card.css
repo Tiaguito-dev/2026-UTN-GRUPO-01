@@ -1,6 +1,6 @@
 @layer components {
   /* Card: shared surface; each variant keeps the padding, width and shadow of the class it replaced. */
-  .card { border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); }
+  .card { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
   .card-auth { width: min(100%, 32rem); margin-inline: auto; padding: clamp(1.5rem, 4vw, 2.5rem); box-shadow: var(--shadow-card); }
   .card-auth h1 { text-align: center; }
   .card-profile { padding: clamp(1.5rem, 4vw, 2.5rem); box-shadow: var(--shadow-card); }
