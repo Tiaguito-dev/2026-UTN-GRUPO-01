@@ -10,6 +10,11 @@
 
 - Nombre actualizado a `Professors' butchery` en encabezado, portada, inicio y títulos de páginas del frontend.
 
+### Resolución local de conflictos de los PR de estética
+
+- Integra las correcciones funcionales de desarrollo conservando rediseño, nombre y logo en sus respectivas ramas, sin modificar main.
+- Tipos, lint y build con Webpack de la combinación final aprobados; Vitest quedó sin resultado y se interrumpió. Limitaciones y publicación pendiente documentadas en TASK-resolver-prs-estetica.
+
 ### Rediseño visual del frontend (en progreso)
 
 - Paleta bordó y crema, encabezado compacto, navegación lateral y estilos compartidos de botones y tarjetas.
