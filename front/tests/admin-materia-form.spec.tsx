@@ -68,6 +68,40 @@ describe("MateriaForm", () => {
     expect(document.activeElement).toBe(select);
     expect(select.getAttribute("aria-invalid")).toBe("true");
   });
+  it("al cambiar un campo con error borra su error y su aria-invalid", async () => {
+    render(<MateriaForm onSuccess={vi.fn()} />);
+    const submit = screen.getByRole("button", { name: "Crear materia" });
+    await userEvent.click(submit);
+    const anio = screen.getByLabelText("Año de la carrera");
+    expect(anio.getAttribute("aria-invalid")).toBe("true");
+    await userEvent.selectOptions(anio, "ELECTIVA");
+    expect(screen.queryByText("Elegí un año entre 1 y 5 o Electiva.")).toBeNull();
+    expect(anio.getAttribute("aria-invalid")).toBe("false");
+    expect(screen.getByText("Elegí al menos una carrera.")).toBeTruthy();
+
+    const carreras = screen.getByRole("listbox", { name: "Carreras" });
+    await userEvent.selectOptions(carreras, "S");
+    expect(screen.queryByText("Elegí al menos una carrera.")).toBeNull();
+    expect(carreras.getAttribute("aria-invalid")).toBe("false");
+
+    await userEvent.click(submit);
+    const nivel = screen.getByLabelText("Nivel de electiva");
+    expect(nivel.getAttribute("aria-invalid")).toBe("true");
+    await userEvent.selectOptions(nivel, "4");
+    expect(screen.queryByText("Elegí el nivel 3, 4 o 5 de la electiva.")).toBeNull();
+    expect(nivel.getAttribute("aria-invalid")).toBe("false");
+  });
+  it("cambiar Año descarta el error del nivel oculto: volver a Electiva no lo revive sin guardar", async () => {
+    render(<MateriaForm onSuccess={vi.fn()} />);
+    const anio = screen.getByLabelText("Año de la carrera");
+    await userEvent.selectOptions(anio, "ELECTIVA");
+    await userEvent.click(screen.getByRole("button", { name: "Crear materia" }));
+    expect(screen.getByText("Elegí el nivel 3, 4 o 5 de la electiva.")).toBeTruthy();
+    await userEvent.selectOptions(anio, "3");
+    await userEvent.selectOptions(anio, "ELECTIVA");
+    expect(screen.queryByText("Elegí el nivel 3, 4 o 5 de la electiva.")).toBeNull();
+    expect(screen.getByLabelText("Nivel de electiva").getAttribute("aria-invalid")).toBe("false");
+  });
   it("el cuerpo no renderiza h1", () => {
     render(<MateriaForm onSuccess={vi.fn()} />);
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();

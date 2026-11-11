@@ -13,7 +13,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Notice } from "@/components/ui/Notice";
 import { Dialog } from "@/components/ui/Dialog";
 import { adminCreationHref, adminListHref, adminFormHref, readAdminFilters, safeAdminReturnTo, safeMateriaListOrigin, type AdminSection, type AdminContext } from "@/validations/admin";
-import { academicListReturnTo, cursadaDetailHref, cursadaDetailReturnTo, cursadaListOrigin, materiaDetailHref, materiaDetailReturnTo } from "@/validations/admin-academic-navigation";
+import { cursadaDetailHref, cursadasListHref, materiaDetailHref } from "@/validations/admin-academic-navigation";
 import type { BreadcrumbItem } from "@/components/ui/Breadcrumb";
 import { ANIOS_CARRERA, CARRERAS, NIVELES_ELECTIVA, anioCarreraLabel, carreraLabel, nivelElectivaLabel } from "@/validations/materias";
 import { periodoLabel } from "@/lib/format/periodo";
@@ -59,14 +59,11 @@ export function AdminAcademicList({ kind }: { kind: Kind }) {
     return () => { active = false; };
   }, [kind, materiaId, cursadaId, parentKey]);
   const contextual = (kind === "cursadas" && Boolean(materiaId)) || (kind === "comisiones" && Boolean(materiaId && cursadaId));
-  const parentHref = kind === "cursadas" ? materiaDetailHref(materiaId, materiaReturnTo) : parent?.cursada ? cursadaDetailHref(parent.cursada.id, adminListHref({ seccion: "cursadas", materiaId, materiaReturnTo, returnTo: materiaDetailHref(materiaId, materiaReturnTo), page: 1 })) : "/home/admin/cursadas";
-  const validParent = kind === "cursadas" ? materiaDetailReturnTo(requestedBack, materiaId) : kind === "comisiones" && parent?.cursada ? cursadaDetailReturnTo(requestedBack, parent.cursada.id, materiaId) : undefined;
-  const returnTo = contextual ? validParent ?? parentHref : requestedBack;
-  const generatedCursadasHref = adminListHref({ seccion: "cursadas", materiaId, materiaReturnTo, returnTo: materiaDetailHref(materiaId, materiaReturnTo), page: 1 });
-  const parentCursadasHref = kind === "comisiones" && parent?.cursada
-    ? cursadaListOrigin(returnTo, parent.cursada.id, materiaId) ?? generatedCursadasHref
-    : generatedCursadasHref;
-  const context: AdminContext = { seccion: kind, page, materiaId, cursadaId, materiaReturnTo, returnTo: contextual ? returnTo : undefined, ...filters };
+  // The parent level derives from the IDs in the URL; the list carries no returnTo of its own.
+  const parentCursadasHref = cursadasListHref(materiaId, materiaReturnTo);
+  const parentHref = kind === "cursadas" ? materiaDetailHref(materiaId, materiaReturnTo) : parent?.cursada ? cursadaDetailHref(parent.cursada.id, parentCursadasHref) : "/home/admin/cursadas";
+  const returnTo = contextual ? parentHref : requestedBack;
+  const context: AdminContext = { seccion: kind, page, materiaId, cursadaId, materiaReturnTo, ...filters };
   const href = adminListHref(context);
   const parentReady = kind !== "cursadas" && kind !== "comisiones" || Boolean(materiaId && parent?.materia && (kind !== "comisiones" || parent.cursada));
   const hierarchy: BreadcrumbItem[] = contextual && parent?.materia ? [
