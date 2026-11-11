@@ -18,12 +18,13 @@ vi.mock("@/hooks/useAuth", () => ({ useAuth: () => auth.value }));
 afterEach(() => { cleanup(); location.query = ""; });
 
 describe("SiteHeader", () => {
-  it.each([["ADMIN", "/home/admin"], ["USER", "/home"]])("marca BookOpen decorativa conserva destino de %s", (role, href) => {
+  // El nuevo logo conserva el nombre accesible y los destinos de la marca anterior.
+  it.each([["ADMIN", "/home/admin"], ["USER", "/home"]])("marca decorativa conserva destino de %s", (role, href) => {
     auth.value = { status: "authenticated", account: { role } };
     render(<SiteHeader />);
     const brand = screen.getByRole("link", { name: "Professors' butchery" });
     expect(brand.getAttribute("href")).toBe(href);
-    expect(brand.querySelector("svg.lucide-book-open")?.getAttribute("aria-hidden")).toBe("true");
+    expect(brand.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
     expect(brand.textContent).not.toContain("PB");
   });
   function setup() {
