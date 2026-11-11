@@ -5,6 +5,8 @@ import userEvent from "@testing-library/user-event";
 import { EditarProfesor, EditarCursada, EditarComision } from "@/components/admin/EditarAcademico";
 import { obtenerProfesor, actualizarProfesor, actualizarCursada, actualizarComision } from "@/services/admin-academic";
 import { obtenerCursada, obtenerComision, listarMaterias } from "@/services/academic";
+import { adminFormHref } from "@/validations/admin";
+import { administrativeDetailHref, comisionDetailHref } from "@/validations/admin-academic-navigation";
 
 const { router, state } = vi.hoisted(() => ({ router: { push: vi.fn() }, state: { search: "" } }));
 vi.mock("next/link", () => import("./support/next-link"));
@@ -32,8 +34,10 @@ describe("HU11 formularios de edición", () => {
   it.each(["profesores", "cursadas", "comisiones"] as const)("cancelar %s vuelve al mismo detalle y guardar no lo anida", async (section) => {
     const source = section === "profesores" ? "/home/admin/profesores?q=Ada&page=3" : section === "cursadas" ? "/home/admin/cursadas?materiaId=m1&page=3" : "/home/admin/experiencias?carrera=S&materiaId=m1&page=3";
     const id = section === "profesores" ? "p1" : section === "cursadas" ? "c1" : "co1";
-    const detailHref = `/home/admin/${section}/${id}?${new URLSearchParams({ returnTo: source })}`;
-    state.search = new URLSearchParams({ returnTo: detailHref }).toString();
+    // BUG-02: la edición guarda un solo nivel (el detalle); solo el origen Experiencias viaja plano en él.
+    const editHref = adminFormHref(`/home/admin/${section}/${id}/editar`, administrativeDetailHref(section, id, source));
+    const detailHref = section === "comisiones" ? comisionDetailHref(id, source) : `/home/admin/${section}/${id}`;
+    state.search = editHref.split("?")[1]!;
     render(section === "profesores" ? <EditarProfesor profesorId={id} /> : section === "cursadas" ? <EditarCursada cursadaId={id} /> : <EditarComision comisionId={id} />);
     const field = await screen.findByLabelText(section === "profesores" ? "Nombre completo" : section === "cursadas" ? "Año" : "Número de comisión") as HTMLInputElement;
     await waitFor(() => expect(field.value).toBe(section === "profesores" ? "Ada Lovelace" : section === "cursadas" ? "2026" : "31"));
@@ -44,9 +48,16 @@ describe("HU11 formularios de edición", () => {
     await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
     await waitFor(() => expect(router.push).toHaveBeenCalledOnce());
     const target = new URL(String(router.push.mock.calls[0][0]), "https://local.test");
-    expect(target.pathname).toBe(`/home/admin/${section}/${id}`);
-    expect(target.searchParams.get("returnTo")).toBe(source);
     expect(target.searchParams.has("successMessage")).toBe(true);
+    target.searchParams.delete("successMessage");
+    expect(`${target.pathname}${target.search}`).toBe(detailHref);
+  });
+
+  it("un link viejo con returnTo anidado vuelve al detalle sin romper", async () => {
+    state.search = new URLSearchParams({ returnTo: `/home/admin/profesores/p1?${new URLSearchParams({ returnTo: "/home/admin/profesores?page=3" })}` }).toString();
+    render(<EditarProfesor profesorId="p1" />);
+    expect(await screen.findByLabelText("Nombre completo")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Cancelar" }).getAttribute("href")).toBe("/home/admin/profesores/p1");
   });
 
   it("edita el Período de cursada a Anual con PATCH parcial", async () => {
@@ -114,10 +125,8 @@ describe("HU11 formularios de edición", () => {
     // El traslado reconstruye el contexto de la materia destino y reinicia su listado.
     const destinationList = new URL(target.searchParams.get("returnTo")!, "http://local");
     expect(destinationList.pathname).toBe("/home/admin/cursadas");
-    expect(Object.fromEntries(destinationList.searchParams)).toEqual({
-      materiaId: "m2", materiaReturnTo: "/home/admin/materias",
-      returnTo: "/home/admin/materias/m2?returnTo=%2Fhome%2Fadmin%2Fmaterias",
-    });
+    expect(Object.fromEntries(destinationList.searchParams)).toEqual({ materiaId: "m2" });
+    expect(target.searchParams.get("materiaReturnTo")).toBe("/home/admin/materias");
     expect(target.searchParams.get("successMessage")).toBe("Cursada actualizada correctamente.");
   });
   it("comisión edita número sin controles de activa ni traslado", async () => {

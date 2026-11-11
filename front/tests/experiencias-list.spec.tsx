@@ -6,6 +6,7 @@ import { ExperienciasList } from "@/components/feedback/ExperienciasList";
 import { listarFeedback } from "@/services/feedback";
 import type { Feedback } from "@/types/feedback";
 import { listarMaterias, obtenerMateria } from "@/services/materias";
+import { experienciasOriginHref } from "@/validations/admin";
 const { replace, push, route } = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn(), route: { query: "", pathname: "/home/experiencias" } }));
 vi.mock("@/hooks/useIsAdmin", () => ({ useIsAdmin: () => route.pathname.startsWith("/home/admin") }));
 vi.mock("next/link", () => import("./support/next-link"));
@@ -35,7 +36,9 @@ describe("Experiencias generales", () => {
       const target = new URL(screen.getByRole("link", { name }).getAttribute("href")!, "https://local.test");
       expect(target.pathname).toBe(expected);
       // TASK-admin-navigation-context: la materia abre explícitamente su gestión académica.
-      expect(target.searchParams.get("returnTo")).toBe(expected.includes("/comisiones/") ? "/home/admin/experiencias?carrera=S&materiaId=mat1&page=2" : null);
+      expect(target.searchParams.get("returnTo")).toBeNull();
+      // BUG-02: la comisión lleva el origen Experiencias plano (origen=experiencias).
+      expect(experienciasOriginHref(target.searchParams)).toBe(expected.includes("/comisiones/") ? "/home/admin/experiencias?carrera=S&materiaId=mat1&page=2" : undefined);
     }
   });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { adminCreationHref, adminSuccessHref, safeAdminReturnTo, safeMateriaListOrigin } from "@/validations/admin";
+import { adminCreationHref, adminSuccessHref, joinedReturnTo, safeMateriaListOrigin } from "@/validations/admin";
 import { administrativeDetailHref, adminEditReturnTo } from "@/validations/admin-academic-navigation";
 import type { Materia } from "@/types/materias";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -11,9 +11,9 @@ import { MateriaForm } from "./MateriaForm";
 export function MateriaFormPage({ materia }: { materia?: Materia }) {
   const router = useRouter();
   const params = useSearchParams();
-  const returnTo = materia ? adminEditReturnTo("materias", materia.id, params.get("returnTo")) : safeAdminReturnTo(params.get("returnTo"));
+  const returnTo = materia ? adminEditReturnTo("materias", materia.id, joinedReturnTo(params)) : joinedReturnTo(params);
 
-  const backList = safeMateriaListOrigin(returnTo) ?? (returnTo ? safeMateriaListOrigin(new URL(returnTo, "https://local.invalid").searchParams.get("returnTo")) : undefined) ?? "/home/admin/materias";
+  const backList = safeMateriaListOrigin(returnTo) ?? (returnTo ? safeMateriaListOrigin(new URL(returnTo, "https://local.invalid").searchParams.get("materiaReturnTo")) : undefined) ?? "/home/admin/materias";
   const detailHref = materia ? administrativeDetailHref("materias", materia.id, returnTo) : undefined;
 
   return (

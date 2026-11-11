@@ -4,6 +4,8 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SidebarNav } from "@/components/home/SidebarNav";
+import { joinedReturnTo, returnToQuery } from "@/validations/admin";
+import { comisionDetailHref } from "@/validations/admin-academic-navigation";
 
 const { auth, location } = vi.hoisted(() => ({
   auth: { value: { status: "authenticated", account: { role: "USER" }, logout: async () => {} } as Record<string, unknown> },
@@ -77,9 +79,10 @@ describe("SidebarNav", () => {
 
   it.each(["/home/admin/comisiones/co1", "/home/admin/comisiones/co1/editar"])("mantiene Experiencias seleccionado en %s con origen persistido en URL", (pathname) => {
     const list = "/home/admin/experiencias?carrera=S&materiaId=m1&page=3";
-    const returnTo = pathname.endsWith("/editar") ? `/home/admin/comisiones/co1?${new URLSearchParams({ returnTo: list })}` : list;
+    // BUG-02: la comisión lleva origen=experiencias plano; su edición vuelve a esa misma URL.
+    const commission = comisionDetailHref("co1", list);
     location.pathname = pathname;
-    location.query = new URLSearchParams({ returnTo }).toString();
+    location.query = pathname.endsWith("/editar") ? new URLSearchParams({ returnTo: commission }).toString() : new URL(commission, "https://local.test").search.slice(1);
     auth.value = { status: "authenticated", account: { role: "ADMIN" } };
     render(<SidebarNav />);
     expect(current()).toEqual(["Experiencias"]);
@@ -97,7 +100,9 @@ describe("SidebarNav", () => {
     ["/home/admin/experiencias?carrera=S&page=3", "Experiencias"],
     ["/home/admin/comisiones?materiaId=m1&cursadaId=cu1&page=2", "Materias"],
   ])("comentario desde comisión conserva la sección de %s", (origin, expected) => {
-    const commission = `/home/admin/comisiones/co1?${new URLSearchParams({ returnTo: origin, page: "2" })}`;
+    // La experiencia vuelve a la comisión ya plana (comisionNavigation.detailHref), con su página.
+    const flat = joinedReturnTo(returnToQuery(comisionDetailHref("co1", origin)))!;
+    const commission = `${flat}${flat.includes("?") ? "&" : "?"}page=2`;
     location.pathname = "/home/admin/experiencias/f1";
     location.query = new URLSearchParams({ returnTo: commission }).toString();
     auth.value = { status: "authenticated", account: { role: "ADMIN" } };
