@@ -6,7 +6,8 @@ import { useRef, useState, type FormEvent } from "react";
  * Submit flow shared by the forms: reads the uncontrolled `fields` with FormData, validates,
  * focuses the first invalid field, ignores a second submit while one is in flight, and turns a
  * thrown error into `error` (its message, or `fallbackError`). Render `error` with
- * `<Notice focusOnShow>` so it takes focus.
+ * `<Notice focusOnShow>` so it takes focus. Pass `handleChange` to the `<form onChange>`: a field
+ * that changes drops its own error (BUG-03), without revalidating.
  */
 export function useFormSubmission<K extends string>({ fields, validate, onSubmit, fallbackError }: {
   fields: readonly K[];
@@ -49,5 +50,15 @@ export function useFormSubmission<K extends string>({ fields, validate, onSubmit
     }
   }
 
-  return { busy, errors, error, setError, success, setSuccess, handleSubmit };
+  function handleChange(event: FormEvent<HTMLFormElement>) {
+    const name = (event.target as { name?: string }).name as K | undefined;
+    if (name) setErrors((current) => {
+      if (!(name in current)) return current;
+      const next = { ...current };
+      delete next[name];
+      return next;
+    });
+  }
+
+  return { busy, errors, error, setError, success, setSuccess, handleSubmit, handleChange };
 }

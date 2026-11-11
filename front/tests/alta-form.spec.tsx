@@ -37,6 +37,16 @@ describe("AltaForm", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it("al cambiar un campo con error borra su error y su aria-invalid", async () => {
+    const { nombre, codigo, submit } = setup(vi.fn());
+    await userEvent.click(submit);
+    await userEvent.type(nombre, "Á");
+    expect(screen.queryByText("Error: Ingresá el nombre.")).toBeNull();
+    expect(nombre.getAttribute("aria-invalid")).toBe("false");
+    expect(screen.getByText("Error: Ingresá el código.")).toBeTruthy();
+    expect(codigo.getAttribute("aria-invalid")).toBe("true");
+  });
+
   it("bloquea un segundo envío mientras el primero está en curso", async () => {
     const onSubmit = vi.fn(() => new Promise<string>(() => {}));
     const { nombre, codigo, submit } = setup(onSubmit);

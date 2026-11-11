@@ -44,17 +44,9 @@ describe.each([
   // TASK-069: los tooltips también nombran el registro; buscar la celda identifica el dato visible.
   const visibleItem = () => name === "MateriasList" ? screen.findByText(itemText) : screen.findByRole("cell", { name: itemText });
 
-  // La URL visible puede ser simple; los enlaces de fila reconstruyen toda la jerarquía.
+  // BUG-02: los enlaces de fila vuelven solo a esta lista (un nivel); los ancestros salen de los IDs.
   function expectedReturnTo(pageNumber = 1) {
     const query = new URLSearchParams(search);
-    if (name === "CursadasAdminList" || name === "ComisionesAdminList") {
-      const materiaOrigin = "/home/admin/materias";
-      const materiaDetail = `/home/admin/materias/m1?${new URLSearchParams({ returnTo: materiaOrigin })}`;
-      const cursadasList = `/home/admin/cursadas?${new URLSearchParams({ materiaId: "m1", materiaReturnTo: materiaOrigin, returnTo: materiaDetail })}`;
-      const parent = name === "CursadasAdminList" ? materiaDetail : `/home/admin/cursadas/c1?${new URLSearchParams({ returnTo: cursadasList })}`;
-      query.set("materiaReturnTo", materiaOrigin);
-      query.set("returnTo", parent);
-    }
     if (pageNumber > 1) query.set("page", String(pageNumber));
     return `${pathname}${query.size ? `?${query}` : ""}`;
   }
@@ -114,6 +106,7 @@ describe.each([
       const detail = new URL(screen.getByRole("link", { name: /^Ver detalle de/ }).getAttribute("href")!, "https://local.test");
       expect(detail.pathname).toBe(`${pathname}/a`);
       expect(detail.searchParams.get("returnTo")).toBe(expectedReturnTo());
+      if (search) expect(detail.searchParams.get("materiaReturnTo")).toBe("/home/admin/materias");
     }
   });
 

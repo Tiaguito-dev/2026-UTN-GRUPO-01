@@ -128,7 +128,8 @@ enum CargoDocente {
 
 model Materia {
   id        String    @id @default(uuid()) @db.Uuid
-  // Unicidad solo de registros vigentes, definida en la migración SQL.
+  // Unicidad solo de registros vigentes y sin distinguir mayúsculas ni tildes: índice funcional
+  // de la migración 20261107000000_materia_nombre_normalizado (Prisma no lo representa).
   nombre    String    @db.VarChar(150)
   modalidad ModalidadMateria?
   createdAt DateTime  @default(now()) @db.Timestamptz(3)

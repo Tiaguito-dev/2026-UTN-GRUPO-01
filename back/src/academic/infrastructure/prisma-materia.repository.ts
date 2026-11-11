@@ -10,12 +10,15 @@ const conCarreras = { carreras: { orderBy: { carrera: "asc" } } } satisfies Pris
 // NFD separates Spanish accents/diacritics; translate removes the same combining marks on
 // both SQL names and the search term, without requiring an extension or changing stored names.
 const combiningMarks = Array.from({ length: 0x70 }, (_, index) => String.fromCodePoint(0x300 + index)).join("");
+// Must match the unique index of migration 20261107000000_materia_nombre_normalizado; see the
+// DATA-01 uniqueness test in tests/academic.integration.spec.ts.
+const normalizedNombre = (nombre: Prisma.Sql) => Prisma.sql`lower(translate(normalize(${nombre}, NFD), ${combiningMarks}, ''))`;
 
 export class PrismaMateriaRepository implements MateriaRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(pagination: Pagination, filters: MateriaFilters = {}): Promise<PaginatedResult<Materia>> {
-    const normalizedNombre = Prisma.sql`lower(translate(normalize(m."nombre", NFD), ${combiningMarks}, ''))`;
+    const nombreNormalizado = normalizedNombre(Prisma.sql`m."nombre"`);
     const predicates: Prisma.Sql[] = [Prisma.sql`m."deletedAt" IS NULL`];
     const associations: Prisma.Sql[] = [];
     if (filters.carrera) associations.push(Prisma.sql`mc."carrera" = ${filters.carrera}::"Carrera"`);
@@ -30,14 +33,14 @@ export class PrismaMateriaRepository implements MateriaRepository {
       const term = filters.q.normalize("NFD").replace(/[\u0300-\u036f]/gu, "").toLowerCase();
       // Escape AFTER normalization: %, _ and backslash must remain literal input.
       const pattern = `%${term.replace(/[\\%_]/g, "\\$&")}%`;
-      predicates.push(Prisma.sql`${normalizedNombre} LIKE ${pattern}`);
+      predicates.push(Prisma.sql`${nombreNormalizado} LIKE ${pattern}`);
     }
     const where = Prisma.join(predicates, " AND ");
     const skip = (pagination.page - 1) * pagination.pageSize;
     return this.prisma.$transaction(async (tx) => {
       const [ids, counts] = await Promise.all([
         tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT m."id" FROM "Materia" m
-          WHERE ${where} ORDER BY ${normalizedNombre}, m."nombre", m."id"
+          WHERE ${where} ORDER BY ${nombreNormalizado}, m."nombre", m."id"
           LIMIT ${pagination.pageSize} OFFSET ${skip}`),
         tx.$queryRaw<{ total: bigint }[]>(Prisma.sql`SELECT COUNT(*) AS total FROM "Materia" m WHERE ${where}`),
       ]);
@@ -56,8 +59,9 @@ export class PrismaMateriaRepository implements MateriaRepository {
   }
 
   async findByNombre(nombre: string): Promise<Materia | null> {
-    const materia = await this.prisma.materia.findFirst({ where: { nombre, deletedAt: null }, include: conCarreras });
-    return materia ? toMateria(materia) : null;
+    const [match] = await this.prisma.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT "id" FROM "Materia"
+      WHERE "deletedAt" IS NULL AND ${normalizedNombre(Prisma.sql`"nombre"`)} = ${normalizedNombre(Prisma.sql`${nombre}`)} LIMIT 1`);
+    return match ? this.findById(match.id) : null;
   }
 
   async findCarreras(materiaId: string): Promise<Carrera[]> {

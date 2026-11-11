@@ -29,6 +29,8 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
 
   const post = (path: string, body: unknown) => fetch(`${baseUrl}${path}`, { method: "POST", headers: csrfHeaders, body: JSON.stringify(body) });
   const get = (path: string, cookie?: string) => fetch(`${baseUrl}${path}`, { headers: cookie ? { Cookie: cookie } : {} });
+  const send = (method: "POST" | "PATCH", path: string, body: unknown, cookie: string) =>
+    fetch(`${baseUrl}${path}`, { method, headers: { ...csrfHeaders, Cookie: cookie }, body: JSON.stringify(body) });
 
   async function account() {
     const email = `academic-test-${randomUUID()}@alu.frlp.utn.edu.ar`;
@@ -40,8 +42,9 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
     return user as { id: string; email: string };
   }
-  async function sessionCookie() {
+  async function sessionCookie(admin = false) {
     const user = await account();
+    if (admin) await prisma.user.update({ where: { id: user.id }, data: { role: "ADMIN" } });
     const response = await post("/auth/login", { email: user.email, password });
     const cookie = response.headers.get("set-cookie")?.split(";")[0];
     expect(response.status).toBe(200);
@@ -95,6 +98,8 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
   afterAll(async () => {
     if (prisma) {
       if (comisionIds.size) await prisma.comisionProfesor.deleteMany({ where: { comisionId: { in: [...comisionIds] } } });
+      if (userIds.size) await prisma.administracionHistorial.deleteMany({ where: { actorId: { in: [...userIds] } } });
+      if (materiaIds.size) await prisma.materiaHistorial.deleteMany({ where: { materiaId: { in: [...materiaIds] } } });
       if (materiaIds.size) await prisma.materiaCarrera.deleteMany({ where: { materiaId: { in: [...materiaIds] } } });
       if (comisionIds.size) await prisma.comision.deleteMany({ where: { id: { in: [...comisionIds] } } });
       if (cursadaIds.size) await prisma.cursada.deleteMany({ where: { id: { in: [...cursadaIds] } } });
@@ -489,6 +494,54 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
         expect(response.status, borrar).toBe(404);
         expect((await response.json()).message).toBe("La comisión solicitada no existe.");
       }
+    });
+  });
+
+  // DATA-01: two active subjects cannot share a name that differs only in case or accents.
+  // The unique index and findByNombre must use the same expression as the search.
+  describe("unicidad del nombre de materia sin distinguir mayúsculas ni tildes (DATA-01)", () => {
+    const repetido = "Ya existe una materia con ese nombre.";
+    const body = (nombre: string) => ({ nombre, modalidad: "ANUAL", carreras: [{ carrera: "S", anioCarrera: "1" }] });
+    async function alta(nombre: string, cookie: string) {
+      const response = await send("POST", "/materias", body(nombre), cookie);
+      const json = await response.json();
+      if (typeof json.id === "string") materiaIds.add(json.id);
+      return { status: response.status, json };
+    }
+
+    it("el alta con otra variante de mayúsculas o tildes devuelve 409, por HTTP y en la base", async () => {
+      const cookie = await sessionCookie(true);
+      const prefix = randomUUID();
+      expect((await alta(`${prefix} QA Unicidad`, cookie)).status).toBe(201);
+      for (const variante of [`${prefix} qa unicidad`, `${prefix} QA Únicidad`]) {
+        const { status, json } = await alta(variante, cookie);
+        expect(status, variante).toBe(409);
+        expect(json.message).toBe(repetido);
+      }
+      // Without the application pre-check, the index itself rejects the variant.
+      await expect(createMateria(`${prefix} QA ÚNICIDAD`)).rejects.toMatchObject({ code: "P2002" });
+    });
+
+    it("editar otra materia a una variante del nombre devuelve 409", async () => {
+      const cookie = await sessionCookie(true);
+      const prefix = randomUUID();
+      expect((await alta(`${prefix} QA Unicidad`, cookie)).status).toBe(201);
+      const otra = await alta(`${prefix} Otra`, cookie);
+      const response = await send("PATCH", `/materias/${otra.json.id}`, { nombre: `${prefix} QA UNICIDAD` }, cookie);
+      expect(response.status).toBe(409);
+      expect((await response.json()).message).toBe(repetido);
+    });
+
+    it("una materia dada de baja no bloquea el alta y renombrar a una variante del propio nombre se permite", async () => {
+      const cookie = await sessionCookie(true);
+      const prefix = randomUUID();
+      const baja = await createMateria(`${prefix} QA Unicidad`);
+      await prisma.materia.update({ where: { id: baja.id }, data: { deletedAt: new Date() } });
+      const nueva = await alta(`${prefix} qa unicidad`, cookie);
+      expect(nueva.status).toBe(201);
+      const response = await send("PATCH", `/materias/${nueva.json.id}`, { nombre: `${prefix} QA Unicidad` }, cookie);
+      expect(response.status).toBe(200);
+      expect((await response.json()).nombre).toBe(`${prefix} QA Unicidad`);
     });
   });
 });

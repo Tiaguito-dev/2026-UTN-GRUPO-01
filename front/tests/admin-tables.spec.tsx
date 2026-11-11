@@ -83,7 +83,6 @@ describe("Tablas administrativas TASK-069", () => {
     expect(filteredUrl.pathname).toBe("/home/admin/comisiones");
     expect(Object.fromEntries(filteredUrl.searchParams)).toEqual({
       materiaId: "m1", cursadaId: "c1", materiaReturnTo: "/home/admin/materias", carrera: "S",
-      returnTo: `/home/admin/cursadas/c1?${new URLSearchParams({ returnTo: `/home/admin/cursadas?${new URLSearchParams({ materiaId: "m1", materiaReturnTo: "/home/admin/materias", returnTo: "/home/admin/materias/m1?returnTo=%2Fhome%2Fadmin%2Fmaterias" })}` })}`,
     });
     expect(nav.replace).toHaveBeenLastCalledWith(`${filteredUrl.pathname}${filteredUrl.search}`, { scroll: false });
     vi.mocked(listarComisionesPorCursada).mockResolvedValue({ items: items.filter((item) => item.carrera === "S").slice(0, 9), total: 11, page: 1, pageSize: 9 });

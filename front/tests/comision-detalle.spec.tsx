@@ -6,6 +6,7 @@ import { ComisionDetail } from "@/components/academic/ComisionDetail";
 import { obtenerDetalleAdministrativo } from "@/services/admin-detail";
 import { obtenerMateria } from "@/services/materias";
 import { asignarProfesorComision, listarComisionesPorCursada, listarProfesores, obtenerComision, quitarProfesorComision } from "@/services/academic";
+import { experienciasOriginHref } from "@/validations/admin";
 const { authState, push, origin } = vi.hoisted(() => ({ authState: { role: "USER" }, push: vi.fn(), origin: { extra: "" } }));
 vi.mock("@/services/admin-detail", () => ({ obtenerDetalleAdministrativo: vi.fn() }));
 vi.mock("next/link", () => import("./support/next-link"));
@@ -67,11 +68,15 @@ describe("Detalle de comisión centrado en experiencias", () => {
     const teacher = new URL(screen.getByRole("link", { name: "Prof. Rossi" }).getAttribute("href")!, "https://local.test");
     expect(teacher.pathname).toBe("/home/admin/profesores/p1");
     // TASK-admin-navigation-context: los accesos desde el detalle regresan a la comisión.
-    const detailHref = `/home/admin/comisiones/com1?${new URLSearchParams({ returnTo })}`;
-    expect(teacher.searchParams.get("returnTo")).toBe(detailHref);
-    const edit = new URL(screen.getByRole("link", { name: "Editar comisión" }).getAttribute("href")!, "https://local.test");
+    // BUG-02: con un solo nivel; los filtros de Materias viajan al lado, sin anidar.
+    expect(teacher.searchParams.get("returnTo")).toBe("/home/admin/comisiones/com1");
+    expect(teacher.searchParams.get("materiaReturnTo")).toBe("/home/admin/materias");
+    const editHref = screen.getByRole("link", { name: "Editar comisión" }).getAttribute("href")!;
+    const edit = new URL(editHref, "https://local.test");
     expect(edit.pathname).toBe("/home/admin/comisiones/com1/editar");
-    expect(edit.searchParams.get("returnTo")).toBe(detailHref);
+    expect(edit.searchParams.get("returnTo")).toBe("/home/admin/comisiones/com1");
+    expect(edit.searchParams.get("materiaReturnTo")).toBe("/home/admin/materias");
+    expect(editHref).not.toContain("%25");
     expect(screen.getByTestId("feedback-comision").getAttribute("data-administrative")).toBe("true");
     await userEvent.selectOptions(await screen.findByRole("combobox", { name: "Comisión del período" }), "com2");
     const destination = new URL(String(push.mock.calls.at(-1)?.[0]), "https://local.test");
@@ -103,7 +108,7 @@ describe("Detalle de comisión centrado en experiencias", () => {
     await userEvent.selectOptions(await screen.findByRole("combobox", { name: "Comisión del período" }), "com2");
     const next = new URL(String(push.mock.calls.at(-1)?.[0]), "https://local.test");
     expect(next.pathname).toBe("/home/admin/comisiones/com2");
-    expect(next.searchParams.get("returnTo")).toBe(returnTo);
+    expect(experienciasOriginHref(next.searchParams)).toBe(returnTo);
   });
 
   it.each([
