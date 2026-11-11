@@ -25,7 +25,8 @@ export interface Feedback {
   createdAt: string;
   updatedAt: string;
 }
-export interface FeedbackInput { texto: string; anonimo: boolean; profesorId?: string | null }
+export interface NormasConvivencia { version: string; aceptada: boolean; reglas: string[] }
+export interface FeedbackInput { texto: string; anonimo: boolean; profesorId?: string | null; versionNormas?: string }
 export type FeedbackEdicion = Partial<Pick<FeedbackInput, "texto" | "anonimo">>;
 export interface FeedbackHistorial {
   id: string;
