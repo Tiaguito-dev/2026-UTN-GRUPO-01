@@ -1,6 +1,7 @@
 export interface Feedback {
   id: string;
   texto: string;
+  puntuacion: number | null;
   anonimo: boolean;
   autor: { displayName: string } | null;
   propio: boolean;
@@ -25,6 +26,7 @@ export interface FeedbackRevision {
   id: string;
   accion: "CREACION" | "EDICION" | "ELIMINACION";
   texto: string;
+  puntuacion: number | null;
   anonimo: boolean;
   createdAt: Date;
 }

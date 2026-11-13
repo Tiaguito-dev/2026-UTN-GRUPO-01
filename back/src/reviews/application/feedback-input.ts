@@ -9,8 +9,9 @@ const forbiddenControl = (text: string) => [...text].some((character) => {
 const texto = z.string().refine((value) => !forbiddenControl(value), "El comentario contiene caracteres no permitidos.")
   .transform((value) => value.trim())
   .refine((value) => [...value].length >= 1 && [...value].length <= 3000, "El comentario debe tener entre 1 y 3000 caracteres.");
-const create = z.strictObject({ texto, anonimo: z.boolean(), profesorId: z.string().uuid().nullable().optional() });
-const update = z.strictObject({ texto: texto.optional(), anonimo: z.boolean().optional() });
+const puntuacion = z.number().int().min(1).max(5);
+const create = z.strictObject({ texto, anonimo: z.boolean(), profesorId: z.string().uuid().nullable().optional(), puntuacion });
+const update = z.strictObject({ texto: texto.optional(), anonimo: z.boolean().optional(), puntuacion: puntuacion.optional() });
 const page = z.union([z.string().regex(/^\d+$/), z.number()]).transform(Number).pipe(z.number().int().min(1).max(1_000_000)).default(1);
 const pageSize = (max: number) => z.union([z.string().regex(/^\d+$/), z.number()]).transform(Number).pipe(z.number().int().min(1).max(max)).default(max);
 const pagination = (history: boolean) => z.strictObject({ page, pageSize: pageSize(history ? 3 : 9) });

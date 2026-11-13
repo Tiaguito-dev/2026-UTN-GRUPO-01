@@ -30,7 +30,7 @@ describe("Feedback: validación y edición de diferencias", () => {
     ];
     for (const texto of cases) {
       let backendAccepts = true;
-      try { validateCreateFeedback({ texto, anonimo: true }); } catch { backendAccepts = false; }
+      try { validateCreateFeedback({ texto, anonimo: true, puntuacion: 3 }); } catch { backendAccepts = false; }
       expect(validarTextoFeedback(texto) === "", JSON.stringify(texto.slice(0, 20))).toBe(backendAccepts);
     }
   });
