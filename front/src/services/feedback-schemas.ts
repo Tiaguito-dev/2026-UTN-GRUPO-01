@@ -1,5 +1,9 @@
 import { z } from "zod";
-import type { Feedback, FeedbackHistorial } from "@/types/feedback";
+import type { Feedback, FeedbackHistorial, NormasConvivencia } from "@/types/feedback";
+
+export const normasConvivenciaSchema: z.ZodType<NormasConvivencia> = z.object({
+  version: z.string().min(1), aceptada: z.boolean(), reglas: z.array(z.string().min(1)).min(1),
+});
 
 const puntuacion = z.number().int().min(1).max(5).nullable();
 

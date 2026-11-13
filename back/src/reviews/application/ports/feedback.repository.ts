@@ -5,6 +5,7 @@ import type { CreateFeedbackInput, UpdateFeedbackInput, FeedbackFilters } from "
 
 export const FEEDBACK_REPOSITORY = Symbol("FEEDBACK_REPOSITORY");
 export interface FeedbackRepository {
+  aceptoNormas(viewer: string, version: string): Promise<boolean>;
   listGeneral(viewer: string, pagination: Pagination, filters?: FeedbackFilters): Promise<PaginatedResult<Feedback>>;
   listComision(id: string, viewer: string, pagination: Pagination): Promise<PaginatedResult<Feedback>>;
   propio(id: string, viewer: string): Promise<Feedback | null>;

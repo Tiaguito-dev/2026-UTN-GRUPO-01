@@ -28,10 +28,20 @@ model User {
   passwordResetCredentials PasswordResetCredential[]
   historialMaterias MateriaHistorial[]
   feedback Feedback[]
+  aceptacionesNormas AceptacionNormas[]
   administracionHistorial AdministracionHistorial[]
   valoracionesMaterias ValoracionMateria[]
 
   @@index([role, disabledAt, createdAt, id])
+}
+
+model AceptacionNormas {
+  usuarioId String   @db.Uuid
+  version   String   @db.VarChar(32)
+  aceptadaEn DateTime @default(now()) @db.Timestamptz(3)
+  usuario User @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@id([usuarioId, version])
 }
 
 model AdministracionHistorial {

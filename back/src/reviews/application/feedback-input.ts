@@ -10,7 +10,7 @@ const texto = z.string().refine((value) => !forbiddenControl(value), "El comenta
   .transform((value) => value.trim())
   .refine((value) => [...value].length >= 1 && [...value].length <= 3000, "El comentario debe tener entre 1 y 3000 caracteres.");
 const puntuacion = z.number().int().min(1).max(5);
-const create = z.strictObject({ texto, anonimo: z.boolean(), profesorId: z.string().uuid().nullable().optional(), puntuacion });
+const create = z.strictObject({ texto, anonimo: z.boolean(), profesorId: z.string().uuid().nullable().optional(), puntuacion, versionNormas: z.string().min(1).max(32).optional() });
 const update = z.strictObject({ texto: texto.optional(), anonimo: z.boolean().optional(), puntuacion: puntuacion.optional() });
 const page = z.union([z.string().regex(/^\d+$/), z.number()]).transform(Number).pipe(z.number().int().min(1).max(1_000_000)).default(1);
 const pageSize = (max: number) => z.union([z.string().regex(/^\d+$/), z.number()]).transform(Number).pipe(z.number().int().min(1).max(max)).default(max);
