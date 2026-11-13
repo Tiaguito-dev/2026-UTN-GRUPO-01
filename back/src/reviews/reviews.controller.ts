@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, Header, HttpCode, Param, Patch, Post, Query, Req, Res, UnauthorizedException, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Header, HttpCode, Param, Patch, Post, Put, Query, Req, Res, UnauthorizedException, UseGuards } from "@nestjs/common";
 import type { Response } from "express";
 import { AuthenticationGuard, type AuthenticatedRequest } from "../auth/presentation/authentication.guard.js";
 import { RolesGuard } from "../auth/presentation/roles.guard.js";
 import { FeedbackService } from "./application/feedback.service.js";
 import { FeedbackFeedService } from "./application/feedback-feed.service.js";
+import { FeedbackLikeService } from "./application/feedback-like.service.js";
 
 function user(request: AuthenticatedRequest): string {
   if (!request.authUser) throw new UnauthorizedException();
@@ -13,7 +14,19 @@ function user(request: AuthenticatedRequest): string {
 @Controller()
 @UseGuards(AuthenticationGuard, RolesGuard)
 export class ReviewsController {
-  constructor(private readonly feedback: FeedbackService, private readonly feed: FeedbackFeedService) {}
+  constructor(private readonly feedback: FeedbackService, private readonly feed: FeedbackFeedService, private readonly likes: FeedbackLikeService) {}
+
+  @Put("feedback/:id/like")
+  @Header("Cache-Control", "no-store")
+  like(@Param("id") id: string, @Req() request: AuthenticatedRequest) {
+    return this.likes.put(id, user(request));
+  }
+
+  @Delete("feedback/:id/like")
+  @Header("Cache-Control", "no-store")
+  unlike(@Param("id") id: string, @Req() request: AuthenticatedRequest) {
+    return this.likes.remove(id, user(request));
+  }
 
   @Get("feedback/feed")
   @Header("Cache-Control", "no-store")

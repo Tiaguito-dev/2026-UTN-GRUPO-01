@@ -7,6 +7,7 @@ import { AuthenticationGuard, type AuthenticatedRequest } from "../src/auth/pres
 import { RolesGuard } from "../src/auth/presentation/roles.guard.js";
 import { FeedbackService } from "../src/reviews/application/feedback.service.js";
 import { FeedbackFeedService } from "../src/reviews/application/feedback-feed.service.js";
+import { FeedbackLikeService } from "../src/reviews/application/feedback-like.service.js";
 import { validateFeedbackFeedQuery } from "../src/reviews/application/feedback-feed-input.js";
 import { FeedbackInputError } from "../src/reviews/application/errors.js";
 import { PrismaFeedbackFeedRepository } from "../src/reviews/infrastructure/prisma-feedback-feed.repository.js";
@@ -70,8 +71,11 @@ function row(id: string, anonimo = true, puntuacion: number | null = 4) {
 describe("Feed: consulta por clave y proyección pública", () => {
   function setup(rows: ReturnType<typeof row>[]) {
     const findMany = vi.fn().mockResolvedValue(rows);
-    const repository = new PrismaFeedbackFeedRepository({ feedback: { findMany } } as unknown as PrismaService);
-    return { findMany, service: new FeedbackFeedService(repository) };
+    const aggregate = vi.fn().mockResolvedValue([]);
+    const tx = { feedback: { findMany }, $queryRaw: aggregate };
+    const transaction = vi.fn().mockImplementation(async (callback: (value: typeof tx) => unknown) => callback(tx));
+    const repository = new PrismaFeedbackFeedRepository({ ...tx, $transaction: transaction } as unknown as PrismaService);
+    return { findMany, aggregate, transaction, service: new FeedbackFeedService(repository) };
   }
   it("consulta una vez pageSize + 1 y genera el cursor desde la última fila entregada", async () => {
     const rows = [row("00000000-0000-4000-8000-000000000003"), row("00000000-0000-4000-8000-000000000002"), row("00000000-0000-4000-8000-000000000001")];
@@ -109,6 +113,27 @@ describe("Feed: consulta por clave y proyección pública", () => {
     findMany.mockRejectedValueOnce(new Error("consulta fallida"));
     await expect(service.list(viewer, {})).rejects.toThrow("consulta fallida");
   });
+  it("agrega likes por lote solo para la página, en el mismo snapshot", async () => {
+    const rows = [row(randomUUID()), row(randomUUID()), row(randomUUID())];
+    const { service, aggregate, transaction } = setup(rows);
+    aggregate.mockResolvedValue([{ feedbackId: rows[0]!.id, cantidadLikes: 2n, meGusta: true }]);
+    const result = await service.list(viewer, { pageSize: 2 });
+    expect(result.items[0]).toMatchObject({ cantidadLikes: 2, meGusta: true });
+    expect(result.items[1]).toMatchObject({ cantidadLikes: 0, meGusta: false });
+    expect(aggregate).toHaveBeenCalledOnce();
+    expect(aggregate.mock.calls[0]![0].values).toEqual(expect.arrayContaining([viewer, rows[0]!.id, rows[1]!.id]));
+    expect(aggregate.mock.calls[0]![0].values).not.toContain(rows[2]!.id);
+    expect(aggregate.mock.calls[0]![0].sql).toContain('"deletedAt" IS NULL');
+    expect(transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "RepeatableRead" });
+  });
+  it("no consulta likes en páginas vacías ni oculta errores de agregación", async () => {
+    const empty = setup([]);
+    await empty.service.list(viewer, {});
+    expect(empty.aggregate).not.toHaveBeenCalled();
+    const f = setup([row(randomUUID())]);
+    f.aggregate.mockRejectedValueOnce(new Error("agregación fallida"));
+    await expect(f.service.list(viewer, {})).rejects.toThrow("agregación fallida");
+  });
 });
 
 describe("Feed: enrutamiento HTTP real sin PostgreSQL", () => {
@@ -119,6 +144,7 @@ describe("Feed: enrutamiento HTTP real sin PostgreSQL", () => {
   beforeAll(async () => {
     const module = await Test.createTestingModule({ imports: [SharedModule], controllers: [ReviewsController], providers: [
       { provide: FeedbackService, useValue: old }, { provide: FeedbackFeedService, useValue: feed },
+      { provide: FeedbackLikeService, useValue: {} },
     ] }).overrideGuard(AuthenticationGuard).useValue({ canActivate(context: ExecutionContext) {
       const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
       if (request.headers.cookie) request.authUser = { id: viewer, role: "USER", email: "test@example.test", displayName: "Test" };

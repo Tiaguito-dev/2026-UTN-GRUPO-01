@@ -17,8 +17,13 @@ export interface FeedbackFeedQuery {
   cursor?: FeedbackFeedCursor;
 }
 
+export interface FeedbackFeedItem extends Feedback {
+  cantidadLikes: number;
+  meGusta: boolean;
+}
+
 export interface FeedbackFeed {
-  items: Feedback[];
+  items: FeedbackFeedItem[];
   nextCursor: string | null;
   hasMore: boolean;
 }
