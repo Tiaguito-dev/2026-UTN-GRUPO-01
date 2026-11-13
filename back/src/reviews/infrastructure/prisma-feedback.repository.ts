@@ -11,7 +11,7 @@ import type { UserRole } from "../../users/domain/user.js";
 import { ComisionNotFoundError } from "../../academic/application/errors.js";
 
 type Transaction = Prisma.TransactionClient;
-const includeAutor = { autor: { select: { displayName: true } }, comision: { select: { carrera: true } } } satisfies Prisma.FeedbackInclude;
+export const includeAutor = { autor: { select: { displayName: true } }, comision: { select: { carrera: true } } } satisfies Prisma.FeedbackInclude;
 type FeedbackRow = Prisma.FeedbackGetPayload<{ include: typeof includeAutor }>;
 type SnapshotRow = {
   id: string; carrera: string; numero: number; activa: boolean;
@@ -20,7 +20,7 @@ type SnapshotRow = {
   profesorId: string | null; profesorNombre: string | null; profesorCargo: "TITULAR" | "ADJUNTO" | "JTP" | null;
 };
 
-function present(row: FeedbackRow, viewer: string): Feedback {
+export function present(row: FeedbackRow, viewer: string): Feedback {
   return {
     id: row.id, texto: row.texto, puntuacion: row.puntuacion, anonimo: row.anonimo,
     autor: row.anonimo ? null : { displayName: row.autor.displayName }, propio: row.autorId === viewer,

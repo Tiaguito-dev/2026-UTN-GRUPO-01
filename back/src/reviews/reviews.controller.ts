@@ -3,6 +3,7 @@ import type { Response } from "express";
 import { AuthenticationGuard, type AuthenticatedRequest } from "../auth/presentation/authentication.guard.js";
 import { RolesGuard } from "../auth/presentation/roles.guard.js";
 import { FeedbackService } from "./application/feedback.service.js";
+import { FeedbackFeedService } from "./application/feedback-feed.service.js";
 
 function user(request: AuthenticatedRequest): string {
   if (!request.authUser) throw new UnauthorizedException();
@@ -12,7 +13,13 @@ function user(request: AuthenticatedRequest): string {
 @Controller()
 @UseGuards(AuthenticationGuard, RolesGuard)
 export class ReviewsController {
-  constructor(private readonly feedback: FeedbackService) {}
+  constructor(private readonly feedback: FeedbackService, private readonly feed: FeedbackFeedService) {}
+
+  @Get("feedback/feed")
+  @Header("Cache-Control", "no-store")
+  listFeed(@Req() request: AuthenticatedRequest, @Query() query: unknown) {
+    return this.feed.list(user(request), query);
+  }
 
   @Get("feedback")
   @Header("Cache-Control", "no-store")
