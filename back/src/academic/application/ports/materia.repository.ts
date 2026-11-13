@@ -1,4 +1,4 @@
-import type { AnioCarrera, Carrera, NivelElectiva, Materia, MateriaCarrera, MateriaHistorial, ModalidadMateria } from "../../domain/materia.js";
+import type { AnioCarrera, Carrera, NivelElectiva, Materia, MateriaConValoracion, MateriaCarrera, MateriaHistorial, ModalidadMateria } from "../../domain/materia.js";
 import type { Pagination, PaginatedResult } from "../../../shared/domain/pagination.js";
 
 export const MATERIA_REPOSITORY = Symbol("MATERIA_REPOSITORY");
@@ -18,8 +18,9 @@ export interface MateriaFilters {
 }
 
 export interface MateriaRepository {
-  findAll(pagination: Pagination, filters?: MateriaFilters): Promise<PaginatedResult<Materia>>;
+  findAll(pagination: Pagination, filters?: MateriaFilters): Promise<PaginatedResult<MateriaConValoracion>>;
   findById(id: string): Promise<Materia | null>;
+  findByIdConValoracion(id: string): Promise<MateriaConValoracion | null>;
   findByNombre(nombre: string): Promise<Materia | null>;
   create(input: CreateMateriaInput, actorId?: string): Promise<Materia>;
   update(id: string, input: Partial<CreateMateriaInput>, actorId: string): Promise<Materia>;
