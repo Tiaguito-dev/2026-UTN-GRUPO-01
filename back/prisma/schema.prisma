@@ -29,6 +29,7 @@ model User {
   historialMaterias MateriaHistorial[]
   feedback Feedback[]
   administracionHistorial AdministracionHistorial[]
+  valoracionesMaterias ValoracionMateria[]
 
   @@index([role, disabledAt, createdAt, id])
 }
@@ -137,6 +138,22 @@ model Materia {
   cursadas  Cursada[]
   historial MateriaHistorial[]
   carreras  MateriaCarrera[]
+  valoraciones ValoracionMateria[]
+}
+
+model ValoracionMateria {
+  usuarioId String @db.Uuid
+  materiaId String @db.Uuid
+  // CHECK de puntuacion entre 1 y 5 en la migración SQL.
+  puntuacion Int
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
+  usuario User @relation(fields: [usuarioId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  materia Materia @relation(fields: [materiaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([usuarioId, materiaId])
+  @@index([materiaId, deletedAt])
 }
 
 model MateriaCarrera {
@@ -220,6 +237,8 @@ model Feedback {
   comisionId String @db.Uuid
   profesorId String? @db.Uuid
   texto String @db.Text
+  // NULL para comentarios históricos; CHECK de 1 a 5 en la migración SQL.
+  puntuacion Int?
   anonimo Boolean
   comisionNombre String @db.VarChar(10)
   materiaId String @db.Uuid
@@ -242,6 +261,7 @@ model Feedback {
   @@index([comisionId, deletedAt, createdAt, id])
   @@index([profesorId, deletedAt, createdAt, id])
   @@index([autorId, comisionId])
+  @@index([autorId, materiaId, deletedAt])
 }
 
 enum FeedbackAccion {
@@ -255,6 +275,8 @@ model FeedbackHistorial {
   feedbackId String @db.Uuid
   accion FeedbackAccion
   texto String @db.Text
+  // Los snapshots históricos conservan NULL; CHECK de 1 a 5 en SQL.
+  puntuacion Int?
   anonimo Boolean
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Restrict)
