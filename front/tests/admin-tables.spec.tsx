@@ -21,7 +21,7 @@ afterEach(cleanup);
 beforeEach(() => {
   vi.clearAllMocks(); nav.query = ""; nav.path = "/home/admin/profesores";
   vi.mocked(obtenerCursada).mockImplementation(async (id) => cursadaDetalleFixture(id));
-  vi.mocked(obtenerMateria).mockImplementation(async (id) => materiaFixture(id));
+  vi.mocked(obtenerMateria).mockImplementation(async (id) => ({ ...materiaFixture(id), valoracion: { promedio: null, cantidad: 0 } }));
 });
 
 describe("Tablas administrativas TASK-069", () => {

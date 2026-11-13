@@ -44,7 +44,7 @@ beforeEach(() => {
   authState.role = "USER";
   origin.extra = "";
   vi.mocked(obtenerComision).mockResolvedValue(comisionMock);
-  vi.mocked(obtenerMateria).mockResolvedValue({ id: "mat1", nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "2", nivelElectiva: null }], createdAt: "2026-01-01", deletedAt: null });
+  vi.mocked(obtenerMateria).mockResolvedValue({ valoracion: { promedio: null, cantidad: 0 }, id: "mat1", nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "2", nivelElectiva: null }], createdAt: "2026-01-01", deletedAt: null });
   vi.mocked(listarComisionesPorCursada).mockResolvedValue(alternativas);
   vi.mocked(listarProfesores).mockResolvedValue({ items: [
     { id: "p1", nombreCompleto: "Prof. Rossi", createdAt: "", deletedAt: null },

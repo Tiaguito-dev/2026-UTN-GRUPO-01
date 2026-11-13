@@ -20,9 +20,9 @@ vi.mock("@/services/admin-academic", () => ({ actualizarComision: vi.fn(), actua
 vi.mock("@/hooks/useMateria", () => ({ useMateria: () => ({ materia: { carreras: state.carreras.map((carrera) => ({ carrera })) }, error: "", retry: vi.fn() }) }));
 const date = "2026-01-01T00:00:00.000Z";
 const materias = [
-  { id: "m1", nombre: "Álgebra", carreras: [{ carrera: "S" as const, anioCarrera: "1" as const, nivelElectiva: null }], createdAt: date, deletedAt: null },
-  { id: "m2", nombre: "Física", carreras: [{ carrera: "Q" as const, anioCarrera: "1" as const, nivelElectiva: null }, { carrera: "S" as const, anioCarrera: "1" as const, nivelElectiva: null }], createdAt: date, deletedAt: null },
-  { id: "m3", nombre: "Sin carreras", carreras: [], createdAt: date, deletedAt: null },
+  { valoracion: { promedio: null, cantidad: 0 }, id: "m1", nombre: "Álgebra", carreras: [{ carrera: "S" as const, anioCarrera: "1" as const, nivelElectiva: null }], createdAt: date, deletedAt: null },
+  { valoracion: { promedio: null, cantidad: 0 }, id: "m2", nombre: "Física", carreras: [{ carrera: "Q" as const, anioCarrera: "1" as const, nivelElectiva: null }, { carrera: "S" as const, anioCarrera: "1" as const, nivelElectiva: null }], createdAt: date, deletedAt: null },
+  { valoracion: { promedio: null, cantidad: 0 }, id: "m3", nombre: "Sin carreras", carreras: [], createdAt: date, deletedAt: null },
 ];
 const comision = { id: "co1", cursadaId: "c1", nombre: "S-31", carrera: "S" as const, numero: 31, activa: true, profesores: [], createdAt: date, deletedAt: null, cursada: { id: "c1", anio: 2026, cuatrimestre: "PRIMERO" as const, materia: { id: "m1", nombre: "Álgebra" } } };
 beforeEach(() => {

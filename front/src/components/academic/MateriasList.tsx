@@ -15,6 +15,7 @@ import { Notice } from "@/components/ui/Notice";
 import { Dialog } from "@/components/ui/Dialog";
 import { MateriaForm } from "@/components/admin/MateriaForm";
 import { PlusIcon } from "./detalle";
+import { ValoracionMateria } from "./ValoracionMateria";
 import styles from "./MateriasList.module.css";
 
 const YEAR_GROUP_LABEL: Record<AnioCarrera, string> = { "1": "Primer año", "2": "Segundo año", "3": "Tercer año", "4": "Cuarto año", "5": "Quinto año", ELECTIVA: "Electivas" };
@@ -127,6 +128,7 @@ function MateriasResults({ carrera, anio, page, context, refreshKey }: { carrera
               <span className={styles.rowText}><span className={styles.rowTitle}>{materia.nombre}</span>
                 {associations.length ? <span className={styles.rowMetadata}>{associations.map(associationMetadata).join(" / ")}</span> : null}
                 <span className={styles.rowMetadata}>{modalidadLabel(materia.modalidad)}</span>
+                <ValoracionMateria valoracion={materia.valoracion} />
               </span><ChevronRight className={styles.chevron} aria-hidden="true" focusable="false" size={18} strokeWidth={1.75} />
             </Link>
           </li>)}</ul>

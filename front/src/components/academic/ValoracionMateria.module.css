@@ -1,0 +1,13 @@
+.resumen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.estrella {
+  flex-shrink: 0;
+  color: var(--primary);
+}
