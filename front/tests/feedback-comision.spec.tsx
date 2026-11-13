@@ -19,7 +19,7 @@ const comision = {
   cursada: { id: "cu1", anio: 2026, cuatrimestre: "PRIMERO" as const, materia: { id: "m1", nombre: "Álgebra" } },
 };
 const feedback: Feedback = {
-  id: "f1", texto: "Buena experiencia", anonimo: true, autor: null, propio: false, profesor: null,
+  id: "f1", texto: "Buena experiencia", puntuacion: null, anonimo: true, autor: null, propio: false, profesor: null,
   contexto: { comisionId: "c1", nombre: "S-31", materiaId: "m1", materiaNombre: "Álgebra", cursadaId: "cu1", anio: 2026, cuatrimestre: "PRIMERO" },
   createdAt: "2026-10-26T12:00:00.000Z", updatedAt: "2026-10-26T12:00:00.000Z",
 };

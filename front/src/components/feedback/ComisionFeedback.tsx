@@ -13,6 +13,7 @@ import { comisionNavigation } from "@/validations/admin-academic-navigation";
 import { feedbackDetalleHref, feedbackOriginParams } from "@/validations/feedback";
 import { useFeedbackResource } from "./useFeedbackResource";
 import { ExperienceCard } from "./ExperienceCard";
+import { EstrellasFeedback } from "./FeedbackCard";
 import styles from "./feedback.module.css";
 
 export function ComisionFeedback({ comision, administrative = false }: { comision: ComisionDetalle; administrative?: boolean }) {
@@ -62,6 +63,7 @@ export function FeedbackHistorial({ feedbackId }: { feedbackId: string }) {
     {(result) => <ul className={styles.list}>{result.items.map((event) => <li className={styles.item} key={event.id}>
       <strong>{event.accion === "CREACION" ? "Publicación" : event.accion === "EDICION" ? "Edición" : "Eliminación"}</strong>
       <p className={styles.meta}><time dateTime={event.createdAt}>{new Date(event.createdAt).toLocaleString("es-AR")}</time> · {event.anonimo ? "Anónimo" : "Con nombre visible"}</p>
+      <EstrellasFeedback puntuacion={event.puntuacion} />
       <p className={styles.text}>{event.texto}</p>
     </li>)}</ul>}
   </PaginatedListView>;

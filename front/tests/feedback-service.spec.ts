@@ -5,7 +5,7 @@ import {
 } from "../src/services/feedback";
 
 const item = {
-  id: "f1", texto: "Buena experiencia", anonimo: true, autor: null, propio: false,
+  id: "f1", texto: "Buena experiencia", puntuacion: 3, anonimo: true, autor: null, propio: false,
   profesor: { id: "p1", nombreCompleto: "Ada", cargo: "TITULAR" },
   contexto: { comisionId: "c1", nombre: "S-1", materiaId: "m1", materiaNombre: "Álgebra", cursadaId: "cu1", anio: 2025, cuatrimestre: "PRIMERO" },
   createdAt: "2026-10-26T12:00:00.000Z", updatedAt: "2026-10-26T12:00:00.000Z",
@@ -30,6 +30,19 @@ function respond(body: unknown, status = 200) {
 }
 
 describe("Cliente de feedback", () => {
+  it.each([null, 1, 2, 3, 4, 5])("conserva la puntuación individual %s de la respuesta", async (puntuacion) => {
+    respond({ ...item, puntuacion });
+    await expect(obtenerFeedback("f1")).resolves.toEqual({ ...item, puntuacion });
+  });
+  it.each([undefined, 0, 6, 2.5, "3", true])("rechaza la puntuación inválida %s del servidor", async (puntuacion) => {
+    respond({ ...item, puntuacion });
+    await expect(obtenerFeedback("f1")).rejects.toMatchObject({ status: 502 });
+  });
+  it("transporta únicamente la puntuación cambiada en PATCH", async () => {
+    respond({ ...item, puntuacion: 5 });
+    await actualizarFeedback("f1", { puntuacion: 5 });
+    expect(businessCalls()[0][1]).toMatchObject({ method: "PATCH", body: JSON.stringify({ puntuacion: 5 }) });
+  });
   it("envía carrera y materia combinadas junto con la página del listado general", async () => {
     respond({ items: [item], total: 20, page: 2, pageSize: 9 });
     await listarFeedback({ carrera: "I", materiaId: "mat1", page: 2 });
@@ -60,11 +73,11 @@ describe("Cliente de feedback", () => {
   });
   it("publica texto y anonimato sin enviar autoría y conserva protección CSRF", async () => {
     respond({ ...item, propio: true }, 201);
-    await crearFeedback("c1", { texto: "Buena experiencia", anonimo: true, profesorId: "p1" });
+    await crearFeedback("c1", { texto: "Buena experiencia", anonimo: true, profesorId: "p1", puntuacion: 3 });
     const [url, options] = businessCalls()[0];
     expect(new URL(String(url)).pathname).toBe("/comisiones/c1/feedback");
     expect(options).toMatchObject({ method: "POST", credentials: "include", headers: { "X-CSRF-Protection": "1" } });
-    expect(JSON.parse(options.body)).toEqual({ texto: "Buena experiencia", anonimo: true, profesorId: "p1" });
+    expect(JSON.parse(options.body)).toEqual({ texto: "Buena experiencia", anonimo: true, profesorId: "p1", puntuacion: 3 });
   });
   it("edita únicamente los campos recibidos y elimina con DELETE", async () => {
     respond(item);
@@ -87,6 +100,6 @@ describe("Cliente de feedback", () => {
   });
   it("muestra errores del servidor al publicar", async () => {
     respond({ message: "Ya publicaste en esta comisión." }, 409);
-    await expect(crearFeedback("c1", { texto: "Otra opinión", anonimo: true })).rejects.toMatchObject({ status: 409, message: "Ya publicaste en esta comisión." });
+    await expect(crearFeedback("c1", { texto: "Otra opinión", anonimo: true, puntuacion: 3 })).rejects.toMatchObject({ status: 409, message: "Ya publicaste en esta comisión." });
   });
 });
