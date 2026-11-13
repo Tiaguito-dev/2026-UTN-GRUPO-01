@@ -24,6 +24,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Notice } from "@/components/ui/Notice";
 import { ComisionesMateria } from "./ComisionesMateria";
+import { ValoracionMateria } from "./ValoracionMateria";
 import { experienciasBack } from "@/validations/feedback";
 
 export function MateriaDetail({ materiaId }: { materiaId: string }) {
@@ -60,6 +61,7 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
         {isAdmin && !materia.deletedAt ? <Link className="button button-secondary" href={editHref}>Editar materia</Link> : null}
       </div> : null}
       {materia ? <p className="system-description">Modalidad: {modalidadLabel(materia.modalidad)}</p> : null}
+      {materia ? <ValoracionMateria valoracion={materia.valoracion} /> : null}
     </div>
     {params.get("successMessage") ? <Notice tone="success">{params.get("successMessage")}</Notice> : null}
     {error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la materia. {error} {notFound ? <Link href={backHref}>Volver al listado de materias</Link> : <button className="button" onClick={retry} type="button">Reintentar</button>}</Notice> : null}

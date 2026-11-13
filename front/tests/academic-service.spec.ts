@@ -87,6 +87,7 @@ describe("Cliente academic: construcción de URL y delegación en protectedGet",
   });
   it("obtenerMateria y obtenerCursada piden el detalle por id escapado", async () => {
     const materia = {
+      valoracion: { promedio: null, cantidad: 0 },
       id: "m/1",
       nombre: "Álgebra",
       carreras: [{ carrera: "S", anioCarrera: "1", nivelElectiva: null }],

@@ -17,6 +17,7 @@ export interface FeedbackContexto {
 export interface Feedback {
   id: string;
   texto: string;
+  puntuacion: number | null;
   anonimo: boolean;
   autor: { displayName: string } | null;
   propio: boolean;
@@ -26,12 +27,13 @@ export interface Feedback {
   updatedAt: string;
 }
 export interface NormasConvivencia { version: string; aceptada: boolean; reglas: string[] }
-export interface FeedbackInput { texto: string; anonimo: boolean; profesorId?: string | null; versionNormas?: string }
-export type FeedbackEdicion = Partial<Pick<FeedbackInput, "texto" | "anonimo">>;
+export interface FeedbackInput { texto: string; anonimo: boolean; profesorId?: string | null; puntuacion: number; versionNormas?: string }
+export type FeedbackEdicion = Partial<Pick<FeedbackInput, "texto" | "anonimo" | "puntuacion">>;
 export interface FeedbackHistorial {
   id: string;
   accion: "CREACION" | "EDICION" | "ELIMINACION";
   texto: string;
+  puntuacion: number | null;
   anonimo: boolean;
   createdAt: string;
 }

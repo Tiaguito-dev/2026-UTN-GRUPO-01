@@ -26,7 +26,7 @@ beforeEach(() => {
   vi.mocked(obtenerDetalleAdministrativo).mockResolvedValue({ registro: comision, auditoria: { id: "co1", createdAt: date, createdBy: null, updatedAt: null, updatedBy: null, deletedAt: null, deletedBy: null }, historial: { items: [], total: 0, page: 1, pageSize: 3 } });
   vi.mocked(listarComisionesPorCursada).mockResolvedValue({ items: [comision], total: 1, page: 1, pageSize: 100 });
   vi.mocked(listarProfesores).mockResolvedValue({ items: [profesor], total: 1, page: 1, pageSize: 100 });
-  vi.mocked(obtenerMateria).mockResolvedValue({ id: "m1", nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "2", nivelElectiva: null }], createdAt: date, deletedAt: null });
+  vi.mocked(obtenerMateria).mockResolvedValue({ valoracion: { promedio: null, cantidad: 0 }, id: "m1", nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "2", nivelElectiva: null }], createdAt: date, deletedAt: null });
 });
 afterEach(cleanup);
 

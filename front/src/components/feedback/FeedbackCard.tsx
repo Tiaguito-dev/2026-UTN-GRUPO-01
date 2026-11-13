@@ -1,10 +1,23 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Star } from "lucide-react";
 import type { Feedback } from "@/types/feedback";
 import { periodoLabel } from "@/lib/format/periodo";
 import { carreraLabel } from "@/lib/format/carrera";
 import { modalidadLabel } from "@/validations/materias";
 import styles from "./feedback.module.css";
+
+/** Read-only individual score, shared by comments and their version snapshots. */
+export function EstrellasFeedback({ puntuacion }: { puntuacion: number | null }) {
+  if (puntuacion === null) return null;
+  return <span className={styles.readRating}>
+    <span className={styles.readStars} aria-hidden="true">
+      {[1, 2, 3, 4, 5].map(star => <Star key={star} size={18} strokeWidth={1.75}
+        fill={star <= puntuacion ? "currentColor" : "none"} aria-hidden="true" focusable="false" />)}
+    </span>
+    <span>{puntuacion} de 5 estrellas</span>
+  </span>;
+}
 
 /** Own-comment presentation; the route controls authorized actions and history separately. */
 export function FeedbackCard({ feedback, materiaHref, actions }: { feedback: Feedback; materiaHref: string; actions?: ReactNode }) {
@@ -21,6 +34,7 @@ export function FeedbackCard({ feedback, materiaHref, actions }: { feedback: Fee
       <p>Comisión {context.nombre}{context.carrera ? ` · ${carreraLabel(context.carrera)}` : ""} · {periodoLabel(context.anio)} · {modalidadLabel(context.modalidad ?? context.cuatrimestre)}</p>
       <p className={styles.privateTarget}>{feedback.profesor ? `Sobre ${feedback.profesor.nombreCompleto}` : "Sobre la comisión en general"}</p>
     </div>
+    <EstrellasFeedback puntuacion={feedback.puntuacion} />
     <p className={styles.privateText}>{feedback.texto}</p>
     <footer className={styles.privateFooter}><dl>
       <div><dt>Publicado</dt><dd><time dateTime={feedback.createdAt}>{new Date(feedback.createdAt).toLocaleString("es-AR")}</time></dd></div>

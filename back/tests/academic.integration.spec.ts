@@ -295,6 +295,7 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
     expect(response.status).toBe(200);
     expect(await response.json()).toStrictEqual({
       id: materia.id, nombre: materia.nombre, modalidad: null, carreras: [], createdAt: materia.createdAt.toISOString(), deletedAt: null,
+      valoracion: { promedio: null, cantidad: 0 },
     });
     const listado = await (await get(`/materias?q=${encodeURIComponent(materia.nombre)}`, cookie)).json();
     expect(listado.items).toEqual([await (await get(`/materias/${materia.id}`, cookie)).json()]);
@@ -398,6 +399,7 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
         id: comun.id, nombre: comun.nombre, modalidad: null,
         carreras: [{ carrera: "S", anioCarrera: "3", nivelElectiva: null }, { carrera: "Q", anioCarrera: "2", nivelElectiva: null }],
         createdAt: iso(comun.createdAt), deletedAt: null,
+        valoracion: { promedio: null, cantidad: 0 },
       };
       expect((await (await get(`/materias?q=${prefix}&carrera=Q&anioCarrera=2`, cookie)).json()).items).toStrictEqual([esperado]);
       expect(await (await get(`/materias/${comun.id}`, cookie)).json()).toStrictEqual(esperado);

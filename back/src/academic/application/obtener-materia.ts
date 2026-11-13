@@ -5,7 +5,7 @@ import { MateriaNotFoundError } from "./errors.js";
 export class ObtenerMateria {
   constructor(private readonly materias: MateriaRepository) {}
   async execute(id: unknown) {
-    const materia = await this.materias.findById(validateId(id));
+    const materia = await this.materias.findByIdConValoracion(validateId(id));
     if (!materia) throw new MateriaNotFoundError();
     return materia;
   }

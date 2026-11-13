@@ -25,7 +25,7 @@ const comision = {
   cursada: { id: "cu1", anio: 2026, cuatrimestre: "PRIMERO" as const, materia: { id: "m1", nombre: "Álgebra" } },
 };
 const feedback: Feedback = {
-  id: "f1", texto: "Buena experiencia", anonimo: true, autor: null, propio: true,
+  id: "f1", texto: "Buena experiencia", puntuacion: 3, anonimo: true, autor: null, propio: true,
   profesor: { id: "p1", nombreCompleto: "Ada", cargo: "TITULAR" },
   contexto: { carrera: "S", comisionId: "c1", nombre: "S-31", materiaId: "m1", materiaNombre: "Álgebra", cursadaId: "cu1", anio: 2026, cuatrimestre: "PRIMERO" },
   createdAt: "2026-10-26T12:00:00.000Z", updatedAt: "2026-10-26T12:00:00.000Z",
@@ -47,7 +47,48 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+describe("Estrellas en snapshots del historial", () => {
+  it("carga diferida muestra cada puntuación de versión sin sustituirla por la actual", async () => {
+    vi.mocked(listarHistorialFeedback).mockResolvedValue({ items: [
+      { id: "h1", accion: "CREACION", texto: "Histórico sin voto", puntuacion: null, anonimo: true, createdAt: feedback.createdAt },
+      { id: "h2", accion: "EDICION", texto: "Versión con cuatro", puntuacion: 4, anonimo: false, createdAt: feedback.updatedAt },
+      { id: "h3", accion: "ELIMINACION", texto: "Versión con cinco", puntuacion: 5, anonimo: true, createdAt: feedback.updatedAt },
+    ], total: 3, page: 1, pageSize: 3 });
+    render(<FeedbackDetail feedbackId="f1" />);
+    const summary = await screen.findByText("Historial de cambios");
+    expect(listarHistorialFeedback).not.toHaveBeenCalled();
+    await userEvent.click(summary);
+    const historical = (await screen.findByText("Histórico sin voto")).closest("li")!;
+    expect(within(historical).queryByText(/de 5 estrellas/)).toBeNull();
+    const edited = screen.getByText("Versión con cuatro").closest("li")!;
+    expect(within(edited).getByText("4 de 5 estrellas")).toBeTruthy();
+    expect(within(edited).getByText(/Con nombre visible/)).toBeTruthy();
+    const removed = screen.getByText("Versión con cinco").closest("li")!;
+    expect(within(removed).getByText("5 de 5 estrellas")).toBeTruthy();
+    expect(listarHistorialFeedback).toHaveBeenCalledTimes(1);
+    expect(listarHistorialFeedback).toHaveBeenCalledWith("f1", { page: 1, pageSize: 3 });
+    expect(obtenerFeedback).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("Formulario de feedback", () => {
+  it.each([
+    "Ya publicó un comentario en esta comisión. Puede editarlo o eliminarlo antes de volver a publicar.",
+    "La comisión no está activa. Puede consultar los comentarios o retirar el suyo.",
+  ])("conserva el borrador sin refrescar normas ante otro 409: %s", async (message) => {
+    vi.mocked(crearFeedback).mockRejectedValueOnce(new HttpError(409, message));
+    render(<FeedbackForm comisionId="c1" />);
+    const text = await screen.findByRole("textbox", { name: "Tu experiencia" });
+    await userEvent.type(text, "Borrador con estrellas");
+    await userEvent.click(screen.getByRole("radio", { name: "4 estrellas" }));
+    await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
+    expect(await screen.findByText(message)).toBeTruthy();
+    expect(obtenerNormasConvivencia).toHaveBeenCalledTimes(1);
+    expect((text as HTMLTextAreaElement).value).toBe("Borrador con estrellas");
+    expect((screen.getByRole("radio", { name: "4 estrellas" }) as HTMLInputElement).checked).toBe(true);
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it("permite consultar las normas sin perder el borrador y exige aceptación explícita de la versión mostrada", async () => {
     const reglas = ["Respetá a otras personas.", "No publiques datos personales de terceros."];
     vi.mocked(obtenerNormasConvivencia).mockResolvedValue({ version: "2", aceptada: false, reglas });
@@ -56,6 +97,7 @@ describe("Formulario de feedback", () => {
     expect(checkbox.checked).toBe(false);
     const text = screen.getByRole("textbox", { name: "Tu experiencia" }) as HTMLTextAreaElement;
     await userEvent.type(text, "Buen acompañamiento");
+    await userEvent.click(screen.getByRole("radio", { name: "4 estrellas" }));
     await userEvent.click(screen.getByRole("link", { name: /Normas de convivencia/i }));
     const dialog = screen.getByRole("dialog", { name: /Normas de convivencia/i });
     for (const regla of reglas) expect(within(dialog).getByText(regla)).toBeTruthy();
@@ -68,7 +110,7 @@ describe("Formulario de feedback", () => {
     await userEvent.click(checkbox);
     await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
     expect(crearFeedback).toHaveBeenCalledExactlyOnceWith("c1", {
-      texto: "Buen acompañamiento", anonimo: false, profesorId: null, versionNormas: "2",
+      texto: "Buen acompañamiento", anonimo: false, puntuacion: 4, profesorId: null, versionNormas: "2",
     });
   });
   it("pide una nueva aceptación y conserva el texto si las normas cambian durante la escritura", async () => {
@@ -80,6 +122,7 @@ describe("Formulario de feedback", () => {
     render(<FeedbackForm comisionId="c1" />);
     const original = await screen.findByRole("checkbox", { name: /Acepto las Normas de convivencia/i });
     await userEvent.type(screen.getByRole("textbox", { name: "Tu experiencia" }), "Clases prácticas");
+    await userEvent.click(screen.getByRole("radio", { name: "4 estrellas" }));
     await userEvent.click(original);
     await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
     await waitFor(() => expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(false));
@@ -87,7 +130,7 @@ describe("Formulario de feedback", () => {
     expect(push).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("checkbox"));
     await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
-    expect(crearFeedback).toHaveBeenLastCalledWith("c1", { texto: "Clases prácticas", anonimo: false, profesorId: null, versionNormas: "2" });
+    expect(crearFeedback).toHaveBeenLastCalledWith("c1", { texto: "Clases prácticas", anonimo: false, puntuacion: 4, profesorId: null, versionNormas: "2" });
   });
   it("regresa a la página de Experiencias de origen y conserva ese regreso al editar", async () => {
     origin.query = "origen=experiencias&experienciasPage=4&experienciasCarrera=I&experienciasMateriaId=m1";
@@ -158,8 +201,9 @@ describe("Formulario de feedback", () => {
     expect((target as HTMLSelectElement).value).toBe("");
     await userEvent.selectOptions(target, "p3");
     await userEvent.type(screen.getByRole("textbox", { name: "Tu experiencia" }), "Clases claras");
+    await userEvent.click(screen.getByRole("radio", { name: "3 estrellas" }));
     await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
-    expect(crearFeedback).toHaveBeenCalledWith("c1", { texto: "Clases claras", anonimo: false, profesorId: "p3" });
+    expect(crearFeedback).toHaveBeenCalledWith("c1", { texto: "Clases claras", anonimo: false, profesorId: "p3", puntuacion: 3 });
   });
   it("con un docente conserva la asociación automática y muestra una modalidad anual real", async () => {
     // TASK-067: la cursada real es anual; su período prima sobre la modalidad de materia.
@@ -170,8 +214,9 @@ describe("Formulario de feedback", () => {
     expect(screen.queryByRole("radio", { name: /^La comisión en general/ })).toBeNull();
     expect((screen.getByRole("radio", { name: /^Ada/ }) as HTMLInputElement).checked).toBe(true);
     await userEvent.type(screen.getByRole("textbox", { name: "Tu experiencia" }), "Buen acompañamiento");
+    await userEvent.click(screen.getByRole("radio", { name: "3 estrellas" }));
     await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
-    expect(crearFeedback).toHaveBeenCalledWith("c1", { texto: "Buen acompañamiento", anonimo: false });
+    expect(crearFeedback).toHaveBeenCalledWith("c1", { texto: "Buen acompañamiento", anonimo: false, puntuacion: 3 });
   });
   it("cuenta puntos de código como backend, rechaza exceso y espacios y vincula el error", async () => {
     render(<FeedbackForm comisionId="c1" />);
@@ -219,11 +264,13 @@ describe("Formulario de feedback", () => {
     render(<FeedbackForm comisionId="c1" />);
     const text = await screen.findByRole("textbox", { name: "Tu experiencia" });
     fireEvent.change(text, { target: { value: "Experiencia pendiente" } });
+    await userEvent.click(screen.getByRole("radio", { name: "3 estrellas" }));
     const form = text.closest("form")!;
     fireEvent.submit(form); fireEvent.submit(form);
     expect(crearFeedback).toHaveBeenCalledTimes(1);
     expect((screen.getByRole("button", { name: "Publicando…" }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole("button", { name: "Cancelar" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("radio", { name: "5 estrellas" }) as HTMLInputElement).disabled).toBe(true);
     await act(async () => finish(feedback));
     expect(push).toHaveBeenCalledTimes(1);
   });
@@ -232,11 +279,12 @@ describe("Formulario de feedback", () => {
     render(<FeedbackForm comisionId="c1" />);
     const textarea = await screen.findByRole("textbox", { name: "Tu experiencia" });
     await user.type(textarea, "  Explica con muchos ejemplos  ");
+    await user.click(screen.getByRole("radio", { name: "3 estrellas" }));
     await user.click(screen.getByRole("radio", { name: /^Grace/ }));
     const anonymous = screen.getByRole("radio", { name: /^De forma anónima/ });
     if (!(anonymous as HTMLInputElement).checked) await user.click(anonymous);
     await user.click(screen.getByRole("button", { name: "Publicar comentario" }));
-    await waitFor(() => expect(crearFeedback).toHaveBeenCalledWith("c1", { texto: "Explica con muchos ejemplos", anonimo: true, profesorId: "p2" }));
+    await waitFor(() => expect(crearFeedback).toHaveBeenCalledWith("c1", { texto: "Explica con muchos ejemplos", anonimo: true, profesorId: "p2", puntuacion: 3 }));
     expect(String(push.mock.calls[0][0])).toContain("/home/materias/m1/cursadas/cu1/comisiones/c1");
     expect(String(push.mock.calls[0][0])).toContain("successMessage=");
   });
@@ -288,6 +336,7 @@ describe("Formulario de feedback", () => {
     render(<FeedbackForm comisionId="c1" />);
     const textarea = await screen.findByRole("textbox", { name: "Tu experiencia" });
     await user.type(textarea, "Experiencia para conservar");
+    await user.click(screen.getByRole("radio", { name: "3 estrellas" }));
     await user.click(screen.getByRole("radio", { name: /^De forma anónima/ }));
     await user.click(screen.getByRole("radio", { name: /^Grace/ }));
     await user.click(screen.getByRole("button", { name: "Publicar comentario" }));
@@ -296,10 +345,103 @@ describe("Formulario de feedback", () => {
     expect(push).not.toHaveBeenCalled();
     expect((screen.getByRole("radio", { name: /^De forma anónima/ }) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByRole("radio", { name: /^Grace/ }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole("radio", { name: "3 estrellas" }) as HTMLInputElement).checked).toBe(true);
     vi.mocked(crearFeedback).mockResolvedValue(feedback);
     await user.click(screen.getByRole("button", { name: "Publicar comentario" }));
-    expect(crearFeedback).toHaveBeenLastCalledWith("c1", { texto: "Experiencia para conservar", anonimo: true, profesorId: "p2" });
+    expect(crearFeedback).toHaveBeenLastCalledWith("c1", { texto: "Experiencia para conservar", anonimo: true, profesorId: "p2", puntuacion: 3 });
     expect(push).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Estrellas en el formulario", () => {
+  it("creación empieza con cinco estrellas sin selección y exige una antes de publicar", async () => {
+    render(<FeedbackForm comisionId="c1" />);
+    const text = await screen.findByRole("textbox", { name: "Tu experiencia" });
+    const group = screen.getByRole("group", { name: "Valoración de la materia" });
+    expect(within(group).getAllByRole("radio")).toHaveLength(5);
+    expect(within(group).getAllByRole("radio").every(radio => !(radio as HTMLInputElement).checked)).toBe(true);
+    await userEvent.type(text, "Experiencia completa");
+    await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
+    expect(crearFeedback).not.toHaveBeenCalled();
+    const first = screen.getByRole("radio", { name: "1 estrella" });
+    expect(document.activeElement).toBe(first);
+    expect(first.closest("fieldset")?.getAttribute("aria-invalid")).toBe("true");
+    const ids = first.getAttribute("aria-describedby")!.split(" ");
+    expect(ids.some(id => document.getElementById(id)?.textContent?.includes("Elegí una puntuación"))).toBe(true);
+    expect((text as HTMLTextAreaElement).value).toBe("Experiencia completa");
+    await userEvent.click(screen.getByRole("radio", { name: "5 estrellas" }));
+    expect(screen.queryByText("Elegí una puntuación de 1 a 5 estrellas.")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
+    expect(crearFeedback).toHaveBeenCalledWith("c1", { texto: "Experiencia completa", anonimo: false, profesorId: null, puntuacion: 5 });
+  });
+
+  it("edición precarga estrellas, conserva selección al reclicar y envía solo la nueva puntuación", async () => {
+    vi.mocked(obtenerFeedback).mockResolvedValue({ ...feedback, puntuacion: 3 });
+    render(<FeedbackForm feedbackId="f1" />);
+    const selected = await screen.findByRole("radio", { name: "3 estrellas" });
+    expect((selected as HTMLInputElement).checked).toBe(true);
+    await userEvent.click(selected);
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(actualizarFeedback).not.toHaveBeenCalled();
+    expect(screen.getByText("No hay cambios para guardar.")).toBeTruthy();
+    await userEvent.click(screen.getByRole("radio", { name: "4 estrellas" }));
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(actualizarFeedback).toHaveBeenCalledWith("f1", { puntuacion: 4 });
+  });
+
+  it("edición de texto no reenvía estrellas precargadas", async () => {
+    vi.mocked(obtenerFeedback).mockResolvedValue({ ...feedback, puntuacion: 3 });
+    render(<FeedbackForm feedbackId="f1" />);
+    const text = await screen.findByRole("textbox", { name: "Tu experiencia" });
+    await userEvent.clear(text);
+    await userEvent.type(text, "Texto ampliado");
+    expect((screen.getByRole("radio", { name: "3 estrellas" }) as HTMLInputElement).checked).toBe(true);
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(actualizarFeedback).toHaveBeenCalledWith("f1", { texto: "Texto ampliado" });
+  });
+
+  it("histórico puede editar anonimato sin añadir estrellas", async () => {
+    vi.mocked(obtenerFeedback).mockResolvedValue({ ...feedback, puntuacion: null });
+    render(<FeedbackForm feedbackId="f1" />);
+    const group = await screen.findByRole("group", { name: "Valoración de la materia" });
+    expect(within(group).getAllByRole("radio").every(radio => !(radio as HTMLInputElement).checked)).toBe(true);
+    await userEvent.click(screen.getByRole("radio", { name: /^Con mi nombre/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(actualizarFeedback).toHaveBeenCalledWith("f1", { anonimo: false });
+  });
+
+  it("histórico puede incorporar una puntuación sin cambiar texto", async () => {
+    vi.mocked(obtenerFeedback).mockResolvedValue({ ...feedback, puntuacion: null });
+    render(<FeedbackForm feedbackId="f1" />);
+    await userEvent.click(await screen.findByRole("radio", { name: "1 estrella" }));
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(actualizarFeedback).toHaveBeenCalledWith("f1", { puntuacion: 1 });
+  });
+
+  it("solo cambiar estrellas activa confirmación de cancelación y conserva la selección", async () => {
+    render(<FeedbackForm comisionId="c1" />);
+    await userEvent.click(await screen.findByRole("radio", { name: "4 estrellas" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.getByRole("dialog", { name: "Descartar cambios" })).toBeTruthy();
+    expect(push).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Seguir escribiendo" }));
+    expect((screen.getByRole("radio", { name: "4 estrellas" }) as HTMLInputElement).checked).toBe(true);
+    expect(crearFeedback).not.toHaveBeenCalled();
+  });
+
+  it("un fallo de edición conserva las estrellas elegidas y permite reintentar el mismo PATCH", async () => {
+    vi.mocked(obtenerFeedback).mockResolvedValue({ ...feedback, puntuacion: 3 });
+    vi.mocked(actualizarFeedback).mockRejectedValueOnce(new Error("No se pudo guardar la puntuación"));
+    render(<FeedbackForm feedbackId="f1" />);
+    await userEvent.click(await screen.findByRole("radio", { name: "5 estrellas" }));
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(await screen.findByText("No se pudo guardar la puntuación")).toBeTruthy();
+    expect((screen.getByRole("radio", { name: "5 estrellas" }) as HTMLInputElement).checked).toBe(true);
+    expect(push).not.toHaveBeenCalled();
+    vi.mocked(actualizarFeedback).mockResolvedValue({ ...feedback, puntuacion: 5 });
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(actualizarFeedback).toHaveBeenCalledTimes(2);
+    expect(actualizarFeedback).toHaveBeenLastCalledWith("f1", { puntuacion: 5 });
   });
 });
 
@@ -344,7 +486,7 @@ describe("Detalle de feedback", () => {
     expect(card.getAllByRole("time").map(node => node.getAttribute("dateTime"))).toEqual([feedback.createdAt, "2026-10-27T14:00:00.000Z"]);
   });
   it("carga el historial al abrir, pagina tres versiones y deja de repetirlas al cerrar", async () => {
-    const row = { id: "h1", accion: "CREACION" as const, texto: "Versión original real", anonimo: true, createdAt: feedback.createdAt };
+    const row = { id: "h1", accion: "CREACION" as const, texto: "Versión original real", puntuacion: null, anonimo: true, createdAt: feedback.createdAt };
     vi.mocked(listarHistorialFeedback).mockResolvedValue({ items: [row], total: 4, page: 1, pageSize: 3 });
     render(<FeedbackDetail feedbackId="f1" />);
     const summary = await screen.findByText("Historial de cambios");

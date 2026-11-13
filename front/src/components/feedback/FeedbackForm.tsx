@@ -14,7 +14,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Notice } from "@/components/ui/Notice";
 import { Dialog } from "@/components/ui/Dialog";
 import { cargoLabel } from "@/validations/materias";
-import { diferenciasFeedback, feedbackDetalleHref, feedbackNavigation, feedbackSuccessHref, MAX_TEXTO_FEEDBACK, validarTextoFeedback } from "@/validations/feedback";
+import { diferenciasFeedback, feedbackDetalleHref, feedbackNavigation, feedbackSuccessHref, MAX_TEXTO_FEEDBACK, validarTextoFeedback, validarPuntuacionFeedback } from "@/validations/feedback";
+import { SelectorEstrellas } from "./SelectorEstrellas";
 import { useFeedbackResource } from "./useFeedbackResource";
 import styles from "./feedback.module.css";
 
@@ -80,23 +81,27 @@ function FeedbackEditor({ comision, original, normasIniciales, cancelHref }: { c
   const initialTarget = comision.profesores.length === 1 ? comision.profesores[0].id : "";
   const [texto, setTexto] = useState(original?.texto ?? "");
   const [anonimo, setAnonimo] = useState(original?.anonimo ?? false);
+  const [puntuacion, setPuntuacion] = useState<number | null>(original?.puntuacion ?? null);
   const [target, setTarget] = useState(initialTarget);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [normas, setNormas] = useState(normasIniciales);
   const [mostrarNormas, setMostrarNormas] = useState(false);
   const normasId = useId();
   const count = Array.from(texto.trim()).length;
-  const dirty = texto !== (original?.texto ?? "") || anonimo !== (original?.anonimo ?? false) || (!original && target !== initialTarget);
+  const dirty = texto !== (original?.texto ?? "") || anonimo !== (original?.anonimo ?? false) || puntuacion !== (original?.puntuacion ?? null) || (!original && target !== initialTarget);
+  const requiredRating = !original || original.puntuacion !== null;
   const publicName = account?.displayName?.trim() || "Nombre público no disponible";
   const targets = comision.profesores.length === 1
     ? [{ value: comision.profesores[0].id, title: comision.profesores[0].nombreCompleto, description: cargoLabel(comision.profesores[0].cargo) }]
     : [{ value: "", title: "La comisión en general", description: "La experiencia de cursar en esta comisión" }, ...comision.profesores.map((profesor) => ({ value: profesor.id, title: profesor.nombreCompleto, description: cargoLabel(profesor.cargo) }))];
   const { busy, errors, error, success, setSuccess, handleSubmit, handleChange } = useFormSubmission({
-    fields: ["texto", "anonimo", "profesorId", "versionNormas"] as const,
+    fields: ["texto", "anonimo", "profesorId", "puntuacion", "versionNormas"] as const,
     validate: (values) => {
       const textError = validarTextoFeedback(values.texto);
+      const ratingError = validarPuntuacionFeedback(values.puntuacion, requiredRating);
       return {
         ...(textError ? { texto: textError } : {}),
+        ...(ratingError ? { puntuacion: ratingError } : {}),
         ...(normas && !normas.aceptada && values.versionNormas !== normas.version
           ? { versionNormas: "Debés aceptar las normas de convivencia para publicar." } : {}),
       };
@@ -106,19 +111,19 @@ function FeedbackEditor({ comision, original, normasIniciales, cancelHref }: { c
       const text = values.texto.trim();
       const anonymous = values.anonimo === "true";
       if (original) {
-        const changes = diferenciasFeedback(original, { texto: text, anonimo: anonymous });
+        const changes = diferenciasFeedback(original, { texto: text, anonimo: anonymous, puntuacion: values.puntuacion === "" ? null : Number(values.puntuacion) });
         if (Object.keys(changes).length === 0) { setSuccess("No hay cambios para guardar."); return; }
         await actualizarFeedback(original.id, changes);
         router.push(feedbackSuccessHref(cancelHref, "El comentario se actualizó correctamente."));
       } else {
         try {
           await crearFeedback(comision.id, {
-            texto: text, anonimo: anonymous,
+            texto: text, anonimo: anonymous, puntuacion: Number(values.puntuacion),
             ...(comision.profesores.length === 1 ? {} : { profesorId: values.profesorId || null }),
             ...(normas && !normas.aceptada ? { versionNormas: values.versionNormas } : {}),
           });
         } catch (failure) {
-          if (failure instanceof HttpError && failure.status === 409) {
+          if (failure instanceof HttpError && failure.status === 409 && failure.message === "Debés aceptar las normas de convivencia vigentes para publicar.") {
             setNormas(await obtenerNormasConvivencia());
           }
           throw failure;
@@ -158,6 +163,7 @@ function FeedbackEditor({ comision, original, normasIniciales, cancelHref }: { c
         <div className={styles.editorTextHelp}><p id={`${textId}-hint`}>Evitá incluir datos personales de otras personas</p><span id={`${textId}-count`} className={count > MAX_TEXTO_FEEDBACK ? styles.editorCounterError : count >= 2700 ? styles.editorCounterNear : undefined}>{count} / {MAX_TEXTO_FEEDBACK}</span></div>
         {errors.texto ? <p id={`${textId}-error`} className="field-error">{errors.texto}</p> : null}
       </div>
+      <SelectorEstrellas value={puntuacion} onChange={setPuntuacion} disabled={busy} required={requiredRating} error={errors.puntuacion} />
       <fieldset className={`${styles.editorBlock} ${styles.editorIdentity}`}>
         <legend>Cómo aparecerá tu comentario</legend>
         <p className={styles.editorHelp}>Elegí qué identidad verán los demás estudiantes</p>

@@ -11,6 +11,7 @@ import { periodoLabel } from "@/lib/format/periodo";
 import { modalidadLabel } from "@/validations/materias";
 import { carreraLabel } from "@/lib/format/carrera";
 import styles from "./feedback.module.css";
+import { EstrellasFeedback } from "./FeedbackCard";
 
 /** Public presentation shared by commission and general reading; private actions require propio. */
 export function ExperienceCard({ feedback, onManage, showContext = false, origin, administrative = false, returnTo }: { feedback: Feedback; onManage: () => void; showContext?: boolean; origin?: URLSearchParams; administrative?: boolean; returnTo?: string }) {
@@ -29,6 +30,7 @@ export function ExperienceCard({ feedback, onManage, showContext = false, origin
     </header>
     {showContext ? <div className={styles.experienceContext}><Link href={subjectHref}>{feedback.contexto.materiaNombre}</Link><p>Comisión {feedback.contexto.nombre}{feedback.contexto.carrera ? ` · ${carreraLabel(feedback.contexto.carrera)}` : ""} · {periodoLabel(feedback.contexto.anio)} · {modalidadLabel(feedback.contexto.modalidad ?? feedback.contexto.cuatrimestre)}</p></div> : null}
     <p className={styles.experienceTarget}>{feedback.profesor ? `Sobre ${feedback.profesor.nombreCompleto}` : "Sobre la comisión en general"}</p>
+    <EstrellasFeedback puntuacion={feedback.puntuacion} />
     <p className={styles.experienceText}>{feedback.texto}</p>
     {isAdmin || (!administrative && feedback.propio) || showContext ? <footer className={styles.experienceFooter}>
       {isAdmin ? <Link className="button button-secondary" href={`/home/admin/experiencias/${encodeURIComponent(feedback.id)}?${new URLSearchParams({ returnTo: returnTo ?? "/home/admin/experiencias" })}`}><Eye size={16} aria-hidden="true" />Ver detalle y auditoría</Link> : null}

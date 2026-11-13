@@ -21,7 +21,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(location.search),
 }));
 vi.mock("@/services/academic", () => ({ listarMaterias: vi.fn(), listarProfesores: vi.fn(), listarCursadasPorMateria: vi.fn(), listarComisionesPorCursada: vi.fn(), obtenerCursada: vi.fn(async (id: string) => cursadaDetalleFixture(id)) }));
-vi.mock("@/services/materias", () => ({ listarMaterias: vi.fn(), obtenerMateria: vi.fn(async (id: string) => materiaFixture(id)) }));
+vi.mock("@/services/materias", () => ({ listarMaterias: vi.fn(), obtenerMateria: vi.fn(async (id: string) => ({ ...materiaFixture(id), valoracion: { promedio: null, cantidad: 0 } })) }));
 vi.mock("@/services/users", () => ({ listarUsuarios: vi.fn() }));
 // TASK-043: MateriasList reads the role (useIsAdmin → useAuth) for "Nueva materia".
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ account: { role: "USER" } }) }));
@@ -29,7 +29,7 @@ vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ account: { role: "USER" } 
 afterEach(cleanup);
 
 const usuario = (id: string) => ({ id, email: `${id}@alu.frlp.utn.edu.ar`, displayName: `Cuenta ${id}`, role: "USER" as const, createdAt: "2026-01-02T00:00:00.000Z" });
-const materia = (id: string) => ({ id, nombre: `Materia ${id}`, carreras: [], createdAt: "2026-01-02T00:00:00.000Z", deletedAt: null });
+const materia = (id: string) => ({ valoracion: { promedio: null, cantidad: 0 }, id, nombre: `Materia ${id}`, carreras: [], createdAt: "2026-01-02T00:00:00.000Z", deletedAt: null });
 const profesor = (id: string) => ({ id, nombreCompleto: `Profesor ${id}`, createdAt: "2026-01-02T00:00:00.000Z", deletedAt: null });
 
 describe.each([

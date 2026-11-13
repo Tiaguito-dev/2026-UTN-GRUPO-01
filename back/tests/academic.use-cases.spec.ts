@@ -22,7 +22,7 @@ describe("ListarMaterias", () => {
     const [first, second] = [addMateria("Álgebra"), addMateria("Análisis")];
     const result = await listarMaterias.execute({ page: 2, pageSize: 1 });
     expect(result).toMatchObject({ page: 2, pageSize: 1, total: 2 });
-    expect(result.items).toEqual([second]);
+    expect(result.items).toEqual([{ ...second, valoracion: { promedio: null, cantidad: 0 } }]);
     expect(first).toBeTruthy();
   });
 
@@ -117,13 +117,14 @@ describe("ObtenerMateria", () => {
     const { materiaRepository, addMateria } = fixture();
     const materia = addMateria("Álgebra");
     const result = await new ObtenerMateria(materiaRepository).execute(materia.id);
-    expect(result).toEqual(materia);
+    expect(result).toEqual({ ...materia, valoracion: { promedio: null, cantidad: 0 } });
   });
 
   it("id no-UUID tira InvalidIdError sin tocar el repositorio", async () => {
     const { materiaRepository } = fixture();
     await expect(new ObtenerMateria(materiaRepository).execute("not-a-uuid")).rejects.toBeInstanceOf(InvalidIdError);
     expect(materiaRepository.findById).not.toHaveBeenCalled();
+    expect(materiaRepository.findByIdConValoracion).not.toHaveBeenCalled();
   });
 
   it("id válido pero inexistente tira MateriaNotFoundError", async () => {

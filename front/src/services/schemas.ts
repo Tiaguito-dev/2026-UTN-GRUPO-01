@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { HttpError } from "./http";
-import type { Materia, MateriaCarrera, MateriaHistorial } from "@/types/materias";
+import type { Materia, MateriaConValoracion, MateriaCarrera, MateriaHistorial } from "@/types/materias";
 import type { PublicAccount } from "@/types/auth";
 import type {
   CargoDocente,
@@ -50,6 +50,13 @@ export const materiaSchema: z.ZodType<Materia> = z.object({
   createdAt: z.string(),
   deletedAt: z.string().nullable(),
 });
+
+export const materiaConValoracionSchema: z.ZodType<MateriaConValoracion> = materiaSchema.and(z.object({
+  valoracion: z.object({
+    promedio: z.number().min(1).max(5).nullable(),
+    cantidad: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+  }).refine(({ promedio, cantidad }) => cantidad === 0 ? promedio === null : promedio !== null),
+}));
 
 export const materiaHistorialSchema: z.ZodType<MateriaHistorial> = z.object({
   id: z.string(),
