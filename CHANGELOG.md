@@ -2,6 +2,14 @@
 
 ## [Sin publicar]
 
+### Valoraciones de materias con estrellas (TASK-071)
+
+- Comentarios nuevos con puntuación obligatoria de 1 a 5, edición de estrellas y conservación de comentarios históricos sin valoración. Voto global único por usuario y materia, con creación, actualización, reactivación y baja lógica transaccionales, historial y auditoría.
+- Promedio global y cantidad de valoraciones vigentes en listado y detalle de materias, compartidos entre carreras, con agregación por lote. Selector accesible y estrellas individuales en tarjetas e historial; formato es-AR y «Sin valoraciones» cuando corresponde.
+- Cambio incompatible: crear comentarios requiere `puntuacion`. Aplicar la migración `20261112000000_valoracion_materias_estrellas` antes de desplegar backend y frontend compatibles.
+- Validación local: 799 pruebas backend, 836 frontend y 56 integraciones PostgreSQL de TASK-071 aprobadas; typecheck, lint, builds y revisión manual de creación, edición, eliminación, promedios, tarjetas, historial y responsive satisfactorios.
+- Pendientes: CI, Playwright general, axe en navegador y Docker builds. Cierre funcional/documental local; sin push, PR ni integración. Evidencia en [TASK-071](docs/tasks/finished/TASK-071-valoracion-materias-estrellas.md). TASK-072 permanece fuera de esta entrega.
+
 ### Logo de cuchillas
 
 - Símbolo SVG de una cuchilla de carnicero sobre un libro abierto en el encabezado, conservando el nombre y la navegación de la marca.
