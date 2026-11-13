@@ -4,8 +4,9 @@ import { useId, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BookOpen, ChevronDown, LoaderCircle, Send } from "lucide-react";
 import { obtenerComision, type ComisionDetalle } from "@/services/academic";
-import { actualizarFeedback, crearFeedback, obtenerFeedback, obtenerFeedbackPropio } from "@/services/feedback";
-import type { Feedback } from "@/types/feedback";
+import { actualizarFeedback, crearFeedback, obtenerFeedback, obtenerFeedbackPropio, obtenerNormasConvivencia } from "@/services/feedback";
+import { HttpError } from "@/services/http";
+import type { Feedback, NormasConvivencia } from "@/types/feedback";
 import type { ModalidadMateria } from "@/types/materias";
 import { useAuth } from "@/hooks/useAuth";
 import { useFormSubmission } from "@/hooks/useFormSubmission";
@@ -17,7 +18,7 @@ import { diferenciasFeedback, feedbackDetalleHref, feedbackNavigation, feedbackS
 import { useFeedbackResource } from "./useFeedbackResource";
 import styles from "./feedback.module.css";
 
-interface FormResource { comision: ComisionDetalle | null; feedback: Feedback | null; propio: Feedback | null }
+interface FormResource { comision: ComisionDetalle | null; feedback: Feedback | null; propio: Feedback | null; normas: NormasConvivencia | null }
 
 function contextPeriod(anio: number, modalidad: ModalidadMateria | null | undefined) {
   if (modalidad === "PRIMERO") return `1.er cuatrimestre de ${anio}`;
@@ -32,11 +33,12 @@ export function FeedbackForm({ feedbackId, comisionId }: { feedbackId?: string; 
     if (feedbackId) {
       const feedback = await obtenerFeedback(feedbackId);
       const comision = await obtenerComision(feedback.contexto.comisionId);
-      return { comision, feedback, propio: feedback };
+      return { comision, feedback, propio: feedback, normas: null };
     }
     if (!comisionId) throw new Error("Elegí una comisión desde Materias para compartir tu experiencia.");
     const [comision, propio] = await Promise.all([obtenerComision(comisionId), obtenerFeedbackPropio(comisionId)]);
-    return { comision, feedback: null, propio };
+    const normas = comision.activa && !propio ? await obtenerNormasConvivencia() : null;
+    return { comision, feedback: null, propio, normas };
   });
   const context = resource.data?.feedback?.contexto;
   const comision = resource.data?.comision;
@@ -60,7 +62,7 @@ export function FeedbackForm({ feedbackId, comisionId }: { feedbackId?: string; 
       {!comision.activa ? <Notice tone="warning">Esta comisión está inactiva. No se pueden publicar ni editar comentarios.</Notice>
         : feedbackId && !resource.data.feedback?.propio ? <Notice tone="error">Solo podés editar tus propios comentarios.</Notice>
         : !feedbackId && resource.data.propio ? <Notice tone="warning">Ya tenés un comentario vigente en esta comisión. <Link href={feedbackDetalleHref(resource.data.propio.id, params)}>Ver mi comentario</Link></Notice>
-        : <FeedbackEditor key={feedbackId ?? comision.id} comision={comision} original={resource.data.feedback} cancelHref={backHref} />}
+        : <FeedbackEditor key={feedbackId ?? comision.id} comision={comision} original={resource.data.feedback} normasIniciales={resource.data.normas} cancelHref={backHref} />}
     </> : null}
   </section>;
 }
@@ -69,7 +71,7 @@ function comisionContext(comision: ComisionDetalle) {
   return { comisionId: comision.id, nombre: comision.nombre, materiaId: comision.cursada.materia.id, materiaNombre: comision.cursada.materia.nombre, cursadaId: comision.cursada.id, anio: comision.cursada.anio, cuatrimestre: comision.cursada.cuatrimestre ?? null, modalidad: comision.cursada.cuatrimestre !== undefined ? comision.cursada.cuatrimestre : comision.cursada.materia.modalidad ?? null };
 }
 
-function FeedbackEditor({ comision, original, cancelHref }: { comision: ComisionDetalle; original: Feedback | null; cancelHref: string }) {
+function FeedbackEditor({ comision, original, normasIniciales, cancelHref }: { comision: ComisionDetalle; original: Feedback | null; normasIniciales: NormasConvivencia | null; cancelHref: string }) {
   const router = useRouter();
   const { account } = useAuth();
   const textId = useId();
@@ -80,6 +82,9 @@ function FeedbackEditor({ comision, original, cancelHref }: { comision: Comision
   const [anonimo, setAnonimo] = useState(original?.anonimo ?? false);
   const [target, setTarget] = useState(initialTarget);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [normas, setNormas] = useState(normasIniciales);
+  const [mostrarNormas, setMostrarNormas] = useState(false);
+  const normasId = useId();
   const count = Array.from(texto.trim()).length;
   const dirty = texto !== (original?.texto ?? "") || anonimo !== (original?.anonimo ?? false) || (!original && target !== initialTarget);
   const publicName = account?.displayName?.trim() || "Nombre público no disponible";
@@ -87,10 +92,14 @@ function FeedbackEditor({ comision, original, cancelHref }: { comision: Comision
     ? [{ value: comision.profesores[0].id, title: comision.profesores[0].nombreCompleto, description: cargoLabel(comision.profesores[0].cargo) }]
     : [{ value: "", title: "La comisión en general", description: "La experiencia de cursar en esta comisión" }, ...comision.profesores.map((profesor) => ({ value: profesor.id, title: profesor.nombreCompleto, description: cargoLabel(profesor.cargo) }))];
   const { busy, errors, error, success, setSuccess, handleSubmit, handleChange } = useFormSubmission({
-    fields: ["texto", "anonimo", "profesorId"] as const,
+    fields: ["texto", "anonimo", "profesorId", "versionNormas"] as const,
     validate: (values) => {
       const textError = validarTextoFeedback(values.texto);
-      return textError ? { texto: textError } : {};
+      return {
+        ...(textError ? { texto: textError } : {}),
+        ...(normas && !normas.aceptada && values.versionNormas !== normas.version
+          ? { versionNormas: "Debés aceptar las normas de convivencia para publicar." } : {}),
+      };
     },
     fallbackError: "Lo sentimos. No pudimos guardar tu comentario, intentá nuevamente.",
     onSubmit: async (values) => {
@@ -102,7 +111,18 @@ function FeedbackEditor({ comision, original, cancelHref }: { comision: Comision
         await actualizarFeedback(original.id, changes);
         router.push(feedbackSuccessHref(cancelHref, "El comentario se actualizó correctamente."));
       } else {
-        await crearFeedback(comision.id, { texto: text, anonimo: anonymous, ...(comision.profesores.length === 1 ? {} : { profesorId: values.profesorId || null }) });
+        try {
+          await crearFeedback(comision.id, {
+            texto: text, anonimo: anonymous,
+            ...(comision.profesores.length === 1 ? {} : { profesorId: values.profesorId || null }),
+            ...(normas && !normas.aceptada ? { versionNormas: values.versionNormas } : {}),
+          });
+        } catch (failure) {
+          if (failure instanceof HttpError && failure.status === 409) {
+            setNormas(await obtenerNormasConvivencia());
+          }
+          throw failure;
+        }
         router.push(feedbackSuccessHref(cancelHref, "El comentario se publicó correctamente."));
       }
     },
@@ -147,11 +167,25 @@ function FeedbackEditor({ comision, original, cancelHref }: { comision: Comision
         </div>
         <p className={styles.editorHelp} id={`${identityId}-hint`}>{anonimo ? "Otros usuarios no verán tu nombre. Tu cuenta seguirá vinculada al comentario para que puedas administrarlo" : "Tu nombre público aparecerá junto al comentario. Después podrás administrarlo desde tu cuenta"}</p>
       </fieldset>
+      {normas && !normas.aceptada ? <fieldset className={styles.editorBlock}>
+        <legend>Normas de convivencia</legend>
+        <label htmlFor={normasId}>
+          <input key={normas.version} id={normasId} type="checkbox" name="versionNormas" value={normas.version} required disabled={busy}
+            aria-invalid={Boolean(errors.versionNormas)} aria-describedby={errors.versionNormas ? `${normasId}-error` : undefined} />
+          {" "}Acepto las <a href={`#${normasId}-documento`} aria-haspopup="dialog" onClick={(event) => { event.preventDefault(); setMostrarNormas(true); }}>Normas de convivencia</a> y entiendo que soy responsable del contenido que publico.
+        </label>
+        <p className={styles.editorHelp}>Las reseñas expresan opiniones de sus autores y no representan necesariamente al equipo de Profesor Butchery.</p>
+        {errors.versionNormas ? <p id={`${normasId}-error`} className="field-error">{errors.versionNormas}</p> : null}
+      </fieldset> : null}
       <footer className={styles.editorFooter}>
         <div className={styles.editorActions}><button className="button" type="submit" disabled={busy}>{busy ? <LoaderCircle className={styles.editorSpinner} size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" /> : <Send size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" />}{busy ? original ? "Guardando…" : "Publicando…" : original ? "Guardar cambios" : "Publicar comentario"}</button><button className="button button-secondary" type="button" disabled={busy} onClick={cancel}>Cancelar</button></div>
         <p className={styles.editorHelp}>Podés mantener un comentario vigente por comisión</p>
       </footer>
     </form></div>
+    {normas && mostrarNormas ? <Dialog open={mostrarNormas} onClose={() => setMostrarNormas(false)} title="Normas de convivencia" description={`Versión ${normas.version}`}>
+      <ul id={`${normasId}-documento`}>{normas.reglas.map((regla) => <li key={regla}>{regla}</li>)}</ul>
+      <div className="dialog-actions"><button type="button" className="button" data-autofocus onClick={() => setMostrarNormas(false)}>Volver a la reseña</button></div>
+    </Dialog> : null}
     <Dialog open={confirmCancel} onClose={() => setConfirmCancel(false)} title="Descartar cambios" description="Tenés cambios sin guardar. Si salís, se perderán." busy={busy}>
       <div className="dialog-actions"><button className="button button-secondary" type="button" onClick={() => setConfirmCancel(false)} data-autofocus>Seguir escribiendo</button><button className="button" type="button" onClick={() => router.push(cancelHref)}>Descartar y volver</button></div>
     </Dialog>
