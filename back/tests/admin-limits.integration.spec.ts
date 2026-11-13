@@ -75,6 +75,7 @@ describe.skipIf(!databaseUrl)("Administración remota, estados y bajas reales TA
         await prisma.materiaHistorial.deleteMany({ where: { actorId: { in: userIds } } });
         await prisma.feedbackHistorial.deleteMany({ where: { feedback: { autorId: { in: userIds } } } });
         await prisma.feedback.deleteMany({ where: { autorId: { in: userIds } } });
+        await prisma.valoracionMateria.deleteMany({ where: { usuarioId: { in: userIds }, materiaId: { in: materiaIds } } });
       }
       if (comisionIds.length) { await prisma.comisionProfesor.deleteMany({ where: { comisionId: { in: comisionIds } } }); await prisma.comision.deleteMany({ where: { id: { in: comisionIds } } }); }
       if (cursadaIds.length) await prisma.cursada.deleteMany({ where: { id: { in: cursadaIds } } });
@@ -171,7 +172,7 @@ describe.skipIf(!databaseUrl)("Administración remota, estados y bajas reales TA
   it("desactivar y reactivar conserva comentarios anónimos, sus snapshots y la identidad pública", async () => {
     const author = await account(); const authorCookie = await login(author);
     const m = await materia(); const c = await cursada(m.id); const co = await comision(c.id);
-    const created = await request("POST", `/comisiones/${co.id}/feedback`, authorCookie, { texto: "Comentario anónimo que se conserva", anonimo: true });
+    const created = await request("POST", `/comisiones/${co.id}/feedback`, authorCookie, { texto: "Comentario anónimo que se conserva", anonimo: true, puntuacion: 4 });
     expect(created.status).toBe(201); const feedback = await created.json();
     const originalRecord = await prisma.feedback.findUniqueOrThrow({ where: { id: feedback.id } });
     const originalHistory = await prisma.feedbackHistorial.findMany({ where: { feedbackId: feedback.id } });
@@ -341,7 +342,7 @@ describe.skipIf(!databaseUrl)("Administración remota, estados y bajas reales TA
     const fresh = await comision(active.id);
     expect((await request("PUT", `/comisiones/${fresh.id}/profesores/${p.id}`, adminCookie, { cargo: "TITULAR" })).status).toBe(404);
     const author = await account(); const authorCookie = await login(author);
-    expect((await request("POST", `/comisiones/${co.id}/feedback`, authorCookie, { texto: "No debe publicarse bajo una comisión de baja", anonimo: true })).status).toBe(404);
+    expect((await request("POST", `/comisiones/${co.id}/feedback`, authorCookie, { texto: "No debe publicarse bajo una comisión de baja", anonimo: true, puntuacion: 4 })).status).toBe(404);
   });
 
   it("quitar una asignación conserva al profesor activo y registra una desvinculación independiente", async () => {
