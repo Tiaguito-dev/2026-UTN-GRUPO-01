@@ -2,9 +2,14 @@ import type { FeedbackRepository } from "./ports/feedback.repository.js";
 import type { UserRole } from "../../users/domain/user.js";
 import { validateCreateFeedback, validateFeedbackId, validateFeedbackPagination, validateGeneralFeedbackQuery, validateUpdateFeedback } from "./feedback-input.js";
 
+import { normasConvivencia } from "../domain/normas.js";
+
 /** Application boundary: all external inputs are normalized before reaching persistence. */
 export class FeedbackService {
   constructor(private readonly repository: FeedbackRepository) {}
+  async normas(viewer: string) {
+    return { ...normasConvivencia, aceptada: await this.repository.aceptoNormas(viewer, normasConvivencia.version) };
+  }
   listGeneral(viewer: string, query: unknown) {
     const { page, pageSize, ...filters } = validateGeneralFeedbackQuery(query);
     return this.repository.listGeneral(viewer, { page, pageSize }, filters);

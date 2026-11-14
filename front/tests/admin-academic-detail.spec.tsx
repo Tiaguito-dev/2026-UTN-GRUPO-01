@@ -16,7 +16,7 @@ vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(r
 vi.mock("@/services/materias", async (importOriginal) => ({ ...await importOriginal<typeof import("@/services/materias")>(), obtenerMateria: vi.fn(), listarHistorialMateria: vi.fn() }));
 vi.mock("@/services/academic", async (importOriginal) => ({ ...await importOriginal<typeof import("@/services/academic")>(), obtenerCursada: vi.fn() }));
 vi.mock("@/services/admin-academic", () => ({ obtenerProfesor: vi.fn() }));
-const materia = {
+const materia = { valoracion: { promedio: null, cantidad: 0 },
   id: "m1", nombre: "Materia de nombre académico extenso", modalidad: "ANUAL" as const,
   carreras: [
     { carrera: "S" as const, anioCarrera: "2" as const, nivelElectiva: null },

@@ -20,7 +20,7 @@ vi.mock("@/services/materias", () => ({ obtenerMateria: vi.fn() }));
 vi.mock("@/services/academic", () => ({ listarProfesores: vi.fn(), listarComisionesPorCursada: vi.fn(), listarMaterias: vi.fn(), listarCursadasPorMateria: vi.fn(), obtenerCursada: vi.fn(), obtenerComision: vi.fn(), CARGOS: ["TITULAR", "ADJUNTO", "JTP"] }));
 vi.mock("@/components/feedback/ComisionFeedback", () => ({ ComisionFeedback: () => <p>Experiencias conservadas</p> }));
 const date = "2026-01-01T00:00:00.000Z";
-const materia = { id: "m1", nombre: "Álgebra", modalidad: "ANUAL" as const, carreras: [{ carrera: "S" as const, anioCarrera: "4" as const, nivelElectiva: null }], createdAt: date, deletedAt: null };
+const materia = { valoracion: { promedio: null, cantidad: 0 }, id: "m1", nombre: "Álgebra", modalidad: "ANUAL" as const, carreras: [{ carrera: "S" as const, anioCarrera: "4" as const, nivelElectiva: null }], createdAt: date, deletedAt: null };
 const profesor = { id: "p1", nombreCompleto: "Ana García", createdAt: date, deletedAt: null };
 const cursada = { id: "cu1", anio: 2026, cuatrimestre: "ANUAL", materia: { id: "m1", nombre: materia.nombre, modalidad: "ANUAL" }, deletedAt: null, createdAt: date };
 const comision = { id: "co1", nombre: "S-41", cursadaId: "cu1", carrera: "S", numero: 41, activa: true, profesores: [{ id: "p1", nombreCompleto: profesor.nombreCompleto, cargo: "TITULAR" }], cursada, createdAt: date, deletedAt: null };

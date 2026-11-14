@@ -14,6 +14,12 @@ function user(request: AuthenticatedRequest): string {
 export class ReviewsController {
   constructor(private readonly feedback: FeedbackService) {}
 
+  @Get("feedback/normas")
+  @Header("Cache-Control", "no-store")
+  normas(@Req() request: AuthenticatedRequest) {
+    return this.feedback.normas(user(request));
+  }
+
   @Get("feedback")
   @Header("Cache-Control", "no-store")
   listGeneral(@Req() request: AuthenticatedRequest, @Query() query: unknown) {

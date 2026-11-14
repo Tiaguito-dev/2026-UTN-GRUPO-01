@@ -13,7 +13,7 @@ vi.mock("next/link", () => import("./support/next-link"));
 vi.mock("next/navigation", () => ({ useRouter: () => navigation, useSearchParams: () => new URLSearchParams(navigation.query) }));
 vi.mock("@/services/materias", () => ({ listarMaterias: vi.fn(), crearMateria: vi.fn(), actualizarMateria: vi.fn() }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ account: { role: auth.role } }) }));
-const materia = {
+const materia = { valoracion: { promedio: null, cantidad: 0 },
   modalidad: "ANUAL" as const,
   id: "m1",
   nombre: "Álgebra",

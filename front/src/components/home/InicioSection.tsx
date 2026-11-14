@@ -15,7 +15,7 @@ export function InicioSection() {
 
   // El eyebrow queda fuera de la sección: `.system-content > .eyebrow` le da su margen.
   return <>
-    <p className="eyebrow">Profesor Butchery</p>
+    <p className="eyebrow">Professors&apos; butchery</p>
     <section aria-labelledby={headingId}>
       <PageHeader id={headingId} title={<>Hola, {account?.displayName ?? "bienvenido"}.</>} description={section.description} />
       <EmptyState symbol="PB" title="Este espacio está empezando a tomar forma" action={<Link className="button" href="/account">Ver mi perfil</Link>}>

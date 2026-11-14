@@ -32,9 +32,9 @@
 .groupHeader { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .groupHeader h2 { margin: 0; color: var(--text); font-size: var(--text-base); font-weight: var(--weight-semibold); letter-spacing: 0; }
 .groupCount { color: var(--muted); font-size: var(--text-sm); }
-.rows { display: grid; list-style: none; padding: 0; margin: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); overflow: hidden; }
-.rows > li + li { border-top: 1px solid var(--border); }
-.row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-3) var(--space-5); border: 0; border-radius: 0; background: transparent; color: var(--text); text-decoration: none; min-height: 48px; box-sizing: border-box; }
+.rows { display: grid; list-style: none; padding: 0; margin: 0; gap: var(--space-3); }
+.rows > li { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); overflow: hidden; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-4) var(--space-5); border: 0; border-radius: 0; background: transparent; color: var(--text); text-decoration: none; min-height: 48px; box-sizing: border-box; }
 .row:hover { background: var(--soft-blue); color: var(--text); }
 .row:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
 .clearButton:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }

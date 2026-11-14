@@ -18,7 +18,7 @@ vi.mock("@/services/academic", () => ({ obtenerCursada: vi.fn(), obtenerComision
 vi.mock("@/hooks/useMateria", () => ({ useMateria: () => ({ materia: { id: "m1", carreras: [{ carrera: "S" }, { carrera: "Q" }] }, error: "", retry: vi.fn() }) }));
 const date = "2026-01-01T00:00:00.000Z";
 const profesor = { id: "p1", nombreCompleto: "Ada Lovelace", createdAt: date, deletedAt: null };
-const materia = { id: "m1", nombre: "Álgebra", carreras: [], createdAt: date, deletedAt: null };
+const materia = { valoracion: { promedio: null, cantidad: 0 }, id: "m1", nombre: "Álgebra", carreras: [], createdAt: date, deletedAt: null };
 const cursada = { id: "c1", materia: { id: "m1", nombre: "Álgebra" }, anio: 2026, cuatrimestre: "PRIMERO" as const, comisiones: 1, profesores: 1, carreras: ["S" as const] };
 const comision = { id: "co1", cursadaId: "c1", nombre: "S-31", carrera: "S" as const, numero: 31, activa: true, profesores: [], createdAt: date, deletedAt: null, cursada: { id: "c1", anio: 2026, cuatrimestre: "PRIMERO" as const, materia: { id: "m1", nombre: "Álgebra" } } };
 beforeEach(() => {

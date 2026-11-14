@@ -3,7 +3,7 @@ import { getAuthService } from "./auth";
 import { requestJson } from "./http";
 import { toQuery, type PaginationInput } from "./pagination";
 import { paginatedSchema, parseResponse } from "./schemas";
-import { feedbackHistorialSchema, feedbackSchema } from "./feedback-schemas";
+import { feedbackHistorialSchema, feedbackSchema, normasConvivenciaSchema } from "./feedback-schemas";
 import type { Carrera } from "@/types/materias";
 
 const idPath = (id: string) => encodeURIComponent(id);
@@ -24,6 +24,9 @@ export function obtenerFeedbackPropio(id: string) {
 }
 export function crearFeedback(id: string, input: FeedbackInput) {
   return getAuthService().protectedPost(`/comisiones/${idPath(id)}/feedback`, input, feedbackSchema);
+}
+export function obtenerNormasConvivencia() {
+  return getAuthService().protectedGet("/feedback/normas", normasConvivenciaSchema);
 }
 export function obtenerFeedback(id: string) {
   return getAuthService().protectedGet(`/feedback/${idPath(id)}`, feedbackSchema);

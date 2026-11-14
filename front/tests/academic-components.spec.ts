@@ -76,7 +76,7 @@ describe("MateriasList", () => {
     setFetchState({
       status: "ready",
       result: {
-        items: [{ id: "m1", nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "1", nivelElectiva: null }], createdAt: "", deletedAt: null }],
+        items: [{ id: "m1", nombre: "Álgebra", valoracion: { promedio: null, cantidad: 0 }, carreras: [{ carrera: "S", anioCarrera: "1", nivelElectiva: null }], createdAt: "", deletedAt: null }],
         total: 25,
         page: 1,
         pageSize: 10,

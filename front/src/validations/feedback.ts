@@ -64,10 +64,16 @@ export function validarTextoFeedback(texto: string): string {
   return "";
 }
 
-export function diferenciasFeedback(original: { texto: string; anonimo: boolean }, edited: { texto: string; anonimo: boolean }): FeedbackEdicion {
+export function validarPuntuacionFeedback(value: string, required = true): string {
+  if (value === "" && !required) return "";
+  return /^[1-5]$/.test(value) ? "" : "Elegí una puntuación de 1 a 5 estrellas.";
+}
+
+export function diferenciasFeedback(original: { texto: string; anonimo: boolean; puntuacion: number | null }, edited: { texto: string; anonimo: boolean; puntuacion: number | null }): FeedbackEdicion {
   const changes: FeedbackEdicion = {};
   if (original.texto !== edited.texto.trim()) changes.texto = edited.texto.trim();
   if (original.anonimo !== edited.anonimo) changes.anonimo = edited.anonimo;
+  if (edited.puntuacion !== null && original.puntuacion !== edited.puntuacion) changes.puntuacion = edited.puntuacion;
   return changes;
 }
 

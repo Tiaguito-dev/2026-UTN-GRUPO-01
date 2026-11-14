@@ -23,6 +23,15 @@ export interface Materia {
   deletedAt: string | null;
 }
 
+export interface ResumenValoracionMateria {
+  promedio: number | null;
+  cantidad: number;
+}
+
+export interface MateriaConValoracion extends Materia {
+  valoracion: ResumenValoracionMateria;
+}
+
 export interface MateriaInput {
   nombre: string;
   modalidad: ModalidadMateria;

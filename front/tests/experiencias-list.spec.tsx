@@ -13,8 +13,8 @@ vi.mock("next/link", () => import("./support/next-link"));
 vi.mock("next/navigation", () => ({ usePathname: () => route.pathname, useSearchParams: () => new URLSearchParams(route.query), useRouter: () => ({ replace, push }) }));
 vi.mock("@/services/feedback", () => ({ listarFeedback: vi.fn() }));
 vi.mock("@/services/materias", () => ({ listarMaterias: vi.fn(), obtenerMateria: vi.fn() }));
-const materia = { id: "mat1", nombre: "Álgebra", modalidad: null, carreras: [{ carrera: "S" as const, anioCarrera: "1" as const, nivelElectiva: null }], createdAt: "2026-01-01", deletedAt: null };
-const item: Feedback = { id: "f1", texto: "Buena experiencia\ncon ejemplos", anonimo: true, autor: null, propio: false, profesor: null, contexto: { comisionId: "com1", nombre: "S-21", materiaId: "mat1", materiaNombre: "Álgebra", cursadaId: "cur1", anio: 2026, cuatrimestre: "SEGUNDO" }, createdAt: "2026-01-01", updatedAt: "2026-01-01" };
+const materia = { valoracion: { promedio: null, cantidad: 0 }, id: "mat1", nombre: "Álgebra", modalidad: null, carreras: [{ carrera: "S" as const, anioCarrera: "1" as const, nivelElectiva: null }], createdAt: "2026-01-01", deletedAt: null };
+const item: Feedback = { id: "f1", texto: "Buena experiencia\ncon ejemplos", puntuacion: null, anonimo: true, autor: null, propio: false, profesor: null, contexto: { comisionId: "com1", nombre: "S-21", materiaId: "mat1", materiaNombre: "Álgebra", cursadaId: "cur1", anio: 2026, cuatrimestre: "SEGUNDO" }, createdAt: "2026-01-01", updatedAt: "2026-01-01" };
 beforeEach(() => { vi.clearAllMocks(); route.query = ""; route.pathname = "/home/experiencias"; vi.mocked(obtenerMateria).mockResolvedValue(materia); vi.mocked(listarMaterias).mockResolvedValue({ items: [materia], total: 1, page: 1, pageSize: 9 }); vi.mocked(listarFeedback).mockResolvedValue({ items: [item], total: 10, page: 1, pageSize: 9 }); });
 afterEach(cleanup);
 describe("Experiencias generales", () => {

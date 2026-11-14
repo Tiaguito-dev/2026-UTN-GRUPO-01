@@ -24,8 +24,8 @@ afterEach(() => { cleanup(); location.search = ""; });
 beforeEach(() => {
   vi.mocked(listarMaterias).mockResolvedValue({
     items: [
-      { id: "m1", nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "1", nivelElectiva: null }], createdAt: "", deletedAt: null },
-      { id: "m2", nombre: "Física", carreras: [{ carrera: "Q", anioCarrera: "1", nivelElectiva: null }], createdAt: "", deletedAt: null },
+      { valoracion: { promedio: null, cantidad: 0 }, id: "m1", nombre: "Álgebra", carreras: [{ carrera: "S", anioCarrera: "1", nivelElectiva: null }], createdAt: "", deletedAt: null },
+      { valoracion: { promedio: null, cantidad: 0 }, id: "m2", nombre: "Física", carreras: [{ carrera: "Q", anioCarrera: "1", nivelElectiva: null }], createdAt: "", deletedAt: null },
     ],
     total: 2,
     page: 1,
