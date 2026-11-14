@@ -41,7 +41,8 @@ describe("Feed principal", () => {
     const time = document.querySelector("time")!;
     expect(time.getAttribute("datetime")).toBe(item("new").createdAt);
     expect(time.textContent).toBe(new Date(item("new").createdAt).toLocaleString("es-AR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }));
-    expect(screen.queryByRole("button", { name: /Administrar|Responder|Me gusta/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Administrar|Responder/ })).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Dar Me gusta" })).toHaveLength(1);
   });
   it("mounts the feed in Inicio without changing its greeting", async () => {
     render(<InicioSection />); expect(screen.getByRole("heading", { name: "Hola, Persona." })).toBeTruthy();
