@@ -39,6 +39,7 @@ export function feedbackOriginParams(params: { get(name: string): string | null 
     const value = params.get(key);
     if (value) query.set(key, value);
   }
+  if (params.get("origen") === "inicio") query.set("origen", "inicio");
   if (params.get("origen") === "experiencias") {
     query.set("origen", "experiencias");
     const career = params.get("experienciasCarrera");
@@ -118,10 +119,17 @@ export function feedbackNavigation(contexto: FeedbackContexto | null | undefined
     commissionHref = withOrigin(feedbackComisionHref(contexto), params);
     items.push({ label: `Comisión ${contexto.nombre}`, href: commissionHref });
   }
-  const back = experienciasBack(params) ?? { href: commissionHref, label: contexto ? "Comisión" : "Materias" };
+  const back = params.get("origen") === "inicio" ? { href: "/home", label: "Inicio" } : experienciasBack(params) ?? { href: commissionHref, label: contexto ? "Comisión" : "Materias" };
   return { items, commissionHref, materiaHref, back };
 }
 
 export function feedbackSuccessHref(href: string, message: string): string {
-  return `${href}${href.includes("?") ? "&" : "?"}${new URLSearchParams({ successMessage: message })}`;
+  const query = new URLSearchParams({ successMessage: message });
+  if (href === "/home") query.set("feedRefresh", crypto.randomUUID());
+  return `${href}${href.includes("?") ? "&" : "?"}${query}`;
+}
+
+/** A new accepted token remounts Inicio; arbitrary query values never become navigation targets. */
+export function inicioFeedWindowKey(token: unknown): string {
+  return typeof token === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token) ? token.toLowerCase() : "initial";
 }

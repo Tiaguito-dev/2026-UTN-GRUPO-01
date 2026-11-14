@@ -42,13 +42,13 @@ export function FeedbackForm({ feedbackId, comisionId }: { feedbackId?: string; 
   const context = resource.data?.feedback?.contexto;
   const comision = resource.data?.comision;
   const navigation = feedbackNavigation(context ?? (comision ? comisionContext(comision) : null), params);
-  const backHref = feedbackId ? feedbackDetalleHref(feedbackId, params) : navigation.commissionHref;
+  const backHref = feedbackId ? feedbackDetalleHref(feedbackId, params) : params.get("origen") === "inicio" ? navigation.back.href : navigation.commissionHref;
   const period = comision?.cursada.cuatrimestre;
   const modalidad = context ? context.modalidad ?? context.cuatrimestre : period !== undefined ? period : comision?.cursada.materia.modalidad;
   return <section className={styles.editorPage} aria-labelledby={headingId}>
     <header className={styles.editorHeader}>
       <PageHeader id={headingId} title={feedbackId ? "Editar comentario" : "Compartir mi experiencia"} focusKey={feedbackId ?? comisionId}
-        back={{ href: backHref, label: feedbackId ? "tu comentario" : "Comisión" }}
+        back={{ href: backHref, label: feedbackId ? "tu comentario" : params.get("origen") === "inicio" ? "Inicio" : "Comisión" }}
         breadcrumb={[...navigation.items, ...(feedbackId ? [{ label: "Tu comentario", href: backHref }] : []), { label: feedbackId ? "Editar comentario" : "Compartir experiencia" }]} />
     </header>
     {resource.error ? <Notice tone="error">{resource.error} {!resource.notFound ? <button className="button" type="button" onClick={resource.retry}>Reintentar</button> : null}</Notice> : null}

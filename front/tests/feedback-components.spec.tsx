@@ -4,16 +4,22 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import userEvent from "@testing-library/user-event";
 import { FeedbackForm } from "@/components/feedback/FeedbackForm";
 import { FeedbackDetail } from "@/components/feedback/FeedbackDetail";
-import { obtenerComision } from "@/services/academic";
+import { listarCursadasPorMateria, listarComisionesPorCursada, obtenerComision } from "@/services/academic";
 import { obtenerFeedback, obtenerFeedbackPropio, crearFeedback, actualizarFeedback, eliminarFeedback, listarHistorialFeedback } from "@/services/feedback";
 import type { Feedback } from "@/types/feedback";
+import { FeedPrincipal } from "@/components/feedback/FeedPrincipal";
+import { listarMaterias } from "@/services/materias";
+import { listarFeedComentarios } from "@/services/feedback-feed";
 import { HttpError } from "@/services/http";
 
 const { push, origin } = vi.hoisted(() => ({ push: vi.fn(), origin: { query: "" } }));
 vi.mock("next/link", () => import("./support/next-link"));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: push }), useSearchParams: () => new URLSearchParams(origin.query) }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ account: { id: "u1", role: "USER", displayName: "Benjamín" } }) }));
-vi.mock("@/services/academic", () => ({ obtenerComision: vi.fn() }));
+vi.mock("@/services/academic", () => ({ obtenerComision: vi.fn(), listarCursadasPorMateria: vi.fn(), listarComisionesPorCursada: vi.fn() }));
+vi.mock("@/services/materias", () => ({ listarMaterias: vi.fn() }));
+vi.mock("@/services/feedback-feed", () => ({ listarFeedComentarios: vi.fn() }));
+vi.mock("@/hooks/useIsAdmin", () => ({ useIsAdmin: () => false }));
 vi.mock("@/services/feedback", () => ({
   obtenerFeedback: vi.fn(), obtenerFeedbackPropio: vi.fn(), crearFeedback: vi.fn(),
   actualizarFeedback: vi.fn(), eliminarFeedback: vi.fn(), listarHistorialFeedback: vi.fn(),
@@ -530,5 +536,99 @@ describe("Detalle de feedback", () => {
     await user.click(screen.getByRole("button", { name: "Confirmar eliminación" }));
     await waitFor(() => expect(eliminarFeedback).toHaveBeenCalledWith("f1"));
     expect(String(push.mock.calls[0][0])).toContain("comisiones/c1?successMessage=");
+  });
+});
+
+
+describe("Block 7A: publishing from Inicio", () => {
+  const materia = { id: "m1", nombre: "Algebra", modalidad: "ANUAL" as const, carreras: [], createdAt: "2026-01-01", deletedAt: null, valoracion: { promedio: null, cantidad: 0 } };
+  beforeEach(() => {
+    vi.mocked(listarMaterias).mockResolvedValue({ items: [materia, { ...materia, id: "deleted", nombre: "Deleted subject", deletedAt: "2026-01-01" }], total: 2, page: 1, pageSize: 9 });
+    vi.mocked(listarCursadasPorMateria).mockResolvedValue({ items: [{ id: "cu1", anio: 2026, cuatrimestre: "ANUAL", comisiones: 3, profesores: 2, carreras: ["S"] }], total: 1, page: 1, pageSize: 9 });
+    vi.mocked(listarComisionesPorCursada).mockResolvedValue({ items: [comision, { ...comision, id: "inactive", nombre: "Inactive", activa: false }, { ...comision, id: "deleted", nombre: "Deleted", deletedAt: "2026-01-01" }, { ...comision, id: "foreign", nombre: "Foreign", cursadaId: "other" }], total: 4, page: 1, pageSize: 9 });
+    vi.mocked(listarFeedComentarios).mockResolvedValue({ items: [], nextCursor: null, hasMore: false });
+  });
+  async function chooseUntilCommission() {
+    render(<FeedPrincipal />); expect(listarMaterias).not.toHaveBeenCalled(); await userEvent.click(screen.getByRole("button", { name: "Agregar comentario" }));
+    expect(screen.queryByRole("button", { name: "Deleted subject" })).toBeNull();
+    await userEvent.click(await screen.findByRole("button", { name: "Algebra" }));
+    await userEvent.click(await screen.findByRole("button", { name: /Cursada 2026/ }));
+    await screen.findByRole("button", { name: "Comisión S-31" });
+  }
+  it("requires explicit subject, course and valid commission selection, then opens the existing form", async () => {
+    await chooseUntilCommission();
+    expect(screen.queryByRole("button", { name: /Inactive|Deleted|Foreign/ })).toBeNull();
+    expect(push).not.toHaveBeenCalled(); expect(obtenerComision).not.toHaveBeenCalled();
+    expect(listarMaterias).toHaveBeenCalledWith({ page: 1, pageSize: 9, q: "" });
+    expect(listarCursadasPorMateria).toHaveBeenCalledWith("m1", { page: 1, pageSize: 9 });
+    expect(listarComisionesPorCursada).toHaveBeenCalledWith("cu1", { page: 1, pageSize: 9 });
+    await userEvent.click(screen.getByRole("button", { name: "Comisión S-31" }));
+    await waitFor(() => expect(push).toHaveBeenCalledOnce());
+    const target = new URL(String(push.mock.calls[0][0]), "http://local");
+    expect(target.pathname).toBe("/home/feedback/nuevo"); expect(Object.fromEntries(target.searchParams)).toEqual({ comisionId: "c1", origen: "inicio" });
+  });
+  it("rechecks a commission before opening the form and rejects a newly inactive or foreign one", async () => {
+    await chooseUntilCommission(); vi.mocked(obtenerComision).mockResolvedValue({ ...comision, activa: false });
+    await userEvent.click(screen.getByRole("button", { name: "Comisión S-31" })); await screen.findByRole("alert"); expect(push).not.toHaveBeenCalled();
+    vi.mocked(obtenerComision).mockResolvedValue({ ...comision, cursada: { ...comision.cursada, materia: { id: "other", nombre: "Other" } } });
+    await userEvent.click(screen.getByRole("button", { name: "Comisión S-31" })); await waitFor(() => expect(obtenerComision).toHaveBeenCalledTimes(2)); expect(push).not.toHaveBeenCalled();
+  });
+  it("paginates and searches subjects without downloading the catalog", async () => {
+    vi.mocked(listarMaterias).mockResolvedValueOnce({ items: [materia], total: 10, page: 1, pageSize: 9 }).mockResolvedValueOnce({ items: [{ ...materia, id: "m2", nombre: "Otra materia" }], total: 10, page: 2, pageSize: 9 });
+    render(<FeedPrincipal />); await userEvent.click(screen.getByRole("button", { name: "Agregar comentario" })); await screen.findByRole("button", { name: "Algebra" });
+    await userEvent.click(screen.getByRole("button", { name: "Página siguiente" })); await screen.findByRole("button", { name: "Otra materia" });
+    expect(listarMaterias).toHaveBeenLastCalledWith({ page: 2, pageSize: 9, q: "" });
+    await userEvent.type(screen.getByRole("searchbox", { name: "Buscar materia por nombre" }), "Algebra"); await userEvent.click(screen.getByRole("button", { name: "Buscar materia" }));
+    await waitFor(() => expect(listarMaterias).toHaveBeenLastCalledWith({ page: 1, pageSize: 9, q: "Algebra" })); expect(push).not.toHaveBeenCalled();
+  });
+  it("ignores a late commission check after cancelling selection", async () => {
+    await chooseUntilCommission(); let resolve!: (value: typeof comision) => void;
+    vi.mocked(obtenerComision).mockReturnValueOnce(new Promise(yes => { resolve = yes; }));
+    await userEvent.click(screen.getByRole("button", { name: "Comisión S-31" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar selección" }));
+    await act(async () => resolve(comision)); expect(push).not.toHaveBeenCalled(); expect(screen.queryByRole("dialog")).toBeNull();
+  });
+  it("keeps automatic professor assignment for a single-professor commission", async () => {
+    origin.query = "origen=inicio"; vi.mocked(obtenerComision).mockResolvedValue({ ...comision, profesores: [comision.profesores[0]] });
+    render(<FeedbackForm comisionId="c1" />); await userEvent.type(await screen.findByRole("textbox", { name: "Tu experiencia" }), "Docente unico");
+    await userEvent.click(screen.getByRole("radio", { name: "3 estrellas" })); await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
+    await waitFor(() => expect(crearFeedback).toHaveBeenCalledExactlyOnceWith("c1", { texto: "Docente unico", anonimo: false, puntuacion: 3 }));
+  });
+  it("cancels academic selection without navigating or posting", async () => {
+    render(<FeedPrincipal />); await userEvent.click(screen.getByRole("button", { name: "Agregar comentario" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar selección" }));
+    expect(screen.queryByRole("dialog")).toBeNull(); expect(push).not.toHaveBeenCalled(); expect(crearFeedback).not.toHaveBeenCalled();
+  });
+  it("uses the existing stars, anonymity and professor rules and returns to a new home window", async () => {
+    origin.query = "origen=inicio"; render(<FeedbackForm comisionId="c1" />);
+    const text = await screen.findByRole("textbox", { name: "Tu experiencia" }); await userEvent.type(text, "Publicada desde Inicio");
+    await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" })); expect(crearFeedback).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("radio", { name: "5 estrellas" })); await userEvent.click(screen.getByRole("radio", { name: /^Grace/ }));
+    await userEvent.click(screen.getByRole("radio", { name: /^De forma anónima/ })); await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
+    await waitFor(() => expect(crearFeedback).toHaveBeenCalledExactlyOnceWith("c1", { texto: "Publicada desde Inicio", anonimo: true, puntuacion: 5, profesorId: "p2" }));
+    const target = new URL(String(push.mock.calls[0][0]), "http://local"); expect(target.pathname).toBe("/home"); expect(target.searchParams.get("feedRefresh")).toMatch(/^[0-9a-f-]{36}$/i);
+  });
+  it("keeps the draft and selections after failure, then cancels back to Inicio", async () => {
+    origin.query = "origen=inicio"; vi.mocked(crearFeedback).mockRejectedValueOnce(new Error("Publication failed"));
+    render(<FeedbackForm comisionId="c1" />); const text = await screen.findByRole("textbox", { name: "Tu experiencia" });
+    await userEvent.type(text, "Borrador pendiente"); await userEvent.click(screen.getByRole("radio", { name: "4 estrellas" }));
+    await userEvent.click(screen.getByRole("radio", { name: /^Grace/ })); await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
+    await screen.findByText("Publication failed"); expect((text as HTMLTextAreaElement).value).toBe("Borrador pendiente"); expect((screen.getByRole("radio", { name: "4 estrellas" }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole("radio", { name: /^Grace/ }) as HTMLInputElement).checked).toBe(true); expect(push).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar" })); await userEvent.click(screen.getByRole("button", { name: "Descartar y volver" })); expect(push).toHaveBeenCalledExactlyOnceWith("/home");
+  });
+  it("cancels an untouched Inicio form directly to Inicio", async () => {
+    origin.query = "origen=inicio"; render(<FeedbackForm comisionId="c1" />); await screen.findByRole("textbox", { name: "Tu experiencia" });
+    expect(screen.getByRole("link", { name: "Volver a Inicio" }).getAttribute("href")).toBe("/home");
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar" })); expect(push).toHaveBeenCalledExactlyOnceWith("/home");
+  });
+  it("starts at the first feed page after publication and deduplicates the server result", async () => {
+    const Home = (await import("../src/app/home/page")).default;
+    const posted = { ...feedback, texto: "New published item", cantidadLikes: 0, cantidadRespuestas: 0, meGusta: false };
+    vi.mocked(listarFeedComentarios).mockResolvedValueOnce({ items: [{ ...posted, id: "old", texto: "Old window" }], nextCursor: "old-cursor", hasMore: true }).mockResolvedValueOnce({ items: [posted, posted], nextCursor: null, hasMore: false });
+    const view = render(await Home({ searchParams: Promise.resolve({}) })); await screen.findByText("Old window");
+    view.rerender(await Home({ searchParams: Promise.resolve({ feedRefresh: "12345678-1234-4234-8234-123456789012" }) }));
+    await screen.findByText("New published item"); expect(screen.queryByText("Old window")).toBeNull(); expect(screen.getAllByText("New published item")).toHaveLength(1);
+    expect(vi.mocked(listarFeedComentarios).mock.calls).toEqual([[], []]);
   });
 });
