@@ -16,6 +16,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { cargoLabel } from "@/validations/materias";
 import { diferenciasFeedback, feedbackDetalleHref, feedbackNavigation, feedbackSuccessHref, MAX_TEXTO_FEEDBACK, validarTextoFeedback, validarPuntuacionFeedback } from "@/validations/feedback";
 import { SelectorEstrellas } from "./SelectorEstrellas";
+import { useFeedbackDraft } from "./FeedbackDraftProvider";
 import { useFeedbackResource } from "./useFeedbackResource";
 import styles from "./feedback.module.css";
 
@@ -29,8 +30,9 @@ function contextPeriod(anio: number, modalidad: ModalidadMateria | null | undefi
 
 export function FeedbackForm({ feedbackId, comisionId }: { feedbackId?: string; comisionId?: string }) {
   const headingId = useId();
+  const { account } = useAuth();
   const params = useSearchParams();
-  const resource = useFeedbackResource<FormResource>(`form:${feedbackId ?? ""}:${comisionId ?? ""}`, async () => {
+  const resource = useFeedbackResource<FormResource>(`form:${account?.id ?? ""}:${feedbackId ?? ""}:${comisionId ?? ""}`, async () => {
     if (feedbackId) {
       const feedback = await obtenerFeedback(feedbackId);
       const comision = await obtenerComision(feedback.contexto.comisionId);
@@ -44,13 +46,13 @@ export function FeedbackForm({ feedbackId, comisionId }: { feedbackId?: string; 
   const context = resource.data?.feedback?.contexto;
   const comision = resource.data?.comision;
   const navigation = feedbackNavigation(context ?? (comision ? comisionContext(comision) : null), params);
-  const backHref = feedbackId ? feedbackDetalleHref(feedbackId, params) : navigation.commissionHref;
+  const backHref = feedbackId ? feedbackDetalleHref(feedbackId, params) : params.get("origen") === "inicio" ? navigation.back.href : navigation.commissionHref;
   const period = comision?.cursada.cuatrimestre;
   const modalidad = context ? context.modalidad ?? context.cuatrimestre : period !== undefined ? period : comision?.cursada.materia.modalidad;
   return <section className={styles.editorPage} aria-labelledby={headingId}>
     <header className={styles.editorHeader}>
       <PageHeader id={headingId} title={feedbackId ? "Editar comentario" : "Compartir mi experiencia"} focusKey={feedbackId ?? comisionId}
-        back={{ href: backHref, label: feedbackId ? "tu comentario" : "Comisión" }}
+        back={{ href: backHref, label: feedbackId ? "tu comentario" : params.get("origen") === "inicio" ? "Inicio" : "Comisión" }}
         breadcrumb={[...navigation.items, ...(feedbackId ? [{ label: "Tu comentario", href: backHref }] : []), { label: feedbackId ? "Editar comentario" : "Compartir experiencia" }]} />
     </header>
     {resource.error ? <Notice tone="error">{resource.error} {!resource.notFound ? <button className="button" type="button" onClick={resource.retry}>Reintentar</button> : null}</Notice> : null}
@@ -63,7 +65,7 @@ export function FeedbackForm({ feedbackId, comisionId }: { feedbackId?: string; 
       {!comision.activa ? <Notice tone="warning">Esta comisión está inactiva. No se pueden publicar ni editar comentarios.</Notice>
         : feedbackId && !resource.data.feedback?.propio ? <Notice tone="error">Solo podés editar tus propios comentarios.</Notice>
         : !feedbackId && resource.data.propio ? <Notice tone="warning">Ya tenés un comentario vigente en esta comisión. <Link href={feedbackDetalleHref(resource.data.propio.id, params)}>Ver mi comentario</Link></Notice>
-        : <FeedbackEditor key={feedbackId ?? comision.id} comision={comision} original={resource.data.feedback} normasIniciales={resource.data.normas} cancelHref={backHref} />}
+        : <FeedbackEditor key={JSON.stringify([account?.id ?? null, feedbackId ?? comision.id])} comision={comision} original={resource.data.feedback} normasIniciales={resource.data.normas} cancelHref={backHref} />}
     </> : null}
   </section>;
 }
@@ -79,10 +81,14 @@ function FeedbackEditor({ comision, original, normasIniciales, cancelHref }: { c
   const identityId = useId();
   const profesorId = useId();
   const initialTarget = comision.profesores.length === 1 ? comision.profesores[0].id : "";
-  const [texto, setTexto] = useState(original?.texto ?? "");
-  const [anonimo, setAnonimo] = useState(original?.anonimo ?? false);
-  const [puntuacion, setPuntuacion] = useState<number | null>(original?.puntuacion ?? null);
-  const [target, setTarget] = useState(initialTarget);
+  const draftKey = JSON.stringify([comision.cursada.materia.id, comision.cursadaId, comision.id, original?.id ?? null]);
+  const { draft: { texto, anonimo, puntuacion, target }, setField, discardDraft } = useFeedbackDraft(draftKey,
+    { texto: original?.texto ?? "", anonimo: original?.anonimo ?? false, puntuacion: original?.puntuacion ?? null, target: initialTarget },
+    comision.profesores.length === 1 ? [initialTarget] : ["", ...comision.profesores.map(profesor => profesor.id)]);
+  const setTexto = (value: string) => setField("texto", value);
+  const setAnonimo = (value: boolean) => setField("anonimo", value);
+  const setPuntuacion = (value: number | null) => setField("puntuacion", value);
+  const setTarget = (value: string) => setField("target", value);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [normas, setNormas] = useState(normasIniciales);
   const [mostrarNormas, setMostrarNormas] = useState(false);
@@ -114,6 +120,7 @@ function FeedbackEditor({ comision, original, normasIniciales, cancelHref }: { c
         const changes = diferenciasFeedback(original, { texto: text, anonimo: anonymous, puntuacion: values.puntuacion === "" ? null : Number(values.puntuacion) });
         if (Object.keys(changes).length === 0) { setSuccess("No hay cambios para guardar."); return; }
         await actualizarFeedback(original.id, changes);
+        discardDraft();
         router.push(feedbackSuccessHref(cancelHref, "El comentario se actualizó correctamente."));
       } else {
         try {
@@ -128,6 +135,7 @@ function FeedbackEditor({ comision, original, normasIniciales, cancelHref }: { c
           }
           throw failure;
         }
+        discardDraft();
         router.push(feedbackSuccessHref(cancelHref, "El comentario se publicó correctamente."));
       }
     },
@@ -135,7 +143,7 @@ function FeedbackEditor({ comision, original, normasIniciales, cancelHref }: { c
   function cancel() {
     if (busy) return;
     if (dirty) setConfirmCancel(true);
-    else router.push(cancelHref);
+    else { discardDraft(); router.push(cancelHref); }
   }
   return <>
     <div className={styles.editorSurface}><form onSubmit={handleSubmit} onChange={handleChange} noValidate className={styles.editorForm} aria-busy={busy}>
@@ -193,7 +201,7 @@ function FeedbackEditor({ comision, original, normasIniciales, cancelHref }: { c
       <div className="dialog-actions"><button type="button" className="button" data-autofocus onClick={() => setMostrarNormas(false)}>Volver a la reseña</button></div>
     </Dialog> : null}
     <Dialog open={confirmCancel} onClose={() => setConfirmCancel(false)} title="Descartar cambios" description="Tenés cambios sin guardar. Si salís, se perderán." busy={busy}>
-      <div className="dialog-actions"><button className="button button-secondary" type="button" onClick={() => setConfirmCancel(false)} data-autofocus>Seguir escribiendo</button><button className="button" type="button" onClick={() => router.push(cancelHref)}>Descartar y volver</button></div>
+      <div className="dialog-actions"><button className="button button-secondary" type="button" onClick={() => setConfirmCancel(false)} data-autofocus>Seguir escribiendo</button><button className="button" type="button" onClick={() => { discardDraft(); router.push(cancelHref); }}>Descartar y volver</button></div>
     </Dialog>
   </>;
 }
