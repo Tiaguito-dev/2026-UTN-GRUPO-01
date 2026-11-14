@@ -13,3 +13,11 @@ export function validateCreateFeedbackRespuesta(value: unknown) {
 }
 
 export type CreateFeedbackRespuestaInput = ReturnType<typeof validateCreateFeedbackRespuesta>;
+
+const updateSchema = bodySchema.pick({ texto: true, anonimo: true }).partial();
+export function validateUpdateFeedbackRespuesta(value: unknown) {
+  const result = updateSchema.safeParse(value);
+  if (!result.success) throw new FeedbackInputError();
+  return validateUpdateFeedback(result.data);
+}
+export type UpdateFeedbackRespuestaInput = Pick<ReturnType<typeof validateUpdateFeedbackRespuesta>, "texto" | "anonimo">;

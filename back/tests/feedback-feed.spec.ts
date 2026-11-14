@@ -73,11 +73,21 @@ describe("Feed: consulta por clave y proyección pública", () => {
   function setup(rows: ReturnType<typeof row>[]) {
     const findMany = vi.fn().mockResolvedValue(rows);
     const aggregate = vi.fn().mockResolvedValue([]);
-    const tx = { feedback: { findMany }, $queryRaw: aggregate };
+    const tx = { feedbackRespuesta: { groupBy: vi.fn().mockResolvedValue([]) }, feedback: { findMany }, $queryRaw: aggregate };
     const transaction = vi.fn().mockImplementation(async (callback: (value: typeof tx) => unknown) => callback(tx));
     const repository = new PrismaFeedbackFeedRepository({ ...tx, $transaction: transaction } as unknown as PrismaService);
-    return { findMany, aggregate, transaction, service: new FeedbackFeedService(repository) };
+    return { replies: tx.feedbackRespuesta.groupBy, findMany, aggregate, transaction, service: new FeedbackFeedService(repository) };
   }
+  it("counts replies once for only the visible page and propagates aggregation failures", async () => {
+    const rows = [row(randomUUID()), row(randomUUID()), row(randomUUID())]; const f = setup(rows);
+    f.replies.mockResolvedValueOnce([{ feedbackId: rows[0]!.id, _count: { _all: 3 } }]);
+    const result = await f.service.list(viewer, { pageSize: 2 });
+    expect(result.items.map(item => item.cantidadRespuestas)).toEqual([3, 0]);
+    expect(f.replies).toHaveBeenCalledExactlyOnceWith({ by: ["feedbackId"], where: { deletedAt: null, feedback: { deletedAt: null }, feedbackId: { in: rows.slice(0, 2).map(item => item.id) } }, _count: { _all: true } });
+    f.replies.mockRejectedValueOnce(new Error("reply aggregation failed"));
+    await expect(f.service.list(viewer, {})).rejects.toThrow("reply aggregation failed");
+    const empty = setup([]); await empty.service.list(viewer, {}); expect(empty.replies).not.toHaveBeenCalled();
+  });
   it("consulta una vez pageSize + 1 y genera el cursor desde la última fila entregada", async () => {
     const rows = [row("00000000-0000-4000-8000-000000000003"), row("00000000-0000-4000-8000-000000000002"), row("00000000-0000-4000-8000-000000000001")];
     const { service, findMany } = setup(rows);

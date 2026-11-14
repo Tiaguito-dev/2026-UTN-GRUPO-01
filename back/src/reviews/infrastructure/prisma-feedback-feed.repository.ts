@@ -31,6 +31,11 @@ export class PrismaFeedbackFeedRepository implements FeedbackFeedRepository {
         FROM "FeedbackLike" WHERE "deletedAt" IS NULL
           AND "feedbackId" IN (${Prisma.join(items.map(item => Prisma.sql`${item.id}::uuid`))})
         GROUP BY "feedbackId"`) : [];
+      const replies = items.length ? await tx.feedbackRespuesta.groupBy({
+        by: ["feedbackId"], where: { deletedAt: null, feedback: { deletedAt: null }, feedbackId: { in: items.map(item => item.id) } },
+        _count: { _all: true },
+      }) : [];
+      const byReplies = new Map(replies.map(reply => [reply.feedbackId, reply._count._all]));
       const byFeedback = new Map(likes.map(like => [like.feedbackId, like]));
       const first = items[0];
       const last = items.at(-1);
@@ -41,7 +46,7 @@ export class PrismaFeedbackFeedRepository implements FeedbackFeedRepository {
       })).toString("base64url") : null;
       return { items: items.map(row => {
         const summary = byFeedback.get(row.id);
-        return { ...present(row, viewer), cantidadLikes: Number(summary?.cantidadLikes ?? 0n), meGusta: summary?.meGusta ?? false };
+        return { ...present(row, viewer), cantidadRespuestas: byReplies.get(row.id) ?? 0, cantidadLikes: Number(summary?.cantidadLikes ?? 0n), meGusta: summary?.meGusta ?? false };
       }), nextCursor, hasMore };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
   }

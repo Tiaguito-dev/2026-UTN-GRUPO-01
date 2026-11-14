@@ -26,7 +26,7 @@ describe("Respuestas: validación", () => {
   });
   it("no llega a persistencia con UUID o cuerpo inválidos", () => {
     const create = vi.fn();
-    const service = new FeedbackRespuestaService({ create });
+    const service = new FeedbackRespuestaService({ create, list: vi.fn(), update: vi.fn(), remove: vi.fn() });
     expect(() => service.create("invalid", viewer, input)).toThrow();
     expect(() => service.create(id, viewer, {})).toThrow();
     expect(create).not.toHaveBeenCalled();
@@ -154,5 +154,31 @@ describe("Respuestas: transacción e idempotencia", () => {
     expect(f.transaction).toHaveBeenCalledOnce();
     f.audit.mockRejectedValueOnce(new Error("auditoría fallida"));
     await expect(f.repository.create(id, viewer, input)).rejects.toThrow("auditoría fallida");
+  });
+});
+
+
+describe("Block 5: management service validation", () => {
+  const mock = () => ({ create: vi.fn(), list: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }), update: vi.fn().mockResolvedValue({}), remove: vi.fn().mockResolvedValue(undefined) });
+  it("uses shared pagination defaults and forwards only normalized text and identity", async () => {
+    const repository = mock(); const service = new FeedbackRespuestaService(repository);
+    await service.list(id.toUpperCase(), viewer, {});
+    expect(repository.list).toHaveBeenCalledExactlyOnceWith(id, viewer, { page: 1, pageSize: 20 });
+    await service.update(id, viewer, { texto: "  Changed  ", anonimo: false });
+    expect(repository.update).toHaveBeenCalledExactlyOnceWith(id, viewer, { texto: "Changed", anonimo: false });
+    await service.remove(id, viewer); expect(repository.remove).toHaveBeenCalledExactlyOnceWith(id, viewer);
+  });
+  it.each([{ puntuacion: 4 }, { versionNormas: "1" }, { autorId: viewer }, { solicitudId: randomUUID() }, { texto: " " }, { texto: "x".repeat(3001) }, { anonimo: "false" }])("rejects invalid or foreign update fields %j", body => {
+    const repository = mock(); const service = new FeedbackRespuestaService(repository);
+    expect(() => service.update(id, viewer, body)).toThrow(); expect(repository.update).not.toHaveBeenCalled();
+  });
+  it.each([{ page: 0 }, { pageSize: 101 }, { pageSize: 0 }, { page: 1.5 }])("rejects invalid pagination %j before persistence", query => {
+    const repository = mock(); expect(() => new FeedbackRespuestaService(repository).list(id, viewer, query)).toThrow();
+    expect(repository.list).not.toHaveBeenCalled();
+  });
+  it("rejects invalid identifiers on all management operations", () => {
+    const repository = mock(); const service = new FeedbackRespuestaService(repository);
+    expect(() => service.list("invalid", viewer, {})).toThrow(); expect(() => service.update("invalid", viewer, {})).toThrow(); expect(() => service.remove("invalid", viewer)).toThrow();
+    expect(repository.list).not.toHaveBeenCalled(); expect(repository.update).not.toHaveBeenCalled(); expect(repository.remove).not.toHaveBeenCalled();
   });
 });

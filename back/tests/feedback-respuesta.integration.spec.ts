@@ -262,4 +262,141 @@ describe.skipIf(!databaseUrl)("Respuestas: creación HTTP/PostgreSQL aislado", (
     expect(await prisma.feedbackRespuestaHistorial.count({ where: { respuesta: { feedbackId: f.id } } })).toBe(0);
     expect(await prisma.administracionHistorial.count({ where: { entidad: "respuesta", actorId: reader.id } })).toBe(auditCount);
   });
+
+  describe("Block 5: reading and managing replies", () => {
+    const replyPath = (id: string) => `/feedback/respuestas/${id}`;
+    it("paginates visible replies deterministically without private identity", async () => {
+      const f = await fixture();
+      const first = await create(f.path); const second = await create(f.path, { ...body(), anonimo: false });
+      const time = new Date("2026-11-01T00:00:00Z");
+      await prisma.feedbackRespuesta.updateMany({ where: { feedbackId: f.id }, data: { createdAt: time } });
+      const sorted = [first.id, second.id].sort().reverse();
+      for (const [index, expected] of sorted.entries()) {
+        const response = await request(f.path + `?page=${index + 1}&pageSize=1`, "GET", undefined, author.cookie);
+        expect(response.status).toBe(200); expect(response.headers.get("cache-control")).toBe("no-store");
+        const page = await response.json();
+        expect(page).toMatchObject({ total: 2, page: index + 1, pageSize: 1, items: [{ id: expected, propio: false }] });
+        expect(page.items).toHaveLength(1);
+        expect(JSON.stringify(page)).not.toMatch(/autorId|solicitudId|email|password|token/);
+        expect(page.items[0].autor).toEqual(page.items[0].anonimo ? null : { displayName: "Persona de prueba" });
+      }
+      expect((await (await request(f.path + "?page=3&pageSize=1", "GET")).json()).items).toEqual([]);
+      expect((await request(f.path, "GET", undefined, "")).status).toBe(401);
+      for (const query of ["page=0", "pageSize=101", "page=1.5"]) expect((await request(f.path + "?" + query, "GET")).status).toBe(400);
+      expect((await request("/feedback/invalid/respuestas", "GET")).status).toBe(400);
+      expect((await request(`/feedback/${randomUUID()}/respuestas`, "GET")).status).toBe(404);
+    });
+    it("only the author edits and removes, without changing stars or initial retry snapshot", async () => {
+      const f = await fixture(); const input = body(); const reply = await create(f.path, input);
+      const rating = await prisma.valoracionMateria.findMany({ where: { materiaId: f.materiaId } });
+      const path = replyPath(reply.id);
+      expect((await request(path, "PATCH", { texto: "Changed" }, "")).status).toBe(401);
+      expect((await request(path, "DELETE", undefined, "")).status).toBe(401);
+      expect((await request(path, "PATCH", { texto: "Changed" }, author.cookie)).status).toBe(403);
+      expect((await request(path, "DELETE", undefined, author.cookie)).status).toBe(403);
+      await prisma.user.update({ where: { id: author.id }, data: { role: "ADMIN" } });
+      expect((await request(path, "PATCH", { texto: "Changed" }, author.cookie)).status).toBe(403);
+      expect((await request(path, "DELETE", undefined, author.cookie)).status).toBe(403);
+      await prisma.user.update({ where: { id: author.id }, data: { role: "USER" } });
+      for (const data of [{ texto: " " }, { puntuacion: 4 }, { versionNormas: "1" }, { solicitudId: randomUUID() }, { anonimo: null }]) expect((await request(path, "PATCH", data)).status).toBe(400);
+      expect((await fetch(url + path, { method: "PATCH", headers: { Cookie: reader.cookie, "Content-Type": "application/json" }, body: JSON.stringify({ texto: "No CSRF" }) })).status).toBe(403);
+      const edited = await request(path, "PATCH", { texto: "  Changed  ", anonimo: false });
+      expect(edited.status).toBe(200); expect(edited.headers.get("cache-control")).toBe("no-store");
+      expect(await edited.json()).toMatchObject({ id: reply.id, texto: "Changed", anonimo: false, propio: true });
+      expect(await create(f.path, input, 200)).toMatchObject({ texto: "Changed", anonimo: false });
+      expect((await request(path, "PATCH", {})).status).toBe(200);
+      const history = await prisma.feedbackRespuestaHistorial.findMany({ where: { respuestaId: reply.id }, orderBy: { createdAt: "asc" } });
+      expect(history.map(h => h.accion)).toEqual(["CREACION", "EDICION"]);
+      const audit = await prisma.administracionHistorial.findUniqueOrThrow({ where: { id: history[1]!.id } });
+      expect(audit).toMatchObject({ entidad: "respuesta", actorId: reader.id, accion: "EDICION", cambios: expect.arrayContaining([{ campo: "texto", anterior: input.texto, nuevo: "Changed" }]) });
+      await prisma.comision.update({ where: { id: f.comisionId }, data: { activa: false } });
+      expect((await request(path, "PATCH", { texto: "Blocked" })).status).toBe(409);
+      expect((await request(f.path, "GET")).status).toBe(200);
+      for (let n = 0; n < 2; n++) { const deleted = await request(path, "DELETE"); expect(deleted.status).toBe(204); expect(deleted.headers.get("cache-control")).toBe("no-store"); }
+      expect((await request(path, "PATCH", { texto: "Blocked" })).status).toBe(404);
+      expect((await request(f.path, "POST", input)).status).toBe(409);
+      expect((await (await request(f.path, "GET")).json()).total).toBe(0);
+      expect(await prisma.feedbackRespuestaHistorial.count({ where: { respuestaId: reply.id } })).toBe(3);
+      const removed = await prisma.feedbackRespuestaHistorial.findFirstOrThrow({ where: { respuestaId: reply.id, accion: "ELIMINACION" } });
+      expect(removed).toMatchObject({ texto: "Changed", anonimo: false });
+      expect(await prisma.administracionHistorial.findUnique({ where: { id: removed.id } })).toMatchObject({ accion: "ELIMINACION", cambios: expect.arrayContaining([expect.objectContaining({ campo: "deletedAt", anterior: null })]) });
+      expect(await prisma.valoracionMateria.findMany({ where: { materiaId: f.materiaId } })).toEqual(rating);
+    });
+    it("counts visible replies per feed page and hides everything after parent deletion", async () => {
+      const f = await fixture(); const reply = await create(f.path);
+      const count = async () => (await (await request("/feedback/feed", "GET")).json()).items.find((item: { id: string }) => item.id === f.id)?.cantidadRespuestas;
+      expect(await count()).toBe(1);
+      await request(replyPath(reply.id), "DELETE"); expect(await count()).toBe(0);
+      const remaining = await create(f.path);
+      expect((await request(`/feedback/${f.id}`, "DELETE", undefined, author.cookie)).status).toBe(204);
+      expect((await request(f.path, "GET")).status).toBe(404);
+      expect((await request(replyPath(remaining.id), "PATCH", { texto: "Hidden" })).status).toBe(404);
+      expect((await request(replyPath(remaining.id), "DELETE")).status).toBe(404);
+      expect((await request(`/feedback/${remaining.id}`, "GET")).status).toBe(404);
+      expect((await request(`/feedback/${remaining.id}/historial`, "GET")).status).toBe(404);
+    });
+    it("serializes two edits and repeated concurrent deletes with one snapshot per real change", async () => {
+      const f = await fixture(); const reply = await create(f.path); const path = replyPath(reply.id);
+      const results = await Promise.all([request(path, "PATCH", { texto: "First" }), request(path, "PATCH", { texto: "Second" })]);
+      expect(results.map(r => r.status)).toEqual([200, 200]);
+      const row = await prisma.feedbackRespuesta.findUniqueOrThrow({ where: { id: reply.id } });
+      const history = await prisma.feedbackRespuestaHistorial.findMany({ where: { respuestaId: reply.id, accion: "EDICION" }, orderBy: { createdAt: "asc" } });
+      expect(history).toHaveLength(2); expect(history.map(h => h.texto).sort()).toEqual(["First", "Second"]);
+      const events = await prisma.administracionHistorial.findMany({ where: { entidadId: reply.id, accion: "EDICION" }, orderBy: { createdAt: "asc" } });
+      const changes = events.map(e => (e.cambios as { campo: string; anterior: string; nuevo: string }[]).find(c => c.campo === "texto")!);
+      const initial = changes.find(change => change.anterior === reply.texto)!;
+      const final = changes.find(change => change.anterior === initial.nuevo)!;
+      expect(final.nuevo).toBe(row.texto);
+      expect((await Promise.all([request(path, "DELETE"), request(path, "DELETE")])).map(r => r.status)).toEqual([204, 204]);
+      expect(await prisma.feedbackRespuestaHistorial.count({ where: { respuestaId: reply.id, accion: "ELIMINACION" } })).toBe(1);
+    });
+    it.each(["PATCH", "DELETE"])("revalidates hidden parent after real lock contention: %s", async method => {
+      const f = await fixture(); const reply = await create(f.path);
+      let reached!: () => void; let release!: () => void;
+      const entered = new Promise<void>(resolve => { reached = resolve; }); const released = new Promise<void>(resolve => { release = resolve; });
+      const deletion = prisma.$transaction(async tx => {
+        await tx.$queryRaw`SELECT "id" FROM "Comision" WHERE "id"=${f.comisionId}::uuid FOR UPDATE`;
+        await tx.feedback.update({ where: { id: f.id }, data: { deletedAt: new Date() } }); reached(); await released;
+      });
+      let pending: Promise<Response> | undefined;
+      try { await Promise.race([entered, deletion.then(() => { throw new Error("Barrier not reached"); })]); pending = request(replyPath(reply.id), method, method === "PATCH" ? { texto: "Hidden" } : undefined); await waitForCommissionLock(); } finally { release(); }
+      await deletion; expect((await pending)?.status).toBe(404);
+      expect(await prisma.feedbackRespuestaHistorial.count({ where: { respuestaId: reply.id } })).toBe(1);
+    });
+
+    it.each(["PATCH", "DELETE"])("commits a reply change before a waiting parent deletion: %s", async method => {
+      const f = await fixture(); const reply = await create(f.path);
+      let reached!: () => void; let release!: () => void;
+      const entered = new Promise<void>(resolve => { reached = resolve; }); const released = new Promise<void>(resolve => { release = resolve; });
+      const extended = prisma.$extends({ query: { feedbackRespuesta: { async update({ args, query }) {
+        const result = await query(args); reached(); await released; return result;
+      } } } });
+      const repo = new PrismaFeedbackRespuestaRepository(extended as unknown as PrismaService);
+      const mutation = method === "PATCH" ? repo.update(reply.id, reader.id, { texto: "Before parent deletion" }) : repo.remove(reply.id, reader.id);
+      let removal: Promise<Response> | undefined;
+      try {
+        await Promise.race([entered, mutation.then(() => { throw new Error("Barrier not reached"); })]);
+        removal = request(`/feedback/${f.id}`, "DELETE", undefined, author.cookie); await waitForCommissionLock();
+      } finally { release(); }
+      await mutation; expect((await removal)?.status).toBe(204);
+      expect(await prisma.feedbackRespuestaHistorial.count({ where: { respuestaId: reply.id } })).toBe(2);
+      expect((await request(f.path, "GET")).status).toBe(404);
+    });
+
+    it.each([["PATCH", "audit"], ["DELETE", "audit"], ["PATCH", "snapshot"], ["DELETE", "snapshot"]])("rolls back response and snapshot on %s failure at %s", async (method, step) => {
+      const f = await fixture(); const reply = await create(f.path);
+      const before = await prisma.feedbackRespuesta.findUniqueOrThrow({ where: { id: reply.id } });
+      const originalSnapshot = await prisma.feedbackRespuestaHistorial.findFirstOrThrow({ where: { respuestaId: reply.id } });
+      const failing = step === "audit" ? prisma.$extends({ query: { administracionHistorial: { async create() { throw new Error("controlled audit failure"); } } } }) : prisma.$extends({ query: { feedbackRespuesta: { async update({ args, query }) {
+        if (args.data.historial?.create && !Array.isArray(args.data.historial.create)) args.data.historial.create.id = originalSnapshot.id;
+        return query(args);
+      } } } });
+      const repo = new PrismaFeedbackRespuestaRepository(failing as unknown as PrismaService);
+      await expect(method === "PATCH" ? repo.update(reply.id, reader.id, { texto: "Rollback" }) : repo.remove(reply.id, reader.id)).rejects.toThrow();
+      expect(await prisma.feedbackRespuesta.findUniqueOrThrow({ where: { id: reply.id } })).toEqual(before);
+      expect(await prisma.feedbackRespuestaHistorial.count({ where: { respuestaId: reply.id } })).toBe(1);
+      expect(await prisma.administracionHistorial.count({ where: { entidadId: reply.id } })).toBe(1);
+    });
+  });
+
 });

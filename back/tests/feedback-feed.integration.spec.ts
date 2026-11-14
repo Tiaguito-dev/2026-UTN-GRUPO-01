@@ -13,7 +13,7 @@ import { configureAuthHttp } from "../src/auth/presentation/http-security.js";
 import { csrfHeaders, testAuthConfig } from "./auth-test.config.js";
 
 const databaseUrl = process.env["TEST_DATABASE_URL"];
-type Page = { items: { id: string; puntuacion: number | null; autor: { displayName: string } | null; propio: boolean; contexto: { materiaId: string }; cantidadLikes: number; meGusta: boolean }[]; nextCursor: string | null; hasMore: boolean };
+type Page = { items: { id: string; puntuacion: number | null; autor: { displayName: string } | null; propio: boolean; contexto: { materiaId: string }; cantidadLikes: number; meGusta: boolean; cantidadRespuestas: number }[]; nextCursor: string | null; hasMore: boolean };
 
 describe.skipIf(!databaseUrl)("Feed por cursor: HTTP y PostgreSQL", () => {
   let app: INestApplication;
@@ -132,7 +132,8 @@ describe.skipIf(!databaseUrl)("Feed por cursor: HTTP y PostgreSQL", () => {
     const previous = await request("/feedback?page=1&pageSize=9");
     const body = await previous.json();
     expect(Object.keys(body).sort()).toEqual(["items", "page", "pageSize", "total"]);
-    expect(body.items).toEqual(feed.items.map(({ cantidadLikes, meGusta, ...item }) => {
+    expect(body.items).toEqual(feed.items.map(({ cantidadLikes, meGusta, cantidadRespuestas, ...item }) => {
+      expect(cantidadRespuestas).toBe(0);
       expect(cantidadLikes).toBe(0);
       expect(meGusta).toBe(false);
       return item;

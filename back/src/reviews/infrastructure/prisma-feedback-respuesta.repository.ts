@@ -3,11 +3,13 @@ import { Prisma } from "../../generated/prisma/client.js";
 import type { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import type { FeedbackRespuestaRepository } from "../application/ports/feedback-respuesta.repository.js";
 import type { FeedbackRespuesta, FeedbackRespuestaCreada } from "../domain/feedback-respuesta.js";
-import type { CreateFeedbackRespuestaInput } from "../application/feedback-respuesta-input.js";
+import type { CreateFeedbackRespuestaInput, UpdateFeedbackRespuestaInput } from "../application/feedback-respuesta-input.js";
 import { FeedbackRespuestaConflictError } from "../application/feedback-respuesta.service.js";
 import { FeedbackNotFoundError } from "../application/errors.js";
 import { ComisionNotFoundError } from "../../academic/application/errors.js";
-import { assertFeedbackOpen } from "../application/feedback-policy.js";
+import { assertFeedbackOpen, assertFeedbackOwner } from "../application/feedback-policy.js";
+
+import type { Pagination } from "../../shared/domain/pagination.js";
 
 const publicInclude = { autor: { select: { displayName: true } } } satisfies Prisma.FeedbackRespuestaInclude;
 const retryInclude = { ...publicInclude, historial: {
@@ -48,6 +50,64 @@ function requestCollision(error: unknown): boolean {
 
 export class PrismaFeedbackRespuestaRepository implements FeedbackRespuestaRepository {
   constructor(private readonly prisma: PrismaService) {}
+  async list(id: string, viewer: string, pagination: Pagination) {
+    return this.prisma.$transaction(async tx => {
+      const parent = await tx.feedback.findUnique({ where: { id }, select: { deletedAt: true } });
+      if (!parent || parent.deletedAt) throw new FeedbackNotFoundError();
+      const where = { feedbackId: id, deletedAt: null, feedback: { deletedAt: null } };
+      const [rows, total] = await Promise.all([
+        tx.feedbackRespuesta.findMany({ where, include: publicInclude, orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          skip: (pagination.page - 1) * pagination.pageSize, take: pagination.pageSize }),
+        tx.feedbackRespuesta.count({ where }),
+      ]);
+      return { items: rows.map(row => present(row, viewer)), total, ...pagination };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+  }
+
+  async update(id: string, viewer: string, input: UpdateFeedbackRespuestaInput): Promise<FeedbackRespuesta> {
+    return (await this.mutate(id, viewer, input))!;
+  }
+
+  async remove(id: string, viewer: string): Promise<void> {
+    await this.mutate(id, viewer);
+  }
+
+  private async mutate(id: string, viewer: string, input?: UpdateFeedbackRespuestaInput) {
+    const original = await this.prisma.feedbackRespuesta.findUnique({ where: { id }, select: { feedbackId: true, feedback: { select: { comisionId: true } } } });
+    if (!original) throw new FeedbackNotFoundError();
+    return this.prisma.$transaction(async tx => {
+      const commissions = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "Comision" WHERE "id"=${original.feedback.comisionId}::uuid FOR UPDATE`;
+      if (!commissions.length) throw new FeedbackNotFoundError();
+      const [parent] = await tx.$queryRaw<{ id: string; deletedAt: Date | null; comisionId: string }[]>`SELECT "id", "deletedAt", "comisionId" FROM "Feedback" WHERE "id"=${original.feedbackId}::uuid FOR UPDATE`;
+      if (!parent || parent.deletedAt || parent.comisionId !== original.feedback.comisionId) throw new FeedbackNotFoundError();
+      await tx.$queryRaw`SELECT "id" FROM "FeedbackRespuesta" WHERE "id"=${id}::uuid FOR UPDATE`;
+      const row = await tx.feedbackRespuesta.findUnique({ where: { id }, include: publicInclude });
+      if (!row || row.feedbackId !== parent.id || (input !== undefined && row.deletedAt)) throw new FeedbackNotFoundError();
+      assertFeedbackOwner(row.autorId, viewer);
+      if (input === undefined && row.deletedAt) return;
+      if (input !== undefined) {
+        const context = await tx.comision.findFirst({ where: { id: parent.comisionId, deletedAt: null, cursada: { deletedAt: null, materia: { deletedAt: null } } }, select: { activa: true } });
+        if (!context) throw new ComisionNotFoundError();
+        assertFeedbackOpen(context.activa);
+      }
+      const texto = input?.texto ?? row.texto;
+      const anonimo = input?.anonimo ?? row.anonimo;
+      if (input !== undefined && texto === row.texto && anonimo === row.anonimo) return present(row, viewer);
+      const now = new Date(); const eventId = randomUUID();
+      const accion = input === undefined ? "ELIMINACION" : "EDICION";
+      const cambios = input === undefined ? [{ campo: "deletedAt", anterior: null, nuevo: now.toISOString() }] : [
+        { campo: "texto", anterior: row.texto, nuevo: texto },
+        { campo: "anonimo", anterior: String(row.anonimo), nuevo: String(anonimo) },
+      ].filter(change => change.anterior !== change.nuevo);
+      const updated = await tx.feedbackRespuesta.update({ where: { id }, data: {
+        texto, anonimo, updatedAt: now, ...(input === undefined ? { deletedAt: now } : {}),
+        historial: { create: { id: eventId, accion, texto, anonimo } },
+      }, include: publicInclude });
+      await tx.administracionHistorial.create({ data: { id: eventId, entidad: "respuesta", entidadId: id, actorId: viewer, accion, cambios } });
+      return present(updated, viewer);
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
+  }
+
   async create(id: string, viewer: string, input: CreateFeedbackRespuestaInput): Promise<FeedbackRespuestaCreada> {
     try {
       return await this.execute(id, viewer, input);

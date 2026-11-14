@@ -19,6 +19,7 @@ export interface FeedbackFeedQuery {
 
 export interface FeedbackFeedItem extends Feedback {
   cantidadLikes: number;
+  cantidadRespuestas: number;
   meGusta: boolean;
 }
 

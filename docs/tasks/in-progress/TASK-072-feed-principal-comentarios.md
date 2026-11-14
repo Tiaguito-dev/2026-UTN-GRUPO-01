@@ -316,3 +316,10 @@ Verificados rama de origen, HEAD, origin, sincronización remota, inexistencia d
 local/remota y único pendiente TASK-072. Backup original con SHA-256 coincidente y documento
 intacto después del cambio de rama. Solo preparación documental: no se ejecutaron pruebas,
 migraciones, seeds ni builds; no se accedió a bases ni se modificaron servicios o contenedores.
+### Bloque 5: contratos de gestion de respuestas
+
+GET /feedback/:id/respuestas usa PaginatedResult, page=1/pageSize=20 (maximo 100), createdAt/id DESC y snapshot RepeatableRead incluyendo visibilidad del padre. PATCH y DELETE /feedback/respuestas/:id solo por autor, sin privilegios ADMIN. PATCH exige comision activa; DELETE permite comision inactiva y devuelve 204 al repetir si padre visible. Padre eliminado produce 404 en todas las operaciones. PATCH sin diferencias no crea eventos. Escrituras mantienen bloqueos comision, padre, respuesta en ReadCommitted; snapshot y auditoria atomicos. Feed agrega cantidadRespuestas por lote, sin cambios de schema, POST, estrellas o normas.
+
+#### Evidencia Bloque 5 (sin commit)
+
+TDD RED: 8 escenarios nuevos fallaron por rutas/metodos ausentes; 19 escenarios previos excluidos por filtro. GREEN final: respuestas unitarias 50, feed unitario 40, respuestas PostgreSQL 31, comentarios PostgreSQL 45, likes PostgreSQL 10. Regresion backend sin PostgreSQL: 899 aprobadas. Feed PostgreSQL: 4 aprobadas y 1 fallida; su comparacion con Experiencias elimina cantidadLikes/meGusta, pero no el nuevo cantidadRespuestas. No se cambio esa expectativa ni el contrato de Experiencias. Typecheck de aplicacion/tests, ESLint y diff-check aprobados. Base 55471: 22 migraciones exitosas, 19 tablas de aplicacion vacias y ninguna otra conexion al finalizar; sin migraciones ni seeds. Detenido antes de staging/commit conforme a la instruccion de detener ante fallos: pendiente revisar y adaptar explicitamente la comparacion en feedback-feed.integration.spec.ts, comprobar cantidadRespuestas por separado y repetir la suite. TASK-071 no modificada.

@@ -17,6 +17,25 @@ function user(request: AuthenticatedRequest): string {
 export class ReviewsController {
   constructor(private readonly feedback: FeedbackService, private readonly feed: FeedbackFeedService, private readonly likes: FeedbackLikeService, private readonly respuestas: FeedbackRespuestaService) {}
 
+  @Get("feedback/:id/respuestas")
+  @Header("Cache-Control", "no-store")
+  listRespuestas(@Param("id") id: string, @Req() request: AuthenticatedRequest, @Query() query: unknown) {
+    return this.respuestas.list(id, user(request), query);
+  }
+
+  @Patch("feedback/respuestas/:id")
+  @Header("Cache-Control", "no-store")
+  updateRespuesta(@Param("id") id: string, @Req() request: AuthenticatedRequest, @Body() body: unknown) {
+    return this.respuestas.update(id, user(request), body);
+  }
+
+  @Delete("feedback/respuestas/:id")
+  @HttpCode(204)
+  @Header("Cache-Control", "no-store")
+  removeRespuesta(@Param("id") id: string, @Req() request: AuthenticatedRequest) {
+    return this.respuestas.remove(id, user(request));
+  }
+
   @Post("feedback/:id/respuestas")
   @Header("Cache-Control", "no-store")
   async createRespuesta(@Param("id") id: string, @Req() request: AuthenticatedRequest, @Body() body: unknown, @Res({ passthrough: true }) response: Response) {
