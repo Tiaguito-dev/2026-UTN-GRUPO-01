@@ -5,6 +5,7 @@ import { RolesGuard } from "../auth/presentation/roles.guard.js";
 import { FeedbackService } from "./application/feedback.service.js";
 import { FeedbackFeedService } from "./application/feedback-feed.service.js";
 import { FeedbackLikeService } from "./application/feedback-like.service.js";
+import { FeedbackRespuestaService } from "./application/feedback-respuesta.service.js";
 
 function user(request: AuthenticatedRequest): string {
   if (!request.authUser) throw new UnauthorizedException();
@@ -14,7 +15,15 @@ function user(request: AuthenticatedRequest): string {
 @Controller()
 @UseGuards(AuthenticationGuard, RolesGuard)
 export class ReviewsController {
-  constructor(private readonly feedback: FeedbackService, private readonly feed: FeedbackFeedService, private readonly likes: FeedbackLikeService) {}
+  constructor(private readonly feedback: FeedbackService, private readonly feed: FeedbackFeedService, private readonly likes: FeedbackLikeService, private readonly respuestas: FeedbackRespuestaService) {}
+
+  @Post("feedback/:id/respuestas")
+  @Header("Cache-Control", "no-store")
+  async createRespuesta(@Param("id") id: string, @Req() request: AuthenticatedRequest, @Body() body: unknown, @Res({ passthrough: true }) response: Response) {
+    const result = await this.respuestas.create(id, user(request), body);
+    response.status(result.created ? 201 : 200);
+    return result.respuesta;
+  }
 
   @Put("feedback/:id/like")
   @Header("Cache-Control", "no-store")

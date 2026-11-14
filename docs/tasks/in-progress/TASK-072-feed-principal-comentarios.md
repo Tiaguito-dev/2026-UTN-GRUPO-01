@@ -245,6 +245,11 @@ No se declara la funcionalidad terminada ni validada.
 
 ### Likes, respuestas y concurrencia
 
+- La auditoría de respuestas usa la entidad `respuesta`, compatible con `VARCHAR(16)`.
+  Se incorpora al CHECK existente mediante la migración incremental
+  `20261112030000_feedback_respuesta_auditoria`, conservando todos los valores anteriores.
+  El evento inicial comparte id con el snapshot CREACION; los reintentos no crean eventos.
+
 - Likes con PUT/DELETE explícitos e idempotentes, unicidad usuario/comentario y sin autolikes,
   incluso si el padre es anónimo. No exponer autores reales para comprobar propiedad.
 - Respuestas de un nivel, anonimato independiente, sin estrellas ni voto global. Historial,
