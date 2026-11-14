@@ -5,9 +5,11 @@ import type { RefreshCredential } from "../domain/refresh-credential.js";
 import type { Session } from "../domain/session.js";
 import type { AuthenticationUser } from "../../users/domain/user.js";
 import { InvalidRefreshCredentialError } from "../domain/refresh-errors.js";
+import { sessionExpired } from "../domain/session-lifetime.js";
 
 export class PrismaRefreshCredentialRepository implements RefreshCredentialRepository {
-  constructor(private readonly prisma: PrismaService, private readonly now: () => Date = () => new Date()) {}
+  constructor(private readonly prisma: PrismaService, private readonly now: () => Date = () => new Date(),
+    private readonly idleTtlSeconds = 1800) {}
 
   async createSession(session: Session, credential: RefreshCredential, expectedPasswordHash: string): Promise<boolean> {
     this.validateReplacement(session, credential);
@@ -35,7 +37,7 @@ export class PrismaRefreshCredentialRepository implements RefreshCredentialRepos
       const session = await tx.session.findUnique({ where: { id: candidate.sessionId } });
       const credential = await tx.refreshCredential.findUnique({ where: { tokenHash: hash } });
       let checkedAt = this.checkedAt(now);
-      if (!session || !credential || session.revokedAt !== null || session.expiresAt <= checkedAt) return "invalid";
+      if (!session || !credential || sessionExpired(session, checkedAt, this.idleTtlSeconds)) return "invalid";
       if (credential.consumedAt !== null) {
         await tx.session.update({ where: { id: session.id }, data: { revokedAt: checkedAt } });
         await tx.refreshCredential.updateMany({ where: { sessionId: session.id, consumedAt: null, invalidatedAt: null }, data: { invalidatedAt: checkedAt } });
@@ -50,10 +52,10 @@ export class PrismaRefreshCredentialRepository implements RefreshCredentialRepos
       const replacement = await prepareReplacement(session, user);
       this.validateReplacement(session, replacement);
       checkedAt = this.checkedAt(now);
-      if (session.expiresAt <= checkedAt || credential.expiresAt <= checkedAt || replacement.expiresAt <= checkedAt) return "invalid";
+      if (sessionExpired(session, checkedAt, this.idleTtlSeconds) || credential.expiresAt <= checkedAt || replacement.expiresAt <= checkedAt) return "invalid";
       await tx.refreshCredential.update({ where: { id: credential.id }, data: { consumedAt: checkedAt } });
       await tx.refreshCredential.create({ data: replacement });
-      if (session.expiresAt <= this.checkedAt(now)) throw new InvalidRefreshCredentialError();
+      if (sessionExpired(session, this.checkedAt(now), this.idleTtlSeconds)) throw new InvalidRefreshCredentialError();
       return "rotated";
     }, { isolationLevel: "ReadCommitted" });
   }

@@ -13,6 +13,8 @@ import { RequestPasswordReset } from "./application/request-password-reset.js";
 import { ResetPassword } from "./application/reset-password.js";
 import { ChangePassword } from "./application/change-password.js";
 import { InvalidRefreshCredentialError } from "./domain/refresh-errors.js";
+import { SessionActivity } from "./application/session-activity.js";
+import type { SessionStatus } from "./domain/session-lifetime.js";
 
 @Controller("auth")
 export class AuthController {
@@ -26,6 +28,7 @@ export class AuthController {
     @Inject(ResetPassword) private readonly resetPassword: ResetPassword,
     @Inject(ChangePassword) private readonly changePassword: ChangePassword,
     @Inject(EmailVerification) private readonly emailVerification: EmailVerification,
+    @Inject(SessionActivity) private readonly sessionActivity: SessionActivity,
   ) {}
 
   @Post("verify-email")
@@ -100,6 +103,34 @@ export class AuthController {
   me(@Req() request: AuthenticatedRequest): NonNullable<AuthenticatedRequest["authUser"]> {
     if (!request.authUser) throw new UnauthorizedException("Debe iniciar sesión para acceder.");
     return request.authUser;
+  }
+
+  @Get("session")
+  @UseGuards(AuthenticationGuard)
+  async session(@Req() request: AuthenticatedRequest): Promise<SessionStatus> {
+    const { sessionId, userId } = this.sessionIdentity(request);
+    return this.sessionActivity.execute(sessionId, userId, "read");
+  }
+
+  @Post("session/activity")
+  @HttpCode(200)
+  @UseGuards(AuthenticationGuard)
+  async activity(@Req() request: AuthenticatedRequest, @Body() input: unknown): Promise<SessionStatus> {
+    const { sessionId, userId } = this.sessionIdentity(request);
+    return this.sessionActivity.execute(sessionId, userId, "activity", input);
+  }
+
+  @Post("session/renew")
+  @HttpCode(200)
+  @UseGuards(AuthenticationGuard)
+  async renew(@Req() request: AuthenticatedRequest, @Body() input: unknown): Promise<SessionStatus> {
+    const { sessionId, userId } = this.sessionIdentity(request);
+    return this.sessionActivity.execute(sessionId, userId, "renew", input);
+  }
+
+  private sessionIdentity(request: AuthenticatedRequest): { sessionId: string; userId: string } {
+    if (!request.authUser || !request.authSessionId) throw new UnauthorizedException("Debe iniciar sesión para acceder.");
+    return { sessionId: request.authSessionId, userId: request.authUser.id };
   }
 
   @Post("register")

@@ -79,6 +79,7 @@ model Session {
   id        String   @id @db.Uuid
   userId    String   @db.Uuid
   createdAt DateTime @db.Timestamptz(3)
+  lastActivityAt DateTime @default(now()) @db.Timestamptz(3)
   expiresAt DateTime @db.Timestamptz(3)
   revokedAt DateTime? @db.Timestamptz(3)
   user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
