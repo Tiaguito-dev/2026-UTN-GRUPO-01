@@ -18,6 +18,13 @@ const item: Feedback = { id: "f1", texto: "Buena experiencia\ncon ejemplos", pun
 beforeEach(() => { vi.clearAllMocks(); route.query = ""; route.pathname = "/home/experiencias"; vi.mocked(obtenerMateria).mockResolvedValue(materia); vi.mocked(listarMaterias).mockResolvedValue({ items: [materia], total: 1, page: 1, pageSize: 9 }); vi.mocked(listarFeedback).mockResolvedValue({ items: [item], total: 10, page: 1, pageSize: 9 }); });
 afterEach(cleanup);
 describe("Experiencias generales", () => {
+  it.each([false, true])("muestra el éxito de la eliminación al regresar al listado (administrativo: %s)", async (administrative) => {
+    route.pathname = administrative ? "/home/admin/experiencias" : "/home/experiencias";
+    route.query = new URLSearchParams({ successMessage: "El comentario se eliminó correctamente." }).toString();
+    render(<ExperienciasList administrative={administrative} />);
+    await screen.findByText(/Buena experiencia/);
+    expect(screen.getByText("El comentario se eliminó correctamente.").getAttribute("role")).toBe("status");
+  });
   it("administración consulta el feed público sin invitar a participar ni revelar identidades anónimas", async () => {
     route.pathname = "/home/admin/experiencias";
     route.query = "carrera=S&materiaId=mat1&page=2";

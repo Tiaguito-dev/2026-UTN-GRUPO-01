@@ -9,6 +9,7 @@ import { hasAllowedAuthTransport } from "./http-security.js";
 
 export interface AuthenticatedRequest extends Request {
   authUser?: { id: string; email: string; displayName: string; role: UserRole };
+  authSessionId?: string;
 }
 
 @Injectable()
@@ -28,8 +29,9 @@ export class AuthenticationGuard implements CanActivate {
     const token = parseCookie(raw)[this.config.cookieName];
     if (!token) throw new UnauthorizedException("La credencial de acceso es inválida.");
     try {
-      const user = await this.authenticate.execute(token);
+      const { user, sessionId } = await this.authenticate.executeWithSession(token);
       request.authUser = { id: user.id, email: user.email, displayName: user.displayName, role: user.role };
+      request.authSessionId = sessionId;
       return true;
     } catch (error: unknown) {
       if (error instanceof UnauthenticatedError || error instanceof InvalidAccessTokenError) {

@@ -62,6 +62,12 @@ export class ReviewsController {
     return this.feed.list(user(request), query);
   }
 
+  @Get("feedback/normas")
+  @Header("Cache-Control", "no-store")
+  normas(@Req() request: AuthenticatedRequest) {
+    return this.feedback.normas(user(request));
+  }
+
   @Get("feedback")
   @Header("Cache-Control", "no-store")
   listGeneral(@Req() request: AuthenticatedRequest, @Query() query: unknown) {

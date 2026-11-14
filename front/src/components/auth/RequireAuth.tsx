@@ -26,14 +26,18 @@ export function SessionCheckFailed({ children }: { children?: ReactNode }) {
 
 /** Session guard only. Role checks live in `RequireRole`, so the coordination notice shows once. */
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { status, coordinationAvailable } = useAuth();
+  const { status, coordinationAvailable, sessionEndReason } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const origin = `${pathname}${params.size ? `?${params}` : ""}`;
   useEffect(() => {
-    if (status === "anonymous") router.replace(`/login?returnTo=${encodeURIComponent(internalDestination(origin) ?? "/home")}`);
-  }, [status, router, origin]);
+    if (status === "anonymous") {
+      const query = new URLSearchParams({ returnTo: internalDestination(origin) ?? "/home" });
+      if (sessionEndReason) query.set("notice", sessionEndReason);
+      router.replace(`/login?${query}`);
+    }
+  }, [status, router, origin, sessionEndReason]);
   if (status === "checking") return <p role="status">Comprobando sesión…</p>;
   if (status === "anonymous") return <p role="status">Necesitás <Link href="/login">iniciar sesión</Link> para continuar.</p>;
   if (status === "temporary-error") return <SessionCheckFailed>{!coordinationAvailable && <Notice tone="warning">{COORDINATION_NOTICE}</Notice>}</SessionCheckFailed>;

@@ -16,6 +16,10 @@ export class FeedbackDuplicateError extends DomainError {
   readonly httpStatus = 409;
   constructor() { super("Ya publicó un comentario en esta comisión. Puede editarlo o eliminarlo antes de volver a publicar."); }
 }
+export class FeedbackNormasError extends DomainError {
+  readonly httpStatus = 409;
+  constructor() { super("Debés aceptar las normas de convivencia vigentes para publicar."); }
+}
 export class FeedbackClosedError extends DomainError {
   readonly httpStatus = 409;
   constructor() { super("La comisión no está activa. Puede consultar los comentarios o retirar el suyo."); }

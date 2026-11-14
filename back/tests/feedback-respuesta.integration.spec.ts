@@ -47,7 +47,11 @@ describe.skipIf(!databaseUrl)("Respuestas: creación HTTP/PostgreSQL aislado", (
     ids.cursadas.push(cursada.id);
     const comision = await prisma.comision.create({ data: { cursadaId: cursada.id, carrera: "S", numero: 31 } });
     ids.comisiones.push(comision.id);
-    const response = await request(`/comisiones/${comision.id}/feedback`, "POST", { texto: "Comentario padre", puntuacion: 4, anonimo }, author.cookie);
+    const normas = await request("/feedback/normas", "GET", undefined, author.cookie);
+    expect(normas.status).toBe(200);
+    const { version } = await normas.json() as { version: string };
+    expect(version).toEqual(expect.any(String));
+    const response = await request(`/comisiones/${comision.id}/feedback`, "POST", { texto: "Comentario padre", puntuacion: 4, anonimo, versionNormas: version }, author.cookie);
     expect(response.status).toBe(201);
     const { id } = await response.json() as { id: string };
     ids.feedback.push(id);
@@ -97,6 +101,7 @@ describe.skipIf(!databaseUrl)("Respuestas: creación HTTP/PostgreSQL aislado", (
         await prisma.session.deleteMany({ where: { userId: { in: ids.users } } });
         await prisma.emailVerificationCredential.deleteMany({ where: { userId: { in: ids.users } } });
         await prisma.administracionHistorial.deleteMany({ where: { actorId: { in: ids.users } } });
+        await prisma.aceptacionNormas.deleteMany({ where: { usuarioId: { in: ids.users } } });
         await prisma.user.deleteMany({ where: { id: { in: ids.users } } });
       }
     } finally { if (app) await app.close(); if (prisma) await prisma.$disconnect(); }

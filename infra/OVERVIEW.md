@@ -28,6 +28,18 @@ futura de logs deberá sanitizar URLs antes de registrarlas.
 
 ## Ejecución local
 
+### Vencimiento por inactividad
+
+Ambos Compose exponen `AUTH_IDLE_TTL_SECONDS` (1800) y `AUTH_IDLE_WARNING_SECONDS` (120).
+El aviso comienza a los 28 minutos sin actividad y exige confirmar para continuar; cambiar
+estos valores requiere recrear el backend. El frontend consume los plazos del servidor,
+sin variables públicas adicionales. El refresh automático no reinicia la inactividad.
+
+Desplegar la migración que agrega `Session.lastActivityAt` y el backend antes que el frontend.
+La migración inicializa la última actividad de las sesiones existentes con la hora de aplicación,
+conservando su vencimiento absoluto. No aplicar esta migración sobre otra base para probarla:
+las integraciones deben usar exclusivamente `TEST_DATABASE_URL`.
+
 ### Verificación de correo institucional
 
 El registro de estudiantes queda pendiente hasta confirmar el enlace enviado por SMTP.

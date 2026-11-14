@@ -35,6 +35,8 @@ const alternativas = {
   total: 2, page: 1, pageSize: 100,
 };
 beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  HTMLDialogElement.prototype.close = function () { this.open = false; };
   vi.clearAllMocks();
   // HU11 integrado: el editor compartido consume la asignación confirmada por PUT.
   vi.mocked(asignarProfesorComision).mockImplementation(async (_comisionId, profesorId, cargo) => ({
@@ -212,6 +214,9 @@ describe("Detalle de comisión centrado en experiencias", () => {
     await user.selectOptions(screen.getByLabelText("Cambiar cargo de Prof. Rossi"), "JTP");
     await waitFor(() => expect(asignarProfesorComision).toHaveBeenCalledWith("com1", "p1", "JTP"));
     await user.click(screen.getByRole("button", { name: "Quitar asignación de Prof. Rossi" }));
+    // Hotfix: el detalle también confirma la desvinculación antes de enviarla.
+    expect(quitarProfesorComision).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Confirmar desvinculación" }));
     expect(quitarProfesorComision).toHaveBeenCalledWith("com1", "p1");
     await user.selectOptions(screen.getByLabelText("Profesor"), "p2");
     await user.click(screen.getByRole("button", { name: "Asignar profesor" }));

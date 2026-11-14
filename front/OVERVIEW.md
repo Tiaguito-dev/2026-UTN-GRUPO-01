@@ -1,5 +1,58 @@
 # Frontend
 
+## Aviso y renovación por inactividad
+
+`AuthProvider` monta `SessionIdleMonitor` para la cuenta autenticada, con un controlador de
+actividad por sesión. Al iniciar y al recuperar foco consulta el plazo del servidor; esas
+comprobaciones y la renovación automática del token no cuentan como actividad.
+
+Los eventos reales de puntero, teclado, rueda y gesto táctil en una pestaña visible se agrupan
+con un máximo de una escritura cada quince segundos entre pestañas. La actividad se comunica
+mediante `SessionService`, sus tipos y esquema de respuesta propios, reutilizando la coordinación
+de cookies de `AuthService`. No se almacenan tokens ni credenciales en JavaScript.
+
+Con los valores predeterminados, el aviso aparece a los 28 minutos sin actividad y muestra
+dos minutos para elegir Renovar sesión o Cerrar sesión. Solo confirmar renueva durante el aviso;
+Escape y otras interacciones no lo descartan. El diálogo es local al módulo auth, utiliza
+controles accesibles y bloquea el contenido protegido al llegar al límite o si no se pudo
+obtener la política inicial. Renovar conserva la pantalla y sus formularios.
+
+El servidor fija `serverNow`, `warningAt`, `idleExpiresAt` y `absoluteExpiresAt`. La cuenta
+regresiva usa esos valores más el tiempo transcurrido, también tras suspensión del navegador.
+Las observaciones entre pestañas conservan la hora original del servidor y su fecha local de
+recepción por separado. Una respuesta autoritativa vuelve a sincronizar el reloj tras un cambio
+de hora del equipo; una estimación local no invalida esa respuesta ni provoca cierres repetidos.
+`GET /auth/session` consulta, `POST /auth/session/activity` registra actividad antes del aviso y
+`POST /auth/session/renew` confirma continuidad. Las escrituras no reciben identificadores ni
+fechas del cliente y conservan protección CSRF. No se repiten escrituras con resultado ambiguo;
+un nuevo intento de renovación primero comprueba el estado actual del servidor.
+
+Actividad, renovación y cierre se comparten entre pestañas de la misma cuenta y revisión de
+sesión. Las operaciones se serializan con login, logout y refresh para que una pantalla anterior
+no cierre una cuenta recién autenticada. Un cierre sin conexión deja una marca local que impide
+reabrir automáticamente la cuenta con cookies antiguas; un login explícito inicia otra revisión.
+La revocación remota sigue dependiendo de que el servidor reciba la solicitud o venza el plazo.
+
+Si no se confirma a los treinta minutos, vuelve al login con un mensaje de inactividad.
+El límite absoluto de siete días no se prolonga: su aviso solicita iniciar sesión nuevamente.
+`AccountForm` muestra los motivos de cierre recibidos en `notice`; los valores desconocidos se
+ignoran. No se guardan borradores automáticamente ni se modifican permisos o estilos globales.
+
+## Hotfix de sesiones y confirmaciones
+
+`AuthProvider` vuelve a comprobar la sesión mediante `AuthService.me()` cada minuto mientras
+la pestaña está visible y al recuperar foco o visibilidad. Las comprobaciones se realizan
+en segundo plano, sin pasar por el estado de carga inicial; no se solapan y sus resultados
+se descartan si cambió la cuenta o se desmontó el proveedor. Un 401 lleva a estado anónimo;
+un fallo transitorio conserva la cuenta con el estado recuperable de error existente.
+La renovación mantiene el límite absoluto impuesto por el backend. La política de inactividad
+adicional se describe en la sección anterior; el contrato existente de `/auth/me` se conserva.
+
+`ExperienciasList` muestra el `successMessage` del retorno tras eliminar un comentario,
+tanto en el listado público autenticado como administrativo. `DocentesComision` solicita
+confirmación antes de desvincular un profesor; cancelar no envía la operación. Conserva
+permisos de ADMIN, mensajes, control de solicitudes duplicadas y validaciones existentes.
+
 ## Eliminación de experiencias
 
 Un ADMIN puede eliminar un comentario vigente desde su detalle administrativo mediante
@@ -978,3 +1031,7 @@ El ajuste posterior de actores en backend agrega los nombres autorizados ya acep
 ## Actores de auditoría de todos los módulos
 
 Los detalles administrativos de materias, profesores, cursadas, comisiones, usuarios y experiencias consumen nombres de actores resueltos por backend, tanto en metadatos como en el historial paginado. `UserAudit` y la presentación anterior `AdminAuditPanel` usan el nombre autorizado cuando existe, Usuario no identificado cuando solo existe la referencia y No registrado cuando falta el dato. AdminAuditPanel conserva su presentación y comportamiento para comisiones/experiencias; deja de mostrar referencias técnicas como actores. Sin cambios de permisos, operaciones, navegación ni reconstrucción de eventos. Materias recibe también el nombre de la última modificación desde su historial propio aunque el evento no esté en la página abierta. Evidencia en `docs/tasks/finished/TASK-system-audit-actors.md`.
+
+## Normas antes de publicar
+
+FeedbackForm consulta GET /feedback/normas al abrir una nueva publicación. Cuando falta la aceptación vigente, presenta una casilla desmarcada y el documento completo en un diálogo que conserva el borrador. La creación envía versionNormas explícitamente. Si cambia la versión durante la escritura, actualiza las reglas y solicita otra aceptación. La API registra usuario, versión y fecha en la transacción de publicación. Una aceptación vigente permite las publicaciones posteriores.

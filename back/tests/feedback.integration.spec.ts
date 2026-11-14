@@ -95,6 +95,11 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     autor = await account("USER", "Autor confidencial");
     otro = await account("USER", "Otra persona");
     admin = await account("ADMIN", "Administrador");
+    // Los casos históricos de publicación usan cuentas que ya aceptaron las normas.
+    const normas = await request("/feedback/normas", "GET", undefined, autor.cookie);
+    expect(normas.status).toBe(200);
+    const { version } = await normas.json() as { version: string };
+    await prisma.aceptacionNormas.createMany({ data: [autor, otro, admin].map(({ id }) => ({ usuarioId: id, version })) });
   }, 30_000);
 
   afterAll(async () => {
@@ -113,6 +118,7 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
       await prisma.session.deleteMany({ where: { userId: { in: ids.users } } });
       await prisma.emailVerificationCredential.deleteMany({ where: { userId: { in: ids.users } } });
       await prisma.administracionHistorial.deleteMany({ where: { actorId: { in: ids.users } } });
+      await prisma.aceptacionNormas.deleteMany({ where: { usuarioId: { in: ids.users } } });
       await prisma.user.deleteMany({ where: { id: { in: ids.users } } });
     }
     if (app) await app.close();
@@ -149,6 +155,55 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     expect((await request(f.path, "POST", { texto: "Bien", anonimo: true }, autor.cookie)).status).toBe(400);
     const response = await fetch(`${baseUrl}${f.path}`, { method: "POST", headers: { Cookie: autor.cookie, "Content-Type": "application/json" }, body: JSON.stringify({ texto: "Bien", anonimo: true, puntuacion: 4 }) });
     expect(response.status).toBe(403);
+  });
+
+  it("exige la versión vigente vía HTTP y conserva fecha, versión y usuario solo al publicar válidamente", async () => {
+    expect((await request("/feedback/normas")).status).toBe(401);
+    const estudiante = await account("USER", "Estudiante HU04");
+    const getNormas = () => request("/feedback/normas", "GET", undefined, estudiante.cookie);
+    const estado = await getNormas();
+    expect(estado.status).toBe(200);
+    const normas = await estado.json() as { version: string; reglas: string[]; aceptada: boolean };
+    expect(normas.aceptada).toBe(false);
+    const documento = normas.reglas.join(" ");
+    for (const prohibicion of [/insult/i, /acos/i, /amenaz/i, /(?:información|datos) personal/i]) {
+      expect(documento).toMatch(prohibicion);
+    }
+    const primera = await fixture(1);
+    const siguiente = await fixture(0);
+    const body = { texto: "Buen acompañamiento", anonimo: true, puntuacion: 4 };
+    const post = (path: string, data: unknown) => request(path, "POST", data, estudiante.cookie);
+    // Emula una actualización de las reglas sin modificar la versión global del entorno.
+    await prisma.aceptacionNormas.create({ data: { usuarioId: estudiante.id, version: "anterior" } });
+    expect((await (await getNormas()).json()).aceptada).toBe(false);
+    for (const data of [body, { ...body, versionNormas: "anterior" }]) {
+      const intento = await post(primera.path, data);
+      expect(intento.status).toBe(409);
+      expect(await intento.text()).toMatch(/aceptar las normas/i);
+    }
+    expect(await prisma.feedback.count({ where: { autorId: estudiante.id } })).toBe(0);
+    const vigente = { usuarioId: estudiante.id, version: normas.version };
+    const invalido = await post(primera.path, { ...body, versionNormas: normas.version, profesorId: randomUUID() });
+    expect(invalido.status).toBe(400);
+    expect(await prisma.aceptacionNormas.count({ where: vigente })).toBe(0);
+    const primeraPublicacion = await post(primera.path, { ...body, versionNormas: normas.version });
+    expect(primeraPublicacion.status).toBe(201);
+    const publicada = await primeraPublicacion.clone().json() as PublicFeedback;
+    expect(await prisma.feedbackHistorial.findFirstOrThrow({ where: { feedbackId: publicada.id } })).toMatchObject({ puntuacion: 4 });
+    expect(await prisma.valoracionMateria.findUniqueOrThrow({
+      where: { usuarioId_materiaId: { usuarioId: estudiante.id, materiaId: primera.materia.id } },
+    })).toMatchObject({ puntuacion: 4, deletedAt: null });
+    const registro = await prisma.aceptacionNormas.findFirstOrThrow({ where: vigente });
+    expect(registro.aceptadaEn).toBeInstanceOf(Date);
+    expect((await (await getNormas()).json()).aceptada).toBe(true);
+    const segundaPublicacion = await post(siguiente.path, body);
+    expect(segundaPublicacion.status).toBe(201);
+    expect(await prisma.aceptacionNormas.findMany({ where: vigente })).toEqual([registro]);
+    // El escenario posterior comprueba una lista pública inicialmente vacía.
+    for (const response of [primeraPublicacion, segundaPublicacion]) {
+      const { id } = await response.json() as PublicFeedback;
+      expect((await request(`/feedback/${id}`, "DELETE", undefined, estudiante.cookie)).status).toBe(204);
+    }
   });
 
   // TASK-061: the general feed exposes the same public snapshots across commissions.
@@ -502,6 +557,9 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
 
   it.each(["voto", "auditoría"])("revierte comentario, historial y voto ante fallo de %s", async (step) => {
     const f = await fixture(0);
+    const fresh = await account("USER", "Atomicidad HU04 y estrellas");
+    const normasResponse = await request("/feedback/normas", "GET", undefined, fresh.cookie);
+    const { version } = await normasResponse.json() as { version: string };
     const error = new Error(`fallo controlado ${step}`);
     const eventsBefore = await prisma.administracionHistorial.count({ where: { entidad: "feedback", actorId: autor.id } });
     await expect(prisma.$transaction(async tx => {
@@ -511,12 +569,14 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
       } as unknown as PrismaService);
       const spy = step === "voto" ? vi.spyOn(tx.valoracionMateria, "upsert").mockRejectedValueOnce(error)
         : vi.spyOn(tx.administracionHistorial, "create").mockRejectedValueOnce(error);
-      try { await repository.create(f.comision.id, autor.id, { texto: "No debe persistir", anonimo: true, puntuacion: 4 }); }
+      try { await repository.create(f.comision.id, fresh.id, { texto: "No debe persistir", anonimo: true, puntuacion: 4, versionNormas: version }); }
       finally { spy.mockRestore(); }
     })).rejects.toBe(error);
     expect(await prisma.feedback.count({ where: { comisionId: f.comision.id } })).toBe(0);
     expect(await prisma.feedbackHistorial.count({ where: { feedback: { comisionId: f.comision.id } } })).toBe(0);
     expect(await prisma.valoracionMateria.count({ where: { materiaId: f.materia.id } })).toBe(0);
+    expect(await prisma.aceptacionNormas.count({ where: { usuarioId: fresh.id, version } })).toBe(0);
+    expect(await prisma.administracionHistorial.count({ where: { actorId: fresh.id } })).toBe(0);
     expect(await prisma.administracionHistorial.count({ where: { entidad: "feedback", actorId: autor.id } })).toBe(eventsBefore);
   });
 

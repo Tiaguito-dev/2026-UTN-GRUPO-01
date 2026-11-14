@@ -81,6 +81,9 @@ describe.skipIf(!databaseUrl)("Materias: resumen de estrellas HTTP/PostgreSQL ai
     await app.listen(0, "127.0.0.1");
     baseUrl = await app.getUrl();
     reader = await account("USER");
+    const normas = await request("/feedback/normas", "GET", undefined, reader.cookie);
+    const { version } = await normas.json() as { version: string };
+    await prisma.aceptacionNormas.create({ data: { usuarioId: reader.id, version } });
     admin = await account("ADMIN");
     voters.push(reader.id);
     // Los votos adicionales prueban agregación; no necesitan sesión ni credenciales de acceso.

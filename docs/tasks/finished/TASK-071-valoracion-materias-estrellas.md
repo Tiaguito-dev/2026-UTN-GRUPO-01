@@ -602,3 +602,12 @@ integración de lógica, auditoría y concurrencia. No se declara TASK-071 termi
   La respuesta JSON numérica no conserva ceros finales. No introducir cache, ranking ni endpoints.
 - Sin cambios de frontend, Prisma/migraciones, configuración/dependencias, autenticación/permisos,
   operaciones administrativas de escritura, rama, commits, pushes o merges. TASK-071 sigue abierta.
+
+## Integración HU-04 / PR #41 (2026-11-13)
+
+Integración autorizada sin commit ni push de desarrollo 7157551. Creación combina puntuación obligatoria y versión de normas opcional; edición no exige normas. Aceptación, comentario, historial, voto y auditoría comparten transacción ReadCommitted y orden de bloqueos comisión → usuario/materia. El editor distingue el mensaje específico de normas de otros 409, dado que HttpError no expone código de dominio. TASK-072 permanece excluida. Integraciones PostgreSQL pendientes por restricción expresa.
+
+- Se resuelven seis conflictos y se adaptan únicamente las cuatro suites adicionales autorizadas. Cobertura combinada de aceptación y estrellas, orden transaccional, rollback real pendiente, y distinción de errores 409.
+- Node local: 22.22.3. Tests sin PostgreSQL, typecheck, lint y builds de ambos workspaces intentados: no ejecutables por ausencia de node_modules y binarios (vitest, tsc, eslint, prisma, next). No se instalaron dependencias. No se afirma validación funcional de esta combinación.
+- No se ejecutaron PostgreSQL, migraciones, seeds ni operaciones sobre contenedores. Merge queda abierto sin commit ni push; validación ejecutable pendiente.
+- Revisión estática: sin marcadores de conflicto, git diff --check y git diff --cached --check aprobados; migraciones de ambas funcionalidades intactas. El otro worktree conserva el mismo estado local observado al inicio; no se escribieron sus archivos ni su índice.

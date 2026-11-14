@@ -1,5 +1,48 @@
 # Backend
 
+## Sesiones e inactividad
+
+`AUTH_ACCESS_TTL_SECONDS` configura el acceso (900 segundos por defecto) y
+`AUTH_SESSION_TTL_SECONDS` el límite absoluto de la sesión (604800 segundos por defecto).
+Login fija `Session.expiresAt`; refresh rota credenciales sin extender esa fecha y limita
+la vigencia del nuevo JWT al tiempo restante. Tanto autenticación como refresh rechazan
+sesiones vencidas o revocadas.
+
+La política adicional de inactividad se configura con `AUTH_IDLE_TTL_SECONDS` (1800) y
+`AUTH_IDLE_WARNING_SECONDS` (120, menor al plazo de inactividad). `Session.lastActivityAt`
+se fija al iniciar sesión y solo cambia por actividad explícita antes del aviso o por
+renovación confirmada. Leer datos, consultar la cuenta o rotar el refresh no lo modifican.
+Autenticación y refresh rechazan el vencimiento por inactividad incluso con JWT vigente.
+
+Los siguientes endpoints adicionales requieren sesión y conservan transporte seguro,
+`Cache-Control: no-store` y protección Origin/CSRF para escrituras:
+
+| Método y ruta | Comportamiento |
+|---|---|
+| `GET /auth/session` | Consulta los plazos sin reiniciarlos. |
+| `POST /auth/session/activity` | Registra actividad antes del aviso; desde el aviso conserva el plazo. |
+| `POST /auth/session/renew` | Reinicia inactividad solo si la sesión todavía está vigente. |
+
+Las escrituras no reciben IDs ni fechas: el guard conserva un contexto interno con la sesión
+autenticada, separado del usuario público. Se admite cuerpo ausente o `{}` vacío y se rechaza
+cualquier contenido adicional. Devuelven exclusivamente `{serverNow, warningAt, idleExpiresAt,
+absoluteExpiresAt}`, fechas ISO 8601. El vencimiento efectivo es el menor entre inactividad y
+límite absoluto; `warningAt` se calcula restando el aviso a ese menor límite. Renovar no extiende
+el límite absoluto de siete días. Las respuestas anteriores de login, `/auth/me` y refresh no cambian.
+
+Las operaciones nuevas, refresh y logout toman el mismo bloqueo de fila de sesión. Las nuevas
+operaciones vuelven a comprobar vigencia, identidad y estado de usuario bajo ese bloqueo;
+renovar una sesión vencida, revocada o de una cuenta desactivada devuelve 401. Un payload ajeno
+devuelve 400, y la falta de Origin/CSRF o transporte permitido devuelve 403. La falta de sesión
+devuelve 401, sin exponer secretos o identificadores de sesión. `lastActivityAt` y `revokedAt`
+conservan la trazabilidad de actividad y cierre; no se generan eventos por cada movimiento.
+
+La migración `20261108000000_sesion_inactividad` rellena el nuevo campo con la hora de despliegue
+para dar hasta un plazo de inactividad a sesiones existentes sin modificar `expiresAt`. Conserva
+`DEFAULT CURRENT_TIMESTAMP` para permitir inserciones durante el despliegue del backend anterior.
+Aplicar migración y backend antes del frontend; clientes anteriores también quedan sujetos al
+vencimiento del servidor. No se necesitan tareas programadas para rechazar sesiones vencidas.
+
 ## Modalidad de materia y cursadas por año (TASK-062)
 
 Este es el contrato vigente para materias/cursadas; reemplaza las descripciones históricas

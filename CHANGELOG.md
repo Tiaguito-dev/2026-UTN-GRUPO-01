@@ -2,6 +2,39 @@
 
 ## [Sin publicar]
 
+### Aviso y renovación por inactividad
+
+- La sesión requiere confirmar su continuidad a los 28 minutos sin actividad y vence a los
+  30 minutos si no se renueva. La actividad se comparte entre pestañas y los procesos
+  automáticos no reinician el plazo. Se mantiene el límite absoluto configurado de siete días.
+- Nuevos endpoints de estado, actividad y renovación protegidos por sesión y Origin/CSRF;
+  backend rechaza inactividad vencida incluso con un JWT vigente y serializa cambios con logout.
+- `Session.lastActivityAt` y su migración inicializan las sesiones existentes con la hora
+  de aplicación sin cambiar su vencimiento absoluto. Nuevas variables de entorno en Compose
+  y ejemplos para configurar inactividad y aviso previo.
+- Aviso accesible con cuenta regresiva y acciones de renovar o cerrar, manejo de errores de
+  conexión y mensaje al volver al login. La renovación conserva el formulario abierto.
+- Validación final: 793 pruebas frontend y 950 backend aprobadas, tipos, lint, builds y
+  recorridos Chromium de experiencia y sesión con dos pestañas. Migración y API probadas con
+  PostgreSQL aislado; evidencia en `docs/tasks/finished/TASK-sesion-inactividad.md`.
+
+### Sesiones y confirmaciones de eliminación
+
+- Comprobación de sesión en pestañas abiertas cada minuto visible y al recuperar foco,
+  sin mostrar carga inicial ni aceptar respuestas anteriores a un cambio de cuenta.
+  Se conserva la duración configurada: acceso de 15 minutos y sesión absoluta de 7 días.
+- El listado de Experiencias muestra el mensaje de éxito al regresar de una eliminación.
+  La confirmación previa del autor y del administrador ya existía y se conserva.
+- Desvincular un docente de una comisión ahora requiere confirmación; cancelar no escribe.
+  Conserva permisos, historial, mensajes y prevención de solicitudes duplicadas.
+- Validación: 765 pruebas frontend, 85 pruebas backend de autenticación, typecheck, lint,
+  build y recorrido Chromium con API simulada aprobados. Evidencia y límites en
+  `docs/tasks/finished/TASK-hotfix-sesiones-confirmaciones.md`.
+### Integración local TASK-071 y HU-04 (PR #41)
+
+- Creación combina estrellas y aceptación de normas en una única transacción; edición conserva su contrato y el formulario distingue los errores 409 de normas de otras causas.
+- Pruebas combinadas y fixtures adaptados. Verificaciones ejecutables bloqueadas por dependencias locales ausentes; PostgreSQL pendiente. Merge preparado sin commit ni push. Evidencia en TASK-071.
+
 ### Valoraciones de materias con estrellas (TASK-071)
 
 - Comentarios nuevos con puntuación obligatoria de 1 a 5, edición de estrellas y conservación de comentarios históricos sin valoración. Voto global único por usuario y materia, con creación, actualización, reactivación y baja lógica transaccionales, historial y auditoría.
@@ -9,6 +42,13 @@
 - Cambio incompatible: crear comentarios requiere `puntuacion`. Aplicar la migración `20261112000000_valoracion_materias_estrellas` antes de desplegar backend y frontend compatibles.
 - Validación local: 799 pruebas backend, 836 frontend y 56 integraciones PostgreSQL de TASK-071 aprobadas; typecheck, lint, builds y revisión manual de creación, edición, eliminación, promedios, tarjetas, historial y responsive satisfactorios.
 - Pendientes: CI, Playwright general, axe en navegador y Docker builds. Cierre funcional/documental local; sin push, PR ni integración. Evidencia en [TASK-071](docs/tasks/finished/TASK-071-valoracion-materias-estrellas.md). TASK-072 permanece fuera de esta entrega.
+
+### HU-04 — Normas de convivencia
+
+- Aceptación obligatoria de las normas vigentes antes de publicar, registrada con usuario, fecha y versión en la transacción de creación.
+- Documento consultable desde el editor sin perder el borrador y nueva aceptación ante cambios de versión. Protección también en la API.
+- Tipos, lint, builds, 56 pruebas backend y 755 frontend aprobados en Node 22.22.3.
+
 
 ### Logo de cuchillas
 
