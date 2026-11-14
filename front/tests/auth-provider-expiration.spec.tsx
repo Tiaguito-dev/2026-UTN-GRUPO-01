@@ -5,12 +5,18 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import { AuthContext, AuthProvider } from "@/components/auth/AuthProvider";
 import { HttpError } from "@/services/http";
 import type { PublicAccount } from "@/types/auth";
+import type { SessionRevision } from "@/services/session-coordinator";
 
 const { service } = vi.hoisted(() => ({ service: {
   me: vi.fn(), probe: vi.fn(), login: vi.fn(), logout: vi.fn(),
   coordinator: { available: true, read: vi.fn(), subscribe: vi.fn() },
 } }));
+const { router } = vi.hoisted(() => ({ router: { replace: vi.fn() } }));
 vi.mock("@/services/auth", () => ({ getAuthService: () => service }));
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("@/services/session", () => ({ getSessionService: () => ({ getEndReason: () => null }) }));
+// El monitor de inactividad tiene sus propios tests; estos caracterizan la comprobación de cuenta.
+vi.mock("@/components/auth/SessionIdleMonitor", () => ({ SessionIdleMonitor: () => null }));
 
 const account: PublicAccount = { id: "user-1", email: "a@frlp.utn.edu.ar", displayName: "Cuenta", role: "USER" };
 const wrapper = ({ children }: { children: ReactNode }) => <AuthProvider>{children}</AuthProvider>;
@@ -135,5 +141,19 @@ describe("comprobación de expiración en una pestaña abierta", () => {
       await vi.advanceTimersByTimeAsync(120_000);
     });
     expect(service.me).toHaveBeenCalledTimes(1);
+  });
+  it("un login externo suspende el monitor anterior aunque la cuenta sea la misma", async () => {
+    const view = await mountSession();
+    let finish!: (value: PublicAccount) => void;
+    service.probe.mockReturnValueOnce(new Promise<PublicAccount>((resolve) => { finish = resolve; }));
+    const revision: SessionRevision = { id: "4f58866d-b72c-4fee-bfe5-aa218d2c2c69", kind: "login" };
+    service.coordinator.read.mockReturnValue(revision);
+    const notify = service.coordinator.subscribe.mock.calls[0]![0] as (event: SessionRevision) => void;
+    await act(async () => { notify(revision); });
+    // checking desmonta la política antigua mientras verifica el nuevo login.
+    expect(view.result.current.status).toBe("checking");
+    await act(async () => { finish(account); });
+    expect(view.result.current.status).toBe("authenticated");
+    expect(view.result.current.account).toEqual(account);
   });
 });

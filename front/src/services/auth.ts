@@ -10,6 +10,8 @@ function publicAccount(value: unknown): PublicAccount {
   return parseResponse(publicAccountSchema, value, "El servidor devolvió una cuenta inválida. Intentá nuevamente.");
 }
 
+export type SessionRequest = <T>(path: string, method: "GET" | "POST", schema: z.ZodType<T>) => Promise<T>;
+
 export class AuthService {
   readonly coordinator = new SessionCoordinator();
   private renewal: Promise<void> | null = null;
@@ -80,8 +82,50 @@ export class AuthService {
     }
     return parseResponse(schema, result);
   }
-  async me(): Promise<PublicAccount> { return publicAccount(await this.protectedGet("/auth/me")); }
-  probe(): Promise<PublicAccount> { return this.rawMe(); }
+  private assertLocallyOpen(): void {
+    const revision = this.coordinator.read();
+    if (revision && CLOSED.includes(revision.kind)) throw new HttpError(401, "La sesión terminó. Iniciá sesión nuevamente.");
+  }
+  async me(): Promise<PublicAccount> {
+    this.assertLocallyOpen();
+    return publicAccount(await this.protectedGet("/auth/me"));
+  }
+  async probe(): Promise<PublicAccount> { this.assertLocallyOpen(); return this.rawMe(); }
+  /** Session-policy operations share the cookie lock with login, logout and refresh. */
+  withSessionLock<T>(expectedAccountId: string, action: (request: SessionRequest) => Promise<T>): Promise<T> {
+    const observed = this.coordinator.read();
+    return this.coordinator.lock(async () => {
+      const current = this.coordinator.read();
+      if (!sameRevision(observed, current) && current?.kind !== "refresh") {
+        throw new HttpError(409, "La cuenta cambió en otra pestaña. Comprobá la sesión antes de continuar.");
+      }
+      if (current && CLOSED.includes(current.kind)) throw new HttpError(401, "La sesión terminó. Iniciá sesión nuevamente.");
+      const checkIdentity = async () => {
+        let user: PublicAccount;
+        try { user = await this.rawMe(); }
+        catch (error) {
+          if (!(error instanceof HttpError) || error.status !== 401) throw error;
+          await this.renewLocked(observed, true);
+          user = await this.rawMe();
+        }
+        if (user.id !== expectedAccountId) throw new HttpError(409, "La cuenta cambió. Comprobá la sesión antes de continuar.");
+      };
+      await checkIdentity();
+      const request: SessionRequest = async (path, method, schema) => {
+        let response: unknown;
+        try { response = await requestJson(path, { method }); }
+        catch (error) {
+          // A guard 401 means the operation did not execute. Never replay an ambiguous write.
+          if (!(error instanceof HttpError) || error.status !== 401) throw error;
+          await this.renewLocked(observed, true);
+          await checkIdentity();
+          response = await requestJson(path, { method });
+        }
+        return parseResponse(schema, response);
+      };
+      return action(request);
+    }, true);
+  }
   login(input: LoginInput, onSuccess?: (account: PublicAccount) => void): Promise<PublicAccount> {
     return this.coordinator.lock(async () => {
       const result = publicAccount(await requestJson("/auth/login", { method: "POST", body: { email: input.email.trim().toLowerCase(), password: input.password } }));

@@ -17,7 +17,7 @@ type Field = "email" | "displayName" | "password" | "currentPassword" | "newPass
 const fields: Field[] = ["email", "displayName", "password", "currentPassword", "newPassword", "confirmPassword"];
 const titles: Record<Mode, string> = { login: "Iniciar sesión", register: "Crear cuenta", forgot: "Recuperar contraseña", reset: "Restablecer contraseña", change: "Cambiar contraseña" };
 const actions: Record<Mode, string> = { login: "Iniciar sesión", register: "Crear cuenta", forgot: "Enviar instrucciones", reset: "Restablecer contraseña", change: "Cambiar contraseña" };
-const messages: Record<string, string> = { registered: "Cuenta creada, pendiente de verificación. Enviamos un enlace a tu correo institucional. Revisá tu bandeja de entrada y spam y verificá tu correo antes de iniciar sesión.", reset: "Contraseña restablecida. Iniciá sesión con tu nueva contraseña.", changed: "Contraseña cambiada. Iniciá sesión nuevamente.", logout: "Sesión cerrada correctamente." };
+const messages: Record<string, string> = { registered: "Cuenta creada, pendiente de verificación. Enviamos un enlace a tu correo institucional. Revisá tu bandeja de entrada y spam y verificá tu correo antes de iniciar sesión.", reset: "Contraseña restablecida. Iniciá sesión con tu nueva contraseña.", changed: "Contraseña cambiada. Iniciá sesión nuevamente.", logout: "Sesión cerrada correctamente.", idle: "Tu sesión se cerró por inactividad. Iniciá sesión nuevamente.", absolute: "Tu sesión alcanzó su duración máxima. Iniciá sesión nuevamente.", expired: "Tu sesión terminó. Iniciá sesión nuevamente." };
 const passwordHint = "Usá entre 8 y 128 caracteres. Podés incluir espacios y caracteres Unicode. La contraseña no se recorta.";
 
 export function AccountForm({ mode }: { mode: Mode }) {

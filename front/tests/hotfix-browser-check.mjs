@@ -34,6 +34,11 @@ try {
     const reply = (json, status = 200) => route.fulfill({ status, headers, contentType: "application/json", body: JSON.stringify(json) });
     if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers });
     if (path === "/auth/me") { sessionCalls++; return reply(expired ? { message: "La sesión terminó." } : account, expired ? 401 : 200); }
+    if (["/auth/session", "/auth/session/activity", "/auth/session/renew"].includes(path)) {
+      const now = Date.now();
+      return reply({ serverNow: new Date(now).toISOString(), warningAt: new Date(now + 1680_000).toISOString(),
+        idleExpiresAt: new Date(now + 1800_000).toISOString(), absoluteExpiresAt: new Date(now + 604800_000).toISOString() });
+    }
     if (path === "/auth/refresh") return reply({ message: "La sesión terminó." }, 401);
     if (path === "/feedback/f1" && request.method() === "DELETE") {
       deleteCalls++; deleted = true; return route.fulfill({ status: 204, headers });
