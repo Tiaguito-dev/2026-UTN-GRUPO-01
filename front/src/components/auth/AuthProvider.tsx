@@ -1,17 +1,23 @@
 "use client";
 
 import { createContext, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import type { AuthStatus, ChangePasswordInput, LoginInput, PublicAccount, RegisterInput, ResetPasswordInput } from "@/types/auth";
 import { getAuthService } from "@/services/auth";
+import { getSessionService } from "@/services/session";
 import { HttpError } from "@/services/http";
 import type { SessionRevision } from "@/services/session-coordinator";
 import { LOGOUT_UNCONFIRMED, SESSION_CHECK_FAILED } from "@/lib/messages";
+import { internalDestination } from "@/lib/navigation";
+import type { SessionEndReason } from "@/types/session";
+import { SessionIdleMonitor } from "./SessionIdleMonitor";
 
 export interface AuthContextValue {
   status: AuthStatus;
   account: PublicAccount | null;
   error: string | null;
   coordinationAvailable: boolean;
+  sessionEndReason?: SessionEndReason | null;
   checkSession(): Promise<void>;
   login(input: LoginInput): Promise<PublicAccount>;
   register(input: RegisterInput): Promise<PublicAccount>;
@@ -22,20 +28,35 @@ export interface AuthContextValue {
 }
 export const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const [status, setStatus] = useState<AuthStatus>("checking");
   const [account, setAccount] = useState<PublicAccount | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [coordinationAvailable, setCoordinationAvailable] = useState(true);
+  const [sessionEndReason, setSessionEndReason] = useState<SessionEndReason | null>(null);
+  const [sessionEpoch, setSessionEpoch] = useState(0);
   const generation = useRef(0);
+  const activeAccountId = useRef<string | null>(null);
+  const backgroundPending = useRef(false);
   const clear = useCallback(() => {
     generation.current += 1;
+    activeAccountId.current = null;
+    setSessionEpoch((value) => value + 1);
     setAccount(null); setError(null); setStatus("anonymous");
   }, []);
+  const endSession = useCallback((explicitReason?: SessionEndReason) => {
+    const reason = explicitReason ?? getSessionService().getEndReason(activeAccountId.current);
+    const origin = `${window.location.pathname}${window.location.search}`;
+    const query = new URLSearchParams({ returnTo: internalDestination(origin) ?? "/home" });
+    if (reason) query.set("notice", reason);
+    clear(); setSessionEndReason(reason);
+    if (reason) router.replace(`/login?${query}`);
+  }, [clear, router]);
   const failure = useCallback((caught: unknown) => {
-    if (caught instanceof HttpError && caught.status === 401) { clear(); return; }
+    if (caught instanceof HttpError && caught.status === 401) { endSession(); return; }
     setError(caught instanceof Error ? caught.message : SESSION_CHECK_FAILED);
     setStatus("temporary-error");
-  }, [clear]);
+  }, [endSession]);
   const checkSession = useCallback(async () => {
     const service = getAuthService();
     const version = ++generation.current;
@@ -48,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const user = await service.me();
       if (!currentResultAllowed()) return;
-      setAccount(user); setStatus("authenticated");
+      activeAccountId.current = user.id; setAccount(user); setStatus("authenticated");
     } catch (caught) { if (currentResultAllowed()) failure(caught); }
     finally { setCoordinationAvailable(service.coordinator.available); }
   }, [failure]);
@@ -61,8 +82,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const latest = service.coordinator.read();
       if (!latest || latest.id !== revision.id || seen === latest.id) return;
       seen = latest.id;
-      if (["logout", "reset", "change", "expired"].includes(latest.kind)) { clear(); return; }
+      if (["logout", "reset", "change", "expired"].includes(latest.kind)) {
+        if (latest.kind === "logout") endSession("logout");
+        else if (latest.kind === "expired") endSession();
+        else clear();
+        return;
+      }
       const version = ++generation.current;
+      if (latest.kind === "login") {
+        // Retire the previous controller before probing, even for a new session of the same user.
+        setSessionEpoch((value) => value + 1); setSessionEndReason(null); setStatus("checking");
+      }
       if (latest.kind === "refresh-uncertain") {
         setError("No pudimos confirmar la renovación. Reintentá comprobar la cuenta o iniciá sesión nuevamente.");
         setStatus("temporary-error");
@@ -71,19 +101,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const user = await service.probe();
         if (!active || generation.current !== version || service.coordinator.read()?.id !== latest.id) return;
-        setAccount(user); setError(null); setStatus("authenticated");
+        activeAccountId.current = user.id; setAccount(user); setError(null); setStatus("authenticated");
       } catch (caught) { if (active && generation.current === version && service.coordinator.read()?.id === latest.id) failure(caught); }
     };
     const unsubscribe = service.coordinator.subscribe((revision) => { void synchronize(revision); });
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the initial session check calls the backend on mount and must mark the state as "checking" before the request.
     void checkSession();
     return () => { active = false; generation.current += 1; unsubscribe(); };
-  }, [checkSession, clear, failure]);
+  }, [checkSession, clear, endSession, failure]);
+  const monitorSession = Boolean(account) && (status === "authenticated" || status === "temporary-error");
+  useEffect(() => {
+    if (!monitorSession) return;
+    let active = true;
+    const service = getAuthService();
+    async function revalidate() {
+      if (document.visibilityState !== "visible" || backgroundPending.current) return;
+      backgroundPending.current = true;
+      const version = generation.current;
+      const observed = service.coordinator.read()?.id;
+      const currentResultAllowed = () => {
+        const latest = service.coordinator.read();
+        return active && generation.current === version && (latest?.id === observed || !latest || ["refresh", "refresh-uncertain", "expired"].includes(latest.kind));
+      };
+      try {
+        const user = await service.me();
+        if (!currentResultAllowed()) return;
+        activeAccountId.current = user.id; setAccount(user); setError(null); setStatus("authenticated");
+      } catch (caught) { if (currentResultAllowed()) failure(caught); }
+      finally { backgroundPending.current = false; }
+    }
+    const onResume = () => { void revalidate(); };
+    const timer = window.setInterval(onResume, 60_000);
+    window.addEventListener("focus", onResume);
+    document.addEventListener("visibilitychange", onResume);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onResume);
+      document.removeEventListener("visibilitychange", onResume);
+    };
+  }, [monitorSession, failure]);
   const login = async (input: LoginInput) => {
     return getAuthService().login(input, (user) => {
       // Success is applied before releasing the cookie lock; later tab events can supersede it.
       generation.current += 1;
-      setAccount(user); setError(null); setStatus("authenticated");
+      setSessionEpoch((value) => value + 1); setSessionEndReason(null);
+      activeAccountId.current = user.id; setAccount(user); setError(null); setStatus("authenticated");
     });
   };
   const resetPassword = async (input: ResetPasswordInput) => { await getAuthService().resetPassword(input, clear); };
@@ -102,7 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw caught;
     }
   };
-  return <AuthContext.Provider value={{ status, account, error, coordinationAvailable, checkSession, login,
+  return <AuthContext.Provider value={{ status, account, error, coordinationAvailable, sessionEndReason, checkSession, login,
     register: (input) => getAuthService().register(input), forgotPassword: (input) => getAuthService().forgotPassword(input),
-    resetPassword, changePassword, logout }}>{children}</AuthContext.Provider>;
+    resetPassword, changePassword, logout }}>{children}{monitorSession && account ? <SessionIdleMonitor key={`${account.id}:${sessionEpoch}`} accountId={account.id} onExpire={endSession} /> : null}</AuthContext.Provider>;
 }

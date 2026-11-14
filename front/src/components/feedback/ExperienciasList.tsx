@@ -54,6 +54,7 @@ export function ExperienciasList({ administrative = false }: { administrative?: 
       <PageHeader id={headingId} title="Experiencias" description="Comentarios de la comunidad sobre materias, comisiones y docentes, del más reciente al más antiguo." breadcrumb={administrative ? [{ label: "Administración", href: "/home/admin" }, { label: "Experiencias" }] : undefined} back={administrative ? { href: "/home/admin", label: "Administración" } : undefined} />
       {!administrative ? <p className={styles.meta}>Para compartir tu experiencia, elegí una comisión desde <Link href="/home/materias">Materias</Link>.</p> : null}
     </div>
+    {params.get("successMessage") ? <Notice tone="success">{params.get("successMessage")}</Notice> : null}
     <div className={styles.feedFilters}>
       <div className={styles.feedCareer}><label htmlFor={careerId}>Carrera</label><div className={styles.feedSelect}><select id={careerId} value={carrera ?? ""} disabled={changing} onChange={(event) => void changeCareer(isCarrera(event.target.value) ? event.target.value : undefined)}><option value="">Todas las carreras</option>{CARRERAS.map((value) => <option key={value} value={value}>{carreraLabel(value)}</option>)}</select><ChevronDown size={18} aria-hidden="true" /></div></div>
       <ExperienciasMateriaSelector carrera={carrera} materiaId={materiaId} nombre={selected.data?.nombre} disabled={changing} onSelect={(id) => navigate(carrera, id)} />

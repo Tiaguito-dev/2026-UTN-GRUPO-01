@@ -8,6 +8,8 @@ export interface AuthConfig {
   audience: string;
   accessTtlSeconds: number;
   sessionTtlSeconds: number;
+  idleTtlSeconds: number;
+  idleWarningSeconds: number;
   allowedOrigins: string[];
   publicUrl: string;
   allowLocalHttp: boolean;
@@ -87,6 +89,9 @@ export function readAuthConfig(env: NodeJS.ProcessEnv): AuthConfig {
   const accessTtlSeconds = integer("AUTH_ACCESS_TTL_SECONDS", 900, 60, 3600);
   const sessionTtlSeconds = integer("AUTH_SESSION_TTL_SECONDS", 604800, 60, 2592000);
   if (sessionTtlSeconds < accessTtlSeconds) fail("AUTH_SESSION_TTL_SECONDS");
+  const idleTtlSeconds = integer("AUTH_IDLE_TTL_SECONDS", 1800, 1, 2592000);
+  const idleWarningSeconds = integer("AUTH_IDLE_WARNING_SECONDS", 120, 1, 2591999);
+  if (idleWarningSeconds >= idleTtlSeconds) fail("AUTH_IDLE_WARNING_SECONDS");
   const passwordResetUrl = required("AUTH_PASSWORD_RESET_URL");
   let resetUrl: URL;
   try { resetUrl = new URL(passwordResetUrl); } catch { return fail("AUTH_PASSWORD_RESET_URL"); }
@@ -98,7 +103,7 @@ export function readAuthConfig(env: NodeJS.ProcessEnv): AuthConfig {
   if (passwordResetMinResponseMs < smtpTimeoutMs + 250) fail("AUTH_PASSWORD_RESET_MIN_RESPONSE_MS");
   return {
     jwtSecret, issuer: required("AUTH_JWT_ISSUER"), audience: required("AUTH_JWT_AUDIENCE"),
-    accessTtlSeconds, sessionTtlSeconds, allowedOrigins, publicUrl, allowLocalHttp,
+    accessTtlSeconds, sessionTtlSeconds, idleTtlSeconds, idleWarningSeconds, allowedOrigins, publicUrl, allowLocalHttp,
     cookieSecure, cookieSameSite: cookieSameSite as AuthConfig["cookieSameSite"],
     cookieName: cookieSecure ? "__Host-butchery_access" : "butchery_access",
     refreshCookieName: cookieSecure ? "__Secure-butchery_refresh" : "butchery_refresh",

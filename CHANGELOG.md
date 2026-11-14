@@ -2,6 +2,34 @@
 
 ## [Sin publicar]
 
+### Aviso y renovación por inactividad
+
+- La sesión requiere confirmar su continuidad a los 28 minutos sin actividad y vence a los
+  30 minutos si no se renueva. La actividad se comparte entre pestañas y los procesos
+  automáticos no reinician el plazo. Se mantiene el límite absoluto configurado de siete días.
+- Nuevos endpoints de estado, actividad y renovación protegidos por sesión y Origin/CSRF;
+  backend rechaza inactividad vencida incluso con un JWT vigente y serializa cambios con logout.
+- `Session.lastActivityAt` y su migración inicializan las sesiones existentes con la hora
+  de aplicación sin cambiar su vencimiento absoluto. Nuevas variables de entorno en Compose
+  y ejemplos para configurar inactividad y aviso previo.
+- Aviso accesible con cuenta regresiva y acciones de renovar o cerrar, manejo de errores de
+  conexión y mensaje al volver al login. La renovación conserva el formulario abierto.
+- Validación final: 793 pruebas frontend y 950 backend aprobadas, tipos, lint, builds y
+  recorridos Chromium de experiencia y sesión con dos pestañas. Migración y API probadas con
+  PostgreSQL aislado; evidencia en `docs/tasks/finished/TASK-sesion-inactividad.md`.
+
+### Sesiones y confirmaciones de eliminación
+
+- Comprobación de sesión en pestañas abiertas cada minuto visible y al recuperar foco,
+  sin mostrar carga inicial ni aceptar respuestas anteriores a un cambio de cuenta.
+  Se conserva la duración configurada: acceso de 15 minutos y sesión absoluta de 7 días.
+- El listado de Experiencias muestra el mensaje de éxito al regresar de una eliminación.
+  La confirmación previa del autor y del administrador ya existía y se conserva.
+- Desvincular un docente de una comisión ahora requiere confirmación; cancelar no escribe.
+  Conserva permisos, historial, mensajes y prevención de solicitudes duplicadas.
+- Validación: 765 pruebas frontend, 85 pruebas backend de autenticación, typecheck, lint,
+  build y recorrido Chromium con API simulada aprobados. Evidencia y límites en
+  `docs/tasks/finished/TASK-hotfix-sesiones-confirmaciones.md`.
 ### Integración local TASK-071 y HU-04 (PR #41)
 
 - Creación combina estrellas y aceptación de normas en una única transacción; edición conserva su contrato y el formulario distingue los errores 409 de normas de otras causas.

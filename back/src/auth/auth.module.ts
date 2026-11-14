@@ -37,6 +37,9 @@ import { PrismaPasswordRecoveryRepository } from "./infrastructure/prisma-passwo
 import { EMAIL_CONFIG, readEmailConfig, type EmailConfig } from "./email.config.js";
 import { BrevoPasswordResetEmail, BrevoVerificationEmail } from "./infrastructure/brevo-email.js";
 import { SmtpPasswordResetEmail } from "./infrastructure/smtp-password-reset-email.js";
+import { SessionActivity } from "./application/session-activity.js";
+import { SESSION_ACTIVITY_REPOSITORY, type SessionActivityRepository } from "./domain/session-activity.repository.js";
+import { PrismaSessionActivityRepository } from "./infrastructure/prisma-session-activity.repository.js";
 
 @Module({
   imports: [UsersModule, PasswordHashingModule, SharedModule],
@@ -83,8 +86,8 @@ import { SmtpPasswordResetEmail } from "./infrastructure/smtp-password-reset-ema
     { provide: REFRESH_TOKEN_SERVICE, useFactory: () => new CryptoRefreshTokenService() },
     {
       provide: REFRESH_CREDENTIAL_REPOSITORY,
-      useFactory: (prisma: PrismaService) => new PrismaRefreshCredentialRepository(prisma),
-      inject: [PrismaService],
+      useFactory: (prisma: PrismaService, configuration: AuthConfig) => new PrismaRefreshCredentialRepository(prisma, undefined, configuration.idleTtlSeconds),
+      inject: [PrismaService, AUTH_CONFIG],
     },
     {
       provide: ACCESS_TOKEN_SERVICE,
@@ -95,6 +98,16 @@ import { SmtpPasswordResetEmail } from "./infrastructure/smtp-password-reset-ema
       provide: SESSION_REPOSITORY,
       useFactory: (prisma: PrismaService) => new PrismaSessionRepository(prisma),
       inject: [PrismaService],
+    },
+    {
+      provide: SESSION_ACTIVITY_REPOSITORY,
+      useFactory: (prisma: PrismaService) => new PrismaSessionActivityRepository(prisma),
+      inject: [PrismaService],
+    },
+    {
+      provide: SessionActivity,
+      useFactory: (repository: SessionActivityRepository, configuration: AuthConfig) => new SessionActivity(repository, configuration.idleTtlSeconds, configuration.idleWarningSeconds),
+      inject: [SESSION_ACTIVITY_REPOSITORY, AUTH_CONFIG],
     },
     {
       provide: RegisterUser,
@@ -121,8 +134,8 @@ import { SmtpPasswordResetEmail } from "./infrastructure/smtp-password-reset-ema
     },
     {
       provide: AuthenticateRequest,
-      useFactory: (users: UserRepository, sessions: SessionRepository, tokens: AccessTokenService) => new AuthenticateRequest(users, sessions, tokens),
-      inject: [USER_REPOSITORY, SESSION_REPOSITORY, ACCESS_TOKEN_SERVICE],
+      useFactory: (users: UserRepository, sessions: SessionRepository, tokens: AccessTokenService, configuration: AuthConfig) => new AuthenticateRequest(users, sessions, tokens, undefined, configuration.idleTtlSeconds),
+      inject: [USER_REPOSITORY, SESSION_REPOSITORY, ACCESS_TOKEN_SERVICE, AUTH_CONFIG],
     },
     {
       provide: AuthenticationGuard,
