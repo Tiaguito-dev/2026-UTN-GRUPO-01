@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_TEXTO_FEEDBACK, validarTextoFeedback, validarPuntuacionFeedback, diferenciasFeedback } from "../src/validations/feedback";
+import { feedbackOriginParams, feedbackNavigation, feedbackSuccessHref, inicioFeedWindowKey, MAX_TEXTO_FEEDBACK, validarTextoFeedback, validarPuntuacionFeedback, diferenciasFeedback } from "../src/validations/feedback";
 import { validateCreateFeedback } from "../../back/src/reviews/application/feedback-input.js";
 
 describe("Feedback: validación y edición de diferencias", () => {
@@ -52,5 +52,22 @@ describe("Feedback: validación y edición de diferencias", () => {
     const historical = { ...original, puntuacion: null };
     expect(diferenciasFeedback(historical, historical)).toEqual({});
     expect(diferenciasFeedback(historical, { ...historical, puntuacion: 1 })).toEqual({ puntuacion: 1 });
+  });
+});
+
+
+describe("Inicio publication navigation", () => {
+  it("preserves only a recognized Inicio origin, never an arbitrary return URL", () => {
+    const params = new URLSearchParams("origen=inicio&returnTo=https://evil.test");
+    expect(feedbackOriginParams(params).get("origen")).toBe("inicio"); expect(feedbackOriginParams(params).has("returnTo")).toBe(false);
+    expect(feedbackNavigation(null, params).back).toEqual({ href: "/home", label: "Inicio" });
+    expect(feedbackNavigation(null, new URLSearchParams("origen=https://evil.test")).back.href).toBe("/home/materias");
+  });
+  it("generates a fresh Inicio window only for home publication returns", () => {
+    const first = new URL(feedbackSuccessHref("/home", "Published"), "http://local"); const second = new URL(feedbackSuccessHref("/home", "Published"), "http://local");
+    expect(first.searchParams.get("feedRefresh")).toBeTruthy(); expect(first.searchParams.get("feedRefresh")).not.toBe(second.searchParams.get("feedRefresh"));
+    expect(new URL(feedbackSuccessHref("/home/experiencias?page=2", "Published"), "http://local").searchParams.has("feedRefresh")).toBe(false);
+    expect(inicioFeedWindowKey(first.searchParams.get("feedRefresh"))).toBe(first.searchParams.get("feedRefresh"));
+    expect(inicioFeedWindowKey(["unexpected"])).toBe("initial"); expect(inicioFeedWindowKey("https://evil.test")).toBe("initial");
   });
 });

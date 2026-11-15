@@ -31,6 +31,8 @@ model User {
   aceptacionesNormas AceptacionNormas[]
   administracionHistorial AdministracionHistorial[]
   valoracionesMaterias ValoracionMateria[]
+  feedbackLikes FeedbackLike[]
+  feedbackRespuestas FeedbackRespuesta[]
 
   @@index([role, disabledAt, createdAt, id])
 }
@@ -267,12 +269,61 @@ model Feedback {
   comision Comision @relation(fields: [comisionId], references: [id], onDelete: Restrict)
   profesor Profesor? @relation(fields: [profesorId], references: [id], onDelete: Restrict)
   historial FeedbackHistorial[]
+  likes FeedbackLike[]
+  respuestas FeedbackRespuesta[]
 
   // UNIQUE parcial (autorId,comisionId) WHERE deletedAt IS NULL vive en la migración SQL.
   @@index([comisionId, deletedAt, createdAt, id])
   @@index([profesorId, deletedAt, createdAt, id])
   @@index([autorId, comisionId])
   @@index([autorId, materiaId, deletedAt])
+  @@index([deletedAt, createdAt(sort: Desc), id(sort: Desc)])
+}
+
+model FeedbackLike {
+  usuarioId String @db.Uuid
+  feedbackId String @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
+  usuario User @relation(fields: [usuarioId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  // Una identidad por par, también durante la baja; reactivar la misma fila.
+  @@id([usuarioId, feedbackId])
+  @@index([feedbackId, deletedAt])
+}
+
+model FeedbackRespuesta {
+  id String @id @default(uuid()) @db.Uuid
+  feedbackId String @db.Uuid
+  autorId String @db.Uuid
+  texto String @db.Text
+  anonimo Boolean
+  solicitudId String @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  autor User @relation(fields: [autorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  historial FeedbackRespuestaHistorial[]
+
+  // No liberar la clave al eliminar: un reintento no puede recrear la respuesta.
+  @@unique([autorId, solicitudId])
+  @@index([feedbackId, deletedAt, createdAt, id])
+}
+
+model FeedbackRespuestaHistorial {
+  id String @id @default(uuid()) @db.Uuid
+  respuestaId String @db.Uuid
+  accion FeedbackAccion
+  texto String @db.Text
+  anonimo Boolean
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  respuesta FeedbackRespuesta @relation(fields: [respuestaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  // Snapshots inmutables como FeedbackHistorial; el actor se audita en AdministracionHistorial.
+  @@index([respuestaId, createdAt, id])
 }
 
 enum FeedbackAccion {
