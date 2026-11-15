@@ -1,4 +1,5 @@
 "use client";
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import { useEffect, useId, useRef, useState } from "react";
 import { Plus, RefreshCw } from "lucide-react";
 import { Dialog } from "@/components/ui/Dialog";
@@ -49,7 +50,7 @@ export function FeedPrincipal() {
           onRefresh={message => { setHideNotice(""); setActionError(message); feed.refresh(); }} /> : undefined}
         onReported={() => { setReportNotice(true); feed.refresh(); }} showContext showTime readOnly />} />
     </li>)}</ul>
-    {feed.loading ? <p role="status">{feed.items.length ? "Cargando más comentarios…" : "Cargando comentarios…"}</p> : null}
+    {feed.loading ? <BrandLoading message={feed.items.length ? "Cargando más comentarios…" : "Cargando comentarios…"} /> : null}
     {feed.error ? <Notice tone="error">{feed.error} <button className="button button-secondary" type="button" onClick={() => void feed.loadMore()}>Reintentar</button></Notice> : null}
     {!feed.loading && !feed.error && feed.loaded && feed.items.length === 0 ? <p role="status">Todavía no hay comentarios.</p> : null}
     {!feed.loading && !feed.error && feed.items.length > 0 && !feed.hasMore ? <p role="status">Llegaste al final de los comentarios.</p> : null}

@@ -1,4 +1,5 @@
 "use client";
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useId, useState } from "react";
@@ -52,9 +53,9 @@ export function ComisionFeedback({ comision, administrative = false }: { comisio
         <p>Podés mantener un comentario por comisión, aunque haya varios docentes. Podés publicarlo de forma anónima, editarlo o eliminarlo. Si lo eliminás, podés publicar otro mientras la comisión esté activa.</p>
       </details> : null}
       {!comision.activa ? <Notice tone="warning">{administrative ? "Esta comisión está inactiva. Las publicaciones y ediciones están cerradas." : "Esta comisión está inactiva. Podés consultar sus experiencias y retirar tu comentario; las publicaciones y ediciones están cerradas."}</Notice> : null}
-      {!administrative && (own.loading ? <p role="status">Comprobando tu comentario…</p> : own.error ? <Notice tone="error">{own.error} <button className="button" type="button" onClick={own.retry}>Reintentar comprobar mi comentario</button></Notice> : null)}
+      {!administrative && (own.loading ? <BrandLoading message="Comprobando tu comentario…" /> : own.error ? <Notice tone="error">{own.error} <button className="button" type="button" onClick={own.retry}>Reintentar comprobar mi comentario</button></Notice> : null)}
       {!administrative && own.data ? <div className={styles.stack}><FeedbackModerationStatus feedback={own.data} /><Link className="button button-secondary" href={feedbackDetalleHref(own.data.id, feedbackParams)}>Administrar mi comentario</Link></div> : null}
-      {comments.state.status === "loading" ? <p role="status">Cargando comentarios…</p> : null}
+      {comments.state.status === "loading" ? <BrandLoading message="Cargando comentarios…" /> : null}
       {comments.state.status === "error" ? <Notice tone="error">{comments.state.error} <button className="button" type="button" onClick={comments.retry}>Reintentar cargar comentarios</button></Notice> : null}
       {result ? <>
         {result.items.length ? <ul className={styles.experienceList}>{result.items.map((feedback) => <li key={feedback.id}><ExperienceCard feedback={feedback} onReported={() => { setReportNotice(true); comments.retry(); }} administrative={administrative} returnTo={returnTo} onManage={() => router.push(feedbackDetalleHref(feedback.id, feedbackParams))} /></li>)}</ul> : <p className={styles.experienceEmpty}>Todavía no hay comentarios en esta comisión.</p>}

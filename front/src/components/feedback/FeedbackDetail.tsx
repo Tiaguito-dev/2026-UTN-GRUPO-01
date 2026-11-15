@@ -1,4 +1,5 @@
 "use client";
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import Link from "next/link";
 import { useId, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -66,7 +67,7 @@ export function FeedbackDetail({ feedbackId }: { feedbackId: string }) {
       breadcrumb={[...navigation.items, { label: "Tu comentario" }]} /></div>
     {feedbackSuccessMessage(params.get("successMessage")) ? <Notice tone="success">{feedbackSuccessMessage(params.get("successMessage"))}</Notice> : null}
     {resource.error ? <Notice tone="error">{resource.error} {!resource.notFound ? <button className="button" type="button" onClick={resource.retry}>Reintentar</button> : null}</Notice> : null}
-    {resource.loading ? <p role="status">Cargando comentario…</p> : null}
+    {resource.loading ? <BrandLoading message="Cargando comentario…" /> : null}
     {resource.data && !resource.data.propio ? <Notice tone="error">Solo podés consultar el detalle de tus propios comentarios.</Notice> : null}
     {error && !action ? <Notice tone="error" focusOnShow>{error}</Notice> : null}
     {message ? <Notice tone="success" focusOnShow>{message}</Notice> : null}

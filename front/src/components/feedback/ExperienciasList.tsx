@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import Link from "next/link";
 import { useId, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, Users, MessageSquare } from "lucide-react";
@@ -80,7 +81,7 @@ function ExperienciasComunidad({ administrative, selector }: { administrative: b
     {changing ? <p role="status" className={styles.meta}>Actualizando filtros…</p> : null}
     {filterError ? <Notice tone="error">{filterError}</Notice> : null}
     {materiaId && selected.error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la materia seleccionada. <button className="button button-secondary" type="button" onClick={selected.retry}>Reintentar materia</button></Notice> : null}
-    {state.status === "loading" ? <p role="status">Cargando experiencias…</p> : state.status === "error" ? <Notice tone="error">Lo sentimos. No pudimos recuperar las experiencias. Intentá nuevamente. <button className="button" type="button" onClick={retry}>Reintentar</button></Notice> : <>
+    {state.status === "loading" ? <BrandLoading message="Cargando experiencias…" /> : state.status === "error" ? <Notice tone="error">Lo sentimos. No pudimos recuperar las experiencias. Intentá nuevamente. <button className="button" type="button" onClick={retry}>Reintentar</button></Notice> : <>
       <p className={styles.feedSummary}>{state.data.total === 1 ? "1 comentario" : `${state.data.total} comentarios`}{state.data.items.length ? ` · Mostrando ${(state.data.page - 1) * state.data.pageSize + 1}–${Math.min(state.data.total, (state.data.page - 1) * state.data.pageSize + state.data.items.length)}` : ""}</p>
       {state.data.items.length ? <ul className={styles.experienceList}>{state.data.items.map((feedback) => <li key={feedback.id}><ExperienceCard feedback={feedback} onReported={() => { setReportNotice(true); retry(); }} showContext origin={origin} administrative={administrative} returnTo={listHref} onManage={() => router.push(feedbackDetalleHref(feedback.id, origin))} /></li>)}</ul> : state.data.total ? <p>No hay comentarios en esta página. <button className="button button-secondary" type="button" onClick={() => setPage(1)}>Volver a la primera página</button></p> : <div className={styles.experienceEmpty}><p>{active ? "No hay experiencias para estos filtros." : "Todavía no hay experiencias publicadas."}</p><button className="button button-secondary" type="button" onClick={clear}>Limpiar filtros</button></div>}
       <Pagination page={page} pageSize={state.data.pageSize} total={state.data.total} onChange={setPage} />

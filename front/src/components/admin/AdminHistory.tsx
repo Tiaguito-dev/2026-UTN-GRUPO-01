@@ -1,4 +1,5 @@
 "use client";
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import { useId, useState } from "react";
 import { listarHistorialAdministrativo, type AdminHistoryKind } from "@/services/admin-history";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
@@ -13,7 +14,7 @@ export function AdminHistory({ kind, id }: { kind: AdminHistoryKind; id: string 
   const { state, retry } = usePaginatedFetch(`${kind}:${id}:historial`, (next) => listarHistorialAdministrativo(kind, id, { page: next, pageSize: 3 }), page);
   return <section className={styles.history} aria-labelledby={headingId}>
     <h2 id={headingId}>Historial de cambios</h2>
-    {state.status === "loading" ? <p role="status">Cargando historial…</p> : state.status === "error" ? <Notice tone="error">Lo sentimos. No pudimos recuperar el historial. Intentá nuevamente. <button className="button button-secondary" type="button" onClick={retry}>Reintentar historial</button></Notice> : <>
+    {state.status === "loading" ? <BrandLoading message="Cargando historial…" /> : state.status === "error" ? <Notice tone="error">Lo sentimos. No pudimos recuperar el historial. Intentá nuevamente. <button className="button button-secondary" type="button" onClick={retry}>Reintentar historial</button></Notice> : <>
       {state.data.items.length ? <ol className={styles.historyList}>{state.data.items.map((entry) => <li key={entry.id}><p><strong>{ACTIONS[entry.accion] ?? "Cambio administrativo"}</strong> · <time dateTime={entry.createdAt}>{new Date(entry.createdAt).toLocaleString("es-AR")}</time></p><dl>{entry.cambios.map((change, index) => <div key={`${change.campo}:${index}`}><dt>{FIELDS[change.campo] ?? change.campo}</dt><dd><span>Antes: {change.anterior ?? "Sin valor"}</span><span>Ahora: {change.nuevo ?? "Sin valor"}</span></dd></div>)}</dl></li>)}</ol> : <p>{state.data.total ? "No hay cambios en esta página." : "Todavía no hay cambios registrados."}</p>}
       {page > 1 && !state.data.items.length ? <button className="button button-secondary" type="button" onClick={() => setPage(1)}>Volver al inicio del historial</button> : null}
       <Pagination page={page} pageSize={3} total={state.data.total} onChange={setPage} />

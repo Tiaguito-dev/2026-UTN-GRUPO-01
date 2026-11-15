@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,7 +18,7 @@ export function RequireGuest({ children, preserveReturn = false }: { children: R
       router.replace(destination);
     }
   }, [status, account?.role, router, preserveReturn]);
-  if (status === "checking" || status === "authenticated") return <p role="status">Comprobando sesión…</p>;
+  if (status === "checking" || status === "authenticated") return <BrandLoading message="Comprobando sesión…" />;
   if (status === "temporary-error") {
     if (preserveReturn) return <><Notice tone="warning">No pudimos confirmar el estado de tu sesión. Si elegís iniciar sesión nuevamente, el servidor comprobará tus credenciales.</Notice>{children}</>;
     return <Card variant="auth"><SessionCheckFailed /></Card>;

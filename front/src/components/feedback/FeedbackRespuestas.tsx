@@ -1,4 +1,5 @@
 "use client";
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
@@ -25,7 +26,7 @@ export function FeedbackRespuestas({ feedbackId, onCount, onUnavailable, unavail
   const changed = useCallback(() => { setPage(1); setVersion(value => value + 1); }, []);
   return <div className={styles.replies}>
     <div className={styles.repliesHeader}><h3>Respuestas</h3>{!unavailable && state.status === "ready" ? <span className={styles.repliesCount}>{state.data.total} {state.data.total === 1 ? "respuesta" : "respuestas"}</span> : null}</div>
-    {!unavailable ? state.status === "loading" ? <p role="status">Cargando respuestas…</p> : state.status === "error" ? <Notice tone="error">{state.error} <button className="button button-secondary" type="button" onClick={retry}>Reintentar respuestas</button></Notice> : <>
+    {!unavailable ? state.status === "loading" ? <BrandLoading message="Cargando respuestas…" /> : state.status === "error" ? <Notice tone="error">{state.error} <button className="button button-secondary" type="button" onClick={retry}>Reintentar respuestas</button></Notice> : <>
       {state.data.items.length ? <ul className={styles.replyList}>{state.data.items.map(reply => <li key={reply.id}><Respuesta reply={reply} onChanged={changed} onEdit={() => setEditing({ reply, token: ++editSequence.current })} onUnavailable={changed} /></li>)}</ul> : <div className={styles.repliesEmpty} role="status"><MessageCircle size={22} strokeWidth={1.75} aria-hidden="true" focusable="false" /><div><p className={styles.repliesEmptyTitle}>Todavía no hay respuestas</p><p>Sé el primero en participar de esta conversación</p></div></div>}
       <Pagination page={page} pageSize={state.data.pageSize} total={state.data.total} onChange={setPage} />
     </> : null}
