@@ -26,6 +26,7 @@ import { FilterChips } from "@/components/ui/FilterChips";
 import { periodoLabel } from "@/lib/format/periodo";
 import { adminFormHref, adminListHref } from "@/validations/admin";
 import { Chevron } from "./detalle";
+import { ValoracionComision, useValoracionesCursada } from "@/components/ranking/ValoracionComision";
 import styles from "./ComisionesList.module.css";
 
 export function ComisionesList({ materiaId, cursadaId }: { materiaId: string; cursadaId: string }) {
@@ -43,6 +44,7 @@ export function ComisionesList({ materiaId, cursadaId }: { materiaId: string; cu
   const periodoActual = cursada ? periodoLabel(cursada.anio) : error ? "Cursada" : "Cargando…";
 
   const { page, setPage } = useUrlPagination();
+  const valoraciones = useValoracionesCursada(cursadaId);
   const [carreraFilter, setCarreraFilter] = useState<Carrera | undefined>(undefined);
 
   const backHref = materiaDetailHref(cursada?.materia.id ?? materiaId, urlCarrera, careerYear, listPage, parseMateriaContext(context));
@@ -74,7 +76,7 @@ export function ComisionesList({ materiaId, cursadaId }: { materiaId: string; cu
       <div className="academic-panel-header">
         <div>
           <h2 id={comisionesHeadingId}>Comisiones</h2>
-          <p>Cada comisión, de qué carrera es y quiénes la dictan.</p>
+          <p>Cada comisión, de qué carrera es, quiénes la dictan y cómo la valoraron.</p>
         </div>
         {/* TASK-043 decision 2: the alta page receives the cursada preselected. */}
         {isAdmin ? <Link className="button" href={`${adminFormHref("/home/admin/comisiones/nueva", adminListHref({ seccion: "comisiones", page, materiaId: realMateriaId, cursadaId, carrera: carreraFilter }))}&cursadaId=${encodeURIComponent(cursadaId)}`}>Nueva comisión</Link> : null}
@@ -113,6 +115,7 @@ export function ComisionesList({ materiaId, cursadaId }: { materiaId: string; cu
                     </span>
                     <Chevron />
                   </span>
+                  <ValoracionComision comisionId={comision.id} valoraciones={valoraciones} />
                   {comision.profesores.length ? <ul className={styles.profesores}>
                     {comision.profesores.map((p) => <li key={p.id}>{`${p.nombreCompleto} (${cargoLabel(p.cargo)})`}</li>)}
                   </ul> : <span className={styles.sinProfesores}>Sin profesores asignados</span>}

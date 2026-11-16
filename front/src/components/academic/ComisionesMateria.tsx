@@ -13,6 +13,7 @@ import { periodoLabel } from "@/lib/format/periodo";
 import { cargoLabel, carreraLabel, isCarrera, parseMateriaPage } from "@/validations/materias";
 import type { Carrera, MateriaCarrera } from "@/types/materias";
 import { CursadasList } from "./CursadasList";
+import { ValoracionComision, useValoracionesCursada } from "@/components/ranking/ValoracionComision";
 import styles from "./ComisionesMateria.module.css";
 import { feedbackOriginParams } from "@/validations/feedback";
 import { adminFormHref, adminListHref } from "@/validations/admin";
@@ -108,6 +109,7 @@ export function ComisionesMateria({ materiaId, materiaNombre, carreras, materias
 }
 
 function ComisionesPeriodo({ materiaId, carrera, cursada, page, contextQuery, onPageChange }: { materiaId: string; carrera: Carrera; cursada: CursadaResumen; page: number; contextQuery: string; onPageChange: (page: number) => void }) {
+  const valoraciones = useValoracionesCursada(cursada.id);
   const { state, retry } = usePaginatedFetch(`comisiones-materia:${cursada.id}:${carrera}`, (next) => listarComisionesPorCursada(cursada.id, { page: next, pageSize: 9, carrera }), page);
   const query = new URLSearchParams(contextQuery);
   query.set("cursadaId", cursada.id);
@@ -122,6 +124,7 @@ function ComisionesPeriodo({ materiaId, carrera, cursada, page, contextQuery, on
         <div><strong className={styles.code}>Comisión {comision.carrera}{comision.numero}</strong><span className={styles.careerName}>{carreraLabel(comision.carrera)}</span></div>
         <ChevronRight size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" />
       </div>
+      <ValoracionComision comisionId={comision.id} valoraciones={valoraciones} />
       {comision.profesores.length ? <ul className={styles.teachers}>{comision.profesores.map((profesor) => <li key={profesor.id}>{profesor.nombreCompleto} <span className={styles.teacherRole}>· {cargoLabel(profesor.cargo)}</span></li>)}</ul> : <p className={styles.noTeachers}>Sin docentes asignados</p>}
       {!comision.activa ? <span className={styles.summary}>Inactiva</span> : null}
       </Link>

@@ -94,6 +94,7 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
     return this.listing({ deletedAt: null,
       ...(filters.carrera ? { comision: { carrera: filters.carrera } } : {}),
       ...(filters.materiaId ? { materiaId: filters.materiaId } : {}),
+      ...(filters.profesorId ? { profesorId: filters.profesorId } : {}),
     }, viewer, pagination);
   }
 

@@ -78,7 +78,7 @@ export function diferenciasFeedback(original: { texto: string; anonimo: boolean;
   return changes;
 }
 
-export function feedbackComisionHref(contexto: FeedbackContexto): string {
+export function feedbackComisionHref(contexto: Pick<FeedbackContexto, "materiaId" | "cursadaId" | "comisionId">): string {
   return `/home/materias/${encodeURIComponent(contexto.materiaId)}/cursadas/${encodeURIComponent(contexto.cursadaId)}/comisiones/${encodeURIComponent(contexto.comisionId)}`;
 }
 

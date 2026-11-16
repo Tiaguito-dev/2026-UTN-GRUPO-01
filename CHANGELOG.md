@@ -2,6 +2,14 @@
 
 ## [Sin publicar]
 
+### Ranking de comisiones y profesores
+
+- Seed `npm run feedback:seed --workspace=back`: experiencias de demostración para todas las comisiones (40 estudiantes demo sin acceso, comentarios con estrellas, historial de creación y valoración de materias), con reputaciones variadas para que el ranking tenga extremos. Aditivo e idempotente; documentado en `infra/DESPLIEGUE-CLOUD.md`.
+
+- Backend: `GET /rankings/comisiones` (filtros `materiaId`, `cursadaId`, `minValoraciones`), `GET /rankings/profesores` (búsqueda `q`) y `GET /rankings/profesores/:id`, para cualquier cuenta con sesión; `GET /feedback` acepta `profesorId`. Usan las puntuaciones vigentes; el total de un profesor junta sus comisiones con promedio ponderado por votos. Sin esquema ni migraciones.
+- Frontend: sección Profesores con ranking y buscador, perfil de profesor con desglose por comisión y comentarios, ranking global de comisiones en Materias, y estrellas con distintivo "Mejor valorada" en las tarjetas de comisión del detalle de materia y de cursada. Nuevos `ui/SearchForm` (extraído de Materias) y `ranking/RankingList`.
+- Validación local: backend 1070 pruebas con PostgreSQL aislado y frontend 850; builds del backend, typecheck y lint de ambos; revisión en navegador a 1280 y 375 px. Evidencia en [la tarea](docs/tasks/finished/TASK-ranking-profesores-comisiones.md).
+
 ### Aviso y renovación por inactividad
 
 - La sesión requiere confirmar su continuidad a los 28 minutos sin actividad y vence a los

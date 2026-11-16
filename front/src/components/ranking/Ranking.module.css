@@ -1,0 +1,21 @@
+/* Layout of the ranking screens; spacing and surfaces follow MateriasList.module.css. */
+.page { display: grid; gap: var(--space-6); min-width: 0; }
+/* Title block plus a header action, as in MateriasList.module.css .header. */
+.header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+.header > a { gap: var(--space-2); }
+/* Same wrapper as .feedHeader in feedback.module.css. */
+.pageHeader { display: grid; gap: var(--space-2); min-width: 0; }
+.pageHeader h1, .pageHeader p { margin: 0; }
+.panel { padding: var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); min-width: 0; }
+.section { display: grid; gap: var(--space-4); min-width: 0; }
+.sectionTitle { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-xl); }
+.sectionTitle svg { color: var(--muted); flex-shrink: 0; }
+.summary { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2) var(--space-4); }
+.summary p { margin: 0; color: var(--muted); }
+.summary .total { color: var(--text); font-weight: var(--weight-semibold); }
+.empty { display: grid; gap: var(--space-3); justify-items: start; margin: 0; color: var(--muted); }
+.empty p { margin: 0; }
+.note { margin: 0; color: var(--muted); font-size: var(--text-md); }
+@media (max-width: 600px) {
+  .panel { padding: var(--space-4); }
+}

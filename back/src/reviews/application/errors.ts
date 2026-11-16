@@ -24,3 +24,7 @@ export class FeedbackClosedError extends DomainError {
   readonly httpStatus = 409;
   constructor() { super("La comisión no está activa. Puede consultar los comentarios o retirar el suyo."); }
 }
+export class RankingProfesorNotFoundError extends DomainError {
+  readonly httpStatus = 404;
+  constructor() { super("El profesor solicitado no existe."); }
+}

@@ -399,6 +399,9 @@ raíz; no necesita archivos de entorno en `back/` y `front/`. Desarrollo funcion
 - `npm run db:migrate`: crea y aplica una migración de desarrollo.
 - `npm run db:studio`: abre Prisma Studio.
 - `npm run academic:seed --workspace=back`: carga el contenido académico de demostración
+- `npm run feedback:seed --workspace=back`: carga experiencias de demostración (40 estudiantes demo
+  sin acceso, 2 a 6 comentarios con estrellas por comisión y la valoración de cada materia). Aditivo e
+  idempotente; correr después de `academic:seed`. Contenido ficticio.
   (3 materias con sus cursadas y comisiones; profesores ficticios a propósito). Requiere
   `DATABASE_URL` y migraciones aplicadas, y `npm run build --workspace=back` previo porque es un
   comando compilado, igual que `auth:provision-admin`. Es aditivo e idempotente: puede correrse
@@ -1223,3 +1226,23 @@ Las mutaciones académicas reciben el actor de sesión validado y escriben la au
 ## Compatibilidad de la integración docente
 
 La integración de desarrollo con hot-fix/ui mantiene los contratos de asignación docente: `PUT /comisiones/:comisionId/profesores/:profesorId` con `{ cargo }` y `DELETE` sobre la misma ruta. Cada operación conserva permisos ADMIN, validaciones de vigencia, transacción y trazabilidad existentes; no requiere migraciones ni cambios de configuración. Las pruebas HTTP/SQL añadidas por TASK-057 requieren `TEST_DATABASE_URL` exclusivo. La evidencia de integración queda en `docs/tasks/finished/TASK-integracion-desarrollo-docentes.md`.
+
+## Ranking de comisiones y profesores
+
+`GET /rankings/comisiones` y `GET /rankings/profesores` (cualquier cuenta con sesión, mismos
+guards que `ReviewsController`). Query: `page` (1), `pageSize` (1 a 50, por defecto 10) y
+`minValoraciones` (1 a 100, por defecto 1); parámetros inválidos o desconocidos dan 400.
+
+- Fuente: `Feedback` vigente con `puntuacion`; se excluyen comisiones, cursadas y materias con baja
+  lógica. Las comisiones inactivas cuentan. Profesores con baja lógica no aparecen, pero sus votos
+  siguen contando para la comisión.
+- Comisión: `{ posicion, comision, materia, cursada, valoracion: { promedio, cantidad } }`.
+- Profesor: `{ posicion, profesor, valoracion, comisiones[] }`, donde cada comisión del desglose
+  trae `cargo` actual (o `null`) y su propia `valoracion`. El total es ponderado por votos.
+- Orden: promedio exacto desc, cantidad desc, nombre, id. `promedio` redondeado a un decimal.
+- Filtros: comisiones acepta `materiaId` y `cursadaId`; profesores acepta `q` (sin tildes ni
+  mayúsculas), y con búsqueda incluye al final, con `posicion: null`, a los que no llegan al mínimo
+  o no tienen votos. `GET /rankings/profesores/:id` devuelve la fila de un profesor (404 si no
+  existe). `GET /feedback` acepta `profesorId`.
+- Cálculo: una consulta agregada (`PrismaRankingRepository`) y funciones puras en
+  `reviews/domain/ranking.ts`. Decisiones en `docs/tasks/finished/TASK-ranking-profesores-comisiones.md`.

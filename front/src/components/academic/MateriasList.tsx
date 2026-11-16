@@ -1,15 +1,16 @@
 "use client";
 import Link from "next/link";
-import { Search, ChevronRight } from "lucide-react";
+import { ChevronRight, Trophy } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useId, useState, type FormEvent } from "react";
+import { useId, useState } from "react";
 import { listarMaterias } from "@/services/materias";
 import type { AnioCarrera, Carrera, Materia, MateriaCarrera } from "@/types/materias";
 import { useFocusOnMount } from "@/hooks/useFocusOnMount";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
-import { ANIOS_CARRERA, CARRERAS, anioCarreraLabel, carreraLabel, carreraShortLabel, isAnioCarrera, isCarrera, materiaListHref, materiaDetailHref, modalidadLabel, parseMateriaPage, parseMateriaContext, validateMateriaSearch, nivelElectivaLabel, type MateriaContext } from "@/validations/materias";
+import { ANIOS_CARRERA, CARRERAS, anioCarreraLabel, carreraLabel, carreraShortLabel, isAnioCarrera, isCarrera, materiaListHref, materiaDetailHref, modalidadLabel, parseMateriaPage, parseMateriaContext, nivelElectivaLabel, type MateriaContext } from "@/validations/materias";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SearchForm } from "@/components/ui/SearchForm";
 import { Pagination } from "@/components/ui/Pagination";
 import { Notice } from "@/components/ui/Notice";
 import { Dialog } from "@/components/ui/Dialog";
@@ -43,7 +44,10 @@ export function MateriasList() {
   return <section className={styles.page} aria-labelledby={headingId}>
     <div className={styles.header}>
       <PageHeader id={headingId} title="Materias" description="Explorá las materias por carrera, año o nombre y conocé las experiencias de sus comisiones." />
-      {isAdmin ? <button className={`button ${styles.newButton}`} type="button" onClick={() => setCreating(true)}><PlusIcon />Nueva materia</button> : null}
+      <div className={styles.headerActions}>
+        {isAdmin ? <button className="button" type="button" onClick={() => setCreating(true)}><PlusIcon />Nueva materia</button> : null}
+        <Link className="button button-secondary" href="/home/materias/ranking"><Trophy size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" />Ranking de comisiones</Link>
+      </div>
     </div>
     {params.get("successMessage") ? <Notice tone="success">{params.get("successMessage")}</Notice> : null}
     {created ? <Notice tone="success">{created}</Notice> : null}
@@ -72,7 +76,7 @@ export function MateriasList() {
             <option value="">Todos los años</option>{ANIOS_CARRERA.map((value) => <option key={value} value={value}>{value === "ELECTIVA" ? "Electivas" : anioCarreraLabel(value)}</option>)}
           </select>
         </div>
-        <MateriaSearch key={context.q ?? ""} query={context.q ?? ""} onSearch={(q) => router.replace(materiaListHref(carrera, anio, 1, { ...context, q }), { scroll: false })} />
+        <SearchForm key={context.q ?? ""} className={styles.filterField} placeholder="Nombre de la materia" query={context.q ?? ""} onSearch={(q) => router.replace(materiaListHref(carrera, anio, 1, { ...context, q }), { scroll: false })} />
       </div>
       {activeFilters ? <div className={styles.filterSummary}>
         <p>Filtros: {filterLabels.join(" · ")}</p>
@@ -137,24 +141,4 @@ function MateriasResults({ carrera, anio, page, context, refreshKey }: { carrera
       <Pagination page={page} pageSize={state.data.pageSize} total={state.data.total} onChange={changePage} />
     </>}
   </div>;
-}
-
-function MateriaSearch({ query, onSearch }: { query: string; onSearch: (q: string) => void }) {
-  const searchId = useId();
-  const [value, setValue] = useState(query);
-  const [error, setError] = useState("");
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const issue = validateMateriaSearch(value);
-    setError(issue ?? "");
-    if (!issue) onSearch(value.trim());
-  }
-  return <form className={`${styles.search} ${styles.filterField}`} onSubmit={submit} noValidate role="search">
-    <label htmlFor={searchId}>Buscar por nombre</label>
-    <div className={styles.searchControls}>
-      <div className={styles.searchInput}><Search className={styles.searchIcon} aria-hidden="true" focusable="false" size={18} strokeWidth={1.75} /><input id={searchId} name="q" type="search" value={value} onChange={(event) => setValue(event.target.value)} placeholder="Nombre de la materia" aria-invalid={Boolean(error)} aria-describedby={error ? `${searchId}-error` : undefined} /></div>
-      <button className={`button ${styles.searchButton}`} type="submit">Buscar</button>
-    </div>
-    {error ? <p id={`${searchId}-error`} role="alert" className="field-error">{error}</p> : null}
-  </form>;
 }

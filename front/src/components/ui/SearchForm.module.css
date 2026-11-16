@@ -1,0 +1,7 @@
+.search { min-width: 0; margin: 0; }
+.search label { margin: 0 0 var(--space-2); font-size: var(--text-md); }
+.searchControls { display: flex; gap: var(--space-2); align-items: stretch; }
+.searchInput { position: relative; flex: 1; min-width: 0; }
+.searchIcon { position: absolute; left: var(--space-3); top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.searchInput input { width: 100%; min-width: 0; min-height: 48px; padding: var(--space-3) var(--space-3) var(--space-3) var(--space-10); border-radius: var(--radius-sm); box-sizing: border-box; }
+.searchButton { flex-shrink: 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-sm); }

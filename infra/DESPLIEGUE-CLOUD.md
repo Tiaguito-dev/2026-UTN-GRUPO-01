@@ -85,7 +85,12 @@ $env:ADMIN_DISPLAY_NAME = "Administrador"
 $env:ADMIN_PASSWORD = "<contraseña de 8 a 128 caracteres>"
 npm run auth:provision-admin
 npm run academic:seed
+npm run feedback:seed
 ```
+
+`feedback:seed` agrega experiencias de demostración con estrellas para que los rankings y las
+valoraciones de materias tengan datos. Es opcional: no correrlo si la base ya tiene experiencias
+reales y no se quiere mezclarlas con contenido ficticio.
 
 Cerrar esa terminal al terminar, para no dejar la cadena de producción y la contraseña en el
 historial de la sesión.
