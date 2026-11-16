@@ -1035,3 +1035,21 @@ Los detalles administrativos de materias, profesores, cursadas, comisiones, usua
 ## Normas antes de publicar
 
 FeedbackForm consulta GET /feedback/normas al abrir una nueva publicación. Cuando falta la aceptación vigente, presenta una casilla desmarcada y el documento completo en un diálogo que conserva el borrador. La creación envía versionNormas explícitamente. Si cambia la versión durante la escritura, actualiza las reglas y solicita otra aceptación. La API registra usuario, versión y fecha en la transacción de publicación. Una aceptación vigente permite las publicaciones posteriores.
+
+## Ranking de profesores y comisiones
+
+- `/home/profesores` (`ranking/ProfesoresRanking`): buscador `ui/SearchForm` con la búsqueda en
+  `?q=`, ranking paginado con `RankingList` (puesto, cargos, estrellas) y enlace al perfil.
+- `/home/profesores/[profesorId]` (`ranking/PerfilProfesor`): resumen, "Por comisión" (filas sin
+  puesto) y comentarios con `ExperienceCard`, vía `listarFeedback({ profesorId })`.
+- `/home/materias/ranking` (`ranking/ComisionesRanking`): ranking global con mínimo de valoraciones
+  en `?min=1|3|5` (`FilterChips`). Botón "Ranking de comisiones" en el encabezado de Materias.
+- Tarjetas de comisión de `ComisionesMateria` y `ComisionesList`: `useValoracionesCursada` +
+  `ValoracionComision` muestran estrellas y "Mejor valorada" (solo con dos o más comisiones
+  valoradas). Un fallo del ranking no rompe las tarjetas.
+- `ui/SearchForm` es el buscador por nombre compartido (antes vivía dentro de `MateriasList`).
+- Servicios en `services/ranking.ts`; contrato en `back/OVERVIEW.md`.
+- ADMIN: las mismas vistas viven en `/home/admin/ranking` (profesores), `/home/admin/ranking/profesores/[id]`
+  y `/home/admin/ranking/comisiones`, con la prop `admin` y los destinos de `ranking/rutas.ts`. Ítem
+  "Ranking" en el menú de administración. `roleDestination` manda `/home/materias/ranking` al ranking
+  administrativo (antes lo confundía con un `materiaId`).
