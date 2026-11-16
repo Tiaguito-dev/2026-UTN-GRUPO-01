@@ -54,6 +54,7 @@ const ADMIN_NAVIGATION: SystemSection[] = [
   { id: "profesores", title: "Profesores", href: "/home/admin/profesores", symbol: "", description: "Equipo docente" },
   { id: "usuarios", title: "Usuarios", href: "/home/admin/usuarios", symbol: "", description: "Cuentas registradas" },
   { id: "experiencias", title: "Experiencias", href: "/home/admin/experiencias", symbol: "", description: "Consulta de comentarios" },
+  { id: "ranking", title: "Ranking", href: "/home/admin/ranking", symbol: "", description: "Profesores y comisiones mejor valorados" },
 ];
 
 export function sectionsForRole(role?: Role): SystemSection[] {

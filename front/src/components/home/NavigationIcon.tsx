@@ -1,4 +1,4 @@
-import { BookOpen, House, LayoutGrid, MessageSquare, Users, UsersRound, type LucideIcon } from "lucide-react";
+import { BookOpen, House, LayoutGrid, MessageSquare, Trophy, Users, UsersRound, type LucideIcon } from "lucide-react";
 
 const icons: Record<string, LucideIcon> = {
   inicio: House,
@@ -8,6 +8,7 @@ const icons: Record<string, LucideIcon> = {
   comunidad: UsersRound,
   usuarios: UsersRound,
   admin: LayoutGrid,
+  ranking: Trophy,
 };
 
 export function NavigationIcon({ section }: { section: string }) {

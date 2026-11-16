@@ -12,6 +12,12 @@ describe("TASK-068: destinos según el rol confirmado", () => {
     expect(safeAdminReturnTo(origin)).toBeUndefined();
   });
 
+  it("el ranking de comisiones del alumno lleva al ranking administrativo, no a una materia llamada ranking", () => {
+    expect(roleDestination("ADMIN", "/home/materias/ranking?min=3")).toBe("/home/admin/ranking/comisiones?min=3");
+    expect(roleDestination("USER", "/home/materias/ranking")).toBe("/home/materias/ranking");
+    expect(roleDestination("ADMIN", "/home/admin/ranking/profesores/p1")).toBe("/home/admin/ranking/profesores/p1");
+  });
+
   it("define un inicio separado para administración", () => {
     expect(roleHome("ADMIN")).toBe("/home/admin");
     expect(roleHome("USER")).toBe("/home");

@@ -9,10 +9,11 @@ import type { Carrera } from "@/types/materias";
 const idPath = (id: string) => encodeURIComponent(id);
 const listQuery = (input: PaginationInput = {}, size = 9) => toQuery({ page: 1, pageSize: size, ...input });
 
-export function listarFeedback(input: PaginationInput & { carrera?: Carrera; materiaId?: string } = {}) {
+export function listarFeedback(input: PaginationInput & { carrera?: Carrera; materiaId?: string; profesorId?: string } = {}) {
   const query = new URLSearchParams(listQuery(input).slice(1));
   if (input.carrera) query.set("carrera", input.carrera);
   if (input.materiaId) query.set("materiaId", input.materiaId);
+  if (input.profesorId) query.set("profesorId", input.profesorId);
   return getAuthService().protectedGet(`/feedback?${query}`, paginatedSchema(feedbackSchema));
 }
 

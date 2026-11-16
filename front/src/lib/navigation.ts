@@ -28,6 +28,8 @@ export function roleDestination(role: Role | undefined, raw?: string | null): st
   const url = new URL(safe, "https://local.invalid");
   const path = url.pathname;
   if (/^\/home\/admin(\/|$)/.test(path) || /^\/account(\/|$)/.test(path)) return safe;
+  // Before the subject match: "ranking" is a route, not a materiaId.
+  if (path === "/home/materias/ranking") return `/home/admin/ranking/comisiones${url.search}`;
   const commission = path.match(/^\/home\/materias\/[^/]+\/cursadas\/[^/]+\/comisiones\/([^/]+)$/);
   const course = path.match(/^\/home\/materias\/[^/]+\/cursadas\/([^/]+)$/);
   const subject = path.match(/^\/home\/materias\/([^/]+)$/);
