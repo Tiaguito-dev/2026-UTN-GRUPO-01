@@ -15,7 +15,13 @@ const update = z.strictObject({ texto: texto.optional(), anonimo: z.boolean().op
 const page = z.union([z.string().regex(/^\d+$/), z.number()]).transform(Number).pipe(z.number().int().min(1).max(1_000_000)).default(1);
 const pageSize = (max: number) => z.union([z.string().regex(/^\d+$/), z.number()]).transform(Number).pipe(z.number().int().min(1).max(max)).default(max);
 const pagination = (history: boolean) => z.strictObject({ page, pageSize: pageSize(history ? 3 : 9) });
-const generalQuery = pagination(false).extend({ carrera: carreraSchema.optional(), materiaId: z.string().uuid().optional() });
+const minValoraciones = z.union([z.string().regex(/^\d+$/), z.number()]).transform(Number).pipe(z.number().int().min(1).max(100)).default(1);
+const busqueda = z.string().refine((value) => !forbiddenControl(value)).transform((value) => value.trim()).pipe(z.string().max(150))
+  .transform((value) => value || undefined).optional();
+const rankingBase = z.strictObject({ page, pageSize: pageSize(50).default(10), minValoraciones });
+const rankingComisionesQuery = rankingBase.extend({ materiaId: z.string().uuid().optional(), cursadaId: z.string().uuid().optional() });
+const rankingProfesoresQuery = rankingBase.extend({ q: busqueda });
+const generalQuery = pagination(false).extend({ carrera: carreraSchema.optional(), materiaId: z.string().uuid().optional(), profesorId: z.string().uuid().optional() });
 
 function validate<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
@@ -27,6 +33,8 @@ export const validateUpdateFeedback = (value: unknown) => validate(update, value
 export const validateFeedbackPagination = (value: unknown, history = false) => validate(pagination(history), value ?? {});
 export const validateFeedbackId = (value: unknown) => validate(z.string().uuid(), value);
 export const validateGeneralFeedbackQuery = (value: unknown) => validate(generalQuery, value ?? {});
-export type FeedbackFilters = Pick<z.infer<typeof generalQuery>, "carrera" | "materiaId">;
+export const validateRankingComisionesQuery = (value: unknown) => validate(rankingComisionesQuery, value ?? {});
+export const validateRankingProfesoresQuery = (value: unknown) => validate(rankingProfesoresQuery, value ?? {});
+export type FeedbackFilters = Pick<z.infer<typeof generalQuery>, "carrera" | "materiaId" | "profesorId">;
 export type CreateFeedbackInput = z.infer<typeof create>;
 export type UpdateFeedbackInput = z.infer<typeof update>;

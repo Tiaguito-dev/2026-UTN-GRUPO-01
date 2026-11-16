@@ -6,6 +6,7 @@ import { FeedbackService } from "./application/feedback.service.js";
 import { FeedbackFeedService } from "./application/feedback-feed.service.js";
 import { FeedbackLikeService } from "./application/feedback-like.service.js";
 import { FeedbackRespuestaService } from "./application/feedback-respuesta.service.js";
+import { RankingService } from "./application/ranking.service.js";
 
 function user(request: AuthenticatedRequest): string {
   if (!request.authUser) throw new UnauthorizedException();
@@ -15,7 +16,7 @@ function user(request: AuthenticatedRequest): string {
 @Controller()
 @UseGuards(AuthenticationGuard, RolesGuard)
 export class ReviewsController {
-  constructor(private readonly feedback: FeedbackService, private readonly feed: FeedbackFeedService, private readonly likes: FeedbackLikeService, private readonly respuestas: FeedbackRespuestaService) {}
+  constructor(private readonly feedback: FeedbackService, private readonly feed: FeedbackFeedService, private readonly likes: FeedbackLikeService, private readonly respuestas: FeedbackRespuestaService, private readonly ranking: RankingService) {}
 
   @Get("feedback/:id/respuestas")
   @Header("Cache-Control", "no-store")
@@ -61,6 +62,18 @@ export class ReviewsController {
   listFeed(@Req() request: AuthenticatedRequest, @Query() query: unknown) {
     return this.feed.list(user(request), query);
   }
+
+  @Get("rankings/comisiones")
+  @Header("Cache-Control", "no-store")
+  rankingComisiones(@Query() query: unknown) { return this.ranking.comisiones(query); }
+
+  @Get("rankings/profesores")
+  @Header("Cache-Control", "no-store")
+  rankingProfesores(@Query() query: unknown) { return this.ranking.profesores(query); }
+
+  @Get("rankings/profesores/:id")
+  @Header("Cache-Control", "no-store")
+  rankingProfesor(@Param("id") id: string, @Query() query: unknown) { return this.ranking.profesor(id, query); }
 
   @Get("feedback/normas")
   @Header("Cache-Control", "no-store")

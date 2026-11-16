@@ -6,6 +6,9 @@ import { SharedModule } from "../shared/shared.module.js";
 import { FeedbackService } from "./application/feedback.service.js";
 import { FEEDBACK_REPOSITORY, type FeedbackRepository } from "./application/ports/feedback.repository.js";
 import { PrismaFeedbackRepository } from "./infrastructure/prisma-feedback.repository.js";
+import { RankingService } from "./application/ranking.service.js";
+import { RANKING_REPOSITORY, type RankingRepository } from "./application/ports/ranking.repository.js";
+import { PrismaRankingRepository } from "./infrastructure/prisma-ranking.repository.js";
 import { ReviewsController } from "./reviews.controller.js";
 import { FeedbackFeedService } from "./application/feedback-feed.service.js";
 import { FEEDBACK_FEED_REPOSITORY, type FeedbackFeedRepository } from "./application/ports/feedback-feed.repository.js";
@@ -29,6 +32,8 @@ import { PrismaFeedbackRespuestaRepository } from "./infrastructure/prisma-feedb
     { provide: FeedbackFeedService, useFactory: (repository: FeedbackFeedRepository) => new FeedbackFeedService(repository), inject: [FEEDBACK_FEED_REPOSITORY] },
     { provide: FEEDBACK_REPOSITORY, useFactory: (prisma: PrismaService) => new PrismaFeedbackRepository(prisma), inject: [PrismaService] },
     { provide: FeedbackService, useFactory: (repository: FeedbackRepository) => new FeedbackService(repository), inject: [FEEDBACK_REPOSITORY] },
+    { provide: RANKING_REPOSITORY, useFactory: (prisma: PrismaService) => new PrismaRankingRepository(prisma), inject: [PrismaService] },
+    { provide: RankingService, useFactory: (repository: RankingRepository) => new RankingService(repository), inject: [RANKING_REPOSITORY] },
   ],
 })
 export class ReviewsModule {}

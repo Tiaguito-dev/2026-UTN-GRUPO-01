@@ -9,6 +9,7 @@ import { FeedbackService } from "../src/reviews/application/feedback.service.js"
 import { FeedbackFeedService } from "../src/reviews/application/feedback-feed.service.js";
 import { FeedbackLikeService } from "../src/reviews/application/feedback-like.service.js";
 import { FeedbackRespuestaService } from "../src/reviews/application/feedback-respuesta.service.js";
+import { RankingService } from "../src/reviews/application/ranking.service.js";
 import { validateFeedbackFeedQuery } from "../src/reviews/application/feedback-feed-input.js";
 import { FeedbackInputError } from "../src/reviews/application/errors.js";
 import { PrismaFeedbackFeedRepository } from "../src/reviews/infrastructure/prisma-feedback-feed.repository.js";
@@ -157,6 +158,7 @@ describe("Feed: enrutamiento HTTP real sin PostgreSQL", () => {
       { provide: FeedbackService, useValue: old }, { provide: FeedbackFeedService, useValue: feed },
       { provide: FeedbackLikeService, useValue: {} },
       { provide: FeedbackRespuestaService, useValue: {} },
+      { provide: RankingService, useValue: {} },
     ] }).overrideGuard(AuthenticationGuard).useValue({ canActivate(context: ExecutionContext) {
       const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
       if (request.headers.cookie) request.authUser = { id: viewer, role: "USER", email: "test@example.test", displayName: "Test" };

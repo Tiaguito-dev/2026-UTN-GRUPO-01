@@ -10,11 +10,12 @@ import {
 } from "../src/reviews/application/feedback-input.js";
 
 describe("Feedback: contrato de entrada", () => {
-  it("valida carrera y materia opcionales sin admitir otros filtros", () => {
+  it("valida carrera, materia y profesor opcionales sin admitir otros filtros", () => {
     const materiaId = randomUUID();
     expect(validateGeneralFeedbackQuery({ carrera: "S", materiaId, page: "2" })).toEqual({ page: 2, pageSize: 9, carrera: "S", materiaId });
     expect(validateGeneralFeedbackQuery({})).toEqual({ page: 1, pageSize: 9 });
-    for (const query of [{ carrera: "X" }, { carrera: ["S", "I"] }, { materiaId: "no-uuid" }, { profesorId: materiaId }]) {
+    expect(validateGeneralFeedbackQuery({ profesorId: materiaId })).toEqual({ page: 1, pageSize: 9, profesorId: materiaId });
+    for (const query of [{ carrera: "X" }, { carrera: ["S", "I"] }, { materiaId: "no-uuid" }, { profesorId: "no-uuid" }, { comisionId: materiaId }]) {
       expect(() => validateGeneralFeedbackQuery(query)).toThrow();
     }
   });
