@@ -1504,3 +1504,33 @@ guards que `ReviewsController`). Query: `page` (1), `pageSize` (1 a 50, por defe
   existe). `GET /feedback` acepta `profesorId`.
 - Cálculo: una consulta agregada (`PrismaRankingRepository`) y funciones puras en
   `reviews/domain/ranking.ts`. Decisiones en `docs/tasks/finished/TASK-ranking-profesores-comisiones.md`.
+
+## Términos y condiciones al registrar una cuenta
+
+`GET /auth/terms` es público y entrega `{version, secciones: [{titulo, parrafos: string[]}]}`.
+El documento y su versión viven únicamente en `auth/domain/terms.ts`; el middleware de
+autenticación conserva transporte seguro y `Cache-Control: no-store`. No se necesita sesión
+para leerlo. No se incorpora una política de privacidad independiente ni un enlace inexistente.
+
+`POST /auth/register` exige `{email, displayName, password, aceptaTerminos: true,
+versionTerminos}`. La aceptación debe ser el booleano `true`; ausencia, `false`, cadenas,
+números y `null` devuelven 400 con “Debés aceptar los términos y condiciones para crear tu
+cuenta”. Una versión ausente u obsoleta devuelve 400 con “Los términos y condiciones
+cambiaron. Leelos nuevamente y aceptá la versión vigente.”. Se mantienen las reglas de
+dominio institucional, credenciales, duplicados y verificación de correo. No se crea sesión
+ni se habilita el acceso hasta completar la verificación existente.
+
+`RegisterUser` pasa la versión validada a `PrismaUserRepository.create`. La escritura anidada
+crea el usuario y su `AceptacionNormas` de manera atómica; `aceptadaEn` usa el default de
+PostgreSQL. La versión inicial `terminos-2026-11-17` distingue este documento del consentimiento
+histórico de normas `1`. Se reutiliza el modelo sin migración ni backfill. Las cuentas y
+aceptaciones anteriores no se modifican. La provisión administrativa conserva su contrato de
+credenciales mediante `validateAccountCreationInput` y no registra consentimientos ficticios.
+
+Publicar comentarios ya no requiere consultar ni aceptar normas, tampoco para cuentas
+existentes sin aceptaciones. `POST /comisiones/:id/feedback` deja de admitir `versionNormas`;
+mantiene sesión, puntuación, autoría, unicidad por comisión, destinatario y estado académico.
+La transacción de publicación no consulta ni escribe `AceptacionNormas`. `GET /feedback/normas`
+se conserva como consulta histórica autenticada: no es un requisito de publicación y no
+equivale a aceptar los términos actuales. Las aceptaciones nuevas solo se registran al crear
+la cuenta pública.

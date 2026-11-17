@@ -32,7 +32,7 @@ function fixture() {
 describe("T2 Feedback: alta pendiente sin efecto público inmediato", () => {
   it.each([null, 0, 6, 1.5, "4"])("rechaza puntuación inválida %s antes de persistir", puntuacion => {
     const create = vi.fn(); const service = new FeedbackService({ create } as unknown as FeedbackRepository);
-    expect(() => service.create(randomUUID(), "usuario", { texto: "Bien", anonimo: true, puntuacion, versionNormas: "1" })).toThrow(); expect(create).not.toHaveBeenCalled();
+    expect(() => service.create(randomUUID(), "usuario", { texto: "Bien", anonimo: true, puntuacion })).toThrow(); expect(create).not.toHaveBeenCalled();
   });
   it("normaliza texto y transporta estrellas sin permitir autoría elegida por cliente", async () => {
     const create = vi.fn().mockResolvedValue({}); const service = new FeedbackService({ create } as unknown as FeedbackRepository); const id = randomUUID();
@@ -41,11 +41,11 @@ describe("T2 Feedback: alta pendiente sin efecto público inmediato", () => {
     expect(() => service.create(id, "usuario", { texto: "Bien", anonimo: true })).toThrow();
     expect(() => service.create(id, "usuario", { texto: "Bien", anonimo: true, puntuacion: 5, autorId: randomUUID() })).toThrow();
   });
-  it("guarda normas, comentario y snapshot pendientes y sincroniza antes del ledger", async () => {
-    const f = fixture(); await f.repository.create(f.comisionId, f.usuarioId, { ...f.input, versionNormas: "1" });
+  it("guarda comentario y snapshot pendientes sin consentimientos y sincroniza antes del ledger", async () => {
+    const f = fixture(); await f.repository.create(f.comisionId, f.usuarioId, { ...f.input });
     expect(f.transaction).toHaveBeenCalledExactlyOnceWith(expect.any(Function), { isolationLevel: "ReadCommitted" });
-    expect(f.tx.aceptacionNormas.createMany).toHaveBeenCalledExactlyOnceWith({ data: [{ usuarioId: f.usuarioId, version: "1" }], skipDuplicates: true });
-    expect(f.tx.aceptacionNormas.createMany.mock.invocationCallOrder[0]).toBeLessThan(f.tx.feedback.create.mock.invocationCallOrder[0]!);
+    expect(f.tx.aceptacionNormas.findUnique).not.toHaveBeenCalled();
+    expect(f.tx.aceptacionNormas.createMany).not.toHaveBeenCalled();
     expect(f.tx.feedback.create.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(syncMateriaVote).mock.invocationCallOrder[0]!);
     expect(vi.mocked(syncMateriaVote).mock.invocationCallOrder[0]).toBeLessThan(f.tx.administracionHistorial.create.mock.invocationCallOrder[0]!);
     expect(f.tx.feedback.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ estadoModeracion: "PENDIENTE", versionModeracion: 1,
@@ -54,12 +54,12 @@ describe("T2 Feedback: alta pendiente sin efecto público inmediato", () => {
     expect(syncMateriaVote).toHaveBeenCalledExactlyOnceWith(f.tx, f.usuarioId, f.materiaId, expect.any(Date));
     expect(f.tx.administracionHistorial.create.mock.calls[0]![0].data.cambios).not.toEqual(expect.arrayContaining([expect.objectContaining({ campo: "valoracionMateria.puntuacion" })]));
   });
-  it("rechaza normas ausentes/antiguas y reutiliza aceptación vigente", async () => {
-    const absent = fixture(); absent.tx.aceptacionNormas.findUnique.mockResolvedValueOnce(null);
-    await expect(absent.repository.create(absent.comisionId, absent.usuarioId, absent.input)).rejects.toMatchObject({ httpStatus: 409 });
-    const stale = fixture(); await expect(stale.repository.create(stale.comisionId, stale.usuarioId, { ...stale.input, versionNormas: "anterior" })).rejects.toMatchObject({ httpStatus: 409 });
-    expect(absent.tx.feedback.create).not.toHaveBeenCalled(); expect(stale.tx.feedback.create).not.toHaveBeenCalled();
-    const accepted = fixture(); await accepted.repository.create(accepted.comisionId, accepted.usuarioId, accepted.input); expect(accepted.tx.aceptacionNormas.createMany).not.toHaveBeenCalled();
+  it("no consulta ni inventa consentimiento al crear desde una cuenta existente", async () => {
+    const f = fixture(); f.tx.aceptacionNormas.findUnique.mockResolvedValueOnce(null);
+    await f.repository.create(f.comisionId, f.usuarioId, f.input);
+    expect(f.tx.aceptacionNormas.findUnique).not.toHaveBeenCalled();
+    expect(f.tx.aceptacionNormas.createMany).not.toHaveBeenCalled();
+    expect(f.tx.feedback.create).toHaveBeenCalledOnce();
   });
   it("bloquea comisión antes del par y no expone identidad o metadatos privados", async () => {
     const f = fixture(); const result = await f.repository.create(f.comisionId, f.usuarioId, f.input);

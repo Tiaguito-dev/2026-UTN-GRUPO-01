@@ -63,7 +63,7 @@ describe.skipIf(!databaseUrl)("Feed por cursor: HTTP y PostgreSQL", () => {
     url = await app.getUrl();
     const email = `feed-${randomUUID()}@alu.frlp.utn.edu.ar`;
     const password = "feed isolated integration password";
-    const registered = await fetch(`${url}/auth/register`, { method: "POST", headers: csrfHeaders, body: JSON.stringify({ email, password, displayName: "Autor confidencial del feed" }) });
+    const registered = await fetch(`${url}/auth/register`, { method: "POST", headers: csrfHeaders, body: JSON.stringify({ aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email, password, displayName: "Autor confidencial del feed" }) });
     expect(registered.status).toBe(201);
     authorId = (await registered.json() as { id: string }).id;
     ids.users.push(authorId);

@@ -5,8 +5,7 @@ import type { PaginatedResult, Pagination } from "../../shared/domain/pagination
 import type { Feedback, FeedbackOwn } from "../domain/feedback.js";
 import type { FeedbackRepository } from "../application/ports/feedback.repository.js";
 import type { CreateFeedbackInput, UpdateFeedbackInput, FeedbackFilters } from "../application/feedback-input.js";
-import { normasConvivencia } from "../domain/normas.js";
-import { FeedbackDuplicateError, FeedbackNormasError, FeedbackNotFoundError } from "../application/errors.js";
+import { FeedbackDuplicateError, FeedbackNotFoundError } from "../application/errors.js";
 import { assertFeedbackOpen, assertFeedbackOwner, assertFeedbackRemoval, selectFeedbackProfesor } from "../application/feedback-policy.js";
 import type { UserRole } from "../../users/domain/user.js";
 import { ComisionNotFoundError } from "../../academic/application/errors.js";
@@ -99,16 +98,6 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
     return aceptacion !== null;
   }
 
-  private async validarAceptacion(tx: Transaction, usuarioId: string, versionEnviada?: string) {
-    const { version } = normasConvivencia;
-    if (versionEnviada === undefined) {
-      if (!(await this.aceptoNormas(usuarioId, version, tx))) throw new FeedbackNormasError();
-      return;
-    }
-    if (versionEnviada !== version) throw new FeedbackNormasError();
-    await tx.aceptacionNormas.createMany({ data: [{ usuarioId, version }], skipDuplicates: true });
-  }
-
   private async comisionExists(id: string, tx: Transaction = this.prisma) {
     // Historical reading survives academic soft deletion; only publication requires live ancestors.
     if (!(await tx.comision.findUnique({ where: { id }, select: { id: true } }))) throw new ComisionNotFoundError();
@@ -197,7 +186,6 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
         const moderation: FeedbackModerationState = { estadoModeracion: "PENDIENTE", versionModeracion: 1,
           requiereRevisionHumana: rejectedBefore !== null, motivoRechazo: null,
           ocultoAutor: false, ocultoAdministracion: false, ocultoReportes: false };
-        await this.validarAceptacion(tx, viewer, input.versionNormas);
         const eventId = randomUUID();
         const now = new Date();
         const row = await tx.feedback.create({ data: {

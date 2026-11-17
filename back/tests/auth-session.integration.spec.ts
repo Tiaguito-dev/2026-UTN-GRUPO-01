@@ -1,3 +1,4 @@
+import { VERIFICATION_EMAIL } from "../src/auth/domain/email-verification.js";
 import "reflect-metadata";
 import { randomUUID } from "node:crypto";
 import { Controller, Get, UseGuards, type INestApplication } from "@nestjs/common";
@@ -39,7 +40,7 @@ describe.skipIf(!testDatabaseUrl)("Sesiones, cookies y guards con PostgreSQL rea
   const get = (path: string, cookie?: string) => fetch(`${baseUrl}${path}`, { headers: cookie ? { Cookie: cookie } : {} });
   async function account() {
     const email = `session-test-${randomUUID()}@alu.frlp.utn.edu.ar`;
-    const response = await post("/auth/register", { email, displayName: "Persona", password });
+    const response = await post("/auth/register", { aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email, displayName: "Persona", password });
     const user = await response.json();
     if (typeof user.id === "string") ids.add(user.id);
     expect(response.status).toBe(201);
@@ -57,7 +58,7 @@ describe.skipIf(!testDatabaseUrl)("Sesiones, cookies y guards con PostgreSQL rea
     prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: testDatabaseUrl! }) });
     await prisma.$connect();
     const moduleRef = await Test.createTestingModule({ imports: [AppModule, AuthModule], controllers: [TestAdminController] })
-      .overrideProvider(PrismaService).useValue(prisma).overrideProvider(AUTH_CONFIG).useValue(config).compile();
+      .overrideProvider(PrismaService).useValue(prisma).overrideProvider(VERIFICATION_EMAIL).useValue({ send: async () => {} }).overrideProvider(AUTH_CONFIG).useValue(config).compile();
     app = moduleRef.createNestApplication(); app.useLogger(false); configureAuthHttp(app, config);
     await app.listen(0, "127.0.0.1"); baseUrl = await app.getUrl();
   }, 20000);
@@ -98,7 +99,7 @@ describe.skipIf(!testDatabaseUrl)("Sesiones, cookies y guards con PostgreSQL rea
   it("fallo interno de emisión no deja sesión ni filtra secretos en HTTP", async () => {
     const privateMessage = "private-signing-key-persistence-internal-detail";
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(PrismaService).useValue(prisma).overrideProvider(AUTH_CONFIG).useValue(config)
+      .overrideProvider(PrismaService).useValue(prisma).overrideProvider(VERIFICATION_EMAIL).useValue({ send: async () => {} }).overrideProvider(AUTH_CONFIG).useValue(config)
       .overrideProvider(ACCESS_TOKEN_SERVICE).useValue({ issue: async () => { throw new Error(privateMessage); }, verify: async () => { throw new Error(privateMessage); } }).compile();
     const failing = moduleRef.createNestApplication(); failing.useLogger(false); configureAuthHttp(failing, config);
     await failing.listen(0, "127.0.0.1");
@@ -162,7 +163,7 @@ describe.skipIf(!testDatabaseUrl)("Sesiones, cookies y guards con PostgreSQL rea
   });
   it("rate limiter ignora X-Forwarded-For no confiable y devuelve 429", async () => {
     const limitedConfig = testAuthConfig({ AUTH_LOGIN_MAX_ATTEMPTS: "2" });
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(AUTH_CONFIG).useValue(limitedConfig).compile();
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(VERIFICATION_EMAIL).useValue({ send: async () => {} }).overrideProvider(AUTH_CONFIG).useValue(limitedConfig).compile();
     const limited = moduleRef.createNestApplication(); limited.useLogger(false); configureAuthHttp(limited, limitedConfig);
     await limited.listen(0, "127.0.0.1");
     try {
@@ -176,7 +177,7 @@ describe.skipIf(!testDatabaseUrl)("Sesiones, cookies y guards con PostgreSQL rea
   });
   it("HTTPS detrás de proxy explícito entrega cookie __Host Secure SameSite=None", async () => {
     const secureConfig = testAuthConfig({ NODE_ENV: "production", AUTH_ALLOW_LOCAL_HTTP: "false", AUTH_PUBLIC_URL: "https://api.example.com", AUTH_ALLOWED_ORIGINS: "https://app.example.com", AUTH_PASSWORD_RESET_URL: "https://app.example.com/reset-password", AUTH_COOKIE_SAME_SITE: "none", AUTH_TRUSTED_PROXIES: "127.0.0.1/32" });
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(AUTH_CONFIG).useValue(secureConfig).compile();
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(VERIFICATION_EMAIL).useValue({ send: async () => {} }).overrideProvider(AUTH_CONFIG).useValue(secureConfig).compile();
     const secure = moduleRef.createNestApplication(); secure.useLogger(false); configureAuthHttp(secure, secureConfig); await secure.listen(0, "127.0.0.1");
     try {
       const user = await account(); const url = await secure.getUrl();

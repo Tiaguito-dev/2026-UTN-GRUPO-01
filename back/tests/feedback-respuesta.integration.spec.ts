@@ -33,7 +33,7 @@ describe.skipIf(!databaseUrl)("Respuestas: creación HTTP/PostgreSQL aislado", (
   async function account() {
     const email = `reply-${randomUUID()}@alu.frlp.utn.edu.ar`;
     const password = "isolated response integration password";
-    const registered = await request("/auth/register", "POST", { email, password, displayName: "Persona de prueba" }, "");
+    const registered = await request("/auth/register", "POST", { aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email, password, displayName: "Persona de prueba" }, "");
     expect(registered.status).toBe(201);
     const { id } = await registered.json() as { id: string };
     ids.users.push(id);
@@ -53,7 +53,7 @@ describe.skipIf(!databaseUrl)("Respuestas: creación HTTP/PostgreSQL aislado", (
     expect(normas.status).toBe(200);
     const { version } = await normas.json() as { version: string };
     expect(version).toEqual(expect.any(String));
-    const response = await request(`/comisiones/${comision.id}/feedback`, "POST", { texto: "Comentario padre", puntuacion: 4, anonimo, versionNormas: version }, author.cookie);
+    const response = await request(`/comisiones/${comision.id}/feedback`, "POST", { texto: "Comentario padre", puntuacion: 4, anonimo }, author.cookie);
     expect(response.status).toBe(201);
     const { id } = await response.json() as { id: string };
     ids.feedback.push(id);

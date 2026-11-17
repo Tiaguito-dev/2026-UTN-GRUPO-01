@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { moderationHarness, type ModerationHarness } from "./support/moderation-harness.js";
-import { normasConvivencia } from "../src/reviews/domain/normas.js";
 
 const databaseUrl = process.env["TEST_DATABASE_URL"];
 type Account = Awaited<ReturnType<ModerationHarness["account"]>>;
@@ -169,7 +168,7 @@ describe.skipIf(!databaseUrl)("T3: acciones HTTP con sesión y PostgreSQL reales
     expect(response.status).toBe(200); const updated = await response.json();
     expect(updated.contexto).toMatchObject({ nombre: "S-31", materiaNombre: context.materia.nombre, comisionId: context.comision.id });
     expect((await ownAction(feedback.id, "revision", 3)).status).toBe(200);
-    expect((await h.request(`/comisiones/${context.comision.id}/feedback`, other.cookie, "POST", { texto: "Alta inválida", anonimo: true, puntuacion: 4, versionNormas: normasConvivencia.version })).status).toBe(404);
+    expect((await h.request(`/comisiones/${context.comision.id}/feedback`, other.cookie, "POST", { texto: "Alta inválida", anonimo: true, puntuacion: 4 })).status).toBe(404);
   });
 
   it.each(["PENDIENTE", "APROBADO"] as const)("otras ediciones de %s siguen bloqueadas en comisión inactiva", async estado => {
@@ -192,7 +191,7 @@ describe.skipIf(!databaseUrl)("T3: acciones HTTP con sesión y PostgreSQL reales
     const { feedback, context } = await row();
     expect((await decision(feedback.id, "RECHAZO")).status).toBe(200);
     expect((await h.request(`/feedback/${feedback.id}`, owner.cookie, "DELETE")).status).toBe(204);
-    const created = await h.request(`/comisiones/${context.comision.id}/feedback`, owner.cookie, "POST", { texto: "Nuevo intento", anonimo: true, puntuacion: 4, versionNormas: normasConvivencia.version });
+    const created = await h.request(`/comisiones/${context.comision.id}/feedback`, owner.cookie, "POST", { texto: "Nuevo intento", anonimo: true, puntuacion: 4 });
     expect(created.status).toBe(201); const replacement = await created.json();
     expect(replacement.id).not.toBe(feedback.id);
     expect(await h.prisma.feedback.findUniqueOrThrow({ where: { id: replacement.id } })).toMatchObject({ estadoModeracion: "PENDIENTE", requiereRevisionHumana: true });

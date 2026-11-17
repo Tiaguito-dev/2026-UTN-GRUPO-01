@@ -41,7 +41,7 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
   });
   async function account(role: "USER" | "ADMIN", displayName: string) {
     const email = `feedback-${randomUUID()}@alu.frlp.utn.edu.ar`;
-    const registered = await request("/auth/register", "POST", { email, displayName, password });
+    const registered = await request("/auth/register", "POST", { aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email, displayName, password });
     expect(registered.status).toBe(201);
     const user = await registered.json() as { id: string };
     ids.users.push(user.id);
@@ -170,55 +170,19 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     expect(response.status).toBe(403);
   });
 
-  it("exige la versión vigente vía HTTP y conserva fecha, versión y usuario solo al publicar válidamente", async () => {
-    expect((await request("/feedback/normas")).status).toBe(401);
-    const estudiante = await account("USER", "Estudiante HU04");
-    const getNormas = () => request("/feedback/normas", "GET", undefined, estudiante.cookie);
-    const estado = await getNormas();
-    expect(estado.status).toBe(200);
-    const normas = await estado.json() as { version: string; reglas: string[]; aceptada: boolean };
-    expect(normas.aceptada).toBe(false);
-    const documento = normas.reglas.join(" ");
-    for (const prohibicion of [/insult/i, /acos/i, /amenaz/i, /(?:información|datos) personal/i]) {
-      expect(documento).toMatch(prohibicion);
-    }
-    const primera = await fixture(1);
-    const siguiente = await fixture(0);
-    const body = { texto: "Buen acompañamiento", anonimo: true, puntuacion: 4 };
-    const post = (path: string, data: unknown) => request(path, "POST", data, estudiante.cookie);
-    // Emula una actualización de las reglas sin modificar la versión global del entorno.
-    await prisma.aceptacionNormas.create({ data: { usuarioId: estudiante.id, version: "anterior" } });
-    expect((await (await getNormas()).json()).aceptada).toBe(false);
-    for (const data of [body, { ...body, versionNormas: "anterior" }]) {
-      const intento = await post(primera.path, data);
-      expect(intento.status).toBe(409);
-      expect(await intento.text()).toMatch(/aceptar las normas/i);
-    }
-    expect(await prisma.feedback.count({ where: { autorId: estudiante.id } })).toBe(0);
-    const vigente = { usuarioId: estudiante.id, version: normas.version };
-    const invalido = await post(primera.path, { ...body, versionNormas: normas.version, profesorId: randomUUID() });
-    expect(invalido.status).toBe(400);
-    expect(await prisma.aceptacionNormas.count({ where: vigente })).toBe(0);
-    const primeraPublicacion = await post(primera.path, { ...body, versionNormas: normas.version });
-    expect(primeraPublicacion.status).toBe(201);
-    const publicada = await primeraPublicacion.clone().json() as PublicFeedback;
-    expect(await prisma.feedbackHistorial.findFirstOrThrow({ where: { feedbackId: publicada.id } })).toMatchObject({ puntuacion: 4 });
-    // T2: acceptance persists, but a pending experience has no public vote.
-    expect(await prisma.valoracionMateria.findUnique({
-      where: { usuarioId_materiaId: { usuarioId: estudiante.id, materiaId: primera.materia.id } },
-    })).toBeNull();
-    expect(await prisma.feedback.findUniqueOrThrow({ where: { id: publicada.id } })).toMatchObject({ estadoModeracion: "PENDIENTE" });
-    const registro = await prisma.aceptacionNormas.findFirstOrThrow({ where: vigente });
-    expect(registro.aceptadaEn).toBeInstanceOf(Date);
-    expect((await (await getNormas()).json()).aceptada).toBe(true);
-    const segundaPublicacion = await post(siguiente.path, body);
-    expect(segundaPublicacion.status).toBe(201);
-    expect(await prisma.aceptacionNormas.findMany({ where: vigente })).toEqual([registro]);
-    // El escenario posterior comprueba una lista pública inicialmente vacía.
-    for (const response of [primeraPublicacion, segundaPublicacion]) {
-      const { id } = await response.json() as PublicFeedback;
-      expect((await request(`/feedback/${id}`, "DELETE", undefined, estudiante.cookie)).status).toBe(204);
-    }
+  it("cuentas existentes publican sin aceptación y no se inventa ningún consentimiento", async () => {
+    const estudiante = await account("USER", "Cuenta existente sin consentimiento");
+    // Simular una cuenta anterior al nuevo registro, sólo dentro de esta base exclusiva de tests.
+    await prisma.aceptacionNormas.deleteMany({ where: { usuarioId: estudiante.id } });
+    const f = await fixture(0);
+    const response = await request(f.path, "POST", { texto: "Experiencia propia", anonimo: true, puntuacion: 4 }, estudiante.cookie);
+    expect(response.status).toBe(201);
+    const body = await response.json() as PublicFeedback;
+    expect(await prisma.feedback.findUniqueOrThrow({ where: { id: body.id } })).toMatchObject({ estadoModeracion: "PENDIENTE" });
+    expect(await prisma.aceptacionNormas.count({ where: { usuarioId: estudiante.id } })).toBe(0);
+    const foreignField = await request(f.path, "POST", { texto: "Otra", anonimo: true, puntuacion: 4, versionNormas: "1" }, estudiante.cookie);
+    expect(foreignField.status).toBe(400);
+    expect((await request(`/feedback/${body.id}`, "DELETE", undefined, estudiante.cookie)).status).toBe(204);
   });
 
   // TASK-061: the general feed exposes the same public snapshots across commissions.
@@ -589,7 +553,7 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
       } as unknown as PrismaService);
       const spy = step === "voto" ? vi.spyOn(tx.valoracionMateria, "findUnique").mockRejectedValueOnce(error)
         : vi.spyOn(tx.administracionHistorial, "create").mockRejectedValueOnce(error);
-      try { await repository.create(f.comision.id, fresh.id, { texto: "No debe persistir", anonimo: true, puntuacion: 4, versionNormas: version }); }
+      try { await repository.create(f.comision.id, fresh.id, { texto: "No debe persistir", anonimo: true, puntuacion: 4 }); }
       finally { spy.mockRestore(); }
     })).rejects.toBe(error);
     expect(await prisma.feedback.count({ where: { comisionId: f.comision.id } })).toBe(0);

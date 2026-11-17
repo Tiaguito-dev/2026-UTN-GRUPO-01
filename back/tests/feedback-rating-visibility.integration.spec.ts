@@ -33,7 +33,7 @@ describe.skipIf(!databaseUrl)("T2: estadísticas visibles y proyección única P
   it("POST pendiente no crea voto ni afecta promedios; aprobación interna sí contribuye", async () => {
     const context = await h.context();
     const response = await h.request(`/comisiones/${context.comision.id}/feedback`, owner.cookie, "POST", {
-      texto: "Nueva experiencia para revisión", anonimo: true, puntuacion: 5, versionNormas: "1",
+      texto: "Nueva experiencia para revisión", anonimo: true, puntuacion: 5,
     });
     expect(response.status).toBe(201);
     const created = await response.json();
@@ -115,7 +115,7 @@ describe.skipIf(!databaseUrl)("T2: estadísticas visibles y proyección única P
     await repo.remove(feedback.id, owner.id);
     expect((await rating(context.materia.id))?.deletedAt).toBeInstanceOf(Date);
     expect(await summary(context.materia.id)).toEqual({ promedio: null, cantidad: 0 });
-    const recreated = await repo.create(context.comision.id, owner.id, { texto: "Otro intento", anonimo: true, puntuacion: 5, versionNormas: "1" });
+    const recreated = await repo.create(context.comision.id, owner.id, { texto: "Otro intento", anonimo: true, puntuacion: 5 });
     expect(await h.prisma.feedback.findUniqueOrThrow({ where: { id: recreated.id } })).toMatchObject({ estadoModeracion: "PENDIENTE", requiereRevisionHumana: true });
     expect(await summary(context.materia.id)).toEqual({ promedio: null, cantidad: 0 });
   });

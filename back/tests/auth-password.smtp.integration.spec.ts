@@ -22,7 +22,7 @@ describe.skipIf(!databaseUrl || !mailbox)("Recuperación completa vía SMTP real
     const post = (path: string, body: unknown) => fetch(`${base}${path}`, { method: "POST", headers: csrfHeaders, body: JSON.stringify(body) });
     const base = await app.getUrl(); const email = `smtp-${randomUUID()}@alu.frlp.utn.edu.ar`; const original = " original smtp password "; const replacement = " replacement smtp password ";
     try {
-      const registration = await post("/auth/register", { email, displayName: "SMTP", password: original }); expect(registration.status).toBe(201); id = (await registration.json()).id;
+      const registration = await post("/auth/register", { aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email, displayName: "SMTP", password: original }); expect(registration.status).toBe(201); id = (await registration.json()).id;
       await prisma.user.update({ where: { id }, data: { emailVerifiedAt: new Date() } });
       const request = await post("/auth/forgot-password", { email }); expect(request.status).toBe(202); const publicBody = JSON.stringify(await request.json());
       const search = await fetch(`${mailbox}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`); expect(search.status).toBe(200);

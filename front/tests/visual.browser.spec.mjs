@@ -39,7 +39,7 @@ async function loginAs(page, role) {
   const registered = await page.evaluate(async ({ url, body }) => {
     const response = await fetch(url, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-CSRF-Protection": "1" }, body: JSON.stringify(body) });
     return { status: response.status, body: await response.json() };
-  }, { url: `${API}/auth/register`, body: { email, displayName: "Cuenta de prueba", password } });
+  }, { url: `${API}/auth/register`, body: { aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email, displayName: "Cuenta de prueba", password } });
   expect(registered.status).toBe(201); userIds.push(registered.body.id);
   await prisma.user.update({ where: { id: registered.body.id }, data: { role, emailVerifiedAt: new Date() } });
   await page.getByLabel(/^Email$/i).fill(email);

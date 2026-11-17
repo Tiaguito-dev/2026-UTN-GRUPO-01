@@ -32,6 +32,7 @@ describe("Feedback: contrato de entrada", () => {
   });
   it.each([
     { texto: "Bien", anonimo: "false", puntuacion: 3 },
+    { texto: "Bien", anonimo: false, puntuacion: 3, versionNormas: "1" },
     { texto: "Bien", anonimo: false, autorId: randomUUID(), puntuacion: 3 },
     { texto: "Bien", anonimo: false, profesorId: "inventado", puntuacion: 3 },
     { texto: "Bien", puntuacion: 3 },

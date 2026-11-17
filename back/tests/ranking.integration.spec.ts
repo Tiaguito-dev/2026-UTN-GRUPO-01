@@ -66,7 +66,7 @@ describe.skipIf(!databaseUrl)("Rankings de comisiones y profesores HTTP/PostgreS
     const email = `ranking-${randomUUID()}@alu.frlp.utn.edu.ar`;
     const password = "isolated ranking password";
     const registered = await fetch(`${baseUrl}/auth/register`, { method: "POST", headers: csrfHeaders,
-      body: JSON.stringify({ email, password, displayName: "Lectora de ranking" }) });
+      body: JSON.stringify({ aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email, password, displayName: "Lectora de ranking" }) });
     const { id } = await registered.json() as { id: string };
     users.push(id);
     await prisma.user.update({ where: { id }, data: { emailVerifiedAt: new Date() } });
