@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### Términos y condiciones en el registro
+
+- El alta pública exige aceptar expresamente los términos vigentes: casilla desmarcada, documento centralizado en secciones y modal accesible con Cerrar, X y Escape que conserva el formulario. Se valida aceptación booleana y versión en frontend/backend.
+- La cuenta y su aceptación se guardan atómicamente reutilizando `AceptacionNormas`, con fecha de PostgreSQL y versión diferenciada de las normas históricas. Sin migración ni aceptaciones ficticias para usuarios existentes o provisión administrativa.
+- Los comentarios dejan de solicitar y registrar consentimiento; conservan sus validaciones y permisos. El contrato ya no admite `versionNormas` al publicar.
+- Validación: 1279 pruebas backend verificadas con PostgreSQL y Mailpit temporales; 1007 casos frontend verificados entre la suite completa y la repetición focalizada de borradores. Tipos, lint y builds aprobados. Revisión visual/Playwright pendiente por falta de navegador en el entorno de pruebas. Evidencia en [la tarea](docs/tasks/finished/TASK-terminos-en-registro.md).
+
 ### Ranking de comisiones y profesores
 
 - Seed `npm run feedback:seed --workspace=back`: experiencias de demostración para todas las comisiones (40 estudiantes demo sin acceso, comentarios con estrellas, historial de creación y valoración de materias), con reputaciones variadas para que el ranking tenga extremos. Aditivo e idempotente; documentado en `infra/DESPLIEGUE-CLOUD.md`.
