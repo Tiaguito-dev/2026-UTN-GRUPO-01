@@ -11,9 +11,10 @@ import { assertFeedbackOpen, assertFeedbackOwner, assertFeedbackRemoval, selectF
 import type { UserRole } from "../../users/domain/user.js";
 import { ComisionNotFoundError } from "../../academic/application/errors.js";
 import { validateFeedbackId } from "../application/feedback-input.js";
-import { transitionFeedbackModeration, type FeedbackModerationActor, type FeedbackModerationCommand, type FeedbackModerationState } from "../domain/feedback-moderation.js";
-
+import { FeedbackModerationError, transitionFeedbackModeration, type FeedbackModerationActor, type FeedbackModerationCommand, type FeedbackModerationState } from "../domain/feedback-moderation.js";
+import { isFeedbackVisible } from "../domain/feedback-visibility.js";
 import { publicFeedbackWhere } from "./prisma-feedback-visibility.js";
+import { lockMateriaVote, syncMateriaVote } from "./prisma-feedback-rating.js";
 
 type Transaction = Prisma.TransactionClient;
 export const includeAutor = { autor: { select: { displayName: true } }, comision: { select: { carrera: true } } } satisfies Prisma.FeedbackInclude;
@@ -38,11 +39,20 @@ export function present(row: FeedbackRow, viewer: string): Feedback {
 }
 const paging = ({ page, pageSize }: Pagination) => ({ skip: (page - 1) * pageSize, take: pageSize });
 const recent = [{ createdAt: "desc" }, { id: "desc" }] satisfies Prisma.FeedbackOrderByWithRelationInput[];
+const moderationSnapshot = (row: FeedbackModerationState): FeedbackModerationState => ({
+  estadoModeracion: row.estadoModeracion, versionModeracion: row.versionModeracion,
+  requiereRevisionHumana: row.requiereRevisionHumana, motivoRechazo: row.motivoRechazo,
+  ocultoAutor: row.ocultoAutor, ocultoAdministracion: row.ocultoAdministracion, ocultoReportes: row.ocultoReportes,
+});
+function nextVersion(row: FeedbackModerationState): number {
+  if (row.versionModeracion >= 2_147_483_647) throw new FeedbackModerationError(409, "Se alcanzó el límite de versiones de esta experiencia.");
+  return row.versionModeracion + 1;
+}
 
 export class PrismaFeedbackRepository implements FeedbackRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Internal T1 persistence only. HTTP actions wait for T2 visibility and aggregation changes. */
+  /** Internal persistence; T3 will expose authorized HTTP actions. */
   async transitionModeration(id: string, actor: FeedbackModerationActor, command: FeedbackModerationCommand): Promise<FeedbackModerationState> {
     const feedbackId = validateFeedbackId(id);
     validateFeedbackId(actor?.id);
@@ -63,6 +73,7 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
       const corrected = rejection !== null && row.texto.trim() !== rejection.texto.trim();
       const decision = transitionFeedbackModeration(row, actor, command, corrected);
       if (!decision.changed) return decision.state;
+      await lockMateriaVote(tx, row.autorId, row.materiaId);
       const now = new Date();
       const eventId = randomUUID();
       const fields = Object.keys(decision.state) as (keyof FeedbackModerationState)[];
@@ -78,6 +89,7 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
           anonimo: row.anonimo, ...decision.state, motivoModeracion: decision.motivo, createdAt: now,
         } },
       } });
+      cambios.push(...await syncMateriaVote(tx, row.autorId, row.materiaId, now));
       await tx.administracionHistorial.create({ data: {
         id: eventId, entidad: "feedback", entidadId: feedbackId, actorId: actor.id,
         accion: command.accion, cambios, createdAt: now,
@@ -168,14 +180,18 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
         const docente = selectFeedbackProfesor(rows, input.profesorId);
         // Comisión primero, luego el par: coordina también primeras valoraciones entre comisiones.
         // Namespace distinto del bloqueo de administración de usuarios. Colisiones solo serializan.
-        const ratingKey = `${viewer.toLowerCase()}:${context.materiaId.toLowerCase()}`;
-        await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(2026071, hashtext(${ratingKey}))`;
-        const ratingWhere = { usuarioId_materiaId: { usuarioId: viewer, materiaId: context.materiaId } };
-        // Lectura interna incluye bajas para reactivar la identidad existente y auditar el cambio.
-        const previousRating = await tx.valoracionMateria.findUnique({ where: ratingWhere });
+        await lockMateriaVote(tx, viewer, context.materiaId);
+        const rejectedBefore = await tx.feedback.findFirst({ where: {
+          comisionId: id, autorId: viewer, requiereRevisionHumana: true,
+        }, select: { id: true } });
+        const moderation: FeedbackModerationState = { estadoModeracion: "PENDIENTE", versionModeracion: 1,
+          requiereRevisionHumana: rejectedBefore !== null, motivoRechazo: null,
+          ocultoAutor: false, ocultoAdministracion: false, ocultoReportes: false };
         await this.validarAceptacion(tx, viewer, input.versionNormas);
         const eventId = randomUUID();
+        const now = new Date();
         const row = await tx.feedback.create({ data: {
+          ...moderation, createdAt: now, updatedAt: now,
           autorId: viewer, comisionId: id, texto: input.texto, anonimo: input.anonimo, puntuacion: input.puntuacion,
           profesorId: docente?.profesorId ?? null, profesorNombre: docente?.profesorNombre ?? null,
           profesorCargo: docente?.profesorCargo ?? null,
@@ -183,21 +199,14 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
           materiaNombre: context.materiaNombre, cursadaId: context.cursadaId,
           anio: context.anio, modalidad: context.modalidad,
           cuatrimestre: context.modalidad === "ANUAL" ? null : context.modalidad,
-          historial: { create: { id: eventId, accion: "CREACION", texto: input.texto, anonimo: input.anonimo, puntuacion: input.puntuacion } },
+          historial: { create: { id: eventId, accion: "CREACION", texto: input.texto, anonimo: input.anonimo, puntuacion: input.puntuacion, ...moderation, createdAt: now } },
         }, include: includeAutor });
-        await tx.valoracionMateria.upsert({
-          where: ratingWhere,
-          create: { usuarioId: viewer, materiaId: context.materiaId, puntuacion: input.puntuacion },
-          update: { puntuacion: input.puntuacion, deletedAt: null, updatedAt: new Date() },
-        });
         const cambios: { campo: string; anterior: string | null; nuevo: string | null }[] = [
           { campo: "puntuacion", anterior: null, nuevo: String(input.puntuacion) },
+          { campo: "estadoModeracion", anterior: null, nuevo: "PENDIENTE" },
         ];
-        if (previousRating?.puntuacion !== input.puntuacion) cambios.push({
-          campo: "valoracionMateria.puntuacion", anterior: previousRating ? String(previousRating.puntuacion) : null, nuevo: String(input.puntuacion),
-        });
-        if (previousRating?.deletedAt) cambios.push({ campo: "valoracionMateria.deletedAt", anterior: previousRating.deletedAt.toISOString(), nuevo: null });
-        await tx.administracionHistorial.create({ data: { id: eventId, entidad: "feedback", entidadId: row.id, actorId: viewer, accion: "CREACION", cambios } });
+        cambios.push(...await syncMateriaVote(tx, viewer, context.materiaId, now));
+        await tx.administracionHistorial.create({ data: { id: eventId, entidad: "feedback", entidadId: row.id, actorId: viewer, accion: "CREACION", cambios, createdAt: now } });
         return present(row, viewer);
       }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
     } catch (error) {
@@ -217,6 +226,7 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
   private async owned(id: string, viewer: string, tx: Transaction = this.prisma, includeDeleted = false) {
     const row = await tx.feedback.findUnique({ where: { id }, include: includeAutor });
     if (!row || (!includeDeleted && row.deletedAt)) throw new FeedbackNotFoundError();
+    if (row.autorId !== viewer && !isFeedbackVisible(row)) throw new FeedbackNotFoundError();
     assertFeedbackOwner(row.autorId, viewer);
     return row;
   }
@@ -238,28 +248,19 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
         { campo: "anonimo", anterior: String(row.anonimo), nuevo: String(anonimo) },
         { campo: "puntuacion", anterior: row.puntuacion === null ? null : String(row.puntuacion), nuevo: puntuacion === null ? null : String(puntuacion) },
       ].filter(change => change.anterior !== change.nuevo);
-      const ratingWhere = { usuarioId_materiaId: { usuarioId: row.autorId, materiaId: row.materiaId } };
-      if (puntuacionChanged) {
-        // Mismo orden y clave que create(): comisión primero, luego usuario/materia.
-        const ratingKey = `${row.autorId.toLowerCase()}:${row.materiaId.toLowerCase()}`;
-        await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(2026071, hashtext(${ratingKey}))`;
-        const previousRating = await tx.valoracionMateria.findUnique({ where: ratingWhere });
-        if (previousRating?.puntuacion !== puntuacion) cambios.push({
-          campo: "valoracionMateria.puntuacion", anterior: previousRating ? String(previousRating.puntuacion) : null, nuevo: String(puntuacion),
-        });
-        if (previousRating?.deletedAt) cambios.push({ campo: "valoracionMateria.deletedAt", anterior: previousRating.deletedAt.toISOString(), nuevo: null });
-      }
+      await lockMateriaVote(tx, row.autorId, row.materiaId);
+      const moderation = { ...moderationSnapshot(row), versionModeracion: nextVersion(row),
+        estadoModeracion: row.estadoModeracion === "APROBADO" ? "PENDIENTE" as const : row.estadoModeracion };
+      if (moderation.estadoModeracion !== row.estadoModeracion) cambios.push({ campo: "estadoModeracion", anterior: row.estadoModeracion, nuevo: moderation.estadoModeracion });
+      cambios.push({ campo: "versionModeracion", anterior: String(row.versionModeracion), nuevo: String(moderation.versionModeracion) });
       const eventId = randomUUID();
       const now = new Date();
       const updated = await tx.feedback.update({ where: { id }, data: {
-        texto, anonimo, puntuacion, updatedAt: now, historial: { create: { id: eventId, accion: "EDICION", texto, anonimo, puntuacion } },
+        texto, anonimo, puntuacion, updatedAt: now, ...moderation,
+        historial: { create: { id: eventId, accion: "EDICION", texto, anonimo, puntuacion, ...moderation, createdAt: now } },
       }, include: includeAutor });
-      if (puntuacionChanged && puntuacion !== null) await tx.valoracionMateria.upsert({
-        where: ratingWhere,
-        create: { usuarioId: row.autorId, materiaId: row.materiaId, puntuacion },
-        update: { puntuacion, deletedAt: null, updatedAt: now },
-      });
-      await tx.administracionHistorial.create({ data: { id: eventId, entidad: "feedback", entidadId: id, actorId: viewer, accion: "EDICION", cambios } });
+      cambios.push(...await syncMateriaVote(tx, row.autorId, row.materiaId, now));
+      await tx.administracionHistorial.create({ data: { id: eventId, entidad: "feedback", entidadId: id, actorId: viewer, accion: "EDICION", cambios, createdAt: now } });
       return present(updated, viewer);
     }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
   }
@@ -277,36 +278,20 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
       await this.lockComision(tx, original.comisionId);
       const row = await this.removable(id, viewer, role, tx);
       // El actor puede ser ADMIN; el bloqueo y el voto pertenecen al autor real del comentario.
-      const ratingKey = `${row.autorId.toLowerCase()}:${row.materiaId.toLowerCase()}`;
-      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(2026071, hashtext(${ratingKey}))`;
+      await lockMateriaVote(tx, row.autorId, row.materiaId);
       const now = new Date();
       const eventId = randomUUID();
+      const moderation = { ...moderationSnapshot(row), versionModeracion: nextVersion(row) };
       await tx.feedback.update({ where: { id }, data: {
-        deletedAt: now, updatedAt: now,
-        historial: { create: { id: eventId, accion: "ELIMINACION", texto: row.texto, anonimo: row.anonimo, puntuacion: row.puntuacion } },
+        deletedAt: now, updatedAt: now, ...moderation,
+        historial: { create: { id: eventId, accion: "ELIMINACION", texto: row.texto, anonimo: row.anonimo, puntuacion: row.puntuacion, ...moderation, createdAt: now } },
       } });
       const cambios: { campo: string; anterior: string | null; nuevo: string | null }[] = [
         { campo: "deletedAt", anterior: null, nuevo: now.toISOString() },
+        { campo: "versionModeracion", anterior: String(row.versionModeracion), nuevo: String(moderation.versionModeracion) },
       ];
-      if (row.puntuacion !== null) {
-        const remaining = await tx.feedback.findFirst({
-          where: { autorId: row.autorId, materiaId: row.materiaId, deletedAt: null, puntuacion: { not: null } },
-          select: { id: true },
-        });
-        if (!remaining) {
-          const rating = await tx.valoracionMateria.findUnique({
-            where: { usuarioId_materiaId: { usuarioId: row.autorId, materiaId: row.materiaId } },
-          });
-          if (rating && rating.deletedAt === null) {
-            const retired = await tx.valoracionMateria.updateMany({
-              where: { usuarioId: row.autorId, materiaId: row.materiaId, deletedAt: null },
-              data: { deletedAt: now, updatedAt: now },
-            });
-            if (retired.count) cambios.push({ campo: "valoracionMateria.deletedAt", anterior: null, nuevo: now.toISOString() });
-          }
-        }
-      }
-      await tx.administracionHistorial.create({ data: { id: eventId, entidad: "feedback", entidadId: id, actorId: viewer, accion: "ELIMINACION", cambios } });
+      cambios.push(...await syncMateriaVote(tx, row.autorId, row.materiaId, now));
+      await tx.administracionHistorial.create({ data: { id: eventId, entidad: "feedback", entidadId: id, actorId: viewer, accion: "ELIMINACION", cambios, createdAt: now } });
     }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
   }
 

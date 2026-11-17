@@ -10,6 +10,7 @@ import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
 import { VERIFICATION_EMAIL } from "../src/auth/domain/email-verification.js";
 import { AUTH_CONFIG } from "../src/auth/auth.config.js";
 import { configureAuthHttp } from "../src/auth/presentation/http-security.js";
+import { PrismaFeedbackRepository } from "../src/reviews/infrastructure/prisma-feedback.repository.js";
 import { csrfHeaders, testAuthConfig } from "./auth-test.config.js";
 
 const databaseUrl = process.env["TEST_DATABASE_URL"];
@@ -25,6 +26,7 @@ describe.skipIf(!databaseUrl)("Materias: resumen de estrellas HTTP/PostgreSQL ai
   const materias: string[] = [];
   const cursadas: string[] = [];
   const comisiones: string[] = [];
+  const voteContexts = new Map<string, { cursadaId: string; comisionId: string }>();
   const config = testAuthConfig();
   const request = (path: string, method = "GET", body?: unknown, cookie?: string) => fetch(`${baseUrl}${path}`, {
     method, headers: { ...(method === "GET" ? {} : csrfHeaders), ...(cookie ? { Cookie: cookie } : {}) },
@@ -53,7 +55,30 @@ describe.skipIf(!databaseUrl)("Materias: resumen de estrellas HTTP/PostgreSQL ai
   }
 
   async function vote(materiaId: string, index: number, puntuacion: number) {
-    return prisma.valoracionMateria.create({ data: { materiaId, usuarioId: voters[index]!, puntuacion } });
+    // T2: a public vote needs an explicitly reviewed source experience. A cache row alone
+    // cannot make stars public; these fixtures model historical approved experiences.
+    let context = voteContexts.get(materiaId);
+    const subject = await prisma.materia.findUniqueOrThrow({ where: { id: materiaId } });
+    if (!context) {
+      const course = await prisma.cursada.create({ data: { materiaId, anio: 2026, cuatrimestre: "PRIMERO" } });
+      cursadas.push(course.id);
+      const commission = await prisma.comision.create({ data: { cursadaId: course.id, carrera: "S", numero: 99 } });
+      comisiones.push(commission.id);
+      context = { cursadaId: course.id, comisionId: commission.id };
+      voteContexts.set(materiaId, context);
+    }
+    const feedback = await prisma.feedback.create({ data: { autorId: voters[index]!, comisionId: context.comisionId,
+      estadoModeracion: "APROBADO", texto: "Experiencia histórica aprobada", anonimo: true, puntuacion,
+      comisionNombre: "S-99", materiaId, materiaNombre: subject.nombre, cursadaId: context.cursadaId,
+      anio: 2026, cuatrimestre: "PRIMERO", modalidad: "PRIMERO" } });
+    const projection = await prisma.valoracionMateria.create({ data: { materiaId, usuarioId: voters[index]!, puntuacion } });
+    return { ...projection, feedbackId: feedback.id };
+  }
+
+  async function approve(feedbackId: string) {
+    const row = await prisma.feedback.findUniqueOrThrow({ where: { id: feedbackId } });
+    return new PrismaFeedbackRepository(prisma as unknown as PrismaService).transitionModeration(feedbackId,
+      { id: admin.id, role: "ADMIN" }, { accion: "APROBACION", versionEsperada: row.versionModeracion, motivo: "Revisión de la experiencia de prueba" });
   }
 
   async function detail(id: string) {
@@ -142,15 +167,19 @@ describe.skipIf(!databaseUrl)("Materias: resumen de estrellas HTTP/PostgreSQL ai
     expect((await list({ q: m.nombre })).items[0].valoracion).toEqual({ promedio, cantidad: scores.length });
   });
 
-  it("excluye bajas lógicas y cuenta nuevamente la fila reactivada", async () => {
+  it("excluye experiencias retiradas y cuenta una restitución histórica sin confiar en una proyección obsoleta", async () => {
     const m = await materia();
-    await vote(m.id, 0, 1);
+    const first = await vote(m.id, 0, 1);
     await vote(m.id, 1, 5);
     const where = { usuarioId_materiaId: { usuarioId: voters[0]!, materiaId: m.id } };
     expect((await detail(m.id)).valoracion).toEqual({ promedio: 3, cantidad: 2 });
-    await prisma.valoracionMateria.update({ where, data: { deletedAt: new Date() } });
+    // A cache row that still looks active cannot disclose a withdrawn source experience.
+    await prisma.feedback.update({ where: { id: first.feedbackId }, data: { deletedAt: new Date() } });
     expect((await detail(m.id)).valoracion).toEqual({ promedio: 5, cantidad: 1 });
-    await prisma.valoracionMateria.update({ where, data: { puntuacion: 3, deletedAt: null } });
+    // Historical fixture restoration is not a new restoration endpoint. Deliberately leave
+    // the derived row stale to prove that public reads use the approved source's actual score.
+    await prisma.feedback.update({ where: { id: first.feedbackId }, data: { puntuacion: 3, deletedAt: null } });
+    await prisma.valoracionMateria.update({ where, data: { puntuacion: 1, deletedAt: new Date() } });
     expect((await detail(m.id)).valoracion).toEqual({ promedio: 4, cantidad: 2 });
   });
 
@@ -182,7 +211,7 @@ describe.skipIf(!databaseUrl)("Materias: resumen de estrellas HTTP/PostgreSQL ai
     expect(second.items[0]).toMatchObject({ id: b.id, valoracion: { promedio: 5, cantidad: 1 } });
   });
 
-  it("dos comentarios del mismo estudiante siguen contando una vez tras editar y retirar", async () => {
+  it("dos comentarios cuentan una vez solo tras revisión y recuperan el respaldo visible al editar o retirar", async () => {
     const m = await materia();
     const cursada = await prisma.cursada.create({ data: { materiaId: m.id, anio: 2026, cuatrimestre: "PRIMERO" } });
     cursadas.push(cursada.id);
@@ -194,11 +223,15 @@ describe.skipIf(!databaseUrl)("Materias: resumen de estrellas HTTP/PostgreSQL ai
       expect(response.status).toBe(201);
       comments.push((await response.json()).id);
     }
+    expect((await detail(m.id)).valoracion).toEqual({ promedio: null, cantidad: 0 });
+    for (const id of comments) await approve(id);
     expect((await detail(m.id)).valoracion).toEqual({ promedio: 5, cantidad: 1 });
     expect((await request(`/feedback/${comments[0]}`, "PATCH", { puntuacion: 4 }, reader.cookie)).status).toBe(200);
+    expect((await detail(m.id)).valoracion).toEqual({ promedio: 5, cantidad: 1 });
+    await approve(comments[0]!);
     expect((await detail(m.id)).valoracion).toEqual({ promedio: 4, cantidad: 1 });
     expect((await request(`/feedback/${comments[0]}`, "DELETE", undefined, reader.cookie)).status).toBe(204);
-    expect((await detail(m.id)).valoracion).toEqual({ promedio: 4, cantidad: 1 });
+    expect((await detail(m.id)).valoracion).toEqual({ promedio: 5, cantidad: 1 });
     expect((await request(`/feedback/${comments[1]}`, "DELETE", undefined, reader.cookie)).status).toBe(204);
     expect((await detail(m.id)).valoracion).toEqual({ promedio: null, cantidad: 0 });
   });

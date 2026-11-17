@@ -12,6 +12,7 @@ import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
 import { VERIFICATION_EMAIL } from "../src/auth/domain/email-verification.js";
 import { AUTH_CONFIG } from "../src/auth/auth.config.js";
 import { configureAuthHttp } from "../src/auth/presentation/http-security.js";
+import { lockMateriaVote, syncMateriaVote } from "../src/reviews/infrastructure/prisma-feedback-rating.js";
 import { csrfHeaders, testAuthConfig } from "./auth-test.config.js";
 
 const databaseUrl = process.env["TEST_DATABASE_URL"];
@@ -68,12 +69,24 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
   async function publish(path: string, cookie = autor.cookie, body: unknown = { texto: "Buena explicación y ejemplos.", anonimo: true, puntuacion: 4 }) {
     const response = await request(path, "POST", body, cookie);
     expect(response.status, await response.clone().text()).toBe(201);
-    return await response.json() as PublicFeedback;
+    const created = await response.json() as PublicFeedback;
+    // T2: arrange a published fixture explicitly; real POST itself must remain pending.
+    await establishPublished(created.id);
+    return created;
+  }
+
+  async function establishPublished(id: string) {
+    await prisma.$transaction(async tx => {
+      const row = await tx.feedback.findUniqueOrThrow({ where: { id } });
+      await lockMateriaVote(tx, row.autorId, row.materiaId);
+      await tx.feedback.update({ where: { id }, data: { estadoModeracion: "APROBADO" } });
+      await syncMateriaVote(tx, row.autorId, row.materiaId, new Date());
+    });
   }
 
   async function historicFeedback(f: Awaited<ReturnType<typeof fixture>>) {
     return prisma.feedback.create({ data: {
-      autorId: autor.id, comisionId: f.comision.id, texto: "Histórico sin estrellas", anonimo: true,
+      autorId: autor.id, comisionId: f.comision.id, texto: "Histórico sin estrellas", anonimo: true, estadoModeracion: "APROBADO",
       comisionNombre: "S-31", materiaId: f.materia.id, materiaNombre: f.materia.nombre,
       cursadaId: f.cursada.id, anio: 2026, cuatrimestre: "PRIMERO", modalidad: "PRIMERO",
       historial: { create: { accion: "CREACION", texto: "Histórico sin estrellas", anonimo: true } },
@@ -190,9 +203,11 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     expect(primeraPublicacion.status).toBe(201);
     const publicada = await primeraPublicacion.clone().json() as PublicFeedback;
     expect(await prisma.feedbackHistorial.findFirstOrThrow({ where: { feedbackId: publicada.id } })).toMatchObject({ puntuacion: 4 });
-    expect(await prisma.valoracionMateria.findUniqueOrThrow({
+    // T2: acceptance persists, but a pending experience has no public vote.
+    expect(await prisma.valoracionMateria.findUnique({
       where: { usuarioId_materiaId: { usuarioId: estudiante.id, materiaId: primera.materia.id } },
-    })).toMatchObject({ puntuacion: 4, deletedAt: null });
+    })).toBeNull();
+    expect(await prisma.feedback.findUniqueOrThrow({ where: { id: publicada.id } })).toMatchObject({ estadoModeracion: "PENDIENTE" });
     const registro = await prisma.aceptacionNormas.findFirstOrThrow({ where: vigente });
     expect(registro.aceptadaEn).toBeInstanceOf(Date);
     expect((await (await getNormas()).json()).aceptada).toBe(true);
@@ -324,9 +339,17 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     expect(legacyFeedback.contexto).toMatchObject({ cursadaId: legacy.id, modalidad: null, cuatrimestre: null });
   });
 
-  it("publica inmediatamente y asocia al único docente sin exponer identidad anónima", async () => {
+  it("T2 guarda pendiente y asocia al único docente sin exponer identidad anónima", async () => {
     const f = await fixture();
-    const created = await publish(f.path);
+    const response = await request(f.path, "POST", { texto: "Buena explicación y ejemplos.", anonimo: true, puntuacion: 4 }, autor.cookie);
+    expect(response.status).toBe(201);
+    const created = await response.json() as PublicFeedback;
+    expect(await prisma.feedback.findUniqueOrThrow({ where: { id: created.id } })).toMatchObject({ estadoModeracion: "PENDIENTE" });
+    for (const cookie of [otro.cookie, admin.cookie]) {
+      expect((await request(`/feedback/${created.id}`, "GET", undefined, cookie)).status).toBe(404);
+      expect((await (await request(f.path, "GET", undefined, cookie)).json()).total).toBe(0);
+    }
+    await establishPublished(created.id);
     expect(created).toMatchObject({ texto: "Buena explicación y ejemplos.", anonimo: true, propio: true, autor: null, profesor: { id: f.docentes[0].id, cargo: "TITULAR" }, contexto: { comisionId: f.comision.id, anio: 2026, nombre: "S-31" } });
     expect(created.puntuacion).toBe(4);
     for (const cookie of [otro.cookie, admin.cookie]) {
@@ -365,7 +388,11 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     const results = await Promise.all([1, 2].map((n) => request(f.path, "POST", { texto: `Experiencia ${n}`, anonimo: true, puntuacion: n }, autor.cookie)));
     expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
     const page = await (await request(f.path, "GET", undefined, autor.cookie)).json();
-    expect(page.total).toBe(1);
+    // T2: uniqueness covers pending records, even though neither request publishes.
+    expect(page.total).toBe(0);
+    const own = await (await request(`${f.path}/propio`, "GET", undefined, autor.cookie)).json();
+    expect(own).toMatchObject({ propio: true });
+    expect(await prisma.feedback.count({ where: { comisionId: f.comision.id, autorId: autor.id, estadoModeracion: "PENDIENTE", deletedAt: null } })).toBe(1);
   });
 
   it("varios docentes permiten seleccionar uno o feedback general; rechaza docente ajeno", async () => {
@@ -515,7 +542,7 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     expect(snapshot.puntuacion).toBe(5);
     expect(await prisma.administracionHistorial.findUniqueOrThrow({ where: { id: snapshot.id } })).toMatchObject({
       entidad: "feedback", entidadId: next.id, actorId: autor.id,
-      cambios: expect.arrayContaining([{ campo: "valoracionMateria.puntuacion", anterior: "1", nuevo: "5" }]),
+      cambios: expect.arrayContaining([{ campo: "puntuacion", anterior: null, nuevo: "5" }]),
     });
     const history = await (await request(`/feedback/${first.id}/historial`, "GET", undefined, autor.cookie)).json();
     expect(history.items).toHaveLength(1);
@@ -544,15 +571,8 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     const comments = await prisma.feedback.findMany({ where: { autorId: autor.id, materiaId: f.materia.id }, orderBy: { puntuacion: "asc" } });
     expect(comments.map(comment => comment.puntuacion)).toEqual([2, 5]);
     const votes = await prisma.valoracionMateria.findMany({ where: { usuarioId: autor.id, materiaId: f.materia.id } });
-    expect(votes).toHaveLength(1);
-    expect([2, 5]).toContain(votes[0]!.puntuacion);
-    // El evento que leyó un voto previo prueba el segundo turno bajo el bloqueo del par.
-    const events = await prisma.administracionHistorial.findMany({ where: { entidad: "feedback", entidadId: { in: comments.map(comment => comment.id) } } });
-    const secondEvent = events.find(event => (event.cambios as { campo: string; anterior: string | null; nuevo: string }[])
-      .some(change => change.campo === "valoracionMateria.puntuacion" && change.anterior !== null));
-    expect(secondEvent).toBeDefined();
-    const change = (secondEvent!.cambios as { campo: string; nuevo: string }[]).find(change => change.campo === "valoracionMateria.puntuacion")!;
-    expect(votes[0]!.puntuacion).toBe(Number(change.nuevo));
+    expect(votes).toHaveLength(0);
+    expect(comments.every(comment => comment.estadoModeracion === "PENDIENTE")).toBe(true);
   });
 
   it.each(["voto", "auditoría"])("revierte comentario, historial y voto ante fallo de %s", async (step) => {
@@ -567,7 +587,7 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
       const repository = new PrismaFeedbackRepository({
         $transaction: async (work: (transaction: Prisma.TransactionClient) => Promise<unknown>) => work(tx),
       } as unknown as PrismaService);
-      const spy = step === "voto" ? vi.spyOn(tx.valoracionMateria, "upsert").mockRejectedValueOnce(error)
+      const spy = step === "voto" ? vi.spyOn(tx.valoracionMateria, "findUnique").mockRejectedValueOnce(error)
         : vi.spyOn(tx.administracionHistorial, "create").mockRejectedValueOnce(error);
       try { await repository.create(f.comision.id, fresh.id, { texto: "No debe persistir", anonimo: true, puntuacion: 4, versionNormas: version }); }
       finally { spy.mockRestore(); }
@@ -580,7 +600,7 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     expect(await prisma.administracionHistorial.count({ where: { entidad: "feedback", actorId: autor.id } })).toBe(eventsBefore);
   });
 
-  it("editar estrellas actualiza un solo voto y conserva otras puntuaciones e historia", async () => {
+  it("T2 editar estrellas conserva otras puntuaciones pero retira su contribucion hasta revision", async () => {
     const f = await fixture(0);
     const second = await prisma.comision.create({ data: { cursadaId: f.cursada.id, carrera: "S", numero: 74 } });
     ids.comisiones.push(second.id);
@@ -594,18 +614,18 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     expect((await prisma.feedback.findUniqueOrThrow({ where: { id: other.id } })).puntuacion).toBe(4);
     expect(await prisma.feedbackHistorial.findUniqueOrThrow({ where: { id: originalSnapshot.id } })).toEqual(originalSnapshot);
     const vote = await prisma.valoracionMateria.findUniqueOrThrow({ where: { usuarioId_materiaId: { usuarioId: autor.id, materiaId: f.materia.id } } });
-    expect(vote).toMatchObject({ puntuacion: 5, deletedAt: null, createdAt: voteBefore.createdAt });
+    expect(vote).toMatchObject({ puntuacion: 4, deletedAt: null, createdAt: voteBefore.createdAt });
     expect(await prisma.valoracionMateria.count({ where: { usuarioId: autor.id, materiaId: f.materia.id } })).toBe(1);
     const edition = await prisma.feedbackHistorial.findFirstOrThrow({ where: { feedbackId: first.id, accion: "EDICION" } });
     expect(edition.puntuacion).toBe(5);
     expect(await prisma.administracionHistorial.findUniqueOrThrow({ where: { id: edition.id } })).toMatchObject({
       actorId: autor.id, cambios: expect.arrayContaining([
         { campo: "puntuacion", anterior: "2", nuevo: "5" },
-        { campo: "valoracionMateria.puntuacion", anterior: "4", nuevo: "5" },
+        { campo: "estadoModeracion", anterior: "APROBADO", nuevo: "PENDIENTE" },
       ]),
     });
     const listing = await (await request(f.path, "GET", undefined, otro.cookie)).json();
-    expect(listing.items[0]).toMatchObject({ puntuacion: 5, autor: null, propio: false });
+    expect(listing.items).toEqual([]);
     expect(JSON.stringify(listing)).not.toContain(autor.id);
   });
 
@@ -637,7 +657,8 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     expect((await request(`/feedback/${historical.id}`, "PATCH", { puntuacion: 5 }, autor.cookie)).status).toBe(200);
     expect(await prisma.feedbackHistorial.findUniqueOrThrow({ where: { id: originalSnapshot.id } })).toEqual(originalSnapshot);
     expect((await prisma.feedback.findUniqueOrThrow({ where: { id: historical.id } })).puntuacion).toBe(5);
-    expect((await prisma.valoracionMateria.findUniqueOrThrow({ where: { usuarioId_materiaId: { usuarioId: autor.id, materiaId: f.materia.id } } })).puntuacion).toBe(5);
+    // T2: adding stars to a legacy text also leaves it pending; no public vote yet.
+    expect(await prisma.valoracionMateria.findUnique({ where: { usuarioId_materiaId: { usuarioId: autor.id, materiaId: f.materia.id } } })).toBeNull();
   });
 
   it.each([false, true])("histórico incorpora estrellas con voto previo dado de baja=%j", async (deleted) => {
@@ -646,7 +667,8 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     const createdAt = new Date("2026-10-01");
     await prisma.valoracionMateria.create({ data: { usuarioId: autor.id, materiaId: f.materia.id, puntuacion: 1, createdAt, deletedAt: deleted ? new Date("2026-11-01") : null } });
     expect((await request(`/feedback/${historical.id}`, "PATCH", { puntuacion: 4 }, autor.cookie)).status).toBe(200);
-    expect(await prisma.valoracionMateria.findUniqueOrThrow({ where: { usuarioId_materiaId: { usuarioId: autor.id, materiaId: f.materia.id } } })).toMatchObject({ puntuacion: 4, deletedAt: null, createdAt });
+    expect(await prisma.valoracionMateria.findUniqueOrThrow({ where: { usuarioId_materiaId: { usuarioId: autor.id, materiaId: f.materia.id } } })).toMatchObject({ puntuacion: 1, createdAt });
+    expect((await prisma.valoracionMateria.findUniqueOrThrow({ where: { usuarioId_materiaId: { usuarioId: autor.id, materiaId: f.materia.id } } })).deletedAt).not.toBeNull();
     expect(await prisma.valoracionMateria.count({ where: { usuarioId: autor.id, materiaId: f.materia.id } })).toBe(1);
   });
 
@@ -676,7 +698,7 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
         $transaction: async (work: (transaction: Prisma.TransactionClient) => Promise<unknown>) => work(tx),
       } as unknown as PrismaService);
       const spy = step === "comentario" ? vi.spyOn(tx.feedback, "update").mockRejectedValueOnce(error)
-        : step === "voto" ? vi.spyOn(tx.valoracionMateria, "upsert").mockRejectedValueOnce(error)
+        : step === "voto" ? vi.spyOn(tx.valoracionMateria, "updateMany").mockRejectedValueOnce(error)
           : vi.spyOn(tx.administracionHistorial, "create").mockRejectedValueOnce(error);
       try { await repository.update(created.id, autor.id, { texto: "No debe persistir", puntuacion: 5 }); }
       finally { spy.mockRestore(); }
@@ -687,7 +709,7 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     expect(await prisma.administracionHistorial.count({ where: { entidad: "feedback", entidadId: created.id } })).toBe(eventsBefore);
   });
 
-  it("creación y edición concurrentes en distintas comisiones comparten el orden del voto global", async () => {
+  it("T2 creación y edición concurrentes quedan pendientes y retiran el voto público", async () => {
     const f = await fixture(0);
     const first = await publish(f.path, autor.cookie, { texto: "Primero", anonimo: true, puntuacion: 1 });
     const second = await prisma.comision.create({ data: { cursadaId: f.cursada.id, carrera: "S", numero: 76 } });
@@ -701,11 +723,11 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     expect(comments.map(comment => comment.puntuacion)).toEqual([2, 5]);
     const votes = await prisma.valoracionMateria.findMany({ where: { usuarioId: autor.id, materiaId: f.materia.id } });
     expect(votes).toHaveLength(1);
+    expect(comments.every(comment => comment.estadoModeracion === "PENDIENTE")).toBe(true);
+    expect(votes[0]).toMatchObject({ puntuacion: 1 });
+    expect(votes[0]!.deletedAt).not.toBeNull();
     const events = await prisma.administracionHistorial.findMany({ where: { entidad: "feedback", entidadId: { in: comments.map(comment => comment.id) } } });
-    const lastChange = events.flatMap(event => event.cambios as { campo: string; anterior: string | null; nuevo: string }[])
-      .find(change => change.campo === "valoracionMateria.puntuacion" && (change.anterior === "2" || change.anterior === "5"));
-    expect(lastChange).toBeDefined();
-    expect(votes[0]!.puntuacion).toBe(Number(lastChange!.nuevo));
+    expect(events.flatMap(event => event.cambios as { campo: string }[]).filter(change => change.campo === "valoracionMateria.deletedAt")).toHaveLength(1);
   });
 
   it("eliminar último participante retira el voto aunque quede un histórico sin estrellas", async () => {
@@ -733,7 +755,7 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     expect(await prisma.valoracionMateria.findUniqueOrThrow({ where: { usuarioId_materiaId: { usuarioId: autor.id, materiaId: f.materia.id } } })).toEqual(vote);
   });
 
-  it("ADMIN elimina la última puntuación publicada sin restaurar la anterior si queda otro participante", async () => {
+  it("T2 ADMIN elimina ultima puntuacion y restaura la anterior visible", async () => {
     const f = await fixture(0);
     await prisma.materiaCarrera.create({ data: { materiaId: f.materia.id, carrera: "I", anioCarrera: "2" } });
     const second = await prisma.comision.create({ data: { cursadaId: f.cursada.id, carrera: "I", numero: 78 } });
@@ -742,11 +764,11 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     const latest = await publish(`/comisiones/${second.id}/feedback`, autor.cookie, { texto: "Último", anonimo: true, puntuacion: 5 });
     const voteBefore = await prisma.valoracionMateria.findUniqueOrThrow({ where: { usuarioId_materiaId: { usuarioId: autor.id, materiaId: f.materia.id } } });
     expect((await request(`/feedback/${latest.id}`, "DELETE", undefined, admin.cookie)).status).toBe(204);
-    expect(await prisma.valoracionMateria.findUniqueOrThrow({ where: { usuarioId_materiaId: { usuarioId: autor.id, materiaId: f.materia.id } } })).toEqual(voteBefore);
+    expect(await prisma.valoracionMateria.findUniqueOrThrow({ where: { usuarioId_materiaId: { usuarioId: autor.id, materiaId: f.materia.id } } })).toMatchObject({ puntuacion: 2, createdAt: voteBefore.createdAt, deletedAt: null });
     expect((await prisma.feedback.findUniqueOrThrow({ where: { id: survivor.id } })).puntuacion).toBe(2);
     expect((await request(`/feedback/${survivor.id}`, "DELETE", undefined, admin.cookie)).status).toBe(204);
     const vote = await prisma.valoracionMateria.findUniqueOrThrow({ where: { usuarioId_materiaId: { usuarioId: autor.id, materiaId: f.materia.id } } });
-    expect(vote).toMatchObject({ puntuacion: 5, createdAt: voteBefore.createdAt });
+    expect(vote).toMatchObject({ puntuacion: 2, createdAt: voteBefore.createdAt });
     expect(vote.deletedAt).not.toBeNull();
     expect(await prisma.valoracionMateria.count({ where: { usuarioId: admin.id, materiaId: f.materia.id } })).toBe(0);
     expect(await prisma.administracionHistorial.findFirstOrThrow({ where: { entidadId: survivor.id, accion: "ELIMINACION" } })).toMatchObject({ actorId: admin.id });
@@ -776,14 +798,16 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     expect(responses.map(response => response.status)).toEqual([204, 204]);
     expect(await prisma.feedback.count({ where: { autorId: autor.id, materiaId: f.materia.id, deletedAt: null, puntuacion: { not: null } } })).toBe(0);
     const vote = await prisma.valoracionMateria.findUniqueOrThrow({ where: { usuarioId_materiaId: { usuarioId: autor.id, materiaId: f.materia.id } } });
-    expect(vote.puntuacion).toBe(5);
+    // T2 may restore the older eligible vote before the other transaction removes it.
+    // The final retired score depends on lock order; no score remains public.
+    expect([2, 5]).toContain(vote.puntuacion);
     expect(vote.deletedAt).not.toBeNull();
     const events = await prisma.administracionHistorial.findMany({ where: { entidad: "feedback", entidadId: { in: [first.id, latest.id] }, accion: "ELIMINACION" } });
     expect(events).toHaveLength(2);
     expect(events.flatMap(event => event.cambios as { campo: string }[]).filter(change => change.campo === "valoracionMateria.deletedAt")).toHaveLength(1);
   });
 
-  it.each(["creación", "edición histórica"])("baja concurrente con %s en otra comisión conserva el nuevo participante", async (step) => {
+  it.each(["creación", "edición histórica"])("T2 baja concurrente con %s no publica al nuevo participante pendiente", async (step) => {
     const f = await fixture(0);
     const created = await publish(f.path);
     const second = await prisma.comision.create({ data: { cursadaId: f.cursada.id, carrera: "S", numero: 81 } });
@@ -796,7 +820,10 @@ describe.skipIf(!databaseUrl)("Feedback por comisión: HTTP y PostgreSQL", () =>
     ]);
     expect(responses.map(response => response.status)).toEqual([204, historical ? 200 : 201]);
     expect(await prisma.feedback.count({ where: { autorId: autor.id, materiaId: f.materia.id, deletedAt: null, puntuacion: { not: null } } })).toBe(1);
-    expect(await prisma.valoracionMateria.findUniqueOrThrow({ where: { usuarioId_materiaId: { usuarioId: autor.id, materiaId: f.materia.id } } })).toMatchObject({ puntuacion: 5, deletedAt: null });
+    const vote = await prisma.valoracionMateria.findUniqueOrThrow({ where: { usuarioId_materiaId: { usuarioId: autor.id, materiaId: f.materia.id } } });
+    expect(vote.puntuacion).toBe(4);
+    expect(vote.deletedAt).not.toBeNull();
+    expect(await prisma.feedback.count({ where: { autorId: autor.id, materiaId: f.materia.id, estadoModeracion: "APROBADO", deletedAt: null, puntuacion: { not: null } } })).toBe(0);
     expect(await prisma.valoracionMateria.count({ where: { usuarioId: autor.id, materiaId: f.materia.id } })).toBe(1);
   });
 

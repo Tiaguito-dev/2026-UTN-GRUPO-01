@@ -6,14 +6,15 @@ import { PrismaFeedbackRepository } from "../src/reviews/infrastructure/prisma-f
 function fixture() {
   const owner = { id: randomUUID(), role: "USER" as const };
   const admin = { id: randomUUID(), role: "ADMIN" as const };
-  const row = { id: randomUUID(), autorId: owner.id, comisionId: randomUUID(), texto: "Texto original",
+  const row = { id: randomUUID(), autorId: owner.id, comisionId: randomUUID(), materiaId: randomUUID(), texto: "Texto original",
     puntuacion: 4, anonimo: true, deletedAt: null as Date | null, estadoModeracion: "PENDIENTE" as "PENDIENTE" | "APROBADO" | "RECHAZADO",
     versionModeracion: 1, requiereRevisionHumana: false, motivoRechazo: null as string | null,
     ocultoAutor: false, ocultoAdministracion: false, ocultoReportes: false };
   const tx = {
-    $queryRaw: vi.fn().mockResolvedValue([{ id: row.id }]),
+    $queryRaw: vi.fn().mockImplementation(async (query: unknown) => Array.isArray(query) ? [{ id: row.id }] : []),
     feedback: { findUnique: vi.fn().mockResolvedValue(row), update: vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ ...row, ...data })) },
     feedbackHistorial: { findFirst: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({}) },
+    valoracionMateria: { findUnique: vi.fn().mockResolvedValue(null), upsert: vi.fn(), updateMany: vi.fn() },
     administracionHistorial: { create: vi.fn().mockResolvedValue({}) },
   };
   const transaction = vi.fn(async (work: (client: typeof tx) => Promise<unknown>) => work(tx));
@@ -35,7 +36,7 @@ describe("T1: persistencia interna de moderación", () => {
       id: snapshot.create["id"], entidad: "feedback", entidadId: f.row.id, actorId: f.admin.id, accion: "RECHAZO",
       cambios: expect.arrayContaining([{ campo: "estadoModeracion", anterior: "PENDIENTE", nuevo: "RECHAZADO" }]),
     }) });
-    const queries = f.tx.$queryRaw.mock.calls.map(call => (call[0] as TemplateStringsArray).join("?"));
+    const queries = f.tx.$queryRaw.mock.calls.slice(0, 2).map(call => (call[0] as TemplateStringsArray).join("?"));
     expect(queries[0]).toContain('FROM "Comision"');
     expect(queries[0]).toContain("FOR UPDATE");
     expect(queries[1]).toContain('FROM "Feedback"');

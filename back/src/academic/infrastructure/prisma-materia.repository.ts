@@ -5,6 +5,7 @@ import { serializarCarreras, type AnioCarrera, type Carrera, type NivelElectiva,
 import { CarreraConComisionesError, MateriaAlreadyExistsError, MateriaNotFoundError } from "../application/errors.js";
 import type { CreateMateriaInput, MateriaFilters, MateriaRepository } from "../application/ports/materia.repository.js";
 import { parseMateriaHistoryChanges } from "../application/academic-history.js";
+import { visibleMateriaVotesSql } from "../../reviews/infrastructure/prisma-feedback-rating.js";
 
 const conCarreras = { carreras: { orderBy: { carrera: "asc" } } } satisfies Prisma.MateriaInclude;
 // NFD separates Spanish accents/diacritics; translate removes the same combining marks on
@@ -74,8 +75,7 @@ export class PrismaMateriaRepository implements MateriaRepository {
     // Solo los IDs de la página, sin joins que multipliquen votos por carrera o comentario.
     const rows = await tx.$queryRaw<{ materiaId: string; promedio: number; cantidad: bigint }[]>(Prisma.sql`
       SELECT "materiaId", ROUND(AVG("puntuacion"), 1)::double precision AS promedio, COUNT(*) AS cantidad
-      FROM "ValoracionMateria"
-      WHERE "deletedAt" IS NULL AND "materiaId" IN (${Prisma.join(materiaIds.map(id => Prisma.sql`${id}::uuid`))})
+      FROM (${visibleMateriaVotesSql(materiaIds)}) visible_votes
       GROUP BY "materiaId"`);
     return new Map(rows.map(row => {
       const cantidad = Number(row.cantidad);
