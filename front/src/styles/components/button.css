@@ -6,9 +6,10 @@
   .button-secondary:hover { background: var(--soft-blue); border-color: var(--primary); color: var(--primary); }
   .submit { width: 100%; margin-block: var(--space-2); }
   /* Enlaces del sidebar: usan .button y le quitan el aspecto de botón primario. */
-  .system-sidebar .button { width: 100%; justify-content: flex-start; padding: .8rem var(--space-3); background: transparent; color: var(--text); font-size: var(--text-md); }
-  .system-sidebar .button:hover { background: var(--background); color: var(--primary); }
-  .system-sidebar .button[aria-current="page"] { background: var(--soft-blue); color: var(--primary); box-shadow: none; }
+  .system-sidebar .button { width: 100%; justify-content: flex-start; padding: .8rem var(--space-3); background: transparent; color: var(--sidebar-text); font-size: var(--text-md); }
+  .system-sidebar .button:hover { background: var(--sidebar-hover-background); color: var(--sidebar-hover-text); }
+  .system-sidebar .button[aria-current="page"] { background: var(--sidebar-active-background); color: var(--sidebar-active-text); box-shadow: none; }
+  .system-sidebar .button:focus-visible { outline-color: var(--sidebar-focus); }
   @media (max-width: 800px) {
     .system-sidebar .button { width: auto; padding: .6rem var(--space-3); gap: .4rem; font-size: var(--text-sm); }
   }
