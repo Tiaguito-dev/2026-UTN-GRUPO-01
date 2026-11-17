@@ -2,6 +2,28 @@
 
 ## [Sin publicar]
 
+### Ocultamiento preventivo y restitución por reportes (T5)
+
+- El tercer denunciante distinto con reportes ABIERTO entre todas las versiones
+  activa solo ocultoReportes, conserva APROBADO y registra origen automático y actor
+  real. Creación, conteo, snapshot, ledger y sincronización de valoraciones atómicos.
+- Restitución explícita ADMIN mediante la acción existente de moderación, con
+  justificación, versión y menos de tres denunciantes abiertos bajo bloqueo. Cerrar
+  denuncias no restituye; otras causas de ocultamiento permanecen independientes.
+- Bandeja T4 extendida con filtro ocultoReportes y ultimoReporteAt, conteos distintos,
+  versiones y estado/causas actuales; identidades exclusivamente ADMIN. Sin otra cola.
+- Migración aditiva de acciones históricas, reintentos propios seguros tras el
+  umbral, conservación de likes/respuestas y reutilización de política pública T2.
+- 56 pruebas T5 nuevas (25 unitarias, 31 HTTP/PostgreSQL), focalizada final 149/149
+  con regresión T4. Concurrencia entre pools, cierres/restitución, privacidad,
+  independencia de causas, rankings, votos alternativos y rollback de sync/ledger.
+  Evidencia completa: [ficha T5](docs/tasks/finished/TASK-moderacion-T5-ocultamiento.md).
+- Global final: 1622/1622 pruebas en 70 archivos, PostgreSQL/SMTP reales, sin
+  omisiones. Typecheck, lint, build, diffcheck y comprobación HTTP del compilado
+  aprobados; fallos intermedios y correcciones conservados en la ficha.
+- Sin frontend, T6, cambios M1.3, modelos, dependencias nuevas, migraciones sobre
+  datos del usuario, despliegue, commits o push. M1.3 queda estacionada para el final.
+
 ### Reportes de experiencias y resoluciones administrativas (T4)
 
 - Ajuste de identidad: detalle exclusivo ADMIN con denunciante `{id,displayName}`

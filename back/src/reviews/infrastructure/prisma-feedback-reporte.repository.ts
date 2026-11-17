@@ -7,6 +7,8 @@ import { FeedbackReporteError } from "../application/feedback-reporte.service.js
 import { FeedbackNotFoundError } from "../application/errors.js";
 import { isFeedbackVisible } from "../domain/feedback-visibility.js";
 import type { FeedbackReporteReceipt, FeedbackReporteAdmin, ReporteExperience, ReporteCounts } from "../domain/feedback-reporte.js";
+import { transitionFeedbackModeration } from "../domain/feedback-moderation.js";
+import { persistFeedbackModeration } from "./prisma-feedback-moderation.js";
 
 type Transaction = Prisma.TransactionClient;
 const receipt = (row: FeedbackReporte): FeedbackReporteReceipt => ({
@@ -58,19 +60,26 @@ export class PrismaFeedbackReporteRepository implements FeedbackReporteRepositor
     if (!original) throw new FeedbackNotFoundError();
     return this.prisma.$transaction(async tx => {
       // Serialize each reporter's sliding window across ALL feedback and processes.
-      // Disjoint advisory key namespace; no User row locks and no rating locks.
+      // Disjoint advisory key namespace; then commission -> Feedback -> rating pair.
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`feedbackReporte:${viewer}`}, 0))::text`;
       const row = await this.lockFeedback(tx, id, original.comisionId);
-      if (!isFeedbackVisible(row)) throw new FeedbackNotFoundError();
+      if (!isFeedbackVisible(row)) {
+        // A threshold changes the moderation version. Recover ONLY this reporter's
+        // existing receipt for identical evidence; no new reports on private content.
+        if (row.deletedAt === null && row.estadoModeracion === "APROBADO" && row.ocultoReportes &&
+            !row.ocultoAutor && !row.ocultoAdministracion) {
+          const own = await tx.feedbackReporte.findFirst({ where: { feedbackId: id, denuncianteId: viewer,
+            historial: { texto: row.texto, puntuacion: row.puntuacion, anonimo: row.anonimo } }, orderBy: recent });
+          if (own) return this.retry(own, input);
+        }
+        throw new FeedbackNotFoundError();
+      }
       if (row.autorId === viewer) throw new FeedbackReporteError(403, "No puede reportar su propia experiencia.");
       const previous = await tx.feedbackReporte.findUnique({ where: {
         denuncianteId_feedbackId_versionReportada: { denuncianteId: viewer, feedbackId: id, versionReportada: row.versionModeracion },
       } });
       if (previous) {
-        if (previous.motivo !== input.motivo || previous.descripcion !== (input.descripcion ?? null)) {
-          throw new FeedbackReporteError(409, "Ya reportó esta versión con otros datos. Consulte el reporte existente.");
-        }
-        return { created: false, reporte: receipt(previous) };
+        return this.retry(previous, input);
       }
       // clock_timestamp is evaluated after waiting for locks (transaction now() is too early).
       const [clock] = await tx.$queryRaw<{ now: Date }[]>`SELECT clock_timestamp() AS now`;
@@ -94,8 +103,23 @@ export class PrismaFeedbackReporteRepository implements FeedbackReporteRepositor
           { campo: "descripcion", anterior: null, nuevo: input.descripcion ?? null },
           { campo: "estado", anterior: null, nuevo: "ABIERTO" },
         ] } });
+      const counts = await countFeedbackReportesAbiertos(tx, id);
+      if (counts.denunciantesAbiertos >= 3) {
+        const command = { accion: "OCULTAMIENTO_REPORTES" as const, versionEsperada: row.versionModeracion,
+          motivo: "Ocultamiento preventivo por tres denunciantes distintos con reportes abiertos." };
+        // Automatic origin is internal: never exposed as a user-selectable HTTP action.
+        const decision = transitionFeedbackModeration(row, { id: viewer, role: "USER" }, command, false, counts.denunciantesAbiertos);
+        await persistFeedbackModeration(tx, row, viewer, command.accion, decision);
+      }
       return { created: true, reporte: receipt(reporte) };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
+  }
+
+  private retry(previous: FeedbackReporte, input: CreateFeedbackReporteInput) {
+    if (previous.motivo !== input.motivo || previous.descripcion !== (input.descripcion ?? null)) {
+      throw new FeedbackReporteError(409, "Ya reportó esta versión con otros datos. Consulte el reporte existente.");
+    }
+    return { created: false, reporte: receipt(previous) };
   }
 
   async list(query: FeedbackReporteQuery) {
@@ -103,13 +127,17 @@ export class PrismaFeedbackReporteRepository implements FeedbackReporteRepositor
       const where: Prisma.FeedbackReporteWhereInput = {
         ...(query.estado ? { estado: query.estado } : {}), ...(query.motivo ? { motivo: query.motivo } : {}),
         ...(query.feedbackId ? { feedbackId: query.feedbackId } : {}),
+        ...(query.ocultoReportes === undefined ? {} : { feedback: { ocultoReportes: query.ocultoReportes } }),
       };
       const total = await tx.feedbackReporte.count({ where });
       const rows = await tx.feedbackReporte.findMany({ where, ...paging(query), orderBy: recent,
         include: { feedback: { include: feedbackInclude } } });
       const counts = await reportCounts(tx, [...new Set(rows.map(row => row.feedbackId))]);
+      const latest = await tx.feedbackReporte.groupBy({ by: ["feedbackId"],
+        where: { feedbackId: { in: rows.map(row => row.feedbackId) } }, _max: { createdAt: true } });
+      const dates = new Map(latest.map(row => [row.feedbackId, row._max.createdAt!]));
       return { total, page: query.page, pageSize: query.pageSize,
-        items: rows.map(row => ({ ...admin(row), experiencia: experience(row.feedback),
+        items: rows.map(row => ({ ...admin(row), experiencia: experience(row.feedback), ultimoReporteAt: dates.get(row.feedbackId)!,
           ...(counts.get(row.feedbackId) ?? { cantidadReportesActivos: 0, denunciantesAbiertos: 0 }) })) };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
   }
@@ -125,7 +153,9 @@ export class PrismaFeedbackReporteRepository implements FeedbackReporteRepositor
       const where: Prisma.FeedbackReporteWhereInput = { feedbackId: row.feedbackId, estado: { not: "ABIERTO" }, id: { not: id } };
       const total = await tx.feedbackReporte.count({ where });
       const previous = await tx.feedbackReporte.findMany({ where, ...paging(query), orderBy: [{ resolvedAt: "desc" }, { id: "desc" }] });
+      const latest = await tx.feedbackReporte.aggregate({ where: { feedbackId: row.feedbackId }, _max: { createdAt: true } });
       return { reporte: { ...admin(row), denunciante: { id: row.denunciante.id, displayName: row.denunciante.displayName } },
+        ultimoReporteAt: latest._max.createdAt!,
         experiencia: experience(row.feedback), ...await countFeedbackReportesAbiertos(tx, row.feedbackId),
         evidencia: { id: row.historial.id, texto: row.historial.texto, puntuacion: row.historial.puntuacion, anonimo: row.historial.anonimo,
           versionModeracion: row.historial.versionModeracion, createdAt: row.historial.createdAt },

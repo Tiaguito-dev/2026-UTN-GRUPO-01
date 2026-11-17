@@ -27,8 +27,9 @@ export interface ReporteExperience extends FeedbackModerationState {
   deletedAt: Date | null;
   contexto: Feedback["contexto"];
 }
-export interface FeedbackReporteItem extends FeedbackReporteAdmin, ReporteCounts { experiencia: ReporteExperience }
+export interface FeedbackReporteItem extends FeedbackReporteAdmin, ReporteCounts { experiencia: ReporteExperience; ultimoReporteAt: Date }
 export interface FeedbackReporteDetail extends ReporteCounts {
+  ultimoReporteAt: Date;
   /** Only the ADMIN detail includes the reporter's current account name. */
   reporte: FeedbackReporteAdmin & { denunciante: { id: string; displayName: string } };
   experiencia: ReporteExperience;

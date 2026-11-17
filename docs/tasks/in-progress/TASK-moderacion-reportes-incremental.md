@@ -1,6 +1,6 @@
 # Moderación humana y reportes: plan incremental
 
-Fecha: 2026-11-17. T1, T2, T3 y T4 completadas; detenerse antes de T5/T6.
+Fecha: 2026-11-17. T1–T5 completadas y validadas. Detenerse antes de T6.
 T1 registrada por pedido explícito en commit local `2f619db`, sin push. El cierre local de T2
 en cuatro commits fue autorizado posteriormente; no incluye push ni autorización para T3.
 T3 fue autorizada después, mediante el pedido específico de acciones HTTP y pruebas; sin commits.
@@ -9,7 +9,7 @@ T3 fue autorizada después, mediante el pedido específico de acciones HTTP y pr
 
 Completar en seis etapas el flujo humano y reportes dentro de ReviewsModule, reutilizando
 FeedbackService/repositorio, FeedbackHistorial, AdministracionHistorial y las vistas existentes.
-El objetivo temporal es terminar antes del miércoles 18; la autorización actual se detiene tras T4.
+El objetivo temporal es terminar antes del miércoles 18; la autorización actual se detiene tras T5. M1.3 queda estacionada por decisión del usuario.
 
 El diagnóstico inicial encontró publicación por deletedAt, ausencia de estados y reportes,
 y actualización de valoraciones al crear/editar. T1 y T2 corrigen persistencia y visibilidad.
@@ -138,7 +138,11 @@ commit local del módulo reviews, sin push. Revisión del diff preparado y 117/1
 unitarias de reportes/moderación/acciones aprobadas antes del cierre; integraciones
 no repetidas durante el commit. La autorización no permite avanzar a T5/T6.
 
-## T5 — Umbral preventivo y restitución administrativa
+## T5 — Umbral preventivo y restitución administrativa (completada)
+
+Autorizada tras confirmar T4 e identidad en `983c681`, árbol principal limpio y
+operaciones Git sin pendientes. M1.3 de otro worktree queda estacionada por el usuario.
+Decisiones, implementación y evidencia: [ficha T5](../finished/TASK-moderacion-T5-ocultamiento.md).
 
 Archivos/módulos: servicio/repositorio reportes y transiciones, bandeja/query ADMIN, auditoría
 y sincronización de valoraciones; pruebas integración concurrentes.
@@ -153,6 +157,20 @@ automáticamente la causa por cerrar un reporte. Nuevos reportes válidos pueden
 La bandeja deriva revisión pendiente de ocultoReportes y reportes abiertos, sin nuevo estado
 de publicación. Aceptación/pruebas: 2/3, duplicados, varios usuarios/versiones, carrera con
 restitución, preservación de causas, nuevos ciclos, auditoría y agregados atómicos.
+
+Implementada sin otra cola ni frontend: reporte/conteo/transición/sync atómicos,
+origen automático y actor real, acciones históricas aditivas, RESTITUCION_REPORTES
+en endpoint ADMIN T3 con motivo/versión y menos de tres ABIERTO distintos, filtro
+ocultoReportes y ultimoReporteAt en consultas T4. Cierres nunca restituyen solos.
+Las causas independientes y la política pública T2 preservan privacidad y valoraciones.
+
+56 pruebas T5 nuevas; focalizada final 149/149 con PostgreSQL real y regresión T4.
+Global final 1622/1622 en 70 archivos con PostgreSQL/SMTP reales, sin omisiones,
+309.59 s, exit 0. Typecheck, lint, build, diffcheck y HTTP compilado aprobados.
+Primera focalizada 130/132 por dos expectativas T4 previas al umbral, corregidas
+con evidencia conservada; no se omiten fallos intermedios de tipos/fixtures.
+Migración 20261117030000_feedback_ocultamiento_reportes solo aplicada en bases
+desechables; sin cambios M1.3, modelos, frontend, T6, despliegue, commits o push.
 
 ## T6 — Interfaz, E2E y documentación
 
@@ -195,3 +213,9 @@ T4 completada y validada: 86 focalizadas y global 1559/1559, evidencia en ficha 
 Reportes con referencia histórica, cuota PostgreSQL, consulta y cierres ADMIN auditados,
 privacidad y conteos distintos preparados; sin activar ocultamiento ni modificar estadísticas.
 No se desplegó a datos del usuario.
+
+T5 completada y validada: 56 pruebas nuevas, focalizada final 149/149, global
+1622/1622 en 70 archivos sin omisiones; tipos, lint, build, diffcheck y manual HTTP
+aprobados. La ficha T5 conserva decisiones, contratos, archivos y fallos intermedios.
+T6 queda preparada para consumir contratos, pero no implementada ni autorizada.
+M1.3 queda estacionada para el final por decisión expresa del usuario.

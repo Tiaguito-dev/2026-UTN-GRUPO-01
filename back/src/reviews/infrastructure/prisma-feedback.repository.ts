@@ -15,6 +15,8 @@ import { FeedbackModerationError, transitionFeedbackModeration, type FeedbackMod
 import { isFeedbackVisible } from "../domain/feedback-visibility.js";
 import { publicFeedbackWhere } from "./prisma-feedback-visibility.js";
 import { lockMateriaVote, syncMateriaVote } from "./prisma-feedback-rating.js";
+import { persistFeedbackModeration } from "./prisma-feedback-moderation.js";
+import { countFeedbackReportesAbiertos } from "./prisma-feedback-reporte.repository.js";
 
 type Transaction = Prisma.TransactionClient;
 export const includeAutor = { autor: { select: { displayName: true } }, comision: { select: { carrera: true } } } satisfies Prisma.FeedbackInclude;
@@ -77,30 +79,16 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
           orderBy: [{ versionModeracion: { sort: "desc", nulls: "last" } }, ...recent], select: { texto: true } })
         : null;
       const corrected = rejection !== null && row.texto.trim() !== rejection.texto.trim();
-      const decision = transitionFeedbackModeration(row, actor, command, corrected);
-      if (!decision.changed) return decision.state;
-      await lockMateriaVote(tx, row.autorId, row.materiaId);
-      const now = new Date();
-      const eventId = randomUUID();
-      const fields = Object.keys(decision.state) as (keyof FeedbackModerationState)[];
-      const display = (value: string | number | boolean | null): string | null => value === null ? null : String(value);
-      const cambios: { campo: string; anterior: string | null; nuevo: string | null }[] = fields.filter(field => row[field] !== decision.state[field]).map(field => ({
-        campo: field, anterior: display(row[field]), nuevo: display(decision.state[field]),
-      }));
-      if (decision.motivo !== null) cambios.push({ campo: "motivo", anterior: null, nuevo: decision.motivo });
-      await tx.feedback.update({ where: { id: feedbackId }, data: {
-        ...decision.state, updatedAt: now,
-        historial: { create: {
-          id: eventId, accion: command.accion, texto: row.texto, puntuacion: row.puntuacion,
-          anonimo: row.anonimo, ...decision.state, motivoModeracion: decision.motivo, createdAt: now,
-        } },
-      } });
-      cambios.push(...await syncMateriaVote(tx, row.autorId, row.materiaId, now));
-      await tx.administracionHistorial.create({ data: {
-        id: eventId, entidad: "feedback", entidadId: feedbackId, actorId: actor.id,
-        accion: command.accion, cambios, createdAt: now,
-      } });
-      return decision.state;
+      const reportes = command?.accion === "RESTITUCION_REPORTES"
+        ? await countFeedbackReportesAbiertos(tx, feedbackId) : null;
+      if (command?.accion === "RESTITUCION_REPORTES") {
+        const administrator = await tx.user.findUnique({ where: { id: actor.id }, select: { role: true, disabledAt: true } });
+        if (!administrator || administrator.role !== "ADMIN" || administrator.disabledAt !== null) {
+          throw new FeedbackModerationError(403, "Se requiere acceso administrativo vigente.");
+        }
+      }
+      const decision = transitionFeedbackModeration(row, actor, command, corrected, reportes?.denunciantesAbiertos);
+      return persistFeedbackModeration(tx, row, actor.id, command.accion, decision);
     }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
   }
 

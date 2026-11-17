@@ -154,17 +154,19 @@ describe.skipIf(!databaseUrl)("T4: reportes HTTP con sesiones y PostgreSQL reale
     expect(await h.prisma.feedbackHistorial.findMany({ where: { feedbackId: feedback.id } })).toEqual(previous);
   });
 
-  it("usuarios concurrentes no activan umbral ni cambian publicación", async () => {
+  it("usuarios concurrentes activan umbral T5 y bloquean el cuarto reporte nuevo", async () => {
     const { feedback } = await row();
     const reporters = await Promise.all(Array.from({ length: 4 }, () => h.account()));
     const responses = await Promise.all(reporters.map(account => report(feedback.id, account)));
-    expect(responses.map(response => response.status)).toEqual([201, 201, 201, 201]);
-    const body = await responses[0]!.json();
+    expect(responses.map(response => response.status).sort()).toEqual([201, 201, 201, 404]);
+    const body = await responses.find(response => response.status === 201)!.json();
     const detail = await (await h.request(`/admin/feedback-reportes/${body.id}`, admin.cookie)).json();
-    expect(detail).toMatchObject({ cantidadReportesActivos: 4, denunciantesAbiertos: 4 });
-    expect(await h.prisma.feedback.findUniqueOrThrow({ where: { id: feedback.id } })).toEqual(feedback);
+    expect(detail).toMatchObject({ cantidadReportesActivos: 3, denunciantesAbiertos: 3 });
+    expect(await h.prisma.feedback.findUniqueOrThrow({ where: { id: feedback.id } })).toMatchObject({
+      estadoModeracion: "APROBADO", ocultoReportes: true, versionModeracion: feedback.versionModeracion + 1,
+    });
     const community = await (await h.request(`/comisiones/${feedback.comisionId}/feedback`, reporter.cookie)).json();
-    expect(community.items.some((item: { id: string }) => item.id === feedback.id)).toBe(true);
+    expect(community.items.some((item: { id: string }) => item.id === feedback.id)).toBe(false);
   });
 
   it("cuota concurrente global por usuario admite cinco de ocho experiencias", async () => {
@@ -232,12 +234,17 @@ describe.skipIf(!databaseUrl)("T4: reportes HTTP con sesiones y PostgreSQL reale
     expect(noneOpen).toMatchObject({ cantidadReportesActivos: 0, denunciantesAbiertos: 0 });
   });
 
-  it("consulta administrativa pagina nueve, filtra y ordena de forma determinista", async () => {
+  it("consulta administrativa pagina nueve y ordena reportes legados anteriores al umbral T5", async () => {
     const { feedback } = await row();
     const reporters = await Promise.all(Array.from({ length: 11 }, () => h.account()));
     const ids: string[] = [];
+    const evidence = await h.prisma.feedbackHistorial.findFirstOrThrow({ where: { feedbackId: feedback.id } });
+    // T4 allowed arbitrarily many open reporters without hiding. Preserve this
+    // historical fixture to test querying that valid pre-T5 persisted population.
     for (const account of reporters) {
-      const body = await (await report(feedback.id, account, { motivo: ids.length % 2 === 0 ? "SPAM" : "OTRO" })).json(); ids.push(body.id);
+      const body = await h.prisma.feedbackReporte.create({ data: { feedbackId: feedback.id, denuncianteId: account.id,
+        versionReportada: feedback.versionModeracion, historialId: evidence.id, motivo: ids.length % 2 === 0 ? "SPAM" : "OTRO" } });
+      ids.push(body.id);
     }
     await h.sql.query('UPDATE "FeedbackReporte" SET "createdAt" = $1 WHERE "feedbackId" = $2::uuid', [new Date("2026-11-17T12:00:00Z"), feedback.id]);
     const response = await h.request("/admin/feedback-reportes", admin.cookie);

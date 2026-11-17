@@ -17,7 +17,8 @@ export interface FeedbackModerationRecord extends FeedbackModerationState {
 }
 export interface FeedbackModerationActor { id: string; role: UserRole }
 export type FeedbackModerationAction = "APROBACION" | "RECHAZO" | "OCULTAMIENTO_AUTOR" |
-  "RESTITUCION_AUTOR" | "OCULTAMIENTO_ADMIN" | "RESTITUCION_ADMIN" | "SOLICITUD_REVISION";
+  "RESTITUCION_AUTOR" | "OCULTAMIENTO_ADMIN" | "RESTITUCION_ADMIN" | "SOLICITUD_REVISION" |
+  "OCULTAMIENTO_REPORTES" | "RESTITUCION_REPORTES";
 export interface FeedbackModerationCommand {
   accion: FeedbackModerationAction;
   versionEsperada: number;
@@ -34,7 +35,7 @@ export class FeedbackModerationError extends DomainError {
 }
 
 const actions = new Set<string>(["APROBACION", "RECHAZO", "OCULTAMIENTO_AUTOR", "RESTITUCION_AUTOR",
-  "OCULTAMIENTO_ADMIN", "RESTITUCION_ADMIN", "SOLICITUD_REVISION"]);
+  "OCULTAMIENTO_ADMIN", "RESTITUCION_ADMIN", "SOLICITUD_REVISION", "OCULTAMIENTO_REPORTES", "RESTITUCION_REPORTES"]);
 const ownerActions = new Set<FeedbackModerationAction>(["OCULTAMIENTO_AUTOR", "RESTITUCION_AUTOR", "SOLICITUD_REVISION"]);
 const maxVersion = 2_147_483_647;
 
@@ -60,6 +61,7 @@ export function transitionFeedbackModeration(
   actor: FeedbackModerationActor,
   command: FeedbackModerationCommand,
   contenidoCorregido = false,
+  denunciantesAbiertos?: number,
 ): FeedbackModerationTransition {
   if (record.deletedAt) throw new FeedbackModerationError(404, "El comentario solicitado no existe.");
   if (!command || !actions.has(command.accion) || !Number.isInteger(command.versionEsperada) ||
@@ -67,8 +69,9 @@ export function transitionFeedbackModeration(
     throw new FeedbackModerationError(400, "Revise la acción y la versión del comentario.");
   }
   const isOwnerAction = ownerActions.has(command.accion);
+  const automatic = command.accion === "OCULTAMIENTO_REPORTES";
   if (!actor || !actor.id || (actor.role !== "USER" && actor.role !== "ADMIN") ||
-      (isOwnerAction ? record.autorId !== actor.id : actor.role !== "ADMIN") ||
+      (automatic ? record.autorId === actor.id : isOwnerAction ? record.autorId !== actor.id : actor.role !== "ADMIN") ||
       (command.accion === "APROBACION" && record.autorId === actor.id)) {
     throw new FeedbackModerationError(403, "No tiene permiso para realizar esta acción sobre el comentario.");
   }
@@ -83,6 +86,21 @@ export function transitionFeedbackModeration(
     ocultoReportes: record.ocultoReportes,
   };
   switch (command.accion) {
+    case "OCULTAMIENTO_REPORTES":
+    case "RESTITUCION_REPORTES":
+      // The repository supplies this count only after locking the Feedback row.
+      if (denunciantesAbiertos === undefined || !Number.isSafeInteger(denunciantesAbiertos) || denunciantesAbiertos < 0) {
+        conflict("No pudimos verificar los reportes abiertos. Intente nuevamente.");
+      }
+      if (automatic) {
+        if (state.estadoModeracion !== "APROBADO" || denunciantesAbiertos < 3) {
+          conflict("El ocultamiento preventivo requiere tres denunciantes distintos y una experiencia aprobada.");
+        }
+      } else if (denunciantesAbiertos >= 3) {
+        conflict("Resuelva los reportes abiertos antes de restituir la visibilidad preventiva.");
+      }
+      state.ocultoReportes = automatic;
+      break;
     case "APROBACION":
       if (state.estadoModeracion !== "PENDIENTE") conflict("Solo puede aprobar una experiencia pendiente de revisión.");
       state.estadoModeracion = "APROBADO";

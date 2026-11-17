@@ -7,7 +7,7 @@ import { parseAcademicHistoryChanges } from "../academic/application/academic-hi
 
 const entities = { materias: "materia", profesores: "profesor", cursadas: "cursada", comisiones: "comision", users: "usuario", feedback: "feedback" } as const;
 const safeFields = new Set(["nombre", "modalidad", "carreras", "nombreCompleto", "materiaId", "anio", "cuatrimestre", "carrera", "numero", "deletedAt", "disabledAt", "activa", "estado", "texto", "anonimo", "profesores", "resultado", "motivo"]);
-const feedbackFields = new Set(["puntuacion", "estadoModeracion", "versionModeracion", "requiereRevisionHumana", "motivoRechazo", "ocultoAutor", "ocultoAdministracion", "ocultoReportes", "valoracionMateria.puntuacion", "valoracionMateria.deletedAt"]);
+const feedbackFields = new Set(["puntuacion", "estadoModeracion", "versionModeracion", "requiereRevisionHumana", "motivoRechazo", "ocultoAutor", "ocultoAdministracion", "ocultoReportes", "origen", "valoracionMateria.puntuacion", "valoracionMateria.deletedAt"]);
 
 @Injectable()
 export class AdminDetailService {

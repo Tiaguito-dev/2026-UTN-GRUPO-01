@@ -10,7 +10,8 @@ const create = z.strictObject({ motivo: z.enum(reporteMotivos), descripcion: tex
 const resolve = z.strictObject({ estado: z.enum(["RESUELTO", "DESESTIMADO"]), motivo: text });
 const page = z.union([z.string().regex(/^\d+$/), z.number()]).transform(Number).pipe(z.number().int().min(1).max(1_000_000)).default(1);
 const pageSize = (max: number) => z.union([z.string().regex(/^\d+$/), z.number()]).transform(Number).pipe(z.number().int().min(1).max(max)).default(max);
-const query = z.strictObject({ page, pageSize: pageSize(9), estado: z.enum(["ABIERTO", "RESUELTO", "DESESTIMADO"]).optional(), motivo: z.enum(reporteMotivos).optional(), feedbackId: z.string().uuid().optional() });
+const booleanQuery = z.union([z.boolean(), z.enum(["true", "false"]).transform(value => value === "true")]);
+const query = z.strictObject({ page, pageSize: pageSize(9), estado: z.enum(["ABIERTO", "RESUELTO", "DESESTIMADO"]).optional(), motivo: z.enum(reporteMotivos).optional(), feedbackId: z.string().uuid().optional(), ocultoReportes: booleanQuery.optional() });
 const detailQuery = z.strictObject({ page, pageSize: pageSize(3) });
 function validate<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);

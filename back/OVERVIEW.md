@@ -1,5 +1,59 @@
 # Backend
 
+## Ocultamiento preventivo por reportes (T5)
+
+T5 extiende ReviewsModule y los contratos T3/T4. Al crear un reporte nuevo, cuenta
+usuarios distintos con ABIERTO en todas las versiones. Con tres activa exclusivamente
+ocultoReportes y mantiene APROBADO. La política pública T2 lo excluye de comunidad,
+feed, rankings, valoraciones y nuevas interacciones; conserva likes, respuestas,
+contenido e historial para el autor y ADMIN.
+
+Advisory del denunciante -> comisión -> Feedback -> par autor/materia. Reporte,
+conteo, transición, snapshot, ledger y syncMateriaVote comparten la transacción
+ReadCommitted. La función interna persistFeedbackModeration reutiliza la persistencia
+T1/T2 sin transacciones anidadas. Todas las decisiones concurrentes releen bajo lock.
+Un fallo de estadísticas o auditoría revierte también la creación del tercer reporte.
+
+La migración aditiva 20261117030000_feedback_ocultamiento_reportes agrega las acciones
+OCULTAMIENTO_REPORTES y RESTITUCION_REPORTES, sin reescribir datos ni migraciones previas.
+Cada cambio incrementa versionModeracion y correlaciona snapshot/ledger con el mismo UUID.
+El ledger del ocultamiento registra origen=AUTOMATICO y actorId del tercer denunciante;
+el de restitución origen=ADMINISTRATIVO y actorId del ADMIN. Solo ADMIN ve identidades.
+El autor recibe su historial seguro y nunca identidades de denunciantes.
+
+POST `/admin/feedback/:id/moderacion` admite
+`{accion:"RESTITUCION_REPORTES",versionEsperada,motivo}`: ADMIN activo, motivo obligatorio
+normalizado 1–1000 sin controles, versión vigente. Recuenta ABIERTO distintos bajo lock;
+con tres o más devuelve 409. Levanta solo ocultoReportes; otras causas, rechazo, pendiente
+u otra condición privada siguen excluyendo la contribución pública. No-op con versión
+vigente no duplica eventos; versión obsoleta devuelve 409. Rechazo formal usa RECHAZO T3.
+Los cierres individuales T4 nunca restituyen automáticamente, ni reabren reportes.
+Revisar y mantener pendiente consiste en consultar sin escribir una decisión ficticia.
+
+GET `/admin/feedback-reportes` agrega `ocultoReportes=true|false` y mantiene filtros,
+orden y páginas de nueve de T4. Cada item y el detalle agregan `ultimoReporteAt`, máximo
+de creación entre todos los reportes de esa experiencia, incluso cerrados. Mantienen
+cantidadReportesActivos, denunciantesAbiertos, versiones/evidencia y experiencia actual
+con estado y causas. Consultas RepeatableRead, conteos/fechas agrupados por página;
+resoluciones anteriores de tres. No se crea una cola física ni otro endpoint.
+
+POST de reporte mantiene el payload T4. Con cuatro nuevos denunciantes concurrentes,
+se serializan tres creaciones y el restante recibe 404 tras ocultarse. Para tolerar
+reintentos del reporte que disparó el umbral, una experiencia aprobada oculta solo por
+reportes permite devolver exclusivamente un recibo propio existente con evidencia igual
+al contenido actual. Devuelve 200 incluso cerrado, sin reabrir, consumir cuota ni contar
+otra vez; payload distinto 409. Otra causa/baja impide ese acceso (404). Nuevos reportes
+siempre requieren contenido público; futuras versiones pueden iniciar nuevos ciclos.
+
+La migración no procesa retrospectivamente reportes legados: el umbral se evalúa al
+crear un reporte nuevo. No modifica frontend, M1.3, modelos, dependencias ni configuración
+de Docker/Compose. La coordinación requiere la misma base PostgreSQL para estos escritores;
+un desacoplamiento futuro debe conservar atomicidad y orden de locks. T6 queda pendiente
+sin implementar. Evidencia y resultados: [ficha T5](../docs/tasks/finished/TASK-moderacion-T5-ocultamiento.md).
+Validación T5: 56 pruebas nuevas, focalizada 149/149, global 1622/1622 en 70 archivos
+con PostgreSQL/SMTP reales sin omisiones. Typecheck, lint, build, diffcheck y comprobación
+HTTP del compilado aprobados. Fallos intermedios y límites registrados en la ficha.
+
 ## Reportes de experiencias (T4)
 
 Implementado dentro de ReviewsModule, sin frontend ni otro módulo administrativo.
@@ -68,15 +122,14 @@ Autor, denunciante y terceros sin rol ADMIN no acceden al detalle administrativo
 El anonimato comunitario de la experiencia no elimina la trazabilidad administrativa.
 Resolver/desestimar conserva denunciante, administrador responsable, justificación
 y fecha. Desestimar no presume mala fe: no activa sanciones, reputación, cambios de
-cuenta o permisos ni ninguna automatización de T5/T6.
+cuenta o permisos de denunciantes.
 
 `countFeedbackReportesAbiertos(tx,feedbackId)` devuelve cantidadReportesActivos y
 denunciantesAbiertos (COUNT DISTINCT, sin duplicar usuarios entre versiones). Las
-decisiones futuras deben invocarlo dentro de la transacción tras bloquear Feedback;
-creaciones y cierres ya comparten ese bloqueo. No existe cola física adicional ni se
-activa ocultoReportes: recibir/cerrar reportes no cambia publicación, versión de Feedback,
-likes, respuestas, votos ni estadísticas. Rechazar u ocultar requiere usar T3.
-T5/T6 siguen sin implementar. Sin nuevas dependencias, variables de entorno o cambios
+decisiones T5 lo invocan dentro de la transacción tras bloquear Feedback;
+creaciones y cierres comparten ese bloqueo. T4 originalmente no activaba ocultoReportes;
+T5 conecta el umbral y la restitución descritos arriba. Cerrar reportes sigue sin
+modificar moderación ni estadísticas por sí solo. T6 sigue pendiente. Sin nuevas dependencias, variables de entorno o cambios
 de Docker/Compose. Evidencia de pruebas en [ficha T4](../docs/tasks/finished/TASK-moderacion-T4-reportes.md).
 Validación inicial T4: 86/86 focalizadas, global 1559/1559 en 68 archivos con PostgreSQL/SMTP
 reales y regresiones T1/T2/T3; comprobación HTTP del compilado, tipos, lint, build
@@ -136,7 +189,7 @@ Sin nuevas dependencias, variables de entorno, migraciones ni cambios de Docker/
 Validación: 123 pruebas focalizadas, global 1473/1473 en 66 archivos con PostgreSQL/SMTP reales,
 comprobación HTTP del backend compilado, typecheck, lint, build y diffcheck aprobados.
 Evidencia: [ficha T3](../docs/tasks/finished/TASK-moderacion-T3-acciones.md).
-T4 incorpora reportes en la sección anterior. El umbral preventivo y la interfaz T5/T6 siguen pendientes.
+T4 incorpora reportes y T5 conecta el umbral preventivo descrito arriba. La interfaz T6 sigue pendiente.
 
 ## Visibilidad de experiencias y valoraciones (T2)
 

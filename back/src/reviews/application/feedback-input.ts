@@ -26,7 +26,7 @@ const generalQuery = pagination(false).extend({ carrera: carreraSchema.optional(
 const moderationQuery = pagination(false).extend({ estado: z.enum(["PENDIENTE", "APROBADO", "RECHAZADO"]).default("PENDIENTE") });
 const ownerModerationCommand = z.strictObject({ versionEsperada });
 const moderationCommand = ownerModerationCommand.extend({
-  accion: z.enum(["APROBACION", "RECHAZO", "OCULTAMIENTO_ADMIN", "RESTITUCION_ADMIN"]),
+  accion: z.enum(["APROBACION", "RECHAZO", "OCULTAMIENTO_ADMIN", "RESTITUCION_ADMIN", "RESTITUCION_REPORTES"]),
   motivo: z.string().refine(value => ![...value].some(character => {
     const point = character.codePointAt(0)!;
     return point < 32 || (point >= 127 && point <= 159);
