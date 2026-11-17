@@ -2,6 +2,19 @@
 
 ## [Sin publicar]
 
+### Moderación humana: persistencia y transiciones internas (T1)
+
+- Estados pendiente/aprobado/rechazado, versión y causas independientes de ocultamiento de autor,
+  administración y reportes; baja lógica separada. Migración aditiva conserva experiencias previas
+  y deja nuevos registros pendientes, sin inventar decisiones históricas.
+- Transiciones internas dentro del repositorio existente, con permisos, justificación obligatoria
+  para resoluciones administrativas, prohibición de aprobación propia y snapshot/auditoría atómicos.
+- 53 pruebas específicas aprobadas con PostgreSQL real, rollback, concurrencia y empates de fecha;
+  typecheck, lint y build aprobados. Regresión global y reintentos documentados en
+  [T1](docs/tasks/finished/TASK-moderacion-T1-persistencia.md).
+- Etapa de base: sin endpoints/UI/reportes activos ni cambios de visibilidad/estadísticas. No
+  desplegar aislada antes de T2. Sin cambios al clasificador ni a M1.3; sin commits automáticos.
+
 ### Ranking de comisiones y profesores
 
 - Seed `npm run feedback:seed --workspace=back`: experiencias de demostración para todas las comisiones (40 estudiantes demo sin acceso, comentarios con estrellas, historial de creación y valoración de materias), con reputaciones variadas para que el ranking tenga extremos. Aditivo e idempotente; documentado en `infra/DESPLIEGUE-CLOUD.md`.

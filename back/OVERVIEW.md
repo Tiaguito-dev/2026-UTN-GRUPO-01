@@ -1,5 +1,33 @@
 # Backend
 
+## Moderación humana: base de persistencia (T1)
+
+Esta etapa prepara datos y transiciones internas dentro de `reviews`; no habilita endpoints,
+acciones de interfaz ni protección de visibilidad. No desplegar aisladamente: las lecturas y
+valoraciones actuales todavía requieren los cambios de T2, y las acciones HTTP corresponden a T3.
+Plan y decisiones: [tarea incremental](../docs/tasks/in-progress/TASK-moderacion-reportes-incremental.md).
+
+El estado `PENDIENTE`, `APROBADO` o `RECHAZADO` es independiente de `deletedAt` y de las causas
+`ocultoAutor`, `ocultoAdministracion` y `ocultoReportes`. Levantar una causa no levanta las demás.
+La migración conserva las experiencias anteriores como aprobadas, sin inventar decisiones humanas;
+las filas nuevas usan pendiente. Los snapshots anteriores conservan metadatos de moderación nulos.
+
+Las decisiones internas requieren versión esperada. El repositorio conserva el orden de bloqueo
+comisión y comentario, revalida permisos/versión y escribe el snapshot de `FeedbackHistorial` y
+el actor/motivo en `AdministracionHistorial` con el mismo identificador, dentro de una transacción.
+No hay nuevos permisos HTTP ni cambios al anonimato público en T1.
+
+El autor solo puede ocultar su experiencia aprobada y volver a mostrarla si no existen otras causas.
+Administración puede aprobar pendientes ajenos, rechazar pendientes/aprobados, ocultar aprobados y
+levantar su propia causa. Aprobar, rechazar, ocultar y restituir administrativamente requieren justificación
+normalizada de hasta 1000 caracteres. Se rechazan bajas, versiones obsoletas y aprobación propia.
+Un rechazado conserva revisión humana obligatoria y solo solicita revisión después de corregir
+el texto respecto del último rechazo; no se consulta la vigencia del contexto académico histórico.
+
+Los reportes, su umbral de tres denunciantes y la restitución preventiva quedan para T4/T5.
+El indicador `ocultoReportes` se prepara en persistencia, sin automatismos en esta etapa. No hay
+clasificador productivo ni dependencia del experimento M1.3.
+
 ## Sesiones e inactividad
 
 `AUTH_ACCESS_TTL_SECONDS` configura el acceso (900 segundos por defecto) y

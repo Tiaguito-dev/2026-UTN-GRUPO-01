@@ -244,6 +244,12 @@ model ComisionProfesor {
   @@index([profesorId])
 }
 
+enum FeedbackEstadoModeracion {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
 model Feedback {
   id String @id @default(uuid()) @db.Uuid
   autorId String @db.Uuid
@@ -253,6 +259,13 @@ model Feedback {
   // NULL para comentarios históricos; CHECK de 1 a 5 en la migración SQL.
   puntuacion Int?
   anonimo Boolean
+  estadoModeracion FeedbackEstadoModeracion @default(PENDIENTE)
+  versionModeracion Int @default(1)
+  requiereRevisionHumana Boolean @default(false)
+  motivoRechazo String? @db.VarChar(1000)
+  ocultoAutor Boolean @default(false)
+  ocultoAdministracion Boolean @default(false)
+  ocultoReportes Boolean @default(false)
   comisionNombre String @db.VarChar(10)
   materiaId String @db.Uuid
   materiaNombre String @db.VarChar(150)
@@ -278,6 +291,7 @@ model Feedback {
   @@index([autorId, comisionId])
   @@index([autorId, materiaId, deletedAt])
   @@index([deletedAt, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([estadoModeracion, deletedAt, createdAt, id])
 }
 
 model FeedbackLike {
@@ -330,6 +344,13 @@ enum FeedbackAccion {
   CREACION
   EDICION
   ELIMINACION
+  APROBACION
+  RECHAZO
+  OCULTAMIENTO_AUTOR
+  RESTITUCION_AUTOR
+  OCULTAMIENTO_ADMIN
+  RESTITUCION_ADMIN
+  SOLICITUD_REVISION
 }
 
 model FeedbackHistorial {
@@ -340,6 +361,15 @@ model FeedbackHistorial {
   // Los snapshots históricos conservan NULL; CHECK de 1 a 5 en SQL.
   puntuacion Int?
   anonimo Boolean
+  // NULL means no moderation evidence exists for this historical snapshot.
+  estadoModeracion FeedbackEstadoModeracion?
+  versionModeracion Int?
+  requiereRevisionHumana Boolean?
+  motivoRechazo String? @db.VarChar(1000)
+  ocultoAutor Boolean?
+  ocultoAdministracion Boolean?
+  ocultoReportes Boolean?
+  motivoModeracion String? @db.VarChar(1000)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Restrict)
 

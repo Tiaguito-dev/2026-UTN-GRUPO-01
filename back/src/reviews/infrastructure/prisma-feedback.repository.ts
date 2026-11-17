@@ -10,6 +10,8 @@ import { FeedbackDuplicateError, FeedbackNormasError, FeedbackNotFoundError } fr
 import { assertFeedbackOpen, assertFeedbackOwner, assertFeedbackRemoval, selectFeedbackProfesor } from "../application/feedback-policy.js";
 import type { UserRole } from "../../users/domain/user.js";
 import { ComisionNotFoundError } from "../../academic/application/errors.js";
+import { validateFeedbackId } from "../application/feedback-input.js";
+import { transitionFeedbackModeration, type FeedbackModerationActor, type FeedbackModerationCommand, type FeedbackModerationState } from "../domain/feedback-moderation.js";
 
 type Transaction = Prisma.TransactionClient;
 export const includeAutor = { autor: { select: { displayName: true } }, comision: { select: { carrera: true } } } satisfies Prisma.FeedbackInclude;
@@ -37,6 +39,50 @@ const recent = [{ createdAt: "desc" }, { id: "desc" }] satisfies Prisma.Feedback
 
 export class PrismaFeedbackRepository implements FeedbackRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  /** Internal T1 persistence only. HTTP actions wait for T2 visibility and aggregation changes. */
+  async transitionModeration(id: string, actor: FeedbackModerationActor, command: FeedbackModerationCommand): Promise<FeedbackModerationState> {
+    const feedbackId = validateFeedbackId(id);
+    validateFeedbackId(actor?.id);
+    const original = await this.prisma.feedback.findUnique({ where: { id: feedbackId }, select: { comisionId: true } });
+    if (!original) throw new FeedbackNotFoundError();
+    return this.prisma.$transaction(async tx => {
+      // Keep the existing hierarchy: commission first, then feedback. Edits/removal share it.
+      await this.lockComision(tx, original.comisionId);
+      const locked = await tx.$queryRaw<{ id: string }[]>`
+        SELECT "id" FROM "Feedback" WHERE "id" = ${feedbackId}::uuid FOR UPDATE`;
+      if (!locked.length) throw new FeedbackNotFoundError();
+      const row = await tx.feedback.findUnique({ where: { id: feedbackId } });
+      if (!row || row.comisionId !== original.comisionId) throw new FeedbackNotFoundError();
+      const rejection = command?.accion === "SOLICITUD_REVISION"
+        ? await tx.feedbackHistorial.findFirst({ where: { feedbackId, accion: "RECHAZO" },
+          orderBy: [{ versionModeracion: { sort: "desc", nulls: "last" } }, ...recent], select: { texto: true } })
+        : null;
+      const corrected = rejection !== null && row.texto.trim() !== rejection.texto.trim();
+      const decision = transitionFeedbackModeration(row, actor, command, corrected);
+      if (!decision.changed) return decision.state;
+      const now = new Date();
+      const eventId = randomUUID();
+      const fields = Object.keys(decision.state) as (keyof FeedbackModerationState)[];
+      const display = (value: string | number | boolean | null): string | null => value === null ? null : String(value);
+      const cambios: { campo: string; anterior: string | null; nuevo: string | null }[] = fields.filter(field => row[field] !== decision.state[field]).map(field => ({
+        campo: field, anterior: display(row[field]), nuevo: display(decision.state[field]),
+      }));
+      if (decision.motivo !== null) cambios.push({ campo: "motivo", anterior: null, nuevo: decision.motivo });
+      await tx.feedback.update({ where: { id: feedbackId }, data: {
+        ...decision.state, updatedAt: now,
+        historial: { create: {
+          id: eventId, accion: command.accion, texto: row.texto, puntuacion: row.puntuacion,
+          anonimo: row.anonimo, ...decision.state, motivoModeracion: decision.motivo, createdAt: now,
+        } },
+      } });
+      await tx.administracionHistorial.create({ data: {
+        id: eventId, entidad: "feedback", entidadId: feedbackId, actorId: actor.id,
+        accion: command.accion, cambios, createdAt: now,
+      } });
+      return decision.state;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
+  }
 
   async aceptoNormas(usuarioId: string, version: string, tx: Transaction = this.prisma) {
     const aceptacion = await tx.aceptacionNormas.findUnique({

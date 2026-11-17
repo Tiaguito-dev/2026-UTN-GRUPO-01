@@ -2,6 +2,7 @@ import type { Feedback, FeedbackRevision } from "../../domain/feedback.js";
 import type { UserRole } from "../../../users/domain/user.js";
 import type { PaginatedResult, Pagination } from "../../../shared/domain/pagination.js";
 import type { CreateFeedbackInput, UpdateFeedbackInput, FeedbackFilters } from "../feedback-input.js";
+import type { FeedbackModerationActor, FeedbackModerationCommand, FeedbackModerationState } from "../../domain/feedback-moderation.js";
 
 export const FEEDBACK_REPOSITORY = Symbol("FEEDBACK_REPOSITORY");
 export interface FeedbackRepository {
@@ -14,4 +15,6 @@ export interface FeedbackRepository {
   update(id: string, viewer: string, input: UpdateFeedbackInput): Promise<Feedback>;
   remove(id: string, viewer: string, role?: UserRole): Promise<void>;
   history(id: string, viewer: string, pagination: Pagination): Promise<PaginatedResult<FeedbackRevision>>;
+  /** Internal foundation; no HTTP exposure until visibility and aggregation policies are applied. */
+  transitionModeration(id: string, actor: FeedbackModerationActor, command: FeedbackModerationCommand): Promise<FeedbackModerationState>;
 }

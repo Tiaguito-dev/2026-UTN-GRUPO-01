@@ -1,3 +1,5 @@
+import type { FeedbackModerationAction } from "./feedback-moderation.js";
+
 export interface Feedback {
   id: string;
   texto: string;
@@ -24,7 +26,7 @@ export interface Feedback {
 
 export interface FeedbackRevision {
   id: string;
-  accion: "CREACION" | "EDICION" | "ELIMINACION";
+  accion: "CREACION" | "EDICION" | "ELIMINACION" | FeedbackModerationAction;
   texto: string;
   puntuacion: number | null;
   anonimo: boolean;
