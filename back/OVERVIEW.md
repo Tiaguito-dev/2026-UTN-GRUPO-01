@@ -1,5 +1,93 @@
 # Backend
 
+## Reportes de experiencias (T4)
+
+Implementado dentro de ReviewsModule, sin frontend ni otro módulo administrativo.
+`FeedbackReporteService` valida contratos; el puerto FeedbackReporteRepository separa
+aplicación y PostgreSQL. PrismaFeedbackReporteRepository mantiene transacciones y auditoría.
+Migración aditiva `20261117020000_feedback_reportes`; no modifica migraciones anteriores.
+
+| Método y ruta | Contrato | Acceso |
+|---|---|---|
+| POST `/feedback/:id/reportes` | `{motivo,descripcion?}`; 201 nuevo, 200 reintento idéntico | Sesión, experiencia visible ajena |
+| GET `/admin/feedback-reportes` | `page`, `pageSize` hasta 9, `estado?`, `motivo?`, `feedbackId?` | ADMIN |
+| GET `/admin/feedback-reportes/:id` | `page`, `pageSize` hasta 3 para resoluciones anteriores | ADMIN |
+| POST `/admin/feedback-reportes/:id/resolucion` | `{estado:RESUELTO\|DESESTIMADO,motivo}`; 200 | ADMIN |
+
+Motivos: INSULTOS_ACOSO, AMENAZAS_INTIMIDACION, DISCRIMINACION, DATOS_PERSONALES,
+SPAM y OTRO. Descripción opcional y justificación obligatoria se recortan y admiten
+hasta 1000 caracteres Unicode, sin controles. Todos los DTO son estrictos; identidad,
+versión, estado inicial y fechas proceden exclusivamente del servidor. Las escrituras
+conservan Origin/CSRF y todas las respuestas usan no-store. 400 contrato inválido,
+401 sin sesión, 403 permiso/autorreporte, 404 privado/inexistente, 409 duplicado con
+otros datos o cierre inválido, 429 cuota excedida. Errores de almacenamiento revierten
+reporte y ledger juntos, sin revelar datos internos al cliente.
+
+FeedbackReporte referencia Feedback, denunciante User y snapshot FeedbackHistorial del
+mismo feedback mediante FK compuesta. Guarda versionReportada, motivo, descripción,
+estado ABIERTO/RESUELTO/DESESTIMADO y fechas; el cierre agrega administrador User y
+justificación. Restricciones SQL exigen cierre completo, versión positiva, claves
+únicas e integridad de evidencia; índices soportan filtros, cuota y conteo por experiencia.
+Los escritores existentes, incluido seed, guardan snapshots de contenido. T4 verifica
+texto/puntuación/anonimato bajo bloqueo y referencia un snapshot exacto: no copia texto
+ni altera historial legado. El snapshot puede tener metadatos de versión nulos; la
+versión denunciada queda en el reporte y el ID ancla inequívocamente el contenido.
+Ante datos corruptos sin evidencia exacta, rechaza con 409 sin fabricar historia.
+
+Unicidad denunciante/feedback/versión conserva denuncias después de editar o retirar.
+Reintento con datos normalizados iguales devuelve el mismo reporte incluso cerrado,
+si la experiencia sigue visible y en esa versión; con otros datos devuelve 409.
+No hay reapertura ni modificación posterior de motivo/evidencia. Las versiones nuevas
+pueden recibir reportes nuevos y no eliminan los anteriores.
+
+Cuota móvil de cinco reportes nuevos por diez minutos, aun si fueron cerrados.
+Un advisory lock transaccional por denunciante serializa procesos PostgreSQL, seguido
+de comisión -> feedback. Se comprueba idempotencia antes de la cuota; reloj de PostgreSQL
+posterior a los bloqueos. El cierre toma comisión -> feedback -> reporte y revalida ADMIN
+activo. Dos cierres concurrentes producen un éxito y un conflicto, nunca dos decisiones.
+AdministracionHistorial registra CREACION/RESOLUCION/DESESTIMACION en entidad
+feedbackReporte, con actor, fecha y diferencias en la misma transacción.
+
+Listado ordena creación/id descendente y usa RepeatableRead para total/página/conteos;
+los conteos de la página se resuelven agrupados en una consulta. Detalle separa reporte,
+evidencia, experiencia actual con contexto académico persistido y resoluciones anteriores
+de la experiencia (resolución/id descendente, tres por página). ADMIN puede consultar
+la evidencia también tras edición, rechazo o baja. Ninguna consulta comunitaria ni del
+autor agrega reportes o identidades de denunciantes; respuestas al denunciante seleccionan
+solo su recibo, sin identidad del autor, terceros o justificación interna.
+
+El detalle ADMIN incorpora `reporte.denunciante: { id, displayName }`, usando la
+selección segura de identidad de las proyecciones administrativas existentes. El ID
+corresponde al usuario autenticado que creó el reporte y el nombre es el actual de
+su cuenta, aun cuando esté inactiva; no representa un nombre legal ni un snapshot
+histórico del nombre. No incluye email, credenciales, sesiones o tokens. Esta ampliación
+es aditiva: mantiene los campos del reporte, sus motivos, descripción, fechas,
+evidencia y resoluciones anteriores de la experiencia; no modifica los contratos
+del listado, creación/reintento o cierre ni crea un historial global de denunciantes.
+Autor, denunciante y terceros sin rol ADMIN no acceden al detalle administrativo.
+El anonimato comunitario de la experiencia no elimina la trazabilidad administrativa.
+Resolver/desestimar conserva denunciante, administrador responsable, justificación
+y fecha. Desestimar no presume mala fe: no activa sanciones, reputación, cambios de
+cuenta o permisos ni ninguna automatización de T5/T6.
+
+`countFeedbackReportesAbiertos(tx,feedbackId)` devuelve cantidadReportesActivos y
+denunciantesAbiertos (COUNT DISTINCT, sin duplicar usuarios entre versiones). Las
+decisiones futuras deben invocarlo dentro de la transacción tras bloquear Feedback;
+creaciones y cierres ya comparten ese bloqueo. No existe cola física adicional ni se
+activa ocultoReportes: recibir/cerrar reportes no cambia publicación, versión de Feedback,
+likes, respuestas, votos ni estadísticas. Rechazar u ocultar requiere usar T3.
+T5/T6 siguen sin implementar. Sin nuevas dependencias, variables de entorno o cambios
+de Docker/Compose. Evidencia de pruebas en [ficha T4](../docs/tasks/finished/TASK-moderacion-T4-reportes.md).
+Validación inicial T4: 86/86 focalizadas, global 1559/1559 en 68 archivos con PostgreSQL/SMTP
+reales y regresiones T1/T2/T3; comprobación HTTP del compilado, tipos, lint, build
+y diffcheck aprobados. No se aplicaron migraciones a datos del usuario.
+El ajuste de identidad agrega siete pruebas: focalizada final 93/93 (55 unitarias,
+38 integraciones PostgreSQL reales), incluidos controles de rol, proyección segura,
+no filtraciones y cierres sin sanciones ni pérdida de trazabilidad.
+Global final del ajuste: 1566/1566 en 68 archivos con PostgreSQL/SMTP reales y
+regresiones T1/T2/T3, sin omisiones; tipos, lint, build, diffcheck y comprobación
+HTTP sobre el compilado aprobados. Sin migraciones nuevas para el ajuste.
+
 ## Acciones humanas de moderación (T3)
 
 Todas estas rutas requieren sesión y responden con `Cache-Control: no-store`. Las escrituras
@@ -48,7 +136,7 @@ Sin nuevas dependencias, variables de entorno, migraciones ni cambios de Docker/
 Validación: 123 pruebas focalizadas, global 1473/1473 en 66 archivos con PostgreSQL/SMTP reales,
 comprobación HTTP del backend compilado, typecheck, lint, build y diffcheck aprobados.
 Evidencia: [ficha T3](../docs/tasks/finished/TASK-moderacion-T3-acciones.md).
-T4–T6 permanecen pendientes de autorización; no hay reportes ni umbral preventivo implementados.
+T4 incorpora reportes en la sección anterior. El umbral preventivo y la interfaz T5/T6 siguen pendientes.
 
 ## Visibilidad de experiencias y valoraciones (T2)
 

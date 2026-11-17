@@ -19,11 +19,17 @@ import { PrismaFeedbackLikeRepository } from "./infrastructure/prisma-feedback-l
 import { FeedbackRespuestaService } from "./application/feedback-respuesta.service.js";
 import { FEEDBACK_RESPUESTA_REPOSITORY, type FeedbackRespuestaRepository } from "./application/ports/feedback-respuesta.repository.js";
 import { PrismaFeedbackRespuestaRepository } from "./infrastructure/prisma-feedback-respuesta.repository.js";
+import { FeedbackReportesController } from "./feedback-reportes.controller.js";
+import { FeedbackReporteService } from "./application/feedback-reporte.service.js";
+import { FEEDBACK_REPORTE_REPOSITORY, type FeedbackReporteRepository } from "./application/ports/feedback-reporte.repository.js";
+import { PrismaFeedbackReporteRepository } from "./infrastructure/prisma-feedback-reporte.repository.js";
 
 @Module({
   imports: [AuthModule, PrismaModule, SharedModule],
-  controllers: [ReviewsController],
+  controllers: [ReviewsController, FeedbackReportesController],
   providers: [
+    { provide: FEEDBACK_REPORTE_REPOSITORY, useFactory: (prisma: PrismaService) => new PrismaFeedbackReporteRepository(prisma), inject: [PrismaService] },
+    { provide: FeedbackReporteService, useFactory: (repository: FeedbackReporteRepository) => new FeedbackReporteService(repository), inject: [FEEDBACK_REPORTE_REPOSITORY] },
     { provide: FEEDBACK_RESPUESTA_REPOSITORY, useFactory: (prisma: PrismaService) => new PrismaFeedbackRespuestaRepository(prisma), inject: [PrismaService] },
     { provide: FeedbackRespuestaService, useFactory: (repository: FeedbackRespuestaRepository) => new FeedbackRespuestaService(repository), inject: [FEEDBACK_RESPUESTA_REPOSITORY] },
     { provide: FEEDBACK_LIKE_REPOSITORY, useFactory: (prisma: PrismaService) => new PrismaFeedbackLikeRepository(prisma), inject: [PrismaService] },

@@ -2,6 +2,41 @@
 
 ## [Sin publicar]
 
+### Reportes de experiencias y resoluciones administrativas (T4)
+
+- Ajuste de identidad: detalle exclusivo ADMIN con denunciante `{id,displayName}`
+  mediante selección segura; conserva los contratos previos y la privacidad frente
+  al autor/comunidad. Identidad ligada a sesión y conservada después del cierre.
+  Desestimar no implica mala fe ni genera sanciones o reputación de denunciantes.
+
+- FeedbackReporte dentro de ReviewsModule y migración nueva: estados ABIERTO,
+  RESUELTO y DESESTIMADO, motivos tipados, referencias a evidencia histórica sin
+  duplicar texto, denunciante, versión del servidor y cierre justificado con ADMIN.
+- POST de reporte autenticado sobre experiencias públicas ajenas; unicidad por
+  usuario/experiencia/versión, reintentos idempotentes y conflicto ante otros datos.
+  Cuota de cinco creaciones por diez minutos coordinada en PostgreSQL entre procesos.
+- Listado/detalle ADMIN con filtros, nueve reportes, evidencia y resoluciones previas
+  paginadas de tres. Cierre concurrente protegido y AdministracionHistorial atómico,
+  sin exponer denunciantes al autor/comunidad ni modificar publicación o estadísticas.
+- Conteo transaccional de denunciantes distintos abiertos entre versiones disponible
+  para T5. Sin activar ocultoReportes, umbral preventivo, T5/T6, frontend o clasificadores.
+- Validación inicial: 86 pruebas focalizadas aprobadas con PostgreSQL real, incluidas concurrencia entre
+  pools independientes, privacidad, cuota, evidencia y rollback. Comprobación HTTP
+  sobre backend compilado, tipos, lint, build y diffcheck aprobados. Evidencia y
+  resultados completos en [ficha T4](docs/tasks/finished/TASK-moderacion-T4-reportes.md).
+- Suite global inicial backend serial: 1559/1559 en 68 archivos con PostgreSQL/SMTP reales,
+  ninguna integración omitida; incluye regresiones T1/T2/T3.
+- Ajuste de identidad: siete pruebas adicionales; focalizada final 93/93 con
+  PostgreSQL real, proyección segura ADMIN, privacidad comunitaria y del autor,
+  identidad vigente, cierres con cuenta inactiva y ausencia de sanciones.
+- Global final tras el ajuste de identidad: 1566/1566 en 68 archivos con
+  PostgreSQL/SMTP reales y sin omisiones; HTTP compilado, tipos, lint, build
+  y diffcheck aprobados. Sin migración adicional para el ajuste.
+- Sin migraciones sobre datos del usuario, dependencias nuevas, despliegue o push.
+  Cierre local de T4 y ajuste de identidad en un commit autorizado posteriormente;
+  117 pruebas unitarias de reportes/moderación/acciones repetidas y aprobadas antes
+  del commit. No se repitieron integraciones durante el cierre.
+
 ### Acciones de autor y administración de experiencias (T3)
 
 - Consultas privadas de experiencias propias y cola ADMIN por estado, con nueve registros,

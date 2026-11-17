@@ -1,6 +1,6 @@
 # Moderación humana y reportes: plan incremental
 
-Fecha: 2026-11-17. T1, T2 y T3 completadas; detenerse antes de T4.
+Fecha: 2026-11-17. T1, T2, T3 y T4 completadas; detenerse antes de T5/T6.
 T1 registrada por pedido explícito en commit local `2f619db`, sin push. El cierre local de T2
 en cuatro commits fue autorizado posteriormente; no incluye push ni autorización para T3.
 T3 fue autorizada después, mediante el pedido específico de acciones HTTP y pruebas; sin commits.
@@ -9,7 +9,7 @@ T3 fue autorizada después, mediante el pedido específico de acciones HTTP y pr
 
 Completar en seis etapas el flujo humano y reportes dentro de ReviewsModule, reutilizando
 FeedbackService/repositorio, FeedbackHistorial, AdministracionHistorial y las vistas existentes.
-El objetivo temporal es terminar antes del miércoles 18; la autorización actual se detiene tras T3.
+El objetivo temporal es terminar antes del miércoles 18; la autorización actual se detiene tras T4.
 
 El diagnóstico inicial encontró publicación por deletedAt, ausencia de estados y reportes,
 y actualización de valoraciones al crear/editar. T1 y T2 corrigen persistencia y visibilidad.
@@ -31,7 +31,7 @@ RECHAZADO no representa ocultamiento temporal. Resolver un reporte no equivale a
   implícitamente al aprobar o levantar otra causa. Visibilidad futura: aprobado, vigente y sin causas.
 - Versión monotónica para decisiones concurrentes. RevisionHumana obligatoria después de rechazo.
 - Motivo obligatorio, normalizado, máximo 1000 caracteres y sin controles para aprobar, rechazar,
-  ocultar/restaurar administrativamente y, en T5, resolver/desestimar reportes. Se aplica también
+  ocultar/restaurar administrativamente y, en T4 por pedido explícito, resolver/desestimar reportes. Se aplica también
   a aprobación para cumplir la regla de resoluciones administrativas justificadas del pedido.
 - Autor oculta solo su aprobado. T3 permite levantar solo su causa sobre un aprobado aun con
   otras causas activas; estas siguen impidiendo visibilidad pública. Reemplaza la restricción T1.
@@ -96,17 +96,49 @@ no-op sin escritura y contexto eliminado. Reutilizar detalle privado y administr
 
 ## T4 — Persistencia, API y reglas de reportes
 
+Autorizada después del cierre local T3 en `2835d55`, con árbol limpio. El pedido de T4
+adelanta desde la propuesta T5 la consulta y resolución/desestimación individual:
+[ficha T4](../finished/TASK-moderacion-T4-reportes.md). Esto no autoriza el umbral,
+ocultamiento, restitución preventiva ni interfaz de T5/T6.
+
 Archivos/módulos: Prisma/migración, servicio/repositorio de reportes dentro de reviews,
 controladores existentes/ADMIN del mismo módulo, validaciones y pruebas.
 Depende de T3. Estados ABIERTO/RESUELTO/DESESTIMADO. Registrar versión y snapshot reportado,
-denunciante de sesión, motivo obligatorio y descripción opcional <=1000. Motivos: insultos/acoso,
+denunciante de sesión, motivo obligatorio y descripción opcional <=1000. Reutilizar snapshot
+exacto por FK, sin copiar textos. Motivos: insultos/acoso,
 amenazas/intimidación, discriminación, datos personales, spam, otro. Solo publicados ajenos.
 Un reporte por usuario/comentario/versión, reintento idempotente. Límite cinco nuevos reportes
 por usuario cada diez minutos, transaccional en PostgreSQL para varios procesos, 429 al exceder.
 Aceptación/pruebas: identidad privada, unicidad concurrente, rate limit, CSRF y permisos,
 versiones históricas consultables por ADMIN, auditoría de creación y resoluciones.
+Consulta ADMIN paginada de nueve, filtros estado/motivo/experiencia, detalle con evidencia,
+conteos y resoluciones anteriores de tres. Cierre individual ABIERTO -> RESUELTO/DESESTIMADO
+con motivo obligatorio, actor, fecha, auditoría y exclusión mutua; nunca modifica moderación.
+Conteo confiable de denunciantes distintos abiertos entre versiones, sin activar umbral.
 
-## T5 — Umbral preventivo y resolución administrativa
+T4 completada: 86/86 pruebas focalizadas (55 unitarias, 31 HTTP/PostgreSQL), global
+1559/1559 en 68 archivos con PostgreSQL/SMTP reales y sin omisiones; regresiones
+T1/T2/T3 incluidas. HTTP compilado manual, typecheck, lint, build y diffcheck aprobados.
+Migración nueva 20261117020000_feedback_reportes aplicada solo en bases desechables.
+Creación y cierres no alteran Feedback ni sus agregados; sin frontend ni umbral.
+Evidencia y fallos iniciales corregidos en ficha T4. Sin commits, push o despliegue.
+
+Ajuste T4 autorizado posteriormente: detalle ADMIN con identidad segura del denunciante
+`{id,displayName}`, asociada obligatoriamente a la sesión y conservada al cerrar.
+Sin exposición al autor/comunidad, sanciones ni reputación. Desestimar no presume
+mala fe. Se mantienen los contratos previos y el alcance; decisiones y evidencia
+adicional en la sección de ajuste de la ficha T4. No autoriza T5/T6.
+Focalizada del ajuste aprobada: 93/93 (55 unitarias y 38 integraciones PostgreSQL),
+con siete casos adicionales de identidad, permisos, privacidad y trazabilidad.
+Global final del ajuste: 1566/1566 en 68 archivos con PostgreSQL/SMTP reales,
+sin omisiones y con regresiones T1/T2/T3. Tipos, lint, build, diffcheck y HTTP
+compilado aprobados. Sin migraciones nuevas ni automatismos adicionales.
+El usuario autorizó posteriormente registrar T4 y su ajuste de identidad en un
+commit local del módulo reviews, sin push. Revisión del diff preparado y 117/117
+unitarias de reportes/moderación/acciones aprobadas antes del cierre; integraciones
+no repetidas durante el commit. La autorización no permite avanzar a T5/T6.
+
+## T5 — Umbral preventivo y restitución administrativa
 
 Archivos/módulos: servicio/repositorio reportes y transiciones, bandeja/query ADMIN, auditoría
 y sincronización de valoraciones; pruebas integración concurrentes.
@@ -114,7 +146,8 @@ Depende de T4. Contar denunciantes únicos con ABIERTO del comentario (no sumar 
 del mismo usuario). Al tercero activar solo ocultoReportes y generar evento/entrada de revisión
 en la misma transacción, sin cambiar moderación ni crear otra cola física. El actor del evento
 es el usuario cuyo reporte disparó la regla; registrar origen automático, no una persona ficticia.
-Resolver/desestimar con motivo; reportes cerrados no cuentan ni se reabren. Restitución preventiva
+Resolver/desestimar con motivo se implementa en T4 por pedido explícito; cerrados no cuentan
+ni se reabren. T5 reutilizará esos cierres. Restitución preventiva
 explícita ADMIN exige menos de tres denunciantes abiertos y deja intactas otras causas. No quitar
 automáticamente la causa por cerrar un reporte. Nuevos reportes válidos pueden disparar otro ciclo.
 La bandeja deriva revisión pendiente de ocultoReportes y reportes abiertos, sin nuevo estado
@@ -157,5 +190,8 @@ corrección histórica de rechazados y control de versión. 123 pruebas focaliza
 1473/1473 en 66 archivos con PostgreSQL/SMTP reales, sin omisiones. Comprobación HTTP sobre
 backend compilado, tipos, lint, build y diffcheck aprobados; evidencia original en ficha T3.
 Sin cambios frontend/reportes. El commit local de cierre T3 fue autorizado posteriormente,
-sin push. T4–T6 requieren autorización posterior.
+sin push. T4 autorizada posteriormente; T5/T6 requieren autorización posterior.
+T4 completada y validada: 86 focalizadas y global 1559/1559, evidencia en ficha T4.
+Reportes con referencia histórica, cuota PostgreSQL, consulta y cierres ADMIN auditados,
+privacidad y conteos distintos preparados; sin activar ocultamiento ni modificar estadísticas.
 No se desplegó a datos del usuario.

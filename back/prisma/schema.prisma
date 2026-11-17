@@ -33,6 +33,8 @@ model User {
   valoracionesMaterias ValoracionMateria[]
   feedbackLikes FeedbackLike[]
   feedbackRespuestas FeedbackRespuesta[]
+  feedbackReportes FeedbackReporte[] @relation("DenuncianteReporte")
+  reportesResueltos FeedbackReporte[] @relation("AdministradorReporte")
 
   @@index([role, disabledAt, createdAt, id])
 }
@@ -284,6 +286,7 @@ model Feedback {
   historial FeedbackHistorial[]
   likes FeedbackLike[]
   respuestas FeedbackRespuesta[]
+  reportes FeedbackReporte[]
 
   // UNIQUE parcial (autorId,comisionId) WHERE deletedAt IS NULL vive en la migración SQL.
   @@index([comisionId, deletedAt, createdAt, id])
@@ -372,6 +375,49 @@ model FeedbackHistorial {
   motivoModeracion String? @db.VarChar(1000)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Restrict)
+  reportes FeedbackReporte[]
 
+  @@unique([feedbackId, id])
   @@index([feedbackId, createdAt, id])
+}
+
+enum FeedbackReporteMotivo {
+  INSULTOS_ACOSO
+  AMENAZAS_INTIMIDACION
+  DISCRIMINACION
+  DATOS_PERSONALES
+  SPAM
+  OTRO
+}
+
+enum FeedbackReporteEstado {
+  ABIERTO
+  RESUELTO
+  DESESTIMADO
+}
+
+model FeedbackReporte {
+  id String @id @default(uuid()) @db.Uuid
+  feedbackId String @db.Uuid
+  denuncianteId String @db.Uuid
+  versionReportada Int
+  historialId String @db.Uuid
+  motivo FeedbackReporteMotivo
+  descripcion String? @db.VarChar(1000)
+  estado FeedbackReporteEstado @default(ABIERTO)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  resolvedAt DateTime? @db.Timestamptz(3)
+  administradorId String? @db.Uuid
+  justificacion String? @db.VarChar(1000)
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Restrict)
+  denunciante User @relation("DenuncianteReporte", fields: [denuncianteId], references: [id], onDelete: Restrict)
+  administrador User? @relation("AdministradorReporte", fields: [administradorId], references: [id], onDelete: Restrict)
+  historial FeedbackHistorial @relation(fields: [feedbackId, historialId], references: [feedbackId, id], onDelete: Restrict)
+
+  @@unique([denuncianteId, feedbackId, versionReportada])
+  @@index([denuncianteId, createdAt])
+  @@index([feedbackId, estado, denuncianteId])
+  @@index([estado, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([motivo, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
 }
