@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { moderationHarness, type ModerationHarness } from "./support/moderation-harness.js";
 import { PrismaFeedbackRepository } from "../src/reviews/infrastructure/prisma-feedback.repository.js";
@@ -192,4 +193,30 @@ describe.skipIf(!databaseUrl)("T2: estadísticas visibles y proyección única P
     expect(JSON.stringify({ commissions, professors })).not.toMatch(/autorId|Identidad privada|ocultoReportes/);
   });
 
+  it("migración T2 reconcilia proyecciones históricas sin cambiar experiencias y es idempotente", async () => {
+    const context = await h.context();
+    const second = await secondCommission(context);
+    await h.feedback(context, owner.id, { puntuacion: 2, createdAt: new Date("2026-01-01") });
+    await h.feedback(second, owner.id, { puntuacion: 5, createdAt: new Date("2026-01-02") });
+    await h.feedback(context, reader.id, { puntuacion: 4, estadoModeracion: "PENDIENTE" });
+    const createdAt = new Date("2026-01-01");
+    await h.prisma.valoracionMateria.createMany({ data: [
+      { usuarioId: owner.id, materiaId: context.materia.id, puntuacion: 1, createdAt, deletedAt: new Date("2026-01-02") },
+      { usuarioId: reader.id, materiaId: context.materia.id, puntuacion: 4, createdAt },
+      { usuarioId: admin.id, materiaId: context.materia.id, puntuacion: 1, createdAt },
+    ] });
+    const comments = await h.prisma.feedback.findMany({ orderBy: { id: "asc" } });
+    const snapshots = await h.prisma.feedbackHistorial.findMany({ orderBy: { id: "asc" } });
+    const migration = await readFile(new URL("../prisma/migrations/20261117010000_feedback_valoracion_visible/migration.sql", import.meta.url), "utf8");
+    await h.sql.query(migration);
+    expect(await rating(context.materia.id)).toMatchObject({ puntuacion: 5, deletedAt: null, createdAt });
+    expect((await rating(context.materia.id, reader.id))?.deletedAt).toBeInstanceOf(Date);
+    expect((await rating(context.materia.id, admin.id))?.deletedAt).toBeInstanceOf(Date);
+    expect(await h.prisma.feedback.findMany({ orderBy: { id: "asc" } })).toEqual(comments);
+    expect(await h.prisma.feedbackHistorial.findMany({ orderBy: { id: "asc" } })).toEqual(snapshots);
+    const projection = await h.prisma.valoracionMateria.findMany({ orderBy: { usuarioId: "asc" } });
+    await h.sql.query(migration);
+    expect(await h.prisma.valoracionMateria.findMany({ orderBy: { usuarioId: "asc" } })).toEqual(projection);
+    expect(await h.prisma.administracionHistorial.count()).toBe(0);
+  });
 });
