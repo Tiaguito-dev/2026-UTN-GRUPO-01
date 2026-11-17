@@ -62,7 +62,7 @@ describe("Feedback drafts under the current session guard", () => {
     expect((screen.getByRole("radio", { name: "4 estrellas" }) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByRole("radio", { name: /^Grace/ }) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByRole("radio", { name: /^De forma an/ }) as HTMLInputElement).checked).toBe(true);
-    expect(obtenerNormasConvivencia).toHaveBeenCalledTimes(2);
+    expect(obtenerNormasConvivencia).not.toHaveBeenCalled();
     expect(crearFeedback).not.toHaveBeenCalled();
   });
   it("removes a draft and preserves the return URL when the session expires", async () => {
@@ -99,14 +99,25 @@ describe("Feedback drafts under the current session guard", () => {
     auth.value = { ...auth.value, status: "authenticated" }; view.rerender(<Surface comisionId="c2" />);
     expect((await screen.findByRole("textbox", { name: "Tu experiencia" }) as HTMLTextAreaElement).value).toBe("");
   });
-  it("revalidates rules and never restores a previous checkbox acceptance", async () => {
-    vi.mocked(obtenerNormasConvivencia).mockResolvedValueOnce({ version: "1", aceptada: false, reglas: ["Old rules"] }).mockResolvedValueOnce({ version: "2", aceptada: false, reglas: ["Current rules"] });
-    const { view } = await draft(); fireEvent.click(screen.getByRole("checkbox"));
+  // El consentimiento se valida en el registro; recuperar un borrador nunca agrega otro gate.
+  it("restores the draft after temporary failure and publishes without asking for terms again", async () => {
+    vi.mocked(obtenerNormasConvivencia).mockResolvedValue({ version: "1", aceptada: false, reglas: ["Historical rules"] });
+    const { view } = await draft();
+    expect(screen.queryByRole("checkbox")).toBeNull();
     auth.value = { ...auth.value, status: "temporary-error" }; view.rerender(<Surface />);
+    expect(screen.queryByRole("textbox", { name: "Tu experiencia" })).toBeNull();
     auth.value = { ...auth.value, status: "authenticated" }; view.rerender(<Surface />);
-    const text = await screen.findByRole("textbox", { name: "Tu experiencia" }); expect((text as HTMLTextAreaElement).value).toBe("Unsaved private draft");
-    const checkbox = screen.getByRole("checkbox") as HTMLInputElement; expect(checkbox.value).toBe("2"); expect(checkbox.checked).toBe(false);
-    fireEvent.click(screen.getByRole("button", { name: "Publicar comentario" })); expect(crearFeedback).not.toHaveBeenCalled(); expect(obtenerNormasConvivencia).toHaveBeenCalledTimes(2);
+    const text = await screen.findByRole("textbox", { name: "Tu experiencia" });
+    expect((text as HTMLTextAreaElement).value).toBe("Unsaved private draft");
+    expect((screen.getByRole("radio", { name: "4 estrellas" }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole("radio", { name: /^Grace/ }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole("radio", { name: /^De forma an/ }) as HTMLInputElement).checked).toBe(true);
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(crearFeedback).not.toHaveBeenCalled();
+    vi.mocked(crearFeedback).mockResolvedValue({ id: "posted" } as Awaited<ReturnType<typeof crearFeedback>>);
+    fireEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
+    await waitFor(() => expect(crearFeedback).toHaveBeenCalledExactlyOnceWith("c1", { texto: "Unsaved private draft", anonimo: true, puntuacion: 4, profesorId: "p2" }));
+    expect(obtenerNormasConvivencia).not.toHaveBeenCalled();
   });
   it("purges after successful publication without resubmitting on recovery", async () => {
     const { view } = await draft(); vi.mocked(crearFeedback).mockResolvedValue({ id: "posted" } as Awaited<ReturnType<typeof crearFeedback>>);

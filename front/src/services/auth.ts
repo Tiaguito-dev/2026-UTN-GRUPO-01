@@ -135,7 +135,7 @@ export class AuthService {
     });
   }
   async register(input: RegisterInput): Promise<PublicAccount> {
-    return publicAccount(await requestJson("/auth/register", { method: "POST", body: { email: input.email.trim().toLowerCase(), displayName: input.displayName.trim(), password: input.password } }));
+    return publicAccount(await requestJson("/auth/register", { method: "POST", body: { email: input.email.trim().toLowerCase(), displayName: input.displayName.trim(), password: input.password, aceptaTerminos: input.aceptaTerminos, versionTerminos: input.versionTerminos } }));
   }
   async forgotPassword(input: { email: string }): Promise<string> {
     const result = parseResponse(messageSchema, await requestJson("/auth/forgot-password", { method: "POST", body: { email: input.email.trim().toLowerCase() } }));

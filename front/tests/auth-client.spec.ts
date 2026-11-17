@@ -3,7 +3,7 @@ import type { ArgumentsHost } from "@nestjs/common";
 import type { HttpAdapterHost } from "@nestjs/core";
 import { AuthService } from "../src/services/auth";
 import { HttpError, requestJson } from "../src/services/http";
-import { safeReturnPath, validateDisplayName, validateEmail, validateNewPassword } from "../src/validations/auth";
+import { safeReturnPath, validateDisplayName, validateEmail, validateNewPassword, validarAceptacionTerminos } from "../src/validations/auth";
 import { validateRegistrationInput } from "../../back/src/auth/domain/registration-input.js";
 import { UnhandledErrorFilter } from "../../back/src/shared/presentation/unhandled-error.filter.js";
 import { InvalidRegistrationInputError } from "../../back/src/auth/domain/errors.js";
@@ -109,7 +109,7 @@ describe("Cliente central y coordinación de sesión", () => {
     fetchMock.mockResolvedValue(reply(401)); const service = new AuthService();
     for (const operation of [
       () => service.login({ email: account.email, password: goodPassword }),
-      () => service.register({ email: account.email, displayName: account.displayName, password: goodPassword }),
+      () => service.register({ aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email: account.email, displayName: account.displayName, password: goodPassword }),
       () => service.forgotPassword({ email: account.email }),
       () => service.resetPassword({ token: "opaque-test-value", newPassword: goodPassword }),
       () => service.logout(),
@@ -161,13 +161,19 @@ describe("Cliente central y coordinación de sesión", () => {
 });
 
 describe("Validaciones coherentes con el registro del backend", () => {
+  it.each([undefined, false, true, "true", "false", 1, null])("aceptación coincide con el booleano estricto del backend: %s", aceptaTerminos => {
+    let accepted = true;
+    try { validateRegistrationInput({ email: "x@example.test", displayName: "Cuenta", password: goodPassword, aceptaTerminos, versionTerminos: "terminos-2026-11-17" }); }
+    catch { accepted = false; }
+    expect(validarAceptacionTerminos(aceptaTerminos) === undefined).toBe(accepted);
+  });
   it.each(["12345678", "😀".repeat(8), "a".repeat(128)])("acepta ocho caracteres y el máximo establecido", (password) => {
     expect(validateNewPassword(password)).toBeUndefined();
-    expect(() => validateRegistrationInput({ email: "x@example.test", displayName: "Cuenta", password })).not.toThrow();
+    expect(() => validateRegistrationInput({ aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email: "x@example.test", displayName: "Cuenta", password })).not.toThrow();
   });
   it.each(["1234567", "😀".repeat(7), "😀".repeat(129)])("rechaza siete caracteres y contraseñas demasiado largas", (password) => {
     expect(validateNewPassword(password)).toBeTruthy();
-    expect(() => validateRegistrationInput({ email: "x@example.test", displayName: "Cuenta", password })).toThrow();
+    expect(() => validateRegistrationInput({ aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email: "x@example.test", displayName: "Cuenta", password })).toThrow();
   });
   const cases = [
     { email: " ACCOUNT@EXAMPLE.TEST ", displayName: " Cuenta ", password: goodPassword },
@@ -180,7 +186,7 @@ describe("Validaciones coherentes con el registro del backend", () => {
     { email: "x@example.test", displayName: "Cuenta", password: "long password\nwith control" },
   ];
   it.each(cases)("aceptación de datos coincide con backend", (input) => {
-    let accepted = true; try { validateRegistrationInput(input); } catch { accepted = false; }
+    let accepted = true; try { validateRegistrationInput({ ...input, aceptaTerminos: true, versionTerminos: "terminos-2026-11-17" }); } catch { accepted = false; }
     expect(!validateEmail(input.email) && !validateDisplayName(input.displayName) && !validateNewPassword(input.password)).toBe(accepted);
   });
   it.each(["/home", "/account", "/account/change-password"])("permite el destino interno explícito %s", (value) => {
