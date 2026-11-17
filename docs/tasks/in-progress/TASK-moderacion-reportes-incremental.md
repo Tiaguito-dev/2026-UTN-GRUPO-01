@@ -1,14 +1,15 @@
 # Moderación humana y reportes: plan incremental
 
-Fecha: 2026-11-17. T1 y T2 completadas; detenerse antes de T3.
+Fecha: 2026-11-17. T1, T2 y T3 completadas; detenerse antes de T4.
 T1 registrada por pedido explícito en commit local `2f619db`, sin push. El cierre local de T2
 en cuatro commits fue autorizado posteriormente; no incluye push ni autorización para T3.
+T3 fue autorizada después, mediante el pedido específico de acciones HTTP y pruebas; sin commits.
 
 ## Objetivo, alcance y contradicciones comprobadas
 
 Completar en seis etapas el flujo humano y reportes dentro de ReviewsModule, reutilizando
 FeedbackService/repositorio, FeedbackHistorial, AdministracionHistorial y las vistas existentes.
-El objetivo temporal es terminar antes del miércoles 18; la autorización actual se detiene tras T2.
+El objetivo temporal es terminar antes del miércoles 18; la autorización actual se detiene tras T3.
 
 El diagnóstico inicial encontró publicación por deletedAt, ausencia de estados y reportes,
 y actualización de valoraciones al crear/editar. T1 y T2 corrigen persistencia y visibilidad.
@@ -32,7 +33,8 @@ RECHAZADO no representa ocultamiento temporal. Resolver un reporte no equivale a
 - Motivo obligatorio, normalizado, máximo 1000 caracteres y sin controles para aprobar, rechazar,
   ocultar/restaurar administrativamente y, en T5, resolver/desestimar reportes. Se aplica también
   a aprobación para cumplir la regla de resoluciones administrativas justificadas del pedido.
-- Autor oculta solo su aprobado. Mostrar de nuevo exige aprobado y ausencia de otras causas.
+- Autor oculta solo su aprobado. T3 permite levantar solo su causa sobre un aprobado aun con
+  otras causas activas; estas siguen impidiendo visibilidad pública. Reemplaza la restricción T1.
 - ADMIN puede aprobar pendientes ajenos; rechazar pendientes/aprobados; ocultar aprobados y
   levantar exclusivamente su causa. No puede aprobar su propia experiencia.
 - Rechazado corregido permanece rechazado hasta solicitud explícita. Reenvío requiere texto
@@ -78,7 +80,10 @@ Decisiones y ejecución: [ficha T2](../finished/TASK-moderacion-T2-visibilidad.m
 con sincronización de votos y edición aprobado -> pendiente es parte de cerrar los bypass de T2;
 no se adelantan endpoints de T3. No modificar frontend ni la migración T1.
 
-## T3 — Acciones de autor y administración
+## T3 — Acciones de autor y administración (completada)
+
+Autorizada después del cierre limpio de T2 en `461f9c5`. Decisiones de contrato y evidencia:
+[ficha T3](../finished/TASK-moderacion-T3-acciones.md). No autoriza T4–T6.
 
 Archivos/módulos: FeedbackService, ReviewsController/controlador ADMIN dentro de ReviewsModule,
 validaciones/puertos y detalle administrativo existente; tests HTTP y repositorios.
@@ -147,5 +152,10 @@ de un voto por autor/materia desde último contenido visible. Migración adicion
 T1 intacta. 107 pruebas nuevas; global final 1412/1412 en 64 archivos, PostgreSQL real y sin omisiones.
 Primera global 1410/1412 y correcciones explícitas registradas en la ficha, sin cambiar timeouts.
 Tipos, lint y build aprobados. T2 se cierra en cuatro commits locales por autorización expresa.
-T3–T6 requieren autorización posterior.
+T3 completada: seis endpoints privados/protegidos, acciones autor/ADMIN, revisión explícita,
+corrección histórica de rechazados y control de versión. 123 pruebas focalizadas y global
+1473/1473 en 66 archivos con PostgreSQL/SMTP reales, sin omisiones. Comprobación HTTP sobre
+backend compilado, tipos, lint, build y diffcheck aprobados; evidencia original en ficha T3.
+Sin cambios frontend/reportes. El commit local de cierre T3 fue autorizado posteriormente,
+sin push. T4–T6 requieren autorización posterior.
 No se desplegó a datos del usuario.

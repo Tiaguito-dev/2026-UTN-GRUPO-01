@@ -85,6 +85,18 @@ describe("T2 Feedback: edición vuelve a revisión y sincroniza el voto visible"
   it("comisión inactiva impide editar incluso estrellas idénticas", async () => {
     const f = fixture(); f.context.activa = false; await expect(f.repository.update(f.row.id, f.usuarioId, { puntuacion: 2 })).rejects.toBeInstanceOf(FeedbackClosedError); expect(syncMateriaVote).not.toHaveBeenCalled();
   });
+  it("T3 sin versión del cliente usa la lectura inicial y detecta una decisión antes del bloqueo", async () => {
+    const f = fixture();
+    f.tx.feedback.findUnique.mockResolvedValueOnce({ ...f.row }).mockResolvedValueOnce({ ...f.row, versionModeracion: 4 });
+    await expect(f.repository.update(f.row.id, f.usuarioId, { texto: "Actualización simultánea" })).rejects.toMatchObject({ httpStatus: 409 });
+    expect(f.tx.feedback.update).not.toHaveBeenCalled();
+    expect(syncMateriaVote).not.toHaveBeenCalled();
+  });
+  it("T3 versión explícita obsoleta falla incluso con contenido idéntico", async () => {
+    const f = fixture();
+    await expect(f.repository.update(f.row.id, f.usuarioId, { texto: f.row.texto, versionEsperada: 2 })).rejects.toMatchObject({ httpStatus: 409 });
+    expect(f.tx.feedback.update).not.toHaveBeenCalled();
+  });
   it.each(["bloqueo", "comentario", "sincronización", "auditoría"])("propaga fallo de %s para rollback", async step => {
     const f = fixture(); const error = new Error(`fallo ${step}`);
     if (step === "bloqueo") vi.mocked(lockMateriaVote).mockRejectedValueOnce(error); else if (step === "sincronización") vi.mocked(syncMateriaVote).mockRejectedValueOnce(error);

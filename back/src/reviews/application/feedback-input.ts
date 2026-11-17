@@ -10,8 +10,9 @@ const texto = z.string().refine((value) => !forbiddenControl(value), "El comenta
   .transform((value) => value.trim())
   .refine((value) => [...value].length >= 1 && [...value].length <= 3000, "El comentario debe tener entre 1 y 3000 caracteres.");
 const puntuacion = z.number().int().min(1).max(5);
+const versionEsperada = z.number().int().min(1).max(2_147_483_647);
 const create = z.strictObject({ texto, anonimo: z.boolean(), profesorId: z.string().uuid().nullable().optional(), puntuacion, versionNormas: z.string().min(1).max(32).optional() });
-const update = z.strictObject({ texto: texto.optional(), anonimo: z.boolean().optional(), puntuacion: puntuacion.optional() });
+const update = z.strictObject({ texto: texto.optional(), anonimo: z.boolean().optional(), puntuacion: puntuacion.optional(), versionEsperada: versionEsperada.optional() });
 const page = z.union([z.string().regex(/^\d+$/), z.number()]).transform(Number).pipe(z.number().int().min(1).max(1_000_000)).default(1);
 const pageSize = (max: number) => z.union([z.string().regex(/^\d+$/), z.number()]).transform(Number).pipe(z.number().int().min(1).max(max)).default(max);
 const pagination = (history: boolean) => z.strictObject({ page, pageSize: pageSize(history ? 3 : 9) });
@@ -22,6 +23,15 @@ const rankingBase = z.strictObject({ page, pageSize: pageSize(50).default(10), m
 const rankingComisionesQuery = rankingBase.extend({ materiaId: z.string().uuid().optional(), cursadaId: z.string().uuid().optional() });
 const rankingProfesoresQuery = rankingBase.extend({ q: busqueda });
 const generalQuery = pagination(false).extend({ carrera: carreraSchema.optional(), materiaId: z.string().uuid().optional(), profesorId: z.string().uuid().optional() });
+const moderationQuery = pagination(false).extend({ estado: z.enum(["PENDIENTE", "APROBADO", "RECHAZADO"]).default("PENDIENTE") });
+const ownerModerationCommand = z.strictObject({ versionEsperada });
+const moderationCommand = ownerModerationCommand.extend({
+  accion: z.enum(["APROBACION", "RECHAZO", "OCULTAMIENTO_ADMIN", "RESTITUCION_ADMIN"]),
+  motivo: z.string().refine(value => ![...value].some(character => {
+    const point = character.codePointAt(0)!;
+    return point < 32 || (point >= 127 && point <= 159);
+  })).transform(value => value.trim()).refine(value => [...value].length >= 1 && [...value].length <= 1000),
+});
 
 function validate<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
@@ -33,6 +43,9 @@ export const validateUpdateFeedback = (value: unknown) => validate(update, value
 export const validateFeedbackPagination = (value: unknown, history = false) => validate(pagination(history), value ?? {});
 export const validateFeedbackId = (value: unknown) => validate(z.string().uuid(), value);
 export const validateGeneralFeedbackQuery = (value: unknown) => validate(generalQuery, value ?? {});
+export const validateModerationQuery = (value: unknown) => validate(moderationQuery, value ?? {});
+export const validateOwnerModerationCommand = (value: unknown) => validate(ownerModerationCommand, value);
+export const validateModerationCommand = (value: unknown) => validate(moderationCommand, value);
 export const validateRankingComisionesQuery = (value: unknown) => validate(rankingComisionesQuery, value ?? {});
 export const validateRankingProfesoresQuery = (value: unknown) => validate(rankingProfesoresQuery, value ?? {});
 export type FeedbackFilters = Pick<z.infer<typeof generalQuery>, "carrera" | "materiaId" | "profesorId">;

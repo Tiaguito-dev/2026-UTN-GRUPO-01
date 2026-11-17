@@ -66,7 +66,8 @@ describe("T1: transiciones independientes de moderación", () => {
   it("restitución voluntaria no levanta ocultamientos administrativos o preventivos", () => {
     for (const cause of ["ocultoAdministracion", "ocultoReportes"] as const) {
       const original = record({ estadoModeracion: "APROBADO", ocultoAutor: true, [cause]: true });
-      expect(() => transitionFeedbackModeration(original, owner, command("RESTITUCION_AUTOR"))).toThrowError(expect.objectContaining({ httpStatus: 409 }));
+      // T3 permite levantar la causa propia aunque otra causa conserve la privacidad.
+      expect(transitionFeedbackModeration(original, owner, command("RESTITUCION_AUTOR")).state).toMatchObject({ ocultoAutor: false, [cause]: true });
       expect(original[cause]).toBe(true);
     }
     expect(transitionFeedbackModeration(record({ estadoModeracion: "APROBADO", ocultoAutor: true }), owner, command("RESTITUCION_AUTOR")).state.ocultoAutor).toBe(false);

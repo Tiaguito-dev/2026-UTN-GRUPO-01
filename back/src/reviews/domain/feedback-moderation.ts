@@ -106,9 +106,7 @@ export function transitionFeedbackModeration(
     case "OCULTAMIENTO_AUTOR":
     case "RESTITUCION_AUTOR":
       if (state.estadoModeracion !== "APROBADO") conflict("Esta acción requiere una experiencia aprobada.");
-      if (command.accion === "RESTITUCION_AUTOR" && (state.ocultoAdministracion || state.ocultoReportes)) {
-        conflict("Administración debe resolver los otros motivos de ocultamiento antes de volver a mostrar la experiencia.");
-      }
+      // Lifting the author's cause never removes administrative or preventive restrictions.
       state.ocultoAutor = command.accion === "OCULTAMIENTO_AUTOR";
       break;
     case "OCULTAMIENTO_ADMIN":

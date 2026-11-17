@@ -2,6 +2,24 @@
 
 ## [Sin publicar]
 
+### Acciones de autor y administración de experiencias (T3)
+
+- Consultas privadas de experiencias propias y cola ADMIN por estado, con nueve registros,
+  contexto académico, versión y causas; los DTO comunitarios conservan privacidad y anonimato.
+- Acciones HTTP protegidas para aprobación/rechazo motivados, ocultamiento/restitución propios
+  y administrativos, y solicitud de revisión después de una corrección textual real.
+  Sin autoaprobación ni publicación automática de correcciones; causas independientes.
+- Corrección de rechazados con contexto académico cerrado usando snapshots; edición/baja
+  revalidan versión bajo bloqueo. Transiciones, historial, actor real y valoraciones reutilizan
+  las transacciones T1/T2; los fallos revierten también auditoría y votos.
+- 123 pruebas focalizadas aprobadas con PostgreSQL real, incluidas cuatro carreras HTTP y
+  rollback; global 1473/1473 en 66 archivos con PostgreSQL/SMTP reales, sin omisiones.
+  Comprobación manual sobre backend compilado, tipos, lint y build aprobados.
+  Resultados completos en [la ficha T3](docs/tasks/finished/TASK-moderacion-T3-acciones.md).
+- Sin frontend, reportes, clasificadores, nuevas migraciones/dependencias, despliegue, commits
+  ni push durante la implementación. Cierre local en un commit autorizado posteriormente;
+  sin push. Detenido antes de T4; T4–T6 requieren autorización posterior.
+
 ### Visibilidad pública y estadísticas de experiencias (T2)
 
 - Política central: solo experiencias aprobadas, vigentes y sin causas de ocultamiento aparecen

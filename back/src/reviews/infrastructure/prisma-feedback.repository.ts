@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Prisma } from "../../generated/prisma/client.js";
 import type { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import type { PaginatedResult, Pagination } from "../../shared/domain/pagination.js";
-import type { Feedback } from "../domain/feedback.js";
+import type { Feedback, FeedbackOwn } from "../domain/feedback.js";
 import type { FeedbackRepository } from "../application/ports/feedback.repository.js";
 import type { CreateFeedbackInput, UpdateFeedbackInput, FeedbackFilters } from "../application/feedback-input.js";
 import { normasConvivencia } from "../domain/normas.js";
@@ -11,7 +11,7 @@ import { assertFeedbackOpen, assertFeedbackOwner, assertFeedbackRemoval, selectF
 import type { UserRole } from "../../users/domain/user.js";
 import { ComisionNotFoundError } from "../../academic/application/errors.js";
 import { validateFeedbackId } from "../application/feedback-input.js";
-import { FeedbackModerationError, transitionFeedbackModeration, type FeedbackModerationActor, type FeedbackModerationCommand, type FeedbackModerationState } from "../domain/feedback-moderation.js";
+import { FeedbackModerationError, transitionFeedbackModeration, type FeedbackModerationActor, type FeedbackModerationCommand, type FeedbackModerationState, type FeedbackModerationStatus } from "../domain/feedback-moderation.js";
 import { isFeedbackVisible } from "../domain/feedback-visibility.js";
 import { publicFeedbackWhere } from "./prisma-feedback-visibility.js";
 import { lockMateriaVote, syncMateriaVote } from "./prisma-feedback-rating.js";
@@ -44,6 +44,12 @@ const moderationSnapshot = (row: FeedbackModerationState): FeedbackModerationSta
   requiereRevisionHumana: row.requiereRevisionHumana, motivoRechazo: row.motivoRechazo,
   ocultoAutor: row.ocultoAutor, ocultoAdministracion: row.ocultoAdministracion, ocultoReportes: row.ocultoReportes,
 });
+const presentOwn = (row: FeedbackRow, viewer: string): FeedbackOwn => ({ ...present(row, viewer), ...moderationSnapshot(row) });
+function assertVersion(row: FeedbackModerationState, expected: number) {
+  if (row.versionModeracion !== expected) {
+    throw new FeedbackModerationError(409, "El comentario cambió. Actualice la información antes de intentar nuevamente.");
+  }
+}
 function nextVersion(row: FeedbackModerationState): number {
   if (row.versionModeracion >= 2_147_483_647) throw new FeedbackModerationError(409, "Se alcanzó el límite de versiones de esta experiencia.");
   return row.versionModeracion + 1;
@@ -52,7 +58,7 @@ function nextVersion(row: FeedbackModerationState): number {
 export class PrismaFeedbackRepository implements FeedbackRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Internal persistence; T3 will expose authorized HTTP actions. */
+  /** All actions reuse one transactional policy, snapshot and correlated audit trail. */
   async transitionModeration(id: string, actor: FeedbackModerationActor, command: FeedbackModerationCommand): Promise<FeedbackModerationState> {
     const feedbackId = validateFeedbackId(id);
     validateFeedbackId(actor?.id);
@@ -158,6 +164,22 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
     }, viewer, pagination);
   }
 
+  private async privateListing(where: Prisma.FeedbackWhereInput, viewer: string, pagination: Pagination): Promise<PaginatedResult<FeedbackOwn>> {
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.feedback.findMany({ where, include: includeAutor, orderBy: recent, ...paging(pagination) }),
+      this.prisma.feedback.count({ where }),
+    ], { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+    return { items: items.map(row => presentOwn(row, viewer)), total, ...pagination };
+  }
+
+  listOwn(viewer: string, pagination: Pagination) {
+    return this.privateListing({ autorId: viewer, deletedAt: null }, viewer, pagination);
+  }
+
+  listModeration(pagination: Pagination, estado: FeedbackModerationStatus) {
+    return this.privateListing({ estadoModeracion: estado, deletedAt: null }, "", pagination);
+  }
+
   async listComision(id: string, viewer: string, pagination: Pagination) {
     await this.comisionExists(id);
     return this.listing({ comisionId: id, ...publicFeedbackWhere }, viewer, pagination);
@@ -166,7 +188,7 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
   async propio(id: string, viewer: string) {
     await this.comisionExists(id);
     const row = await this.prisma.feedback.findFirst({ where: { comisionId: id, autorId: viewer, deletedAt: null }, include: includeAutor });
-    return row ? present(row, viewer) : null;
+    return row ? presentOwn(row, viewer) : null;
   }
 
   async create(id: string, viewer: string, input: CreateFeedbackInput): Promise<Feedback> {
@@ -220,7 +242,7 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
   }
 
   async get(id: string, viewer: string) {
-    return present(await this.owned(id, viewer), viewer);
+    return presentOwn(await this.owned(id, viewer), viewer);
   }
 
   private async owned(id: string, viewer: string, tx: Transaction = this.prisma, includeDeleted = false) {
@@ -236,13 +258,16 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
     return this.prisma.$transaction(async (tx) => {
       await this.lockComision(tx, original.comisionId);
       const row = await this.owned(id, viewer, tx);
-      const context = (await this.snapshot(tx, row.comisionId))[0]!;
-      assertFeedbackOpen(context.activa);
+      assertVersion(row, input.versionEsperada ?? original.versionModeracion);
+      if (row.estadoModeracion !== "RECHAZADO") {
+        const context = (await this.snapshot(tx, row.comisionId))[0]!;
+        assertFeedbackOpen(context.activa);
+      }
       const texto = input.texto ?? row.texto;
       const anonimo = input.anonimo ?? row.anonimo;
       const puntuacion = input.puntuacion ?? row.puntuacion;
       const puntuacionChanged = puntuacion !== row.puntuacion;
-      if (texto === row.texto && anonimo === row.anonimo && !puntuacionChanged) return present(row, viewer);
+      if (texto === row.texto && anonimo === row.anonimo && !puntuacionChanged) return presentOwn(row, viewer);
       const cambios: { campo: string; anterior: string | null; nuevo: string | null }[] = [
         { campo: "texto", anterior: row.texto, nuevo: texto },
         { campo: "anonimo", anterior: String(row.anonimo), nuevo: String(anonimo) },
@@ -261,7 +286,7 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
       }, include: includeAutor });
       cambios.push(...await syncMateriaVote(tx, row.autorId, row.materiaId, now));
       await tx.administracionHistorial.create({ data: { id: eventId, entidad: "feedback", entidadId: id, actorId: viewer, accion: "EDICION", cambios, createdAt: now } });
-      return present(updated, viewer);
+      return presentOwn(updated, viewer);
     }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
   }
 
@@ -277,6 +302,7 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
     await this.prisma.$transaction(async (tx) => {
       await this.lockComision(tx, original.comisionId);
       const row = await this.removable(id, viewer, role, tx);
+      assertVersion(row, original.versionModeracion);
       // El actor puede ser ADMIN; el bloqueo y el voto pertenecen al autor real del comentario.
       await lockMateriaVote(tx, row.autorId, row.materiaId);
       const now = new Date();
@@ -299,7 +325,8 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
     await this.owned(id, viewer, this.prisma, true);
     const where = { feedbackId: id };
     const [items, total] = await this.prisma.$transaction([
-      this.prisma.feedbackHistorial.findMany({ where, select: { id: true, accion: true, texto: true, puntuacion: true, anonimo: true, createdAt: true }, orderBy: recent, ...paging(pagination) }),
+      this.prisma.feedbackHistorial.findMany({ where, select: { id: true, accion: true, texto: true, puntuacion: true, anonimo: true, createdAt: true,
+        estadoModeracion: true, versionModeracion: true, motivoRechazo: true }, orderBy: recent, ...paging(pagination) }),
       this.prisma.feedbackHistorial.count({ where }),
     ], { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
     return { items, total, ...pagination };

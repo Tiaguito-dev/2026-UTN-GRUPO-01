@@ -94,8 +94,9 @@ describe.skipIf(!databaseUrl)("T1: decisiones y concurrencia PostgreSQL en esque
     expect(hidden).toMatchObject({ estadoModeracion: "APROBADO", ocultoAutor: true, ocultoAdministracion: true, ocultoReportes: true });
     const restored = await repository.transitionModeration(f.feedback.id, f.admin, { accion: "RESTITUCION_ADMIN", versionEsperada: 2, motivo: "Causa administrativa levantada" });
     expect(restored).toMatchObject({ estadoModeracion: "APROBADO", ocultoAutor: true, ocultoAdministracion: false, ocultoReportes: true, versionModeracion: 3 });
-    await expect(repository.transitionModeration(f.feedback.id, f.owner, { accion: "RESTITUCION_AUTOR", versionEsperada: 3 })).rejects.toMatchObject({ httpStatus: 409 });
-    expect(await prisma.feedbackHistorial.count({ where: { feedbackId: f.feedback.id } })).toBe(2);
+    // T3 levanta exclusivamente la causa voluntaria y conserva la preventiva.
+    expect(await repository.transitionModeration(f.feedback.id, f.owner, { accion: "RESTITUCION_AUTOR", versionEsperada: 3 })).toMatchObject({ ocultoAutor: false, ocultoReportes: true, versionModeracion: 4 });
+    expect(await prisma.feedbackHistorial.count({ where: { feedbackId: f.feedback.id } })).toBe(3);
   });
 
   it("no-op voluntario no duplica historial y la versión vieja sigue devolviendo conflicto", async () => {

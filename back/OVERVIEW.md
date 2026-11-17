@@ -1,5 +1,55 @@
 # Backend
 
+## Acciones humanas de moderación (T3)
+
+Todas estas rutas requieren sesión y responden con `Cache-Control: no-store`. Las escrituras
+mantienen Origin/CSRF y obtienen actor/rol exclusivamente de la sesión. No hay frontend nuevo.
+
+| Método y ruta | Entrada | Permiso y resultado |
+|---|---|---|
+| GET `/feedback/propios` | `page`, `pageSize` hasta 9 | Autor: sus experiencias vigentes de cualquier estado, con contexto histórico, causas, estado, versión y motivo de rechazo. |
+| POST `/feedback/:id/ocultar` | `{versionEsperada}` | Autor: aprobado -> activa solo `ocultoAutor`. |
+| POST `/feedback/:id/restaurar` | `{versionEsperada}` | Autor: aprobado -> levanta solo `ocultoAutor`; otras causas mantienen privacidad. |
+| POST `/feedback/:id/revision` | `{versionEsperada}` | Autor: rechazado con texto corregido respecto del último rechazo -> pendiente, revisión humana obligatoria. |
+| GET `/admin/feedback` | `page`, `pageSize` hasta 9, `estado` | ADMIN: estado por defecto PENDIENTE; admite APROBADO/RECHAZADO. |
+| POST `/admin/feedback/:id/moderacion` | `{accion,versionEsperada,motivo}` | ADMIN: APROBACION, RECHAZO, OCULTAMIENTO_ADMIN, RESTITUCION_ADMIN. |
+
+Los POST responden 200 con el estado de moderación y su versión. Motivo administrativo obligatorio,
+normalizado, de 1 a 1000 caracteres y sin controles. No se admiten campos adicionales, identidades,
+estados arbitrarios ni causas ajenas. La cola deriva de Feedback y ordena creación/id descendente,
+con total/página consistentes; usa `/admin/feedback/:id/detalle` para el detalle y auditoría existentes.
+No se incluyen bajas en las colas; el detalle administrativo y el historial propio conservan bajas.
+
+PATCH `/feedback/:id` conserva campos de contenido y admite `versionEsperada` opcional. Si falta,
+captura la versión inicial y la revalida bajo el bloqueo existente; DELETE conserva su contrato
+y hace la misma revalidación interna. Los clientes nuevos deben enviar versión en PATCH para
+detectar además formularios desactualizados antes de iniciar la petición. Una edición real
+incrementa versión: APROBADO -> PENDIENTE; PENDIENTE y RECHAZADO conservan estado. Sin diferencias
+no hay evento. Corregir RECHAZADO usa los snapshots históricos aunque sus padres estén inactivos
+o dados de baja; las demás ediciones y las altas mantienen sus restricciones académicas.
+El destino académico no puede modificarse. Retirar/recrear conserva el antecedente humano.
+
+La aprobación exige pendiente ajeno; un ADMIN autor no puede autoaprobarse. Rechazar conserva
+contenido y motivo para el autor, sin publicar. Ocultar administrativamente exige aprobado;
+restituir administrativamente no cambia estado ni levanta causas de autor/reportes. T3 reemplaza
+la restricción anterior de restitución voluntaria con otras causas: ahora levanta exclusivamente
+la causa del autor y conserva las restantes, sin conceder visibilidad pública.
+
+Las mutaciones reutilizan transiciones de dominio, bloqueo comisión/comentario, versión, snapshot
+FeedbackHistorial, AdministracionHistorial correlacionado y sincronización transaccional del voto
+autor/materia de T1/T2. Los motivos internos y la identidad real del actor quedan en administración;
+el DTO comunitario no cambia. Detalle/consulta propios exponen metadatos seguros; el historial
+privado conserva paginación de tres y no expone justificaciones administrativas internas.
+
+Errores: 400 contrato/UUID/motivo inválido, 401 sin sesión, 403 permiso/CSRF/autoaprobación,
+404 inexistente/baja (o acceso ajeno privado), 409 versión obsoleta/transición no autorizada/texto
+sin corrección. El error de persistencia revierte estado, snapshots, auditoría y votos juntos.
+Sin nuevas dependencias, variables de entorno, migraciones ni cambios de Docker/Compose.
+Validación: 123 pruebas focalizadas, global 1473/1473 en 66 archivos con PostgreSQL/SMTP reales,
+comprobación HTTP del backend compilado, typecheck, lint, build y diffcheck aprobados.
+Evidencia: [ficha T3](../docs/tasks/finished/TASK-moderacion-T3-acciones.md).
+T4–T6 permanecen pendientes de autorización; no hay reportes ni umbral preventivo implementados.
+
 ## Visibilidad de experiencias y valoraciones (T2)
 
 La publicación comunitaria requiere `estadoModeracion: APROBADO`, `deletedAt: null` y
@@ -55,7 +105,8 @@ comisión y comentario, revalida permisos/versión y escribe el snapshot de `Fee
 el actor/motivo en `AdministracionHistorial` con el mismo identificador, dentro de una transacción.
 No hay nuevos permisos HTTP ni cambios al anonimato público en T1.
 
-El autor solo puede ocultar su experiencia aprobada y volver a mostrarla si no existen otras causas.
+El autor solo puede ocultar su experiencia aprobada. La restricción inicial T1 de restitución
+con otras causas fue reemplazada en T3: levanta solo su causa y conserva la privacidad restante.
 Administración puede aprobar pendientes ajenos, rechazar pendientes/aprobados, ocultar aprobados y
 levantar su propia causa. Aprobar, rechazar, ocultar y restituir administrativamente requieren justificación
 normalizada de hasta 1000 caracteres. Se rechazan bajas, versiones obsoletas y aprobación propia.

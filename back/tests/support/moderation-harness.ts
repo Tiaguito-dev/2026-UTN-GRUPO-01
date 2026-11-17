@@ -35,7 +35,7 @@ export async function moderationHarness(databaseUrl: string) {
   await app.listen(0, "127.0.0.1");
   const url = await app.getUrl();
   return {
-    prisma, sql,
+    prisma, sql, url,
     async account(role: "USER" | "ADMIN" = "USER") {
       const user = await prisma.user.create({ data: { email: `t2-${randomUUID()}@alu.frlp.utn.edu.ar`, displayName: "Identidad privada T2", role,
         passwordHash: "fixture-no-login", emailVerifiedAt: new Date() } });

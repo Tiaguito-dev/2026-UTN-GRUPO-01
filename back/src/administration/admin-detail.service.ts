@@ -7,6 +7,7 @@ import { parseAcademicHistoryChanges } from "../academic/application/academic-hi
 
 const entities = { materias: "materia", profesores: "profesor", cursadas: "cursada", comisiones: "comision", users: "usuario", feedback: "feedback" } as const;
 const safeFields = new Set(["nombre", "modalidad", "carreras", "nombreCompleto", "materiaId", "anio", "cuatrimestre", "carrera", "numero", "deletedAt", "disabledAt", "activa", "estado", "texto", "anonimo", "profesores", "resultado", "motivo"]);
+const feedbackFields = new Set(["puntuacion", "estadoModeracion", "versionModeracion", "requiereRevisionHumana", "motivoRechazo", "ocultoAutor", "ocultoAdministracion", "ocultoReportes", "valoracionMateria.puntuacion", "valoracionMateria.deletedAt"]);
 
 @Injectable()
 export class AdminDetailService {
@@ -52,7 +53,7 @@ export class AdminDetailService {
           const event = actors.find(entry => entry.id === row.id);
           const previous = snapshots[index + 1];
           return { id: row.id, actorId: event?.actorId ?? null, accion: row.accion, createdAt: row.createdAt,
-            cambios: event ? parseAcademicHistoryChanges(event.cambios).filter(change => safeFields.has(change.campo)) : [{ campo: "texto", anterior: previous?.texto ?? null, nuevo: row.texto }, { campo: "anonimo", anterior: previous ? String(previous.anonimo) : null, nuevo: String(row.anonimo) }].filter(change => change.anterior !== change.nuevo) };
+            cambios: event ? parseAcademicHistoryChanges(event.cambios).filter(change => safeFields.has(change.campo) || feedbackFields.has(change.campo)) : [{ campo: "texto", anterior: previous?.texto ?? null, nuevo: row.texto }, { campo: "anonimo", anterior: previous ? String(previous.anonimo) : null, nuevo: String(row.anonimo) }].filter(change => change.anterior !== change.nuevo) };
         });
         total = await tx.feedbackHistorial.count({ where: { feedbackId: id } });
       }
