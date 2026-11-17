@@ -30,7 +30,7 @@ describe.skipIf(!databaseUrl)("Likes: HTTP y PostgreSQL aislado", () => {
   async function account() {
     const email = `likes-${randomUUID()}@alu.frlp.utn.edu.ar`;
     const password = "isolated likes test password";
-    const registered = await request("/auth/register", "POST", "", { email, password, displayName: "Persona privada" });
+    const registered = await request("/auth/register", "POST", "", { aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email, password, displayName: "Persona privada" });
     expect(registered.status).toBe(201);
     const { id } = await registered.json() as { id: string };
     ids.users.push(id);
@@ -50,7 +50,7 @@ describe.skipIf(!databaseUrl)("Likes: HTTP y PostgreSQL aislado", () => {
     expect(normas.status).toBe(200);
     const { version } = await normas.json() as { version: string };
     expect(version).toEqual(expect.any(String));
-    const response = await request(`/comisiones/${comision.id}/feedback`, "POST", author.cookie, { texto: "Comentario con estrellas", anonimo, puntuacion: 4, versionNormas: version });
+    const response = await request(`/comisiones/${comision.id}/feedback`, "POST", author.cookie, { texto: "Comentario con estrellas", anonimo, puntuacion: 4 });
     expect(response.status).toBe(201);
     const feedback = await response.json() as { id: string };
     ids.feedback.push(feedback.id);

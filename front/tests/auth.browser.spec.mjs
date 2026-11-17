@@ -33,7 +33,7 @@ async function api(page, path, method = "GET", body, csrf = true) {
 async function fixture(page, role = "USER") {
   await page.goto("/login");
   const email = `browser-${randomUUID()}@alu.frlp.utn.edu.ar`;
-  const registered = await api(page, "/auth/register", "POST", { email, displayName: "Cuenta de prueba", password });
+  const registered = await api(page, "/auth/register", "POST", { aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email, displayName: "Cuenta de prueba", password });
   expect(registered.status).toBe(201); userIds.push(registered.body.id);
   await prisma.user.update({ where: { id: registered.body.id }, data: { role, emailVerifiedAt: new Date() } });
   return { email, id: registered.body.id };
@@ -96,6 +96,7 @@ test("registro por formulario, login, recarga, cookies HttpOnly y ningún secret
   await page.getByLabel(/^Email$/i).fill(email);
   await page.getByLabel(/^Contraseña$/i).fill(password);
   const confirmation = page.getByLabel(/confirmar contraseña/i); if (await confirmation.count()) await confirmation.fill(password);
+  await page.getByRole("checkbox", { name: /He leído y acepto los Términos y condiciones/ }).check();
   await page.getByRole("button", { name: /crear cuenta|registrar/i }).click();
   await expect(page).toHaveURL(/\/login/);
   const user = await prisma.user.findUniqueOrThrow({ where: { email } }); userIds.push(user.id);

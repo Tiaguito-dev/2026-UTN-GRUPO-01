@@ -2,6 +2,9 @@ import { hasControlCharacters } from "./text";
 
 const EMAIL = /^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 export const PASSWORD_POLICY_MESSAGE = "La contraseña debe tener entre 8 y 128 caracteres.";
+export function validarAceptacionTerminos(value: unknown): string | undefined {
+  if (value !== true) return "Debés aceptar los términos y condiciones para crear tu cuenta";
+}
 export function validateEmail(value: string): string | undefined {
   const email = value.trim().toLowerCase();
   if (hasControlCharacters(value) || email.length > 254 || email.split("@")[0].length > 64 || !EMAIL.test(email)) return "Ingresá un email válido de hasta 254 caracteres.";

@@ -90,54 +90,25 @@ describe("Formulario de feedback", () => {
     await userEvent.click(screen.getByRole("radio", { name: "4 estrellas" }));
     await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
     expect(await screen.findByText(message)).toBeTruthy();
-    expect(obtenerNormasConvivencia).toHaveBeenCalledTimes(1);
+    expect(obtenerNormasConvivencia).not.toHaveBeenCalled();
     expect((text as HTMLTextAreaElement).value).toBe("Borrador con estrellas");
     expect((screen.getByRole("radio", { name: "4 estrellas" }) as HTMLInputElement).checked).toBe(true);
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("permite consultar las normas sin perder el borrador y exige aceptación explícita de la versión mostrada", async () => {
-    const reglas = ["Respetá a otras personas.", "No publiques datos personales de terceros."];
-    vi.mocked(obtenerNormasConvivencia).mockResolvedValue({ version: "2", aceptada: false, reglas });
+  // El consentimiento ahora pertenece al registro, incluso para cuentas sin aceptación histórica.
+  it("publica sin consultar normas ni pedir consentimiento en el comentario", async () => {
+    vi.mocked(obtenerNormasConvivencia).mockResolvedValue({ version: "1", aceptada: false, reglas: ["Respeto"] });
     render(<FeedbackForm comisionId="c1" />);
-    const checkbox = await screen.findByRole("checkbox", { name: /Acepto las Normas de convivencia/i }) as HTMLInputElement;
-    expect(checkbox.checked).toBe(false);
-    const text = screen.getByRole("textbox", { name: "Tu experiencia" }) as HTMLTextAreaElement;
+    const text = await screen.findByRole("textbox", { name: "Tu experiencia" });
+    expect(screen.queryByRole("checkbox")).toBeNull();
     await userEvent.type(text, "Buen acompañamiento");
     await userEvent.click(screen.getByRole("radio", { name: "4 estrellas" }));
-    await userEvent.click(screen.getByRole("link", { name: /Normas de convivencia/i }));
-    const dialog = screen.getByRole("dialog", { name: /Normas de convivencia/i });
-    for (const regla of reglas) expect(within(dialog).getByText(regla)).toBeTruthy();
-    await userEvent.click(within(dialog).getByRole("button", { name: /Volver a la reseña/i }));
-    expect(text.value).toBe("Buen acompañamiento");
-    expect(checkbox.checked).toBe(false);
-    await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
-    expect(await screen.findByText(/debés aceptar las normas/i)).toBeTruthy();
-    expect(crearFeedback).not.toHaveBeenCalled();
-    await userEvent.click(checkbox);
     await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
     expect(crearFeedback).toHaveBeenCalledExactlyOnceWith("c1", {
-      texto: "Buen acompañamiento", anonimo: false, puntuacion: 4, profesorId: null, versionNormas: "2",
+      texto: "Buen acompañamiento", anonimo: false, puntuacion: 4, profesorId: null,
     });
-  });
-  it("pide una nueva aceptación y conserva el texto si las normas cambian durante la escritura", async () => {
-    const normas = { aceptada: false, reglas: ["Respetá a otras personas."] };
-    vi.mocked(obtenerNormasConvivencia)
-      .mockResolvedValueOnce({ ...normas, version: "1" })
-      .mockResolvedValueOnce({ ...normas, version: "2" });
-    vi.mocked(crearFeedback).mockRejectedValueOnce(new HttpError(409, "Debés aceptar las normas de convivencia vigentes para publicar."));
-    render(<FeedbackForm comisionId="c1" />);
-    const original = await screen.findByRole("checkbox", { name: /Acepto las Normas de convivencia/i });
-    await userEvent.type(screen.getByRole("textbox", { name: "Tu experiencia" }), "Clases prácticas");
-    await userEvent.click(screen.getByRole("radio", { name: "4 estrellas" }));
-    await userEvent.click(original);
-    await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
-    await waitFor(() => expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(false));
-    expect((screen.getByRole("textbox", { name: "Tu experiencia" }) as HTMLTextAreaElement).value).toBe("Clases prácticas");
-    expect(push).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole("checkbox"));
-    await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
-    expect(crearFeedback).toHaveBeenLastCalledWith("c1", { texto: "Clases prácticas", anonimo: false, puntuacion: 4, profesorId: null, versionNormas: "2" });
+    expect(obtenerNormasConvivencia).not.toHaveBeenCalled();
   });
   it("regresa a la página de Experiencias de origen y conserva ese regreso al editar", async () => {
     origin.query = "origen=experiencias&experienciasPage=4&experienciasCarrera=I&experienciasMateriaId=m1";
@@ -694,36 +665,18 @@ describe("Block 7A: publishing from Inicio", () => {
     await screen.findByText("New published item"); expect(screen.queryByText("Old window")).toBeNull(); expect(screen.getAllByText("New published item")).toHaveLength(1);
     expect(vi.mocked(listarFeedComentarios).mock.calls).toEqual([[], []]);
   });
-  it("keeps Inicio drafts through a rules version change and returns to a new feed window", async () => {
+  it("publica desde Inicio sin volver a aceptar términos ni perder selección de docente", async () => {
     origin.query = "origen=inicio";
-    const normas = { aceptada: false, reglas: ["Respeto."] };
-    const normasError = "Debés aceptar las normas de convivencia vigentes para publicar.";
-    const anonymousLabel = /^De forma anónima/;
-    vi.mocked(obtenerNormasConvivencia).mockResolvedValueOnce({ ...normas, version: "1" }).mockResolvedValueOnce({ ...normas, version: "2" });
-    vi.mocked(crearFeedback).mockRejectedValueOnce(new HttpError(409, normasError));
     render(<FeedbackForm comisionId="c1" />);
-    const text = await screen.findByRole("textbox", { name: "Tu experiencia" });
-    await userEvent.type(text, "Borrador de Inicio con normas");
+    await userEvent.type(await screen.findByRole("textbox", { name: "Tu experiencia" }), "Experiencia desde Inicio");
     await userEvent.click(screen.getByRole("radio", { name: "5 estrellas" }));
     await userEvent.click(screen.getByRole("radio", { name: /^Grace/ }));
-    await userEvent.click(screen.getByRole("radio", { name: anonymousLabel }));
-    await userEvent.click(screen.getByRole("checkbox", { name: /Acepto las Normas de convivencia/i }));
-    await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
-    await screen.findByText(normasError);
-    await waitFor(() => expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(false));
-    expect((text as HTMLTextAreaElement).value).toBe("Borrador de Inicio con normas");
-    expect((screen.getByRole("radio", { name: "5 estrellas" }) as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByRole("radio", { name: /^Grace/ }) as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByRole("radio", { name: anonymousLabel }) as HTMLInputElement).checked).toBe(true);
-    expect(push).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole("checkbox", { name: /Acepto las Normas de convivencia/i }));
+    await userEvent.click(screen.getByRole("radio", { name: /^De forma anónima/ }));
+    expect(screen.queryByRole("checkbox")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
     await waitFor(() => expect(push).toHaveBeenCalledOnce());
-    expect(crearFeedback).toHaveBeenCalledTimes(2);
-    expect(crearFeedback).toHaveBeenNthCalledWith(1, "c1", { texto: "Borrador de Inicio con normas", anonimo: true, puntuacion: 5, profesorId: "p2", versionNormas: "1" });
-    expect(crearFeedback).toHaveBeenNthCalledWith(2, "c1", { texto: "Borrador de Inicio con normas", anonimo: true, puntuacion: 5, profesorId: "p2", versionNormas: "2" });
-    const target = new URL(String(push.mock.calls[0][0]), "http://local");
-    expect(target.pathname).toBe("/home"); expect(target.searchParams.get("feedRefresh")).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(crearFeedback).toHaveBeenCalledExactlyOnceWith("c1", { texto: "Experiencia desde Inicio", anonimo: true, puntuacion: 5, profesorId: "p2" });
+    expect(obtenerNormasConvivencia).not.toHaveBeenCalled();
   });
 
 });

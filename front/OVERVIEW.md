@@ -1,5 +1,26 @@
 # Frontend
 
+## Términos en el registro
+
+El registro carga el documento público `GET /auth/terms` mediante `services/terminos.ts`, que
+valida su versión y sus secciones con Zod. Su contenido y versión se mantienen únicamente en
+el backend. La casilla “He leído y acepto los Términos y condiciones” comienza desmarcada y
+es obligatoria; `AuthService.register` envía `aceptaTerminos` booleano y `versionTerminos`.
+Si no se acepta, el formulario muestra “Debés aceptar los términos y condiciones para crear
+tu cuenta”. No permite aceptar un documento que todavía no se pudo cargar y ofrece reintento.
+
+El enlace de los términos abre `Dialog` en la misma pantalla sin enviar el formulario ni
+cambiar la casilla. El contenido tiene desplazamiento propio y secciones con encabezados;
+se cierra mediante Cerrar, X o Escape, devolviendo el foco al enlace. Los datos del registro
+permanecen en el formulario. Si el servidor indica una versión obsoleta, se recarga el documento
+y se desmarca la aceptación sin borrar email, nombre ni contraseña. Los estilos son locales
+al módulo de autenticación y reutilizan los tokens y el diálogo adaptado a celulares.
+
+El editor de comentarios ya no consulta ni solicita aceptación de normas, ni envía
+`versionNormas`: conserva las validaciones de texto, puntuación, comisión, autoría y permisos.
+La consulta histórica de normas sigue disponible en el servicio, sin formar parte del alta
+de comentarios. El traslado no fabrica aceptaciones para las cuentas existentes.
+
 ## Aviso y renovación por inactividad
 
 `AuthProvider` monta `SessionIdleMonitor` para la cuenta autenticada, con un controlador de

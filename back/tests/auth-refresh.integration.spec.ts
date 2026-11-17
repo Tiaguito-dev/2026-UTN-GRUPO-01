@@ -1,3 +1,4 @@
+import { VERIFICATION_EMAIL } from "../src/auth/domain/email-verification.js";
 import "reflect-metadata";
 import { randomUUID } from "node:crypto";
 import type { INestApplication } from "@nestjs/common";
@@ -33,7 +34,7 @@ describe.skipIf(!databaseUrl)("Refresh y logout HTTP con atomicidad PostgreSQL",
   const me = (cookies: string) => fetch(`${url}/auth/me`, { headers: { Cookie: cookies } });
   async function login() {
     const email = `refresh-${randomUUID()}@alu.frlp.utn.edu.ar`;
-    const register = await post("/auth/register", "", { email, displayName: "Refresh", password });
+    const register = await post("/auth/register", "", { aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email, displayName: "Refresh", password });
     const user = await register.json(); ids.add(user.id); expect(register.status).toBe(201);
     await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
     const response = await post("/auth/login", "", { email, password }); expect(response.status).toBe(200);
@@ -51,7 +52,7 @@ describe.skipIf(!databaseUrl)("Refresh y logout HTTP con atomicidad PostgreSQL",
   }
   beforeAll(async () => {
     prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl! }) }); await prisma.$connect();
-    const module = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(AUTH_CONFIG).useValue(config).compile();
+    const module = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(VERIFICATION_EMAIL).useValue({ send: async () => {} }).overrideProvider(AUTH_CONFIG).useValue(config).compile();
     app = module.createNestApplication(); app.useLogger(false); configureAuthHttp(app, config); await app.listen(0, "127.0.0.1"); url = await app.getUrl();
   }, 20000);
   afterAll(async () => {
@@ -196,7 +197,7 @@ describe.skipIf(!databaseUrl)("Refresh y logout HTTP con atomicidad PostgreSQL",
   });
   it("firma fallida durante refresh conserva credencial y cookies sin detalles internos", async () => {
     const f = await login();
-    const module = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(AUTH_CONFIG).useValue(config)
+    const module = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(VERIFICATION_EMAIL).useValue({ send: async () => {} }).overrideProvider(AUTH_CONFIG).useValue(config)
       .overrideProvider(ACCESS_TOKEN_SERVICE).useValue({ issue: async () => { throw new Error("private-signing-detail"); }, verify: tokens.verify.bind(tokens) }).compile();
     const failing = module.createNestApplication(); failing.useLogger(false); configureAuthHttp(failing, config); await failing.listen(0, "127.0.0.1");
     try {
@@ -208,7 +209,7 @@ describe.skipIf(!databaseUrl)("Refresh y logout HTTP con atomicidad PostgreSQL",
   });
   it("rate refresh configurable ignora cabeceras proxy no confiables", async () => {
     const limitedConfig = testAuthConfig({ AUTH_REFRESH_MAX_ATTEMPTS: "2" });
-    const module = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(AUTH_CONFIG).useValue(limitedConfig).compile();
+    const module = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(VERIFICATION_EMAIL).useValue({ send: async () => {} }).overrideProvider(AUTH_CONFIG).useValue(limitedConfig).compile();
     const limited = module.createNestApplication(); limited.useLogger(false); configureAuthHttp(limited, limitedConfig); await limited.listen(0, "127.0.0.1");
     try {
       for (let i = 0; i < 3; i++) {

@@ -34,7 +34,7 @@ describe.skipIf(!testDatabaseUrl)("Jerarquía académica HTTP y persistencia Pos
 
   async function account() {
     const email = `academic-test-${randomUUID()}@alu.frlp.utn.edu.ar`;
-    const response = await post("/auth/register", { email, displayName: "Persona", password });
+    const response = await post("/auth/register", { aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email, displayName: "Persona", password });
     const user = await response.json();
     if (typeof user.id === "string") userIds.add(user.id);
     expect(response.status).toBe(201);

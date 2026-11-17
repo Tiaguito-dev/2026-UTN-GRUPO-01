@@ -48,9 +48,13 @@ export class PrismaUserRepository implements UserRepository {
   }
 
   async create(input: CreateUserInput): Promise<User> {
+    const { versionTerminos, ...account } = input;
     try {
       return await this.prisma.user.create({
-        data: { ...input, email: normalizeEmail(input.email) },
+        // Prisma crea ambos registros en la misma transacción. La fecha procede del default de PostgreSQL.
+        data: { ...account, email: normalizeEmail(account.email),
+          ...(versionTerminos === undefined ? {} : { aceptacionesNormas: { create: { version: versionTerminos } } }),
+        },
       });
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {

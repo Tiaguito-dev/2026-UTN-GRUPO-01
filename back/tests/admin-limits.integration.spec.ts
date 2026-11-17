@@ -175,8 +175,7 @@ describe.skipIf(!databaseUrl)("Administración remota, estados y bajas reales TA
     const m = await materia(); const c = await cursada(m.id); const co = await comision(c.id);
     const normas = await get("/feedback/normas", authorCookie);
     expect(normas.status).toBe(200);
-    const { version } = await normas.json() as { version: string };
-    const created = await request("POST", `/comisiones/${co.id}/feedback`, authorCookie, { texto: "Comentario anónimo que se conserva", anonimo: true, puntuacion: 4, versionNormas: version });
+    const created = await request("POST", `/comisiones/${co.id}/feedback`, authorCookie, { texto: "Comentario anónimo que se conserva", anonimo: true, puntuacion: 4 });
     expect(created.status).toBe(201); const feedback = await created.json();
     const originalRecord = await prisma.feedback.findUniqueOrThrow({ where: { id: feedback.id } });
     const originalHistory = await prisma.feedbackHistorial.findMany({ where: { feedbackId: feedback.id } });
