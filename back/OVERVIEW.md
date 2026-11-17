@@ -1,10 +1,48 @@
 # Backend
 
+## Visibilidad de experiencias y valoraciones (T2)
+
+La publicación comunitaria requiere `estadoModeracion: APROBADO`, `deletedAt: null` y
+`ocultoAutor`, `ocultoAdministracion` y `ocultoReportes` falsos simultáneamente. El contrato
+vive en `reviews/domain/feedback-visibility.ts`; sus adaptaciones Prisma/SQL se derivan de
+esa misma definición y se consumen desde los repositorios existentes, sin nuevos endpoints.
+
+Listado general, filtros/totales, comisión, feed, rankings y padres de likes/respuestas usan
+esta política. Una experiencia no visible no admite interacciones públicas ni expone su hilo
+o contadores. Ocultar conserva likes/respuestas vigentes para una restitución posterior.
+Detalle e historial del autor, consulta propia por comisión y detalle administrativo mantienen
+sus permisos separados. El rol ADMIN no habilita contenidos privados en consultas comunitarias.
+El DTO comunitario conserva anonimato y omite motivos/causas/identificadores internos del autor.
+
+Altas nuevas se guardan pendientes sin aportar votos públicos. Una edición real de aprobado
+pasa a pendiente, mientras un rechazado permanece rechazado; no se abre ningún endpoint de
+revisión de T3. Creación/edición/baja guardan metadatos históricos y versión; el no-op no escribe.
+
+`ValoracionMateria` mantiene un voto por autor/materia: la última experiencia visible puntuada,
+ordenada por su último snapshot CREACION/EDICION (fallback a createdAt), luego identificadores
+estables. Las decisiones de moderación no alteran ese orden; puntuaciones históricas NULL no
+contribuyen. Sin elegibles se da de baja la proyección, conservando su identidad para reactivar.
+El helper de infraestructura de reviews selecciona y sincroniza la proyección dentro de la misma
+transacción de creación, edición, baja o transición interna, bajo bloqueo del par autor/materia.
+Los cambios de valoración se incluyen en la auditoría del evento que los provocó.
+
+La lectura pública de promedios de materia reutiliza esa selección autoritativa acotada a IDs
+de la página; no confía en una proyección antigua para decidir elegibilidad. Rankings conservan
+su agrupación existente por comisión/docente, usando únicamente experiencias visibles.
+T2 reconcilia datos anteriores mediante una migración adicional; la migración T1 queda intacta.
+El seed de demostración también respeta pendiente y no genera votos a partir de intenciones de alta.
+
+Plan y evidencia: [ficha T2](../docs/tasks/finished/TASK-moderacion-T2-visibilidad.md).
+Validación: 107 pruebas nuevas y global final 1412/1412 en 64 archivos con PostgreSQL real;
+typecheck, lint y build aprobados. La ficha conserva fallos iniciales y sus reejecuciones.
+Sin endpoints de moderación/reportes, cambios de frontend o clasificadores. No desplegar
+T1/T2 aisladamente: los flujos de autor y administración todavía requieren las etapas siguientes.
+
 ## Moderación humana: base de persistencia (T1)
 
-Esta etapa prepara datos y transiciones internas dentro de `reviews`; no habilita endpoints,
-acciones de interfaz ni protección de visibilidad. No desplegar aisladamente: las lecturas y
-valoraciones actuales todavía requieren los cambios de T2, y las acciones HTTP corresponden a T3.
+Esta sección documenta la base de T1: preparó datos y transiciones internas dentro de `reviews`,
+sin endpoints ni acciones de interfaz. La política de lectura y estadísticas se conecta en T2,
+descrita arriba; las acciones HTTP corresponden a T3. No desplegar las etapas aisladamente.
 Plan y decisiones: [tarea incremental](../docs/tasks/in-progress/TASK-moderacion-reportes-incremental.md).
 
 El estado `PENDIENTE`, `APROBADO` o `RECHAZADO` es independiente de `deletedAt` y de las causas

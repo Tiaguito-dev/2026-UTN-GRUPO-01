@@ -2,6 +2,22 @@
 
 ## [Sin publicar]
 
+### Visibilidad pública y estadísticas de experiencias (T2)
+
+- Política central: solo experiencias aprobadas, vigentes y sin causas de ocultamiento aparecen
+  en listados, feed, comisiones, rankings e interacciones. Accesos propios y administrativos
+  conservados; padres ocultos no filtran respuestas ni contadores públicos.
+- Altas pendientes sin votos públicos; editar una aprobada la deja pendiente. ValoracionMateria
+  se sincroniza atómicamente con la última experiencia visible puntuada de cada autor/materia,
+  según último evento de contenido, con respaldo visible o baja cuando no quedan elegibles.
+- Lecturas de materias verifican la fuente visible; seed y migración de reconciliación respetan
+  la política. La migración de T1 queda intacta; validación solo en PostgreSQL desechable.
+- 107 pruebas nuevas y global final 1412/1412 en 64 archivos, sin integraciones omitidas; tipos,
+  lint y build aprobados. Primera global 1410/1412 y correcciones documentadas en
+  [la ficha T2](docs/tasks/finished/TASK-moderacion-T2-visibilidad.md).
+- Sin endpoints nuevos, frontend, reportes, clasificadores ni despliegue. Cierre T2 autorizado
+  en cuatro commits locales, sin push; detenido antes de T3. T1 permanece en `2f619db`.
+
 ### Moderación humana: persistencia y transiciones internas (T1)
 
 - Estados pendiente/aprobado/rechazado, versión y causas independientes de ocultamiento de autor,

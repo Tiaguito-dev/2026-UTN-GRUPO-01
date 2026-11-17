@@ -1,15 +1,19 @@
 # Moderación humana y reportes: plan incremental
 
-Fecha: 2026-11-17. Autorizado ejecutar únicamente T1 y sus pruebas. Sin commits.
+Fecha: 2026-11-17. T1 y T2 completadas; detenerse antes de T3.
+T1 registrada por pedido explícito en commit local `2f619db`, sin push. El cierre local de T2
+en cuatro commits fue autorizado posteriormente; no incluye push ni autorización para T3.
 
 ## Objetivo, alcance y contradicciones comprobadas
 
 Completar en seis etapas el flujo humano y reportes dentro de ReviewsModule, reutilizando
 FeedbackService/repositorio, FeedbackHistorial, AdministracionHistorial y las vistas existentes.
-El objetivo temporal es terminar antes del miércoles 18; esta autorización se detiene tras T1.
+El objetivo temporal es terminar antes del miércoles 18; la autorización actual se detiene tras T2.
 
-El código actual publica por deletedAt, carece de estados y reportes, y actualiza valoraciones
-al crear/editar. Experiencias es comunitario, no un listado propio. ADMIN solo puede retirar.
+El diagnóstico inicial encontró publicación por deletedAt, ausencia de estados y reportes,
+y actualización de valoraciones al crear/editar. T1 y T2 corrigen persistencia y visibilidad.
+Experiencias sigue siendo comunitario, no un listado propio. Las nuevas acciones HTTP de ADMIN
+quedan para T3.
 El clasificador es experimental offline: no está conectado al backend. La baja lógica libera
 el índice autor/comisión; un rechazo debe conservar antecedente incluso tras retirar/recrear.
 Estas diferencias impiden desplegar T1 aisladamente como moderación funcional: T2 debe cerrar
@@ -41,7 +45,7 @@ RECHAZADO no representa ocultamiento temporal. Resolver un reporte no equivale a
   nuevo del servicio HTTP. Los escritores públicos actuales se conectan a esta política en T2/T3;
   hasta entonces no desplegar esta etapa. No se afirma que T1 proteja visibilidad pública.
 
-## T1 — Persistencia y transiciones (única etapa autorizada)
+## T1 — Persistencia y transiciones (completada)
 
 Archivos: back/prisma/schema.prisma y migración nueva; reviews/domain/feedback-moderation.ts;
 reviews/application/errors.ts y ports/feedback.repository.ts; repositorio Prisma existente;
@@ -60,7 +64,7 @@ Pruebas: primero RED de dominio y repositorio; integración SQL real en esquema 
 restricciones, rollback y decisiones concurrentes. Regresión backend, typecheck y lint.
 No declarar integraciones ejecutadas si falta TEST_DATABASE_URL. No aplicar a base productiva.
 
-## T2 — Visibilidad, autorizaciones y estadísticas (requiere autorización posterior)
+## T2 — Visibilidad, autorizaciones y estadísticas (completada)
 
 Archivos/módulos: repositorios reviews (feedback/feed/likes/respuestas/ranking), política de
 visibilidad, prisma-materia.repository y mantenimiento de ValoracionMateria, tests asociados.
@@ -70,6 +74,9 @@ tomado de su última experiencia visible puntuada (último evento de contenido, 
 Sin elegibles, baja de valoración. No dar acceso público al historial ni identidad anónima.
 Aceptación/pruebas: matriz estados x causas x roles x superficies; likes/respuestas ocultos con
 padre; concurrencia y rollback de votos; conservar cursores, snapshots y consultas paginadas.
+Decisiones y ejecución: [ficha T2](../finished/TASK-moderacion-T2-visibilidad.md). Conectar escrituras actuales
+con sincronización de votos y edición aprobado -> pendiente es parte de cerrar los bypass de T2;
+no se adelantan endpoints de T3. No modificar frontend ni la migración T1.
 
 ## T3 — Acciones de autor y administración
 
@@ -135,4 +142,10 @@ riesgos y preparación para T2. Detenerse y esperar autorización; no avanzar si
 T1 implementada y validada; [archivos, migración y evidencia](../finished/TASK-moderacion-T1-persistencia.md).
 53 pruebas específicas aprobadas con PostgreSQL real; tipos, lint y build aprobados. La regresión
 global y sus fallos transitorios/reintentos se documentan sin afirmar una ejecución global verde.
-T2–T6 no ejecutadas y requieren autorización posterior. No se desplegó a datos del usuario.
+T2 implementada: política central de visibilidad, protección de relaciones/agregados y sincronización
+de un voto por autor/materia desde último contenido visible. Migración adicional de reconciliación;
+T1 intacta. 107 pruebas nuevas; global final 1412/1412 en 64 archivos, PostgreSQL real y sin omisiones.
+Primera global 1410/1412 y correcciones explícitas registradas en la ficha, sin cambiar timeouts.
+Tipos, lint y build aprobados. T2 se cierra en cuatro commits locales por autorización expresa.
+T3–T6 requieren autorización posterior.
+No se desplegó a datos del usuario.
