@@ -1,6 +1,7 @@
 import { normalizeEmail } from "../../users/domain/email.js";
 import { InvalidRegistrationInputError } from "./errors.js";
 import { isValidNewPassword, PASSWORD_POLICY_MESSAGE } from "./password-policy.js";
+import { terminosCondiciones, TERMS_ACCEPTANCE_REQUIRED, TERMS_VERSION_CHANGED } from "./terms.js";
 
 export interface RegistrationInput {
   email: string;
@@ -20,7 +21,8 @@ export function validateAccountEmail(value: string): string {
   return email;
 }
 
-export function validateRegistrationInput(input: unknown): RegistrationInput {
+/** Validación de credenciales compartida con la provisión administrativa, que no es consentimiento. */
+export function validateAccountCreationInput(input: unknown): RegistrationInput {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
     throw new InvalidRegistrationInputError("Los datos de registro deben ser un objeto.");
   }
@@ -42,4 +44,24 @@ export function validateRegistrationInput(input: unknown): RegistrationInput {
     throw new InvalidRegistrationInputError(PASSWORD_POLICY_MESSAGE);
   }
   return { email, displayName, password: values.password };
+}
+
+export interface PublicRegistrationInput extends RegistrationInput {
+  aceptaTerminos: true;
+  versionTerminos: string;
+}
+
+export function validateRegistrationInput(input: unknown): PublicRegistrationInput {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new InvalidRegistrationInputError("Los datos de registro deben ser un objeto.");
+  }
+  const values = input as Record<string, unknown>;
+  const fields = ["email", "displayName", "password", "aceptaTerminos", "versionTerminos"];
+  if (Object.keys(values).some((key) => !fields.includes(key))) {
+    throw new InvalidRegistrationInputError("La petición contiene campos no permitidos.");
+  }
+  if (values.aceptaTerminos !== true) throw new InvalidRegistrationInputError(TERMS_ACCEPTANCE_REQUIRED);
+  if (values.versionTerminos !== terminosCondiciones.version) throw new InvalidRegistrationInputError(TERMS_VERSION_CHANGED);
+  const account = validateAccountCreationInput({ email: values.email, displayName: values.displayName, password: values.password });
+  return { ...account, aceptaTerminos: true, versionTerminos: terminosCondiciones.version };
 }

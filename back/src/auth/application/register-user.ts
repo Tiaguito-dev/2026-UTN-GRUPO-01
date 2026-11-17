@@ -21,6 +21,7 @@ export class RegisterUser {
       displayName: values.displayName,
       passwordHash,
       role: "USER",
+      versionTerminos: values.versionTerminos,
     });
     await this.verification.requestForUser(user.id, user.email);
     return toPublicUser(user);

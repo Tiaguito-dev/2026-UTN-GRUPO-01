@@ -15,6 +15,7 @@ import { ChangePassword } from "./application/change-password.js";
 import { InvalidRefreshCredentialError } from "./domain/refresh-errors.js";
 import { SessionActivity } from "./application/session-activity.js";
 import type { SessionStatus } from "./domain/session-lifetime.js";
+import { terminosCondiciones } from "./domain/terms.js";
 
 @Controller("auth")
 export class AuthController {
@@ -30,6 +31,11 @@ export class AuthController {
     @Inject(EmailVerification) private readonly emailVerification: EmailVerification,
     @Inject(SessionActivity) private readonly sessionActivity: SessionActivity,
   ) {}
+
+  @Get("terms")
+  terms() {
+    return terminosCondiciones;
+  }
 
   @Post("verify-email")
   @HttpCode(204)

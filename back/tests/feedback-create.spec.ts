@@ -37,41 +37,26 @@ function fixture(previous: { puntuacion: number; deletedAt: Date | null } | null
 }
 
 describe("Feedback: creación con estrellas sin base de datos", () => {
-  it.each([null, 0, 6, 1.5, "4"])("rechaza puntuación inválida %s aunque se envíen normas vigentes", (puntuacion) => {
+  it.each([null, 0, 6, 1.5, "4"])("rechaza puntuación inválida %s sin depender de aceptación de normas", (puntuacion) => {
     const create = vi.fn();
     const service = new FeedbackService({ create } as unknown as FeedbackRepository);
     expect(() => service.create(randomUUID(), "usuario", {
-      texto: "Bien", anonimo: true, puntuacion, versionNormas: "1",
+      texto: "Bien", anonimo: true, puntuacion,
     })).toThrow();
     expect(create).not.toHaveBeenCalled();
   });
 
-  it("registra normas vigentes antes del comentario, voto y auditoría en la misma transacción", async () => {
+  it("crea comentario, voto y auditoría sin consultar ni registrar aceptaciones", async () => {
     const f = fixture();
-    await f.repository.create(f.comisionId, f.usuarioId, { ...f.input, versionNormas: "1" });
-    expect(f.tx.aceptacionNormas.createMany).toHaveBeenCalledExactlyOnceWith({
-      data: [{ usuarioId: f.usuarioId, version: "1" }], skipDuplicates: true,
-    });
-    expect(f.tx.aceptacionNormas.createMany.mock.invocationCallOrder[0]).toBeLessThan(f.tx.feedback.create.mock.invocationCallOrder[0]!);
-    expect(f.tx.feedback.create.mock.invocationCallOrder[0]).toBeLessThan(f.tx.valoracionMateria.upsert.mock.invocationCallOrder[0]!);
-    expect(f.tx.valoracionMateria.upsert.mock.invocationCallOrder[0]).toBeLessThan(f.tx.administracionHistorial.create.mock.invocationCallOrder[0]!);
+    f.tx.aceptacionNormas.findUnique.mockResolvedValue(null);
+    await f.repository.create(f.comisionId, f.usuarioId, f.input);
+    expect(f.tx.aceptacionNormas.findUnique).not.toHaveBeenCalled();
+    expect(f.tx.aceptacionNormas.createMany).not.toHaveBeenCalled();
     expect(f.tx.feedback.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
       puntuacion: 4, historial: { create: expect.objectContaining({ puntuacion: 4 }) },
     }) }));
-  });
-
-  it("rechaza normas ausentes o antiguas antes de publicar y reutiliza aceptación vigente", async () => {
-    const f = fixture();
-    f.tx.aceptacionNormas.findUnique.mockResolvedValueOnce(null);
-    await expect(f.repository.create(f.comisionId, f.usuarioId, f.input)).rejects.toMatchObject({ httpStatus: 409 });
-    const stale = fixture();
-    await expect(stale.repository.create(stale.comisionId, stale.usuarioId, { ...stale.input, versionNormas: "anterior" })).rejects.toMatchObject({ httpStatus: 409 });
-    expect(stale.tx.feedback.create).not.toHaveBeenCalled();
-    expect(f.tx.feedback.create).not.toHaveBeenCalled();
-    const accepted = fixture();
-    await accepted.repository.create(accepted.comisionId, accepted.usuarioId, accepted.input);
-    expect(accepted.tx.feedback.create).toHaveBeenCalledTimes(1);
-    expect(accepted.tx.aceptacionNormas.createMany).not.toHaveBeenCalled();
+    expect(f.tx.valoracionMateria.upsert).toHaveBeenCalledOnce();
+    expect(f.tx.administracionHistorial.create).toHaveBeenCalledOnce();
   });
 
   it("el servicio transporta estrellas y texto normalizado sin cambiar la identidad", async () => {

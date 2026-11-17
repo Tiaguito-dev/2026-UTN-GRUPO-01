@@ -34,7 +34,7 @@ describe.skipIf(!databaseUrl)("Materias: resumen de estrellas HTTP/PostgreSQL ai
   async function account(role: "USER" | "ADMIN") {
     const email = `rating-read-${randomUUID()}@alu.frlp.utn.edu.ar`;
     const password = "isolated rating read password";
-    const registered = await request("/auth/register", "POST", { email, password, displayName: "Persona de pruebas" });
+    const registered = await request("/auth/register", "POST", { aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email, password, displayName: "Persona de pruebas" });
     expect(registered.status).toBe(201);
     const { id } = await registered.json() as { id: string };
     users.push(id);
