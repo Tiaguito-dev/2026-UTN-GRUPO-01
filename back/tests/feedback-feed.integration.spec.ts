@@ -39,7 +39,8 @@ describe.skipIf(!databaseUrl)("Feed por cursor: HTTP y PostgreSQL", () => {
     const comision = await prisma.comision.create({ data: { cursadaId: cursada.id, carrera: "S", numero: 31 } });
     ids.comisiones.push(comision.id);
     const row = await prisma.feedback.create({ data: {
-      autorId: authorId, comisionId: comision.id, texto: "Snapshot público", anonimo, puntuacion, createdAt,
+      // T2: cursor fixtures represent content already reviewed, not a new pending submission.
+      autorId: authorId, comisionId: comision.id, texto: "Snapshot público", anonimo, puntuacion, createdAt, estadoModeracion: "APROBADO",
       materiaId: materia.id, materiaNombre: materia.nombre, comisionNombre: "S-31", cursadaId: cursada.id,
       anio: 2026, modalidad: "ANUAL", cuatrimestre: null,
     } });

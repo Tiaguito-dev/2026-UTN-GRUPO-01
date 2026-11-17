@@ -13,6 +13,8 @@ import { ComisionNotFoundError } from "../../academic/application/errors.js";
 import { validateFeedbackId } from "../application/feedback-input.js";
 import { transitionFeedbackModeration, type FeedbackModerationActor, type FeedbackModerationCommand, type FeedbackModerationState } from "../domain/feedback-moderation.js";
 
+import { publicFeedbackWhere } from "./prisma-feedback-visibility.js";
+
 type Transaction = Prisma.TransactionClient;
 export const includeAutor = { autor: { select: { displayName: true } }, comision: { select: { carrera: true } } } satisfies Prisma.FeedbackInclude;
 type FeedbackRow = Prisma.FeedbackGetPayload<{ include: typeof includeAutor }>;
@@ -137,7 +139,7 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
   }
 
   listGeneral(viewer: string, pagination: Pagination, filters: FeedbackFilters = {}) {
-    return this.listing({ deletedAt: null,
+    return this.listing({ ...publicFeedbackWhere,
       ...(filters.carrera ? { comision: { carrera: filters.carrera } } : {}),
       ...(filters.materiaId ? { materiaId: filters.materiaId } : {}),
       ...(filters.profesorId ? { profesorId: filters.profesorId } : {}),
@@ -146,7 +148,7 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
 
   async listComision(id: string, viewer: string, pagination: Pagination) {
     await this.comisionExists(id);
-    return this.listing({ comisionId: id, deletedAt: null }, viewer, pagination);
+    return this.listing({ comisionId: id, ...publicFeedbackWhere }, viewer, pagination);
   }
 
   async propio(id: string, viewer: string) {

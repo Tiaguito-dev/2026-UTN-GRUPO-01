@@ -18,6 +18,7 @@ import { ReviewsController } from "../src/reviews/reviews.controller.js";
 import { SharedModule } from "../src/shared/shared.module.js";
 
 const viewer = randomUUID();
+const visibleWhere = { estadoModeracion: "APROBADO", deletedAt: null, ocultoAutor: false, ocultoAdministracion: false, ocultoReportes: false };
 const point = (id: string = randomUUID(), createdAt = "2026-11-12T12:00:00.000Z") => ({ id, createdAt });
 const upper = point();
 const after = point(randomUUID(), "2026-11-11T12:00:00.000Z");
@@ -84,7 +85,7 @@ describe("Feed: consulta por clave y proyección pública", () => {
     f.replies.mockResolvedValueOnce([{ feedbackId: rows[0]!.id, _count: { _all: 3 } }]);
     const result = await f.service.list(viewer, { pageSize: 2 });
     expect(result.items.map(item => item.cantidadRespuestas)).toEqual([3, 0]);
-    expect(f.replies).toHaveBeenCalledExactlyOnceWith({ by: ["feedbackId"], where: { deletedAt: null, feedback: { deletedAt: null }, feedbackId: { in: rows.slice(0, 2).map(item => item.id) } }, _count: { _all: true } });
+    expect(f.replies).toHaveBeenCalledExactlyOnceWith({ by: ["feedbackId"], where: { deletedAt: null, feedback: visibleWhere, feedbackId: { in: rows.slice(0, 2).map(item => item.id) } }, _count: { _all: true } });
     f.replies.mockRejectedValueOnce(new Error("reply aggregation failed"));
     await expect(f.service.list(viewer, {})).rejects.toThrow("reply aggregation failed");
     const empty = setup([]); await empty.service.list(viewer, {}); expect(empty.replies).not.toHaveBeenCalled();
@@ -93,7 +94,7 @@ describe("Feed: consulta por clave y proyección pública", () => {
     const rows = [row("00000000-0000-4000-8000-000000000003"), row("00000000-0000-4000-8000-000000000002"), row("00000000-0000-4000-8000-000000000001")];
     const { service, findMany } = setup(rows);
     const result = await service.list(viewer, { pageSize: 2 });
-    expect(findMany).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ where: { deletedAt: null }, take: 3, orderBy: [{ createdAt: "desc" }, { id: "desc" }] }));
+    expect(findMany).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ where: visibleWhere, take: 3, orderBy: [{ createdAt: "desc" }, { id: "desc" }] }));
     expect(result.items.map(item => item.id)).toEqual(rows.slice(0, 2).map(item => item.id));
     expect(result.hasMore).toBe(true);
     expect(validateFeedbackFeedQuery({ pageSize: 2, cursor: result.nextCursor }).cursor).toEqual({ v: 1, pageSize: 2, upper: point(rows[0]!.id), after: point(rows[1]!.id) });
@@ -105,7 +106,7 @@ describe("Feed: consulta por clave y proyección pública", () => {
     const result = await service.list(viewer, { pageSize: 2, cursor: cursor() });
     expect(result).toEqual({ items: [], hasMore: false, nextCursor: null });
     const query = findMany.mock.calls[0]![0];
-    expect(query.where).toEqual({ deletedAt: null, AND: [
+    expect(query.where).toEqual({ ...visibleWhere, AND: [
       { OR: [{ createdAt: { lt: new Date(upper.createdAt) } }, { createdAt: new Date(upper.createdAt), id: { lte: upper.id } }] },
       { OR: [{ createdAt: { lt: new Date(after.createdAt) } }, { createdAt: new Date(after.createdAt), id: { lt: after.id } }] },
     ] });

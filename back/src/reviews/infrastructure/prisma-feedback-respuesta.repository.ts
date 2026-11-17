@@ -8,6 +8,8 @@ import { FeedbackRespuestaConflictError } from "../application/feedback-respuest
 import { FeedbackNotFoundError } from "../application/errors.js";
 import { ComisionNotFoundError } from "../../academic/application/errors.js";
 import { assertFeedbackOpen, assertFeedbackOwner } from "../application/feedback-policy.js";
+import { isFeedbackVisible, type FeedbackVisibility } from "../domain/feedback-visibility.js";
+import { publicFeedbackWhere } from "./prisma-feedback-visibility.js";
 
 import type { Pagination } from "../../shared/domain/pagination.js";
 
@@ -52,9 +54,9 @@ export class PrismaFeedbackRespuestaRepository implements FeedbackRespuestaRepos
   constructor(private readonly prisma: PrismaService) {}
   async list(id: string, viewer: string, pagination: Pagination) {
     return this.prisma.$transaction(async tx => {
-      const parent = await tx.feedback.findUnique({ where: { id }, select: { deletedAt: true } });
-      if (!parent || parent.deletedAt) throw new FeedbackNotFoundError();
-      const where = { feedbackId: id, deletedAt: null, feedback: { deletedAt: null } };
+      const parent = await tx.feedback.findFirst({ where: { id, ...publicFeedbackWhere }, select: { id: true } });
+      if (!parent) throw new FeedbackNotFoundError();
+      const where = { feedbackId: id, deletedAt: null, feedback: publicFeedbackWhere };
       const [rows, total] = await Promise.all([
         tx.feedbackRespuesta.findMany({ where, include: publicInclude, orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           skip: (pagination.page - 1) * pagination.pageSize, take: pagination.pageSize }),
@@ -78,8 +80,10 @@ export class PrismaFeedbackRespuestaRepository implements FeedbackRespuestaRepos
     return this.prisma.$transaction(async tx => {
       const commissions = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "Comision" WHERE "id"=${original.feedback.comisionId}::uuid FOR UPDATE`;
       if (!commissions.length) throw new FeedbackNotFoundError();
-      const [parent] = await tx.$queryRaw<{ id: string; deletedAt: Date | null; comisionId: string }[]>`SELECT "id", "deletedAt", "comisionId" FROM "Feedback" WHERE "id"=${original.feedbackId}::uuid FOR UPDATE`;
-      if (!parent || parent.deletedAt || parent.comisionId !== original.feedback.comisionId) throw new FeedbackNotFoundError();
+      const [parent] = await tx.$queryRaw<(FeedbackVisibility & { id: string; comisionId: string })[]>`
+        SELECT "id", "deletedAt", "comisionId", "estadoModeracion", "ocultoAutor", "ocultoAdministracion", "ocultoReportes"
+        FROM "Feedback" WHERE "id"=${original.feedbackId}::uuid FOR UPDATE`;
+      if (!parent || !isFeedbackVisible(parent) || parent.comisionId !== original.feedback.comisionId) throw new FeedbackNotFoundError();
       await tx.$queryRaw`SELECT "id" FROM "FeedbackRespuesta" WHERE "id"=${id}::uuid FOR UPDATE`;
       const row = await tx.feedbackRespuesta.findUnique({ where: { id }, include: publicInclude });
       if (!row || row.feedbackId !== parent.id || (input !== undefined && row.deletedAt)) throw new FeedbackNotFoundError();
@@ -125,9 +129,10 @@ export class PrismaFeedbackRespuestaRepository implements FeedbackRespuestaRepos
       const commissions = await tx.$queryRaw<{ id: string }[]>`
         SELECT "id" FROM "Comision" WHERE "id" = ${original.comisionId}::uuid FOR UPDATE`;
       if (!commissions.length) throw new FeedbackNotFoundError();
-      const [parent] = await tx.$queryRaw<{ id: string; comisionId: string; deletedAt: Date | null }[]>`
-        SELECT "id", "comisionId", "deletedAt" FROM "Feedback" WHERE "id" = ${id}::uuid FOR UPDATE`;
-      if (!parent || parent.deletedAt || parent.comisionId !== original.comisionId) throw new FeedbackNotFoundError();
+      const [parent] = await tx.$queryRaw<(FeedbackVisibility & { id: string; comisionId: string })[]>`
+        SELECT "id", "comisionId", "deletedAt", "estadoModeracion", "ocultoAutor", "ocultoAdministracion", "ocultoReportes"
+        FROM "Feedback" WHERE "id" = ${id}::uuid FOR UPDATE`;
+      if (!parent || !isFeedbackVisible(parent) || parent.comisionId !== original.comisionId) throw new FeedbackNotFoundError();
       // Read ancestor validity without acquiring locks in the reverse of academic administration.
       const context = await tx.comision.findFirst({ where: {
         id: parent.comisionId, deletedAt: null, cursada: { deletedAt: null, materia: { deletedAt: null } },

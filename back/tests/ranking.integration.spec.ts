@@ -44,7 +44,8 @@ describe.skipIf(!databaseUrl)("Rankings de comisiones y profesores HTTP/PostgreS
     const comision = await prisma.comision.findUniqueOrThrow({ where: { id: comisionId } });
     // The snapshot CHECK requires name and role whenever the vote names a professor.
     const docente = profesorId ? await prisma.comisionProfesor.findUniqueOrThrow({ where: { comisionId_profesorId: { comisionId, profesorId } }, include: { profesor: true } }) : null;
-    await prisma.feedback.create({ data: { autorId: voters[voter]!, comisionId, profesorId, texto: "Experiencia", puntuacion, anonimo: false,
+    // T2: rankings fixtures explicitly represent reviewed experiences.
+    await prisma.feedback.create({ data: { autorId: voters[voter]!, comisionId, profesorId, texto: "Experiencia", puntuacion, anonimo: false, estadoModeracion: "APROBADO",
       comisionNombre: `${comision.carrera}-${comision.numero}`, materiaId, materiaNombre: "Ranking", cursadaId, anio: 2026, deletedAt,
       profesorNombre: docente?.profesor.nombreCompleto ?? null, profesorCargo: docente?.cargo ?? null } });
   }

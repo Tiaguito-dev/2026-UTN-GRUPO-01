@@ -11,7 +11,8 @@ const comisionId = randomUUID();
 
 function setup(initial: { deletedAt: Date | null } | null = null) {
   let like = initial;
-  const parent = { id, autorId: author, comisionId, deletedAt: null as Date | null };
+  const parent = { id, autorId: author, comisionId, deletedAt: null as Date | null,
+    estadoModeracion: "APROBADO", ocultoAutor: false, ocultoAdministracion: false, ocultoReportes: false };
   const order: string[] = [];
   const query = vi.fn().mockImplementation(async (sql: TemplateStringsArray) => {
     const text = sql.join("?");

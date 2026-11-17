@@ -35,7 +35,8 @@ describe("Respuestas: validación", () => {
 
 function setup() {
   const order: string[] = [];
-  const parent = { id, comisionId, deletedAt: null as Date | null };
+  const parent = { id, comisionId, deletedAt: null as Date | null,
+    estadoModeracion: "APROBADO", ocultoAutor: false, ocultoAdministracion: false, ocultoReportes: false };
   const context = { activa: true };
   const now = new Date();
   const row = {

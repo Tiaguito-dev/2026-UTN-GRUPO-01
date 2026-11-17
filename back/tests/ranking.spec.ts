@@ -147,10 +147,14 @@ describe("Ranking: consulta PostgreSQL", () => {
     const repository = new PrismaRankingRepository({ $queryRaw: queryRaw } as unknown as PrismaService);
     const [row] = await repository.filasValoracion();
     expect(row).toMatchObject({ comisionId: "a", suma: 9, cantidad: 2 });
-    const sql = queryRaw.mock.calls[0]![0].text;
-    for (const condition of ['f."deletedAt" IS NULL', 'f."puntuacion" IS NOT NULL', 'c."deletedAt" IS NULL', 'cu."deletedAt" IS NULL', 'm."deletedAt" IS NULL', 'p."deletedAt" IS NULL']) {
+    const query = queryRaw.mock.calls[0]![0];
+    const sql = query.text;
+    // T2: visibility uses the central policy's quoted identifier and bound state/causes.
+    for (const condition of ['"f"."deletedAt" IS NULL', 'f."puntuacion" IS NOT NULL', 'c."deletedAt" IS NULL', 'cu."deletedAt" IS NULL', 'm."deletedAt" IS NULL', 'p."deletedAt" IS NULL',
+      '"f"."estadoModeracion" = $1::"FeedbackEstadoModeracion"', '"f"."ocultoAutor" = $2', '"f"."ocultoAdministracion" = $3', '"f"."ocultoReportes" = $4']) {
       expect(sql).toContain(condition);
     }
+    expect(query.values).toEqual(["APROBADO", false, false, false]);
     expect(sql).not.toContain("autorId");
   });
 });

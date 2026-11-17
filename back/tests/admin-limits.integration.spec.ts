@@ -178,6 +178,8 @@ describe.skipIf(!databaseUrl)("Administración remota, estados y bajas reales TA
     const { version } = await normas.json() as { version: string };
     const created = await request("POST", `/comisiones/${co.id}/feedback`, authorCookie, { texto: "Comentario anónimo que se conserva", anonimo: true, puntuacion: 4, versionNormas: version });
     expect(created.status).toBe(201); const feedback = await created.json();
+    // T2: this preservation test needs an already-reviewed publication before toggling account access.
+    await prisma.feedback.update({ where: { id: feedback.id }, data: { estadoModeracion: "APROBADO" } });
     const originalRecord = await prisma.feedback.findUniqueOrThrow({ where: { id: feedback.id } });
     const originalHistory = await prisma.feedbackHistorial.findMany({ where: { feedbackId: feedback.id } });
     expect(originalHistory).toHaveLength(1);
@@ -255,7 +257,8 @@ describe.skipIf(!databaseUrl)("Administración remota, estados y bajas reales TA
     const m = await materia(); const c = await cursada(m.id); const co = await comision(c.id); const p = await profesor();
     await prisma.comisionProfesor.create({ data: { comisionId: co.id, profesorId: p.id, cargo: "TITULAR" } });
     const author = await account();
-    const feedback = await prisma.feedback.create({ data: { autorId: author.id, comisionId: co.id, profesorId: p.id, texto: "El comentario histórico se conserva.", anonimo: true, comisionNombre: "S-41", materiaId: m.id, materiaNombre: m.nombre, cursadaId: c.id, anio: 2026, cuatrimestre: "ANUAL", modalidad: "ANUAL", profesorNombre: p.nombreCompleto, profesorCargo: "TITULAR" } });
+    // T2: migrated historical publications are approved; new submissions remain pending.
+    const feedback = await prisma.feedback.create({ data: { autorId: author.id, comisionId: co.id, profesorId: p.id, texto: "El comentario histórico se conserva.", anonimo: true, estadoModeracion: "APROBADO", comisionNombre: "S-41", materiaId: m.id, materiaNombre: m.nombre, cursadaId: c.id, anio: 2026, cuatrimestre: "ANUAL", modalidad: "ANUAL", profesorNombre: p.nombreCompleto, profesorCargo: "TITULAR" } });
     const snapshot = await prisma.feedbackHistorial.create({ data: { feedbackId: feedback.id, accion: "CREACION", texto: feedback.texto, anonimo: feedback.anonimo } });
     for (const path of [`/materias/${m.id}`, `/cursadas/${c.id}`, `/profesores/${p.id}`]) expect((await request("DELETE", path)).status).toBe(409);
     expect((await request("DELETE", `/comisiones/${co.id}`)).status).toBe(204);
