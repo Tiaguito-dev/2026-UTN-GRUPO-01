@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### Publicación directa y revisión con dos denunciantes
+
+- Las altas se publican inmediatamente y editar una aprobada conserva su estado y causas de ocultamiento. Los rechazos existentes mantienen corrección y solicitud explícita de revisión.
+- Dos personas distintas con reportes abiertos activan ocultamiento preventivo; duplicados no suman denunciantes. Restituir exige menos de dos y una decisión administrativa justificada; cerrar un reporte no republica automáticamente.
+- Mensajes de publicación y edición según la respuesta real, confirmaciones seguras sin JSON y controles administrativos coherentes con el nuevo umbral.
+- T6 e Inicio validados por el usuario; aprobación y restitución administrativas comprobadas manualmente por el usuario. Sin cambios retrospectivos de datos ni ejecución de navegador en este ajuste.
+
 ### Inicio: presentación del feed y selección para comentar
 
 - Acciones Actualizar y Agregar comentario agrupadas; variante local de tarjetas con likes, respuestas y comisión en su pie, conservando anonimato e interacciones.

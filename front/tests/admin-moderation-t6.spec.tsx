@@ -97,10 +97,10 @@ describe("T6 decisiones administrativas", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  it.each([2, 3])("restitución preventiva con %s denunciantes abiertos respeta el umbral", count => {
+  it.each([0, 1, 2, 3])("restitución preventiva con %s denunciantes abiertos respeta el umbral", count => {
     render(<AdminModerationActions id="f1" record={{ ...state, ocultoReportes: true }} denunciantesAbiertos={count} onRefresh={vi.fn()} />);
-    expect(Boolean(screen.queryByRole("button", { name: "Restituir ocultamiento preventivo" }))).toBe(count < 3);
-    if (count >= 3) expect(screen.getByText(/menos de tres denunciantes distintos/)).toBeTruthy();
+    expect(Boolean(screen.queryByRole("button", { name: "Restituir ocultamiento preventivo" }))).toBe(count < 2);
+    if (count >= 2) expect(screen.getByText(/menos de dos denunciantes distintos/)).toBeTruthy();
   });
 
   it.each(["PENDIENTE", "RECHAZADO"])("puede levantar exclusivamente causa administrativa incluso en %s", status => {
@@ -144,7 +144,7 @@ describe("T6 detalle administrativo de reportes", () => {
     await userEvent.click(screen.getByRole("button", { name: "Desestimar reporte" }));
     const dialog = screen.getByRole("dialog", { name: "Desestimar reporte" });
     await userEvent.type(within(dialog).getByLabelText("Justificación obligatoria"), "No corresponde a la evidencia");
-    vi.mocked(obtenerReporteFeedback).mockResolvedValue({ ...data, denunciantesAbiertos: 2, reporte: { ...data.reporte, estado: "DESESTIMADO", justificacion: "No corresponde a la evidencia", resolvedAt: date } });
+    vi.mocked(obtenerReporteFeedback).mockResolvedValue({ ...data, denunciantesAbiertos: 1, reporte: { ...data.reporte, estado: "DESESTIMADO", justificacion: "No corresponde a la evidencia", resolvedAt: date } });
     await userEvent.click(within(dialog).getByRole("button", { name: "Confirmar decisión" }));
     await screen.findByText(/El reporte se cerró correctamente/);
     expect(resolverReporteFeedback).toHaveBeenCalledExactlyOnceWith("r1", { estado: "DESESTIMADO", motivo: "No corresponde a la evidencia" });

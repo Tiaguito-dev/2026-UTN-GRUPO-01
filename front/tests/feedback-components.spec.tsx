@@ -99,6 +99,19 @@ describe("Formulario de feedback", () => {
   });
 
   // El consentimiento ahora pertenece al registro, incluso para cuentas sin aceptación histórica.
+  it.each(["APROBADO", "PENDIENTE"] as const)("el aviso de alta refleja el estado real %s", async estadoModeracion => {
+    vi.mocked(crearFeedback).mockResolvedValue({ ...feedback, estadoModeracion });
+    render(<FeedbackForm comisionId="c1" />);
+    await userEvent.type(await screen.findByRole("textbox", { name: "Tu experiencia" }), "Una experiencia guardada");
+    await userEvent.click(screen.getByRole("radio", { name: "4 estrellas" }));
+    await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+    const target = new URL(String(push.mock.calls[0][0]), "http://local");
+    expect(target.pathname).toBe("/home");
+    expect(target.searchParams.get("successMessage")).toBe(estadoModeracion === "APROBADO"
+      ? "El comentario se publicó correctamente."
+      : "La experiencia se guardó correctamente. Tu comentario está pendiente de revisión por el equipo administrativo.");
+  });
   it("publica sin consultar normas ni pedir consentimiento en el comentario", async () => {
     vi.mocked(obtenerNormasConvivencia).mockResolvedValue({ version: "1", aceptada: false, reglas: ["Respeto"] });
     render(<FeedbackForm comisionId="c1" />);
@@ -307,6 +320,7 @@ describe("Formulario de feedback", () => {
   });
   it("corrige un rechazo desde el contexto histórico sin exigir que la comisión continúe disponible", async () => {
     vi.mocked(obtenerFeedback).mockResolvedValue({ ...feedback, estadoModeracion: "RECHAZADO", motivoRechazo: "Revisá el contexto académico" });
+    vi.mocked(actualizarFeedback).mockResolvedValue({ ...feedback, estadoModeracion: "RECHAZADO", motivoRechazo: "Revisá el contexto académico", versionModeracion: 2 });
     vi.mocked(obtenerComision).mockRejectedValue(new HttpError(404, "Contexto eliminado"));
     render(<FeedbackForm feedbackId="f1" />);
     const text = await screen.findByRole("textbox", { name: "Tu experiencia" });

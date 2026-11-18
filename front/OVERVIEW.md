@@ -54,7 +54,7 @@ Mostrar levanta exclusivamente la causa del autor; las restricciones restantes s
 El historial distingue creación, edición, decisiones, ocultamientos y restituciones.
 
 `FeedbackForm` envía solo diferencias reales y la versión vigente en PATCH. Crear vuelve
-a `/home` con confirmación de guardado pendiente. Editar vuelve al detalle; un rechazado
+a `/home` con confirmación de publicación inmediata. El aviso se elige según el estado real de la respuesta; un pendiente histórico o de nueva revisión mantiene su explicación. Editar una aprobada conserva la aprobación y vuelve al detalle; un rechazado
 conserva su estado y motivo hasta Solicitar nueva revisión, acción explícita del detalle.
 Las correcciones rechazadas usan el contexto histórico aunque la comisión esté cerrada.
 Un conflicto recarga la versión y conserva el borrador; exige revisar y confirmar antes
@@ -64,7 +64,7 @@ de intentar guardar sobre los datos actuales. No hay integración de clasificado
 de hasta 1000 caracteres. `ExperienceCard` lo ofrece en lecturas comunitarias ajenas,
 incluidos feed, comisión y perfil docente. Bloquea doble envío y conserva datos ante
 fallos; 409 y 429 muestran pasos para continuar. Tras reportar se recarga la lectura
-comunitaria, evitando conservar una publicación oculta por el tercer denunciante.
+comunitaria, evitando conservar una publicación oculta por el segundo denunciante distinto con reporte abierto.
 No se muestran datos de otros reportes en estas superficies.
 
 La administración mantiene `/home/admin/experiencias`, con Moderación y Reportes.
@@ -73,7 +73,7 @@ con páginas de nueve. El detalle administrativo existente agrega decisiones jus
 y control de versión. El detalle de reporte usa `reporteId` en la misma página, muestra
 snapshot exacto, contexto, estado actual, denunciante limitado a id/displayName y
 resoluciones de tres. Resolver/desestimar no restituye; RESTITUCION_REPORTES exige
-menos de tres denunciantes abiertos y preserva otras causas. Los retornos conservan
+menos de dos denunciantes distintos con reportes abiertos y preserva otras causas. Los retornos conservan
 filtros, página y reporte seleccionado al navegar entre detalles y comisiones.
 
 Servicios y esquemas: `services/feedback.ts`, `feedback-schemas.ts`,

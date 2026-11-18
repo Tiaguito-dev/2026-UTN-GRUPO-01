@@ -16,7 +16,7 @@ describe("mensajes seguros de experiencias y reportes", () => {
     ["Corrija el contenido rechazado antes de solicitar una nueva revisión.", "corrección real"],
     ["Ya reportó esta versión con otros datos. Consulte el reporte existente.", "otros datos"],
     ["El reporte ya fue cerrado. Actualice la información.", "ya fue cerrado"],
-    ["Resuelva los reportes abiertos antes de restituir la visibilidad preventiva.", "menos de tres"],
+    ["Resuelva los reportes abiertos antes de restituir la visibilidad preventiva.", "menos de dos"],
   ])("traduce conflicto de negocio conocido: %s", (server, expected) => {
     expect(mensajeErrorModeracion(new HttpError(409, server))).toContain(expected);
     expect(mensajeErrorModeracion(new HttpError(409, `${server} ${unsafe}`))).not.toContain("SESSION_SECRET");

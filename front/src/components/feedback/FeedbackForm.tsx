@@ -126,8 +126,9 @@ function FeedbackEditor({ comision, original: initialOriginal, cancelHref }: { c
         if (Object.keys(changes).length === 0) { setSuccess("No hay cambios para guardar."); return; }
         if (currentVersion === undefined) throw new Error("Lo sentimos. No pudimos verificar la versión del comentario. Volvé al detalle y reintentá.");
         if (conflict) throw new Error("Revisá el conflicto antes de guardar tus cambios sobre la versión actual.");
+        let saved: Feedback;
         try {
-          await actualizarFeedback(original.id, { ...changes, versionEsperada: currentVersion });
+          saved = await actualizarFeedback(original.id, { ...changes, versionEsperada: currentVersion });
         } catch (failure) {
           if (failure instanceof HttpError && failure.status === 409) {
             let current: Feedback;
@@ -138,10 +139,11 @@ function FeedbackEditor({ comision, original: initialOriginal, cancelHref }: { c
           throw new Error(mensajeErrorModeracion(failure));
         }
         discardDraft();
-        router.push(feedbackSuccessHref(cancelHref, original.estadoModeracion === "RECHAZADO" ? "Los cambios se guardaron. La experiencia continúa rechazada hasta que solicites una nueva revisión." : "El comentario se actualizó correctamente. Está pendiente de revisión por el equipo administrativo."));
+        router.push(feedbackSuccessHref(cancelHref, saved.estadoModeracion === "RECHAZADO" ? "Los cambios se guardaron. La experiencia continúa rechazada hasta que solicites una nueva revisión." : saved.estadoModeracion === "PENDIENTE" ? "El comentario se actualizó correctamente. Está pendiente de revisión por el equipo administrativo." : "El comentario se actualizó correctamente."));
       } else {
+        let saved: Feedback;
         try {
-          await crearFeedback(comision.id, {
+          saved = await crearFeedback(comision.id, {
             texto: text, anonimo: anonymous, puntuacion: Number(values.puntuacion),
             ...(comision.profesores.length === 1 ? {} : { profesorId: values.profesorId || null }),
           });
@@ -149,7 +151,7 @@ function FeedbackEditor({ comision, original: initialOriginal, cancelHref }: { c
           throw new Error(mensajeErrorModeracion(failure));
         }
         discardDraft();
-        router.push(feedbackSuccessHref("/home", "La experiencia se guardó correctamente. Tu comentario está pendiente de revisión por el equipo administrativo."));
+        router.push(feedbackSuccessHref("/home", saved.estadoModeracion === "PENDIENTE" ? "La experiencia se guardó correctamente. Tu comentario está pendiente de revisión por el equipo administrativo." : "El comentario se publicó correctamente."));
       }
     },
   });

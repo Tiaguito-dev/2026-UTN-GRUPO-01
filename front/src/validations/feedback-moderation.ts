@@ -30,7 +30,7 @@ const conflictosConocidos = new Map([
   ["Corrija el contenido rechazado antes de solicitar una nueva revisión.", "Guardá una corrección real del texto rechazado antes de solicitar una nueva revisión."],
   ["Ya reportó esta versión con otros datos. Consulte el reporte existente.", "Ya reportaste esta versión con otros datos. El reporte anterior se conserva; no hace falta enviarlo nuevamente."],
   ["El reporte ya fue cerrado. Actualice la información.", "El reporte ya fue cerrado. Actualizá la información para consultar su resolución."],
-  ["Resuelva los reportes abiertos antes de restituir la visibilidad preventiva.", "Resolvé o desestimá los reportes necesarios hasta que haya menos de tres denunciantes distintos con reportes abiertos. Luego podrás restituir el ocultamiento preventivo."],
+  ["Resuelva los reportes abiertos antes de restituir la visibilidad preventiva.", "Resolvé o desestimá los reportes necesarios hasta que haya menos de dos denunciantes distintos con reportes abiertos. Luego podrás restituir el ocultamiento preventivo."],
 ]);
 export function mensajeErrorModeracion(error: unknown, fallback = "Lo sentimos. No pudimos completar la solicitud, intentá nuevamente.") {
   if (!(error instanceof HttpError)) return fallback;

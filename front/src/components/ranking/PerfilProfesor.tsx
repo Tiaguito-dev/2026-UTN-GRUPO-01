@@ -64,7 +64,7 @@ export function PerfilProfesor({ profesorId, admin = false }: { profesorId: stri
       </section>
       <section className={styles.section} aria-labelledby={comentariosId}>
         <h2 id={comentariosId} className={styles.sectionTitle}>Comentarios</h2>
-        {reported ? <Notice tone="success">El reporte se envió correctamente. El equipo administrativo lo revisará.</Notice> : null}
+        {reported ? <Notice tone="success">El reporte se envió correctamente. La revisión administrativa se activa con reportes abiertos de dos personas distintas.</Notice> : null}
         <PaginatedListView resetKey={`comentarios-profesor:${profesorId}:${reported}`} page={page} onPageChange={setPage} loadingMessage="Cargando comentarios…"
           errorMessage="Lo sentimos. No pudimos recuperar los comentarios."
           fetchPage={(next) => listarFeedback({ page: next, pageSize: 9, profesorId })}

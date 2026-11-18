@@ -139,6 +139,7 @@ export function feedbackSuccessHref(href: string, message: string): string {
 /** Navigation notices accept only application copy, never serialized payloads from a URL. */
 export function feedbackSuccessMessage(value: unknown): string | undefined {
   const messages = [
+    "El comentario se publicó correctamente.",
     "El comentario se eliminó correctamente.",
     "El comentario se actualizó correctamente.",
     "El comentario se actualizó correctamente. Está pendiente de revisión por el equipo administrativo.",

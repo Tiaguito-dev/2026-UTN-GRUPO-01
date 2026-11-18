@@ -1,5 +1,16 @@
 # Moderación humana y reportes: plan incremental
 
+## Cambio de política posterior a T6
+
+El usuario validó T6 e Inicio y autorizó commits locales. La política vigente se documenta en
+`TASK-publicacion-reportes-dos.md`: altas publicadas directamente, edición aprobada conserva
+su estado y ocultamiento preventivo al segundo denunciante distinto con reportes abiertos.
+Restituir requiere menos de dos denunciantes abiertos y decisión explícita justificada.
+Las secciones T1–T6 siguientes conservan el registro histórico del umbral anterior de tres y
+de la aprobación previa. No se modifican retrospectivamente estados existentes.
+La comprobación manual del usuario confirmó desaparición del feed con el umbral anterior;
+aprobación y restauración administrativas fueron comprobadas manualmente por el usuario.
+
 Fecha: 2026-11-17. T1–T5 completadas y validadas. T6 autorizada posteriormente y en validación.
 T1 registrada por pedido explícito en commit local `2f619db`, sin push. El cierre local de T2
 en cuatro commits fue autorizado posteriormente; no incluye push ni autorización para T3.

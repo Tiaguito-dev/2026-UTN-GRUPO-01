@@ -39,7 +39,7 @@ export function FeedPrincipal() {
         <button className="button" type="button" onClick={() => setSelecting(true)}><Plus size={17} aria-hidden="true" />Agregar comentario</button>
       </div>
     </header>
-    {reportNotice ? <Notice tone="success">El reporte se envió correctamente. El equipo administrativo lo revisará.</Notice> : null}
+    {reportNotice ? <Notice tone="success">El reporte se envió correctamente. La revisión administrativa se activa con reportes abiertos de dos personas distintas.</Notice> : null}
     {hideNotice ? <Notice tone="success">{hideNotice}</Notice> : null}
     {actionError ? <Notice tone="error">{actionError}</Notice> : null}
     <ul className={styles.list} aria-busy={feed.loading}>{feed.items.map(item => <li key={item.id}>

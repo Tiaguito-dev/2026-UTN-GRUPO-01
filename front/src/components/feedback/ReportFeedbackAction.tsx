@@ -35,7 +35,7 @@ export function ReportFeedbackAction({ feedbackId, onReported }: { feedbackId: s
     } finally { pending.current = false; setBusy(false); }
   }
   return <div>
-    {success ? <Notice tone="success">El reporte se envió correctamente. El equipo administrativo lo revisará.</Notice> : <button className="button button-secondary" type="button" disabled={unavailable} onClick={() => setOpen(true)}><Flag size={16} aria-hidden="true" />Reportar</button>}
+    {success ? <Notice tone="success">El reporte se envió correctamente. La revisión administrativa se activa con reportes abiertos de dos personas distintas.</Notice> : <button className="button button-secondary" type="button" disabled={unavailable} onClick={() => setOpen(true)}><Flag size={16} aria-hidden="true" />Reportar</button>}
     <Dialog open={open} onClose={() => setOpen(false)} title="Reportar experiencia" description="Indicá el motivo. Tu identidad solo estará disponible para el equipo administrativo autorizado." busy={busy}>
       <form onSubmit={submit} className={styles.stack} noValidate aria-busy={busy}>
         {error ? <Notice tone="error" focusOnShow>{error}</Notice> : null}

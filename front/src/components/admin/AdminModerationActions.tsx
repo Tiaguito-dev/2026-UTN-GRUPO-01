@@ -19,7 +19,7 @@ const impacts: Record<AccionModeracionAdmin, string> = {
   RECHAZO: "La experiencia dejará de ser pública. El autor verá el motivo y podrá corregirla para solicitar otra revisión.",
   OCULTAMIENTO_ADMIN: "La experiencia dejará de ser pública inmediatamente, conservando su estado de aprobación.",
   RESTITUCION_ADMIN: "Se levantará exclusivamente el ocultamiento administrativo. Las demás restricciones permanecerán vigentes.",
-  RESTITUCION_REPORTES: "Se levantará exclusivamente el ocultamiento por reportes. Requiere menos de tres denunciantes distintos con reportes abiertos; las demás restricciones permanecerán vigentes.",
+  RESTITUCION_REPORTES: "Se levantará exclusivamente el ocultamiento por reportes. Requiere menos de dos denunciantes distintos con reportes abiertos; las demás restricciones permanecerán vigentes.",
 };
 
 export function AdminModerationActions({ id, record, own = false, denunciantesAbiertos, onRefresh }: {
@@ -34,12 +34,12 @@ export function AdminModerationActions({ id, record, own = false, denunciantesAb
     ...(record.estadoModeracion === "PENDIENTE" && !own ? ["APROBACION" as const] : []),
     ...(approved || record.estadoModeracion === "PENDIENTE" ? ["RECHAZO" as const] : []),
     ...(record.ocultoAdministracion ? ["RESTITUCION_ADMIN" as const] : approved ? ["OCULTAMIENTO_ADMIN" as const] : []),
-    ...(record.ocultoReportes && denunciantesAbiertos !== undefined && denunciantesAbiertos < 3 ? ["RESTITUCION_REPORTES" as const] : []),
+    ...(record.ocultoReportes && denunciantesAbiertos !== undefined && denunciantesAbiertos < 2 ? ["RESTITUCION_REPORTES" as const] : []),
   ];
   return <div className={styles.actions}>
     {notice ? <Notice tone="success">{notice}</Notice> : null}
     {actions.map(value => <button key={value} className="button button-secondary" type="button" onClick={() => { setNotice(""); setAction(value); }}>{labels[value]}</button>)}
-    {record.ocultoReportes && denunciantesAbiertos !== undefined && denunciantesAbiertos >= 3 ? <p>Resolvé o desestimá reportes hasta que haya menos de tres denunciantes distintos con reportes abiertos antes de restituir.</p> : null}
+    {record.ocultoReportes && denunciantesAbiertos !== undefined && denunciantesAbiertos >= 2 ? <p>Resolvé o desestimá reportes hasta que haya menos de dos denunciantes distintos con reportes abiertos antes de restituir.</p> : null}
     {action ? <AdminDecisionDialog title={labels[action]} impact={impacts[action]} onClose={() => setAction(null)} onConfirm={async motivo => {
       try { await moderarFeedback(id, { accion: action, versionEsperada: version, motivo }); }
       catch (error) { if (error instanceof HttpError && error.status === 409) onRefresh(true); throw error; }
