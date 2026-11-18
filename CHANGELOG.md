@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### Inicio: presentación del feed y selección para comentar
+
+- Acciones Actualizar y Agregar comentario agrupadas; variante local de tarjetas con likes, respuestas y comisión en su pie, conservando anonimato e interacciones.
+- Ocultamiento propio confirmado desde Inicio con versión obtenida del detalle autorizado, avisos seguros y actualización del feed. Restauración exclusivamente desde Mis experiencias.
+- Selector de materia, cursada y comisión con pasos explícitos, radios, búsqueda, paginación y navegación fija; estilos acotados sin cambios de primitivas.
+- Pruebas automatizadas y stack Docker registrados en `docs/tasks/finished/TASK-inicio-ui.md`: 164 pruebas relevantes aprobadas, typecheck, lint y build satisfactorios. Validación visual manual pendiente por decisión del usuario; no se ejecutó navegador.
+
 ### Integración local de desarrollo
 
 - Incorporados los cambios de identidad visual por rol de `origin/desarrollo` (`1133767`) en `feature/clasificador-comentarios`, conservando por separado el trabajo local de T6. Conflictos de documentación resueltos preservando ambas secciones.
@@ -11,6 +18,34 @@
 - ADMIN recibe encabezado y menú bordó oscuro, identificación “Administración” y tokens compartidos para páginas, perfil, formularios y diálogos. USER conserva su identidad actual; la sesión sin confirmar utiliza un estado neutral y el logout restaura el tema público.
 - El tema deriva del rol autenticado y no altera autorización ni navegación. Se corrige el nombre accesible de los selectores administrativos detectado por axe.
 - Validación: 1039 pruebas frontend, typecheck, lint y build aprobados; 8 casos E2E únicos con autenticación real y auditoría visual/accesible. La suite visual final compara 28 referencias sin actualizarlas. Sin cambios de backend ni migraciones. Evidencia en [la tarea](docs/tasks/finished/TASK-HU-C06-tema-administrativo.md).
+
+### Integración frontend de moderación y reportes (T6)
+
+- Corrección durante validación manual: ambos proxies enrutan `/rankings/` al
+  backend; el smoke operativo cubre rankings y perfiles (24 comprobaciones).
+  Stack oficial restablecido sobre la base de desarrollo original, con respaldo,
+  migraciones e integridad de registros verificados; sin seeds ni restaurar bajas.
+  Ranking y experiencia original comprobados por HTTP y navegador contra Docker.
+
+- Mis experiencias con paginación de nueve, estados privados y causas de ocultamiento
+  independientes. Ocultar/mostrar y solicitar nueva revisión desde el detalle propio,
+  con versión, confirmación, notificaciones y recarga tras conflictos.
+- Alta guardada pendiente hacia Inicio; edición parcial con versión hacia detalle,
+  correcciones rechazadas sin publicación automática y borradores conservados ante errores.
+- Reportes de experiencias ajenas desde las tarjetas existentes: motivo obligatorio,
+  descripción opcional, prevención de doble envío y actualización de la comunidad.
+- Moderación y Reportes en la administración existente: filtros, evidencia histórica,
+  identidad segura autorizada, resoluciones justificadas y restituciones independientes.
+  Retornos mantienen filtros/página; historial de tres eventos con etiquetas legibles.
+- Mensajes de T6 revisados para evitar respuestas técnicas o JSON en avisos; identidades
+  de denunciantes limitadas al detalle administrativo autorizado. Confirmación pendiente
+  visible en Inicio. Sin cambios de backend, autenticación, primitivas ni dependencias.
+- Validación final: frontend 1084/1084, backend 1640/1640 con PostgreSQL/SMTP reales,
+  moderación E2E 4/4 en dos ejecuciones y registro integrado 1/1. Tipos, lint, builds,
+  axe/responsive y diffcheck aprobados. Evidencia y reejecuciones en la ficha T6
+  de `docs/tasks/finished/`; stack Docker levantado para aceptación manual.
+  Validación productiva y aprobación de unión pendientes; sin commits, push,
+  despliegue, IA ni modificaciones de M1.3.
 
 ### Términos y condiciones en el registro
 

@@ -1,5 +1,19 @@
 # Frontend
 
+## Presentación de Inicio
+
+`FeedPrincipal` agrupa Actualizar y Agregar comentario. Su variante `inicio` de
+`ExperienceCard` recibe el pie de interacciones de `FeedbackInteracciones` mediante
+composición; los otros usos mantienen su presentación. `HideFeedExperienceAction`
+consulta el detalle propio para obtener `versionModeracion`, confirma mediante
+`Dialog` y consume `POST /feedback/:id/ocultar` con `versionEsperada`. Éxito y
+conflictos actualizan el feed y conservan avisos seguros; no hay restauración pública.
+
+`SeleccionComisionComentario` conserva los servicios de catálogo y la comprobación
+final de comisión. Presenta Materia/Cursada/Comisión con selección explícita,
+Siguiente/Anterior, búsqueda y páginas de nueve opciones. Sus estilos y los del feed
+están acotados a CSS Modules, sin modificar layout ni primitivas compartidas.
+
 ## Identidad visual según el rol (HU-C06)
 
 `AuthProvider` envuelve sus hijos y `SessionIdleMonitor` con `auth/RoleTheme`: un contenedor
@@ -24,6 +38,54 @@ se conservan. La navegación y los permisos siguen a cargo de `sectionsForRole`,
 En móvil se mantiene el sidebar responsive existente; la marca y la etiqueta administrativa
 se apilan y `--header-h` pasa a `6.5rem` solo para ADMIN bajo 600px. El encabezado USER conserva
 su estructura y medidas previas.
+
+## Moderación humana y reportes (T6)
+
+La página `/home/experiencias` conserva la comunidad e incorpora Mis experiencias
+(`seccion=propias`). La consulta privada `GET /feedback/propios` pagina de nueve,
+incluye pendientes, rechazadas y aprobadas ocultas, y conserva el retorno al listado.
+`FeedbackModerationStatus` muestra el estado y cada causa independiente: autor,
+administración y reportes. Una aprobación con restricciones nunca se presenta como publicada.
+
+`FeedbackDetail` conserva edición, retiro e historial privado de tres eventos. Suma
+ocultar/mostrar con EyeOff/Eye y confirmación en Dialog. Las acciones envían
+`versionEsperada`, vuelven a consultar el detalle y notifican resultados mediante Notice.
+Mostrar levanta exclusivamente la causa del autor; las restricciones restantes se explican.
+El historial distingue creación, edición, decisiones, ocultamientos y restituciones.
+
+`FeedbackForm` envía solo diferencias reales y la versión vigente en PATCH. Crear vuelve
+a `/home` con confirmación de guardado pendiente. Editar vuelve al detalle; un rechazado
+conserva su estado y motivo hasta Solicitar nueva revisión, acción explícita del detalle.
+Las correcciones rechazadas usan el contexto histórico aunque la comisión esté cerrada.
+Un conflicto recarga la versión y conserva el borrador; exige revisar y confirmar antes
+de intentar guardar sobre los datos actuales. No hay integración de clasificadores.
+
+`ReportFeedbackAction` reutiliza Dialog para motivo obligatorio y descripción opcional
+de hasta 1000 caracteres. `ExperienceCard` lo ofrece en lecturas comunitarias ajenas,
+incluidos feed, comisión y perfil docente. Bloquea doble envío y conserva datos ante
+fallos; 409 y 429 muestran pasos para continuar. Tras reportar se recarga la lectura
+comunitaria, evitando conservar una publicación oculta por el tercer denunciante.
+No se muestran datos de otros reportes en estas superficies.
+
+La administración mantiene `/home/admin/experiencias`, con Moderación y Reportes.
+Filtra experiencias por estado y reportes por estado, motivo y ocultamiento preventivo,
+con páginas de nueve. El detalle administrativo existente agrega decisiones justificadas
+y control de versión. El detalle de reporte usa `reporteId` en la misma página, muestra
+snapshot exacto, contexto, estado actual, denunciante limitado a id/displayName y
+resoluciones de tres. Resolver/desestimar no restituye; RESTITUCION_REPORTES exige
+menos de tres denunciantes abiertos y preserva otras causas. Los retornos conservan
+filtros, página y reporte seleccionado al navegar entre detalles y comisiones.
+
+Servicios y esquemas: `services/feedback.ts`, `feedback-schemas.ts`,
+`feedback-reportes.ts`, `feedback-reportes-schemas.ts`, `feedback-moderation-schemas.ts`;
+tipos en `types/feedback*.ts`, validaciones en `validations/feedback-moderation.ts`.
+Las proyecciones comunitarias eliminan metadatos privados; las propias y ADMIN validan
+los campos de moderación. Los clientes HTTP existentes mantienen sesión y Origin/CSRF;
+el backend verifica permisos y concurrencia en cada solicitud. No cambian autenticación,
+primitivas, layout ni endpoints. Evidencia de componentes, contratos, Playwright real,
+accesibilidad y medidas responsive en la [ficha T6](../docs/tasks/finished/TASK-moderacion-T6-frontend.md).
+La validación automática está completa; la aceptación manual del usuario y la
+comprobación de entornos productivos preceden a aprobar la unión del código.
 
 ## Términos en el registro
 

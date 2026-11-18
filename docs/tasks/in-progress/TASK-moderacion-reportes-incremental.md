@@ -1,6 +1,6 @@
 # Moderación humana y reportes: plan incremental
 
-Fecha: 2026-11-17. T1–T5 completadas y validadas. Detenerse antes de T6.
+Fecha: 2026-11-17. T1–T5 completadas y validadas. T6 autorizada posteriormente y en validación.
 T1 registrada por pedido explícito en commit local `2f619db`, sin push. El cierre local de T2
 en cuatro commits fue autorizado posteriormente; no incluye push ni autorización para T3.
 T3 fue autorizada después, mediante el pedido específico de acciones HTTP y pruebas; sin commits.
@@ -9,7 +9,7 @@ T3 fue autorizada después, mediante el pedido específico de acciones HTTP y pr
 
 Completar en seis etapas el flujo humano y reportes dentro de ReviewsModule, reutilizando
 FeedbackService/repositorio, FeedbackHistorial, AdministracionHistorial y las vistas existentes.
-El objetivo temporal es terminar antes del miércoles 18; la autorización actual se detiene tras T5. M1.3 queda estacionada por decisión del usuario.
+El objetivo temporal es terminar antes del miércoles 18; la autorización actual incluye exclusivamente T6 y sus pruebas. M1.3 queda estacionada por decisión del usuario.
 
 El diagnóstico inicial encontró publicación por deletedAt, ausencia de estados y reportes,
 y actualización de valoraciones al crear/editar. T1 y T2 corrigen persistencia y visibilidad.
@@ -217,5 +217,19 @@ No se desplegó a datos del usuario.
 T5 completada y validada: 56 pruebas nuevas, focalizada final 149/149, global
 1622/1622 en 70 archivos sin omisiones; tipos, lint, build, diffcheck y manual HTTP
 aprobados. La ficha T5 conserva decisiones, contratos, archivos y fallos intermedios.
-T6 queda preparada para consumir contratos, pero no implementada ni autorizada.
+T5 registrada por autorización posterior en `a3e35ab`. T6 fue autorizada posteriormente,
+incluidas sus pruebas, sin commits, push, IA ni despliegue. Implementación y evidencia:
+[ficha T6](../finished/TASK-moderacion-T6-frontend.md). Implementación y validación
+automática completas: frontend 1084/1084, backend 1640/1640 con PostgreSQL/SMTP
+reales, moderación E2E 4/4 en dos ejecuciones consecutivas y registro integrado
+1/1. Tipos, lint, builds, axe/responsive y diffcheck aprobados. Docker Compose
+permanece saludable para revisión manual. El cierre técnico no implica aprobación
+para unir ni desplegar: el usuario valida comportamiento y aspecto, después se
+verifican entornos productivos y recién se considera la unión. Sin commits ni push;
+orden futuro: integración de desarrollo primero, T6 después.
+La integración fue registrada después por autorización expresa en `1cfb3cf`;
+T6 permanece sin commit. Durante la revisión manual se corrigió el enrutamiento
+de `/rankings/` en ambos proxies y se restableció el Compose oficial sobre la base
+original de desarrollo, respaldada y migrada conservando sus datos. Smoke Docker
+24/24 y navegador con la experiencia original aprobados; evidencia en ficha T6.
 M1.3 queda estacionada para el final por decisión expresa del usuario.
