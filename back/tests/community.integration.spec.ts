@@ -57,7 +57,7 @@ describe.skipIf(!databaseUrl)("HU-C01 consulta HTTP con persistencia y sesiones 
     const response = await get(session.cookie);
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(await response.json()).toEqual({ ...before, createdAt: before.createdAt.toISOString(), updatedAt: before.updatedAt.toISOString() });
+    expect(await response.json()).toEqual({ id: before.id, titulo: before.titulo, introduccion: before.introduccion, normas: before.normas, cierre: before.cierre, createdAt: before.createdAt.toISOString(), updatedAt: before.updatedAt.toISOString() });
     expect(await prisma.normasConvivencia.findUniqueOrThrow({ where: { id: "vigentes" } })).toEqual(before);
     expect(await prisma.aceptacionNormas.count({ where: { usuarioId: session.user.id } })).toBe(0);
   });

@@ -33,6 +33,7 @@ model User {
   valoracionesMaterias ValoracionMateria[]
   feedbackLikes FeedbackLike[]
   feedbackRespuestas FeedbackRespuesta[]
+  normasConvivenciaActualizadas NormasConvivencia[]
 
   @@index([role, disabledAt, createdAt, id])
 }
@@ -56,6 +57,10 @@ model NormasConvivencia {
   cierre       String
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+  actualizadoPorId String? @db.Uuid
+  actualizadoPor User? @relation(fields: [actualizadoPorId], references: [id], onDelete: Restrict)
+
+  @@index([actualizadoPorId])
 }
 
 model AdministracionHistorial {
