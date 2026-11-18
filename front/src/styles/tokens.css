@@ -40,4 +40,8 @@
   [data-role-theme="pending"] {
     --header-background: var(--surface); --header-foreground: var(--muted); --header-border: var(--border); --header-focus: var(--primary);
   }
+  @media (max-width: 600px) {
+    /* Marca y etiqueta administrativa conservan su espacio sin afectar el encabezado USER. */
+    [data-role-theme="admin"] { --header-h: 6.5rem; }
+  }
 }

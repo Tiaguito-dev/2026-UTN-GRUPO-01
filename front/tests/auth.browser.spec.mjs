@@ -38,12 +38,12 @@ async function fixture(page, role = "USER") {
   await prisma.user.update({ where: { id: registered.body.id }, data: { role, emailVerifiedAt: new Date() } });
   return { email, id: registered.body.id };
 }
-async function login(page, email, pass = password) {
+async function login(page, email, pass = password, role = "USER") {
   await page.goto("/login");
   await page.getByLabel(/^Email$/i).fill(email);
   await page.getByLabel(/^Contraseña$/i).fill(pass);
   await page.getByRole("button", { name: /iniciar sesión/i }).click();
-  await expect(page).toHaveURL(/\/home(?:\?|$)/);
+  await expect(page).toHaveURL(role === "ADMIN" ? /\/home\/admin(?:\?|$)/ : /\/home(?:\?|$)/);
   // Flows below inspect profile data and actions explicitly, separate from the internal home.
   await page.goto("/account");
   await expect(page).toHaveURL(/\/account(?:\?|$)/);
@@ -133,10 +133,15 @@ test("access vencido se renueva una vez; pestañas y peticiones concurrentes no 
 });
 
 test("logout sincroniza pestañas y rechaza credenciales anteriores inmediatamente", async ({ page, context }) => {
-  const f = await fixture(page); await login(page, f.email); const other = await context.newPage(); await other.goto("/account");
+  // HU-C06: una cuenta ADMIN también debe retirar su tema al cerrar la sesión en ambas pestañas.
+  const f = await fixture(page, "ADMIN"); await login(page, f.email, password, "ADMIN"); const other = await context.newPage(); await other.goto("/account");
+  await expect(page.locator("[data-role-theme]")).toHaveAttribute("data-role-theme", "admin");
+  await expect(other.locator("[data-role-theme]")).toHaveAttribute("data-role-theme", "admin");
   const prior = (await context.cookies()).filter((c) => c.name.includes("butchery"));
   await page.getByRole("button", { name: /cerrar sesión/i }).click(); await expect(page).toHaveURL(/\/login/);
   await expect(other).toHaveURL(/\/login/);
+  await expect(page.locator("[data-role-theme]")).toHaveAttribute("data-role-theme", "public");
+  await expect(other.locator("[data-role-theme]")).toHaveAttribute("data-role-theme", "public");
   expect((await context.cookies()).filter((c) => c.name.includes("butchery"))).toHaveLength(0);
   await context.addCookies(prior); expect((await api(page, "/auth/me")).status).toBe(401);
   expect(await prisma.session.count({ where: { userId: f.id, revokedAt: null } })).toBe(0);
