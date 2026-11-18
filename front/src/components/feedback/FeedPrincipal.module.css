@@ -1,6 +1,27 @@
 .feed { display: grid; gap: var(--space-4); min-width: 0; margin-block: var(--space-6); overflow-wrap: anywhere; }
 .header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); }
 .header h2 { margin: 0; font-size: var(--text-xl); }
+.heading { flex: 1 1 18rem; min-width: 0; }
+.heading p { margin: var(--space-2) 0 0; color: var(--muted); font-size: var(--text-md); }
+.headerActions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.headerActions :global(.button) { min-height: 44px; gap: var(--space-2); border-radius: var(--radius-sm); }
+.card { background: var(--surface); border-radius: var(--radius-md); gap: var(--space-3); }
+.cardFooter { align-items: center; }
+.cardFooter > :global(.button):last-child { margin-inline-start: auto; }
+.cardFooter :global([aria-pressed="true"]) { color: var(--primary); background: var(--soft-blue); border-color: var(--primary); }
+.likeCount { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--muted); font-size: var(--text-sm); }
+.secondaryActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+.secondaryActions :global(.button) { min-height: 36px; font-size: var(--text-sm); padding: var(--space-2) var(--space-3); gap: var(--space-2); box-shadow: none; }
+.card :global(button:focus-visible), .card :global(a:focus-visible) { outline: 2px solid var(--primary); outline-offset: 3px; }
+@media (max-width: 600px) {
+  .headerActions { width: 100%; }
+  .headerActions :global(.button) { flex: 1 1 auto; }
+  .card { padding: var(--space-4); }
+  .cardFooter { gap: var(--space-2); }
+  .cardFooter > :global(.button):last-child { margin-inline-start: 0; }
+  .card > header { grid-template-columns: auto minmax(0, 1fr); }
+  .card > header > :last-child { grid-column: 2; text-align: start; }
+}
 .list { display: grid; gap: var(--space-6); list-style: none; margin: 0; padding: 0; min-width: 0; }
 .list > li { min-width: 0; }
 .counts { display: flex; flex-wrap: wrap; gap: var(--space-4); color: var(--muted); font-size: var(--text-sm); margin: var(--space-2) 0 0; }
