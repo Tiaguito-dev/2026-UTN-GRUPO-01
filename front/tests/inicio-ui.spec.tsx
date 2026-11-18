@@ -59,6 +59,16 @@ describe("Inicio: selección académica por pasos", () => {
     expect(listarCursadasPorMateria).toHaveBeenCalledExactlyOnceWith("m1", { page: 1, pageSize: 9 });
     expect(listarComisionesPorCursada).toHaveBeenCalledExactlyOnceWith("cu1", { page: 1, pageSize: 9 });
   });
+  it("selecciona comisión dentro del modal de Inicio y abre la publicación", async () => {
+    render(<FeedPrincipal />);
+    await userEvent.click(screen.getByRole("button", { name: "Agregar comentario" }));
+    expect(screen.getByRole("dialog", { name: "Agregar comentario" })).toBeTruthy();
+    await chooseSubjectAndCourse();
+    await userEvent.click(screen.getByText("Comisión S-31"));
+    expect(screen.getByRole("radio", { name: "Comisión S-31" })).toHaveProperty("checked", true);
+    await userEvent.click(screen.getByRole("button", { name: "Siguiente" }));
+    await waitFor(() => expect(push).toHaveBeenCalledExactlyOnceWith("/home/feedback/nuevo?comisionId=c1&origen=inicio"));
+  });
   it("volver a Materia y cambiarla invalida cursada y comisión seleccionadas", async () => {
     render(<SeleccionComisionComentario onCancel={vi.fn()} />);
     await chooseSubjectAndCourse();
@@ -76,6 +86,26 @@ describe("Inicio: selección académica por pasos", () => {
     expect(screen.getByRole("button", { name: "Siguiente" }).hasAttribute("disabled")).toBe(true);
     expect(listarCursadasPorMateria).toHaveBeenLastCalledWith("m2", { page: 1, pageSize: 9 });
     expect(push).not.toHaveBeenCalled();
+  });
+  it("muestra el equipo docente en la tarjeta y permite seleccionarla por nombre y teclado", async () => {
+    vi.mocked(listarComisionesPorCursada).mockResolvedValue({ items: [{ ...commission, profesores: [{ id: "p1", nombreCompleto: "Ada Lovelace", cargo: "TITULAR" }] }], total: 1, page: 1, pageSize: 9 });
+    render(<SeleccionComisionComentario onCancel={vi.fn()} />);
+    await chooseSubjectAndCourse();
+    expect(screen.getByText("Equipo docente")).toBeTruthy();
+    expect(screen.getByText(/Ada Lovelace.*Titular/)).toBeTruthy();
+    const radio = screen.getByRole("radio", { name: "Comisión S-31" });
+    radio.focus();
+    await userEvent.keyboard(" ");
+    expect(radio).toHaveProperty("checked", true);
+    await userEvent.click(screen.getByRole("button", { name: "Siguiente" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/home/feedback/nuevo?comisionId=c1&origen=inicio"));
+  });
+  it("explica cuando no hay docentes y permite seleccionar la tarjeta completa", async () => {
+    render(<SeleccionComisionComentario onCancel={vi.fn()} />);
+    await chooseSubjectAndCourse();
+    await userEvent.click(screen.getByText("Sin docentes asignados"));
+    expect(screen.getByRole("radio", { name: "Comisión S-31" })).toHaveProperty("checked", true);
+    expect(screen.getByRole("button", { name: "Siguiente" })).toHaveProperty("disabled", false);
   });
   it("revalida una comisión que se desactivó y conserva selección y aviso seguro", async () => {
     vi.mocked(obtenerComision).mockResolvedValue({ ...commission, activa: false });

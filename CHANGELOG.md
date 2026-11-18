@@ -2,6 +2,18 @@
 
 ## [Sin publicar]
 
+### Reportes administrativos y validación previa al merge
+
+- Experiencias de administración abre directamente Reportes y retira la bandeja de Moderación. Conserva filtros, paginación, URLs y decisiones asociadas al detalle de reporte.
+- Validación automática de frontend y backend registrada en `TASK-admin-reportes-merge`. Revisión manual y de navegador a cargo del usuario.
+- Corregido el retorno desde el breadcrumb de Experiencias para conservar filtros y página. Fixtures de integración alineados con la publicación directa existente.
+- Frontend: 1180 pruebas completas y spec final de Inicio 25/25; backend: 1638 aprobadas y tres expectativas antiguas corregidas, con los 52 tests de los specs afectados aprobados en reejecución. Tipos, lint, builds y migraciones aprobados; stack local saludable.
+
+### Selección de comisión al publicar
+
+- Las tarjetas del modal muestran el equipo docente y cargo, o Sin docentes asignados, con selección por tarjeta y teclado y nombre accesible independiente.
+- Dimensiones locales de radios para evitar heredar el tamaño de los campos de texto. Sin nuevos endpoints ni consultas por docente. Evidencia en `TASK-selector-comision-publicacion`.
+
 ### Ajuste visual de respuestas a experiencias
 
 - Encabezado y contador, vacío compacto con ícono de comentario y formulario delimitado con título, placeholder y foco visible.

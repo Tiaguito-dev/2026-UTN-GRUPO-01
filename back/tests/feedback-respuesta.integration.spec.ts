@@ -11,7 +11,6 @@ import { AUTH_CONFIG } from "../src/auth/auth.config.js";
 import { VERIFICATION_EMAIL } from "../src/auth/domain/email-verification.js";
 import { configureAuthHttp } from "../src/auth/presentation/http-security.js";
 import { PrismaFeedbackRespuestaRepository } from "../src/reviews/infrastructure/prisma-feedback-respuesta.repository.js";
-import { PrismaFeedbackRepository } from "../src/reviews/infrastructure/prisma-feedback.repository.js";
 import { csrfHeaders, testAuthConfig } from "./auth-test.config.js";
 
 const databaseUrl = process.env["TEST_DATABASE_URL"];
@@ -23,7 +22,6 @@ describe.skipIf(!databaseUrl)("Respuestas: creación HTTP/PostgreSQL aislado", (
   let url: string;
   let author: { id: string; cookie: string };
   let reader: { id: string; cookie: string };
-  let moderatorId: string;
   const ids = { users: [] as string[], materias: [] as string[], cursadas: [] as string[], comisiones: [] as string[], feedback: [] as string[] };
   const config = testAuthConfig();
   const request = (path: string, method = "POST", input?: unknown, cookie = reader.cookie) => fetch(`${url}${path}`, {
@@ -57,9 +55,7 @@ describe.skipIf(!databaseUrl)("Respuestas: creación HTTP/PostgreSQL aislado", (
     expect(response.status).toBe(201);
     const { id } = await response.json() as { id: string };
     ids.feedback.push(id);
-    // T2: replies require a reviewed parent and its synchronized vote.
-    await new PrismaFeedbackRepository(prisma as unknown as PrismaService).transitionModeration(id,
-      { id: moderatorId, role: "ADMIN" }, { accion: "APROBACION", versionEsperada: 1, motivo: "Publicable para prueba de respuestas" });
+    // Las altas se publican directamente y sincronizan su valoración.
     return { id, materiaId: materia.id, cursadaId: cursada.id, comisionId: comision.id, path: `/feedback/${id}/respuestas` };
   }
   async function create(path: string, input = body(), status = 201, cookie = reader.cookie): Promise<Reply> {
@@ -89,8 +85,6 @@ describe.skipIf(!databaseUrl)("Respuestas: creación HTTP/PostgreSQL aislado", (
     app = module.createNestApplication(); app.useLogger(false); configureAuthHttp(app, config);
     await app.listen(0, "127.0.0.1"); url = await app.getUrl();
     author = await account(); reader = await account();
-    const moderator = await prisma.user.create({ data: { email: `reply-admin-${randomUUID()}@alu.frlp.utn.edu.ar`, displayName: "Moderador fixture", passwordHash: "fixture-no-login", role: "ADMIN", emailVerifiedAt: new Date() } });
-    moderatorId = moderator.id; ids.users.push(moderatorId);
   }, 30_000);
   afterAll(async () => {
     try {
@@ -135,8 +129,8 @@ describe.skipIf(!databaseUrl)("Respuestas: creación HTTP/PostgreSQL aislado", (
     expect(history[0]).toMatchObject({ texto: input.texto, anonimo: replyAnonymous, accion: "CREACION" });
     expect(await prisma.administracionHistorial.findUnique({ where: { id: history[0]!.id } })).toMatchObject({ entidad: "respuesta", entidadId: reply.id, actorId: reader.id, accion: "CREACION" });
     expect(await prisma.valoracionMateria.findUniqueOrThrow({ where: { usuarioId_materiaId: { usuarioId: author.id, materiaId: f.materiaId } } })).toEqual(rating);
-    // Creation and approval remain unchanged by replies.
-    expect(await prisma.feedbackHistorial.count({ where: { feedbackId: f.id } })).toBe(2);
+    // Replies do not add events to the directly published parent.
+    expect(await prisma.feedbackHistorial.count({ where: { feedbackId: f.id } })).toBe(1);
   });
   it("reintento idéntico devuelve 200 sin cambios ni nuevos eventos", async () => {
     const f = await fixture(); const input = body();

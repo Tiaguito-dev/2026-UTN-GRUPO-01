@@ -10,7 +10,6 @@ import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
 import { VERIFICATION_EMAIL } from "../src/auth/domain/email-verification.js";
 import { AUTH_CONFIG } from "../src/auth/auth.config.js";
 import { configureAuthHttp } from "../src/auth/presentation/http-security.js";
-import { PrismaFeedbackRepository } from "../src/reviews/infrastructure/prisma-feedback.repository.js";
 import { csrfHeaders, testAuthConfig } from "./auth-test.config.js";
 
 const databaseUrl = process.env["TEST_DATABASE_URL"];
@@ -73,12 +72,6 @@ describe.skipIf(!databaseUrl)("Materias: resumen de estrellas HTTP/PostgreSQL ai
       anio: 2026, cuatrimestre: "PRIMERO", modalidad: "PRIMERO" } });
     const projection = await prisma.valoracionMateria.create({ data: { materiaId, usuarioId: voters[index]!, puntuacion } });
     return { ...projection, feedbackId: feedback.id };
-  }
-
-  async function approve(feedbackId: string) {
-    const row = await prisma.feedback.findUniqueOrThrow({ where: { id: feedbackId } });
-    return new PrismaFeedbackRepository(prisma as unknown as PrismaService).transitionModeration(feedbackId,
-      { id: admin.id, role: "ADMIN" }, { accion: "APROBACION", versionEsperada: row.versionModeracion, motivo: "Revisión de la experiencia de prueba" });
   }
 
   async function detail(id: string) {
@@ -211,7 +204,7 @@ describe.skipIf(!databaseUrl)("Materias: resumen de estrellas HTTP/PostgreSQL ai
     expect(second.items[0]).toMatchObject({ id: b.id, valoracion: { promedio: 5, cantidad: 1 } });
   });
 
-  it("dos comentarios cuentan una vez solo tras revisión y recuperan el respaldo visible al editar o retirar", async () => {
+  it("dos comentarios publicados cuentan una vez y recuperan el respaldo visible al editar o retirar", async () => {
     const m = await materia();
     const cursada = await prisma.cursada.create({ data: { materiaId: m.id, anio: 2026, cuatrimestre: "PRIMERO" } });
     cursadas.push(cursada.id);
@@ -223,12 +216,8 @@ describe.skipIf(!databaseUrl)("Materias: resumen de estrellas HTTP/PostgreSQL ai
       expect(response.status).toBe(201);
       comments.push((await response.json()).id);
     }
-    expect((await detail(m.id)).valoracion).toEqual({ promedio: null, cantidad: 0 });
-    for (const id of comments) await approve(id);
     expect((await detail(m.id)).valoracion).toEqual({ promedio: 5, cantidad: 1 });
     expect((await request(`/feedback/${comments[0]}`, "PATCH", { puntuacion: 4 }, reader.cookie)).status).toBe(200);
-    expect((await detail(m.id)).valoracion).toEqual({ promedio: 5, cantidad: 1 });
-    await approve(comments[0]!);
     expect((await detail(m.id)).valoracion).toEqual({ promedio: 4, cantidad: 1 });
     expect((await request(`/feedback/${comments[0]}`, "DELETE", undefined, reader.cookie)).status).toBe(204);
     expect((await detail(m.id)).valoracion).toEqual({ promedio: 5, cantidad: 1 });

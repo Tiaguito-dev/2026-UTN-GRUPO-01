@@ -1,5 +1,11 @@
 # Backend
 
+Las integraciones de likes, respuestas y valoración de materias parten de altas públicas
+ya aprobadas por la política de publicación directa. No ejecutan una aprobación extra
+ni esperan ese evento en el historial; verifican que las interacciones no alteren el
+historial del padre. La validación previa al merge usa una base vacía dedicada para
+las suites que requieren un catálogo inicial sin experiencias.
+
 ## Política vigente: publicación directa y revisión por reportes
 
 Después de T6, las altas de experiencias nacen `APROBADO`, versión 1 y sin revisión

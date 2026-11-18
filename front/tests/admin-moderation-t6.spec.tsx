@@ -172,16 +172,15 @@ describe("T6 detalle administrativo de reportes", () => {
 });
 
 describe("T6 bandeja administrativa existente", () => {
-  it("consulta experiencias por estado con nueve elementos y retorno al listado", async () => {
-    navigation.query = "estadoModeracion=RECHAZADO&page=2";
-    const data = report();
-    vi.mocked(listarFeedbackModeracion).mockResolvedValue({ total: 10, page: 2, pageSize: 9, items: [{ ...data.experiencia, propio: false, texto: "Experiencia rechazada", autor: null, puntuacion: 4, anonimo: true, profesor: null, createdAt: date, updatedAt: date, estadoModeracion: "RECHAZADO" }] });
+  // La publicación directa retira la bandeja de moderación: solo quedan reportes.
+  it.each(["", "estadoModeracion=RECHAZADO", "seccion=reportes"])("abre reportes sin ofrecer moderación para query %s", async query => {
+    navigation.query = query;
+    vi.mocked(listarReportesFeedback).mockResolvedValue({ total: 0, page: 1, pageSize: 9, items: [] });
     render(<AdminExperiencias />);
-    await screen.findByText("Experiencia rechazada");
-    expect(listarFeedbackModeracion).toHaveBeenCalledWith({ page: 2, pageSize: 9, estado: "RECHAZADO" });
-    expect(screen.getByRole("link", { name: "Ver detalle" }).getAttribute("href")).toContain(encodeURIComponent("/home/admin/experiencias?estadoModeracion=RECHAZADO&page=2"));
-    await userEvent.selectOptions(screen.getByLabelText("Estado de moderación"), "APROBADO");
-    expect(navigation.replace).toHaveBeenCalledWith("/home/admin/experiencias?estadoModeracion=APROBADO", { scroll: false });
+    await waitFor(() => expect(listarReportesFeedback).toHaveBeenCalledWith({ page: 1, pageSize: 9, estado: undefined, motivo: undefined, ocultoReportes: undefined }));
+    expect(listarFeedbackModeracion).not.toHaveBeenCalled();
+    expect(screen.queryByRole("link", { name: "Moderación" })).toBeNull();
+    expect(screen.queryByLabelText("Estado de moderación")).toBeNull();
   });
 
   it("filtra reportes y oculta identidades en listado, con paginación nueve", async () => {

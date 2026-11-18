@@ -67,8 +67,9 @@ fallos; 409 y 429 muestran pasos para continuar. Tras reportar se recarga la lec
 comunitaria, evitando conservar una publicación oculta por el segundo denunciante distinto con reporte abierto.
 No se muestran datos de otros reportes en estas superficies.
 
-La administración mantiene `/home/admin/experiencias`, con Moderación y Reportes.
-Filtra experiencias por estado y reportes por estado, motivo y ocultamiento preventivo,
+La administración mantiene `/home/admin/experiencias`, dedicada a Reportes sin bandeja
+ni selector de Moderación. Acepta también las URLs anteriores con `seccion=reportes`.
+Filtra reportes por estado, motivo y ocultamiento preventivo,
 con páginas de nueve. El detalle administrativo existente agrega decisiones justificadas
 y control de versión. El detalle de reporte usa `reporteId` en la misma página, muestra
 snapshot exacto, contexto, estado actual, denunciante limitado a id/displayName y
@@ -1163,6 +1164,12 @@ FeedbackForm consulta GET /feedback/normas al abrir una nueva publicación. Cuan
   administrativo (antes lo confundía con un `materiaId`).
 
 ## Presentación de Experiencias y moderación propia
+
+El selector de comisión de Agregar comentario muestra nombres y cargos del equipo docente
+en cada tarjeta, usando `Comision.profesores` del listado paginado existente. Informa la
+ausencia de docentes y permite seleccionar toda la tarjeta con mouse o el radio con teclado.
+El radio tiene nombre propio y descripción accesible del equipo, con dimensiones locales
+que evitan heredar el alto y padding de los campos de texto.
 
 `ExperienciasList` conserva las URLs de Comunidad y Mis experiencias mediante enlaces
 segmentados con `aria-current`, íconos decorativos y foco visible. Carrera y Materia comparten

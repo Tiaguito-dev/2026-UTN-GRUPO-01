@@ -135,7 +135,8 @@ describe("Formulario de feedback", () => {
     expect(new URL(edit.getAttribute("href")!, "http://local").searchParams.get("experienciasMateriaId")).toBe("m1");
     const subject = screen.getByRole("heading", { name: "Álgebra" }).querySelector("a")!;
     expect(new URL(subject.getAttribute("href")!, "http://local").searchParams.get("experienciasMateriaId")).toBe("m1");
-    expect(within(screen.getByRole("navigation")).getByRole("link", { name: "Comisión S-31" })).toBeTruthy();
+    // La entrada directa conserva el origen sin inventar un paso por comisión.
+    expect(within(screen.getByRole("navigation")).queryByRole("link", { name: "Comisión S-31" })).toBeNull();
   });
   it("conserva materia, comisión y filtros en el recorrido de alta y edición", async () => {
     origin.query = "carrera=S&anioCarrera=2&listadoPage=3&q=álgebra&cursadaId=cu1&comisionesPage=2";
@@ -593,7 +594,7 @@ describe("Detalle de feedback", () => {
     await userEvent.tab();
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Álgebra" }).querySelector("a"));
     await userEvent.tab();
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Ocultar experiencia" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Ocultar comentario" }));
     await userEvent.tab();
     expect(document.activeElement).toBe(screen.getByText("Historial de cambios"));
   });

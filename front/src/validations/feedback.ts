@@ -45,7 +45,7 @@ export function feedbackEntryBreadcrumb(params: NavigationParams) {
   items.push({ label: "Inicio", href: "/home" });
   if (params.get("origen") === "experiencias") {
     const back = experienciasBack(params)!;
-    items.push({ label: "Experiencias", href: "/home/experiencias" });
+    items.push({ label: "Experiencias", href: back.label === "Mis experiencias" ? "/home/experiencias" : back.href });
     if (back.label === "Mis experiencias") items.push(back);
   }
   return items;

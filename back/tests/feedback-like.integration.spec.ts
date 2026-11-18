@@ -11,7 +11,6 @@ import { AUTH_CONFIG } from "../src/auth/auth.config.js";
 import { VERIFICATION_EMAIL } from "../src/auth/domain/email-verification.js";
 import { configureAuthHttp } from "../src/auth/presentation/http-security.js";
 import { PrismaFeedbackLikeRepository } from "../src/reviews/infrastructure/prisma-feedback-like.repository.js";
-import { PrismaFeedbackRepository } from "../src/reviews/infrastructure/prisma-feedback.repository.js";
 import { csrfHeaders, testAuthConfig } from "./auth-test.config.js";
 
 const databaseUrl = process.env["TEST_DATABASE_URL"];
@@ -22,7 +21,6 @@ describe.skipIf(!databaseUrl)("Likes: HTTP y PostgreSQL aislado", () => {
   let author: { id: string; cookie: string };
   let reader: { id: string; cookie: string };
   let other: { id: string; cookie: string };
-  let moderatorId: string;
   const ids = { users: [] as string[], materias: [] as string[], cursadas: [] as string[], comisiones: [] as string[], feedback: [] as string[] };
   const config = testAuthConfig();
   const request = (path: string, method = "GET", cookie = reader.cookie, body?: unknown) => fetch(`${url}${path}`, {
@@ -56,9 +54,7 @@ describe.skipIf(!databaseUrl)("Likes: HTTP y PostgreSQL aislado", () => {
     expect(response.status).toBe(201);
     const feedback = await response.json() as { id: string };
     ids.feedback.push(feedback.id);
-    // T2: interactions start after a real internal review, including its derived vote.
-    await new PrismaFeedbackRepository(prisma as unknown as PrismaService).transitionModeration(feedback.id,
-      { id: moderatorId, role: "ADMIN" }, { accion: "APROBACION", versionEsperada: 1, motivo: "Publicable para prueba de interacciones" });
+    // Las altas se publican directamente y sincronizan su valoración.
     return { id: feedback.id, comisionId: comision.id, materiaId: materia.id, path: `/feedback/${feedback.id}/like` };
   }
   async function state(path: string, method: "PUT" | "DELETE", expected: { meGusta: boolean; cantidadLikes: number }, cookie = reader.cookie) {
@@ -79,8 +75,6 @@ describe.skipIf(!databaseUrl)("Likes: HTTP y PostgreSQL aislado", () => {
     await app.listen(0, "127.0.0.1");
     url = await app.getUrl();
     author = await account(); reader = await account(); other = await account();
-    const moderator = await prisma.user.create({ data: { email: `likes-admin-${randomUUID()}@alu.frlp.utn.edu.ar`, displayName: "Moderador fixture", passwordHash: "fixture-no-login", role: "ADMIN", emailVerifiedAt: new Date() } });
-    moderatorId = moderator.id; ids.users.push(moderatorId);
   }, 30_000);
   afterAll(async () => {
     try {
@@ -160,8 +154,8 @@ describe.skipIf(!databaseUrl)("Likes: HTTP y PostgreSQL aislado", () => {
     expect(old.items.find((item: { id: string }) => item.id === f.id)).not.toHaveProperty("cantidadLikes");
     expect(old.items.find((item: { id: string }) => item.id === f.id)).not.toHaveProperty("meGusta");
     expect(await prisma.valoracionMateria.findUniqueOrThrow({ where: { usuarioId_materiaId: { usuarioId: author.id, materiaId: f.materiaId } } })).toEqual(rating);
-    // Creation and approval remain unchanged by likes.
-    expect(await prisma.feedbackHistorial.count({ where: { feedbackId: f.id } })).toBe(2);
+    // Likes do not add events to the directly published parent.
+    expect(await prisma.feedbackHistorial.count({ where: { feedbackId: f.id } })).toBe(1);
   });
   it("serializa dos PUT simultáneos y tolera DELETE concurrentes", async () => {
     const f = await fixture();

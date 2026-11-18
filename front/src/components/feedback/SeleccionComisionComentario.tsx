@@ -3,15 +3,16 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Search } from "lucide-react";
 import { listarMaterias } from "@/services/materias";
-import { listarCursadasPorMateria, listarComisionesPorCursada, obtenerComision } from "@/services/academic";
+import { listarCursadasPorMateria, listarComisionesPorCursada, obtenerComision, type ProfesorAsignado } from "@/services/academic";
 import type { PaginatedResult } from "@/services/pagination";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import { Pagination } from "@/components/ui/Pagination";
 import { Notice } from "@/components/ui/Notice";
 import { validateMateriaSearch } from "@/validations/materias";
+import { cargoLabel } from "@/lib/format/cargo";
 import { mensajeErrorModeracion } from "@/validations/feedback-moderation";
 import styles from "./SeleccionComisionComentario.module.css";
-type Option = { id: string; label: string };
+type Option = { id: string; label: string; profesores?: ProfesorAsignado[] };
 
 /** Only explicit selections open the existing publication form. No catalog is downloaded in full. */
 export function SeleccionComisionComentario({ onCancel }: { onCancel: () => void }) {
@@ -52,7 +53,7 @@ export function SeleccionComisionComentario({ onCancel }: { onCancel: () => void
       return { ...result, items: result.items.map(item => ({ id: item.id, label: `Cursada ${item.anio} · ${item.cuatrimestre ?? "Período sin definir"}` })) };
     }} /> : cursada ? <Opciones key={cursada.id} resource={`publicacion-comisiones:${cursada.id}`} selected={comision} disabled={busy} onSelect={setComision} fetchPage={async page => {
       const result = await listarComisionesPorCursada(cursada.id, { page, pageSize: 9 });
-      return { ...result, items: result.items.filter(item => item.activa && item.deletedAt === null && item.cursadaId === cursada.id).map(item => ({ id: item.id, label: `Comisión ${item.nombre}` })) };
+      return { ...result, items: result.items.filter(item => item.activa && item.deletedAt === null && item.cursadaId === cursada.id).map(item => ({ id: item.id, label: `Comisión ${item.nombre}`, profesores: item.profesores })) };
     }} /> : null}
     </div>
     {error ? <Notice tone="error">{error}</Notice> : null}
@@ -81,7 +82,12 @@ function Opciones({ resource, searchable = false, disabled, fetchPage, onSelect,
     </form> : null}
     {state.status === "loading" ? <p role="status">Cargando opciones…</p> : state.status === "error" ? <Notice tone="error">{state.error} <button className="button button-secondary" type="button" onClick={retry}>Reintentar opciones</button></Notice> : <fieldset className={styles.fieldset} disabled={disabled}>
       <legend>Opciones disponibles</legend>
-      {state.data.items.length ? <ul className={styles.optionList}>{state.data.items.map(item => <li key={item.id}><label className={styles.option}><input type="radio" name={searchId} value={item.id} checked={selected?.id === item.id} onChange={() => onSelect(item)} /><span>{item.label}</span></label></li>)}</ul> : <p>No hay opciones válidas en esta página.</p>}
+      {state.data.items.length ? <ul className={styles.optionList}>{state.data.items.map(item => <li key={item.id}><label className={styles.option}>
+        <input type="radio" name={searchId} value={item.id} checked={selected?.id === item.id} aria-labelledby={`${searchId}-${item.id}-label`} aria-describedby={item.profesores ? `${searchId}-${item.id}-teachers` : undefined} onChange={() => onSelect(item)} />
+        <span className={styles.optionContent}><span id={`${searchId}-${item.id}-label`}>{item.label}</span>
+          {item.profesores ? <span className={styles.teachers} id={`${searchId}-${item.id}-teachers`}><span>Equipo docente</span>{item.profesores.length ? item.profesores.map(profesor => <span key={profesor.id}>{profesor.nombreCompleto} · {cargoLabel(profesor.cargo)}</span>) : <span>Sin docentes asignados</span>}</span> : null}
+        </span>
+      </label></li>)}</ul> : <p>No hay opciones válidas en esta página.</p>}
       <Pagination page={page} pageSize={state.data.pageSize} total={state.data.total} onChange={setPage} />
     </fieldset>}
   </div>;
