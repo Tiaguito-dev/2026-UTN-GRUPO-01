@@ -19,13 +19,13 @@ function apiOrigin(): string {
 
 /** No credentials are available to JavaScript: the browser owns both HttpOnly cookies.
  *  Returns the raw body; callers validate it with a schema from `schemas.ts` before using it. */
-export async function requestJson(path: string, options: { method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE"; body?: unknown } = {}): Promise<unknown> {
+export async function requestJson(path: string, options: { method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE"; body?: unknown; credentials?: "omit" } = {}): Promise<unknown> {
   const method = options.method ?? "GET";
   let response: Response;
   try {
     response = await fetch(`${apiOrigin()}${path}`, {
       method,
-      credentials: "include",
+      credentials: options.credentials ?? "include",
       cache: "no-store",
       signal: AbortSignal.timeout(15_000),
       headers: method === "GET" ? { Accept: "application/json" } : { Accept: "application/json", "Content-Type": "application/json", "X-CSRF-Protection": "1" },

@@ -1,3 +1,4 @@
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ComisionDetail } from "@/components/academic/ComisionDetail";
@@ -11,7 +12,7 @@ export default async function ComisionDetailPage({
 }) {
   const { materiaId, cursadaId, comisionId } = await params;
   return (
-    <Suspense fallback={<p role="status">Cargando comisión…</p>}>
+    <Suspense fallback={<BrandLoading message="Cargando comisión…" />}>
       <ComisionDetail materiaId={materiaId} cursadaId={cursadaId} comisionId={comisionId} />
     </Suspense>
   );

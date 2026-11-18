@@ -1,4 +1,5 @@
 "use client";
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import { useEffect, useEffectEvent, useId, useState } from "react";
 import type { PaginatedResult } from "@/services/pagination";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
@@ -44,7 +45,7 @@ function AdminParentOptions({ label, value, searchable, fetchPage, resourceKey, 
   return <>
     {searchable ? <AdminSearch query={query} label={`Buscar ${label.toLocaleLowerCase("es")} por nombre`} onSearch={(q) => { setQuery(q); setPage(1); }} /> : null}
     <button className="button button-secondary" type="button" onClick={() => onChange("")}>Quitar selección</button>
-    {state.status === "loading" ? <p role="status">Cargando opciones…</p> : state.status === "error" ? <Notice tone="error">Lo sentimos. No pudimos recuperar las opciones. Intentá nuevamente. <button className="button button-secondary" type="button" onClick={retry}>Reintentar opciones</button></Notice> : <>
+    {state.status === "loading" ? <BrandLoading message="Cargando opciones…" /> : state.status === "error" ? <Notice tone="error">Lo sentimos. No pudimos recuperar las opciones. Intentá nuevamente. <button className="button button-secondary" type="button" onClick={retry}>Reintentar opciones</button></Notice> : <>
       <p className={styles.summary}>{state.data.total} opciones</p>
       {state.data.items.length ? <ul className={styles.selectorOptions}>{state.data.items.map((option) => <li key={option.id}><button className={`button button-secondary ${styles.selectorButton}`} type="button" aria-pressed={value === option.id} onClick={() => onChange(option.id)}>{option.label}</button></li>)}</ul> : <p>No hay opciones que coincidan con la búsqueda.</p>}
       {page > 1 && !state.data.items.length ? <button className="button button-secondary" type="button" onClick={() => setPage(1)}>Volver a la primera página de opciones</button> : null}

@@ -1,4 +1,5 @@
 "use client";
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import Link from "next/link";
 import { ChevronRight, Trophy } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -111,7 +112,7 @@ function MateriasResults({ carrera, anio, page, context, refreshKey }: { carrera
   const changePage = (next: number) => router.replace(materiaListHref(carrera, anio, next, context), { scroll: false });
   const filterSummary = [carrera ? carreraShortLabel(carrera) : "Todas las carreras", anio ? YEAR_GROUP_LABEL[anio] : "Todos los años", context.q ? `“${context.q}”` : ""].filter(Boolean).join(" · ");
   return <div ref={resultsFocus} tabIndex={-1} className={styles.results}>
-    {state.status === "loading" ? <p role="status">Cargando materias…</p> : state.status === "error" ? <Notice tone="error">Lo sentimos. No pudimos recuperar las materias. Intentá nuevamente. {state.error} <button className="button" type="button" onClick={retry}>Reintentar</button></Notice> : <>
+    {state.status === "loading" ? <BrandLoading message="Cargando materias…" /> : state.status === "error" ? <Notice tone="error">Lo sentimos. No pudimos recuperar las materias. Intentá nuevamente. {state.error} <button className="button" type="button" onClick={retry}>Reintentar</button></Notice> : <>
       <div className={styles.resultSummary}>
         <p className={styles.resultTotal}>{state.data.total === 1 ? "1 materia" : `${state.data.total} materias`}<span className={styles.resultFilters}> · {filterSummary}</span></p>
         {state.data.items.length ? <p className={styles.resultRange}>Mostrando {(state.data.page - 1) * state.data.pageSize + 1}–{Math.min(state.data.total, (state.data.page - 1) * state.data.pageSize + state.data.items.length)} de {state.data.total}</p> : null}

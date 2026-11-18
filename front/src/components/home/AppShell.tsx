@@ -1,3 +1,4 @@
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import type { ReactNode } from "react";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import { SidebarNav } from "./SidebarNav";
@@ -8,7 +9,7 @@ import { Suspense } from "react";
  *  sola vez por layout, así persisten entre las rutas del segmento sin remontarse al navegar. */
 export function AppShell({ children }: { children: ReactNode }) {
   return <main id="main-content" className="system-main">
-    <Suspense fallback={<p role="status">Cargando navegación…</p>}><RequireAuth>
+    <Suspense fallback={<BrandLoading message="Cargando navegación…" />}><RequireAuth>
       <RoleRouteBoundary><div>
         <SidebarNav />
         <div className="system-content">{children}</div>

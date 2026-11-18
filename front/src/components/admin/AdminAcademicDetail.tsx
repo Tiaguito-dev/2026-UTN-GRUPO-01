@@ -1,5 +1,6 @@
-﻿"use client";
+"use client";
 
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import Link from "next/link";
 import { useEffect, useId, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -27,7 +28,7 @@ async function loadProfesor(id: string) { return profesorSchema.parse((await obt
 async function loadCursada(id: string) { const { registro } = await obtenerDetalleAdministrativo("cursadas", id); return { ...cursadaDetalleSchema.parse(registro), deletedAt: typeof registro.deletedAt === "string" ? registro.deletedAt : null }; }
 
 function LoadState({ error, retry }: { error: string; retry: () => void }) {
-  return error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la información. {error} <button className="button button-secondary" type="button" onClick={retry}>Reintentar</button></Notice> : <p role="status">Cargando registro…</p>;
+  return error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la información. {error} <button className="button button-secondary" type="button" onClick={retry}>Reintentar</button></Notice> : <BrandLoading message="Cargando registro…" />;
 }
 
 function useAdminResource<T>(id: string, load: (id: string) => Promise<T>) {

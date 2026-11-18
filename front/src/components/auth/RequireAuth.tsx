@@ -1,4 +1,5 @@
 "use client";
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import Link from "next/link";
 import { useEffect, useId, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -39,7 +40,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
       router.replace(`/login?${query}`);
     }
   }, [status, router, origin, sessionEndReason]);
-  if (status === "checking") return <p role="status">Comprobando sesión…</p>;
+  if (status === "checking") return <BrandLoading message="Comprobando sesión…" />;
   if (status === "anonymous") return <p role="status">Necesitás <Link href="/login">iniciar sesión</Link> para continuar.</p>;
   if (status === "temporary-error") return <SessionCheckFailed>{!coordinationAvailable && <Notice tone="warning">{COORDINATION_NOTICE}</Notice>}</SessionCheckFailed>;
   return <>{!coordinationAvailable && <p role="status">{COORDINATION_NOTICE}</p>}{children}</>;

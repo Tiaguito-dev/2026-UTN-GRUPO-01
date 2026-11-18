@@ -361,7 +361,7 @@ ADMIN: sin ese rol muestra "Acceso no permitido" dentro del shell.
 
 ## Contratos iniciales
 
-- `/`: landing previa al login, descripción del propósito y CTA de ingreso y registro.
+- `/`: bienvenida guiada con la marca animada, búsqueda pública de materias y hasta cinco experiencias recientes de la materia elegida. El acceso completo y la publicación requieren sesión.
 - `/register`, `/login`: flujos para visitantes; cuentas autenticadas vuelven al espacio interno.
 - `/forgot-password`, `/reset-password`: recuperación pública de cuenta.
 - `/verify-email`: confirma el enlace SMTP y retira el token de la URL; no inicia sesión.
@@ -394,8 +394,9 @@ El registro informa que la cuenta queda pendiente de verificación. El estudiant
 enlace recibido por correo antes de iniciar sesión; login y registro ofrecen acceso al reenvío.
 Las rutas de verificación y reenvío usan `no-store` y `no-referrer`.
 
-La landing presenta el propósito de compartir información entre estudiantes sobre materias
-y profesores. El título, descripción y acciones están centrados. La navegación presenta
+La bienvenida revela la marca, el título y las opciones en secuencia. El visitante puede buscar
+materias y consultar una muestra de experiencias recientes por materia. El acceso a la lista completa
+y la publicación llevan al inicio de sesión. En el espacio autenticado, la navegación presenta
 un botón con icono de cuenta únicamente cuando existe una sesión autenticada comprobada,
 sin enlaces de secciones en la barra. Su desplegable ofrece Mi perfil, Cambiar contraseña
 y Cerrar sesión. La landing no muestra el icono; los CTA permiten ingresar o registrarse.
