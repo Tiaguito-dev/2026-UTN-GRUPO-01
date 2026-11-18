@@ -45,6 +45,36 @@ describe("Inicio: selección académica por pasos", () => {
     await userEvent.click(screen.getByRole("button", { name: "Siguiente" }));
     await screen.findByRole("radio", { name: "Comisión S-31" });
   }
+  it("conserva Anterior deshabilitado al comenzar y permite cancelar desde cualquier paso", async () => {
+    const onCancel = vi.fn();
+    render(<SeleccionComisionComentario onCancel={onCancel} />);
+    const results = screen.getByRole("region", { name: "Opciones del paso actual" });
+    expect(results.getAttribute("tabindex")).toBe("0");
+    expect(results.contains(screen.getByRole("button", { name: "Siguiente" }))).toBe(false);
+    results.focus();
+    expect(document.activeElement).toBe(results);
+    expect(screen.getByRole("button", { name: "Anterior" })).toHaveProperty("disabled", true);
+    await chooseSubjectAndCourse();
+    await userEvent.click(screen.getByRole("button", { name: "Anterior" }));
+    expect(await screen.findByRole("radio", { name: /Cursada 2026/ })).toHaveProperty("checked", true);
+    await userEvent.click(screen.getByRole("button", { name: "Anterior" }));
+    expect(await screen.findByRole("radio", { name: "Algebra" })).toHaveProperty("checked", true);
+    expect(screen.getByRole("button", { name: "Anterior" })).toHaveProperty("disabled", true);
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar selección" }));
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(push).not.toHaveBeenCalled();
+  });
+  it("cancelar el modal restaura el foco al botón que lo abrió", async () => {
+    render(<FeedPrincipal />);
+    const trigger = screen.getByRole("button", { name: "Agregar comentario" });
+    await userEvent.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Agregar comentario" });
+    await within(dialog).findByRole("radio", { name: "Algebra" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancelar selección" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    expect(push).not.toHaveBeenCalled();
+  });
   it("requiere seleccionar cada nivel y conserva la navegación al formulario existente", async () => {
     render(<SeleccionComisionComentario onCancel={vi.fn()} />);
     expect(screen.getByRole("button", { name: "Siguiente" }).hasAttribute("disabled")).toBe(true);

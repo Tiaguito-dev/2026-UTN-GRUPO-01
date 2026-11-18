@@ -1218,3 +1218,21 @@ focalizadas 163/163, typecheck, lint y build aprobados; Chromium y axe a 360, 60
 con componentes reales y servicio simulado. No se verificó persistencia real por falta de
 NEXT_PUBLIC_API_URL. Evidencia y fallos ajenos al ajuste en
 `docs/tasks/finished/TASK-respuestas-ajuste-visual.md`.
+
+### Selector y visibilidad propia
+
+`SeleccionComisionComentario` conserva sus tres pasos y servicios; su CSS local ajusta el
+diálogo a una altura estable, con resultados desplazables y pie separado. En escritorio,
+Cancelar selección queda a izquierda y Anterior/Siguiente a derecha; en móvil se adapta en
+dos filas. La región de resultados admite foco para desplazamiento por teclado.
+
+`MisExperiencias` usa la variante `own` de `FeedbackModerationStatus`: visibilidad pública,
+decisión del autor, reportes y administración se presentan sin confundir causas simultáneas.
+Las acciones voluntarias de experiencias propias aprobadas reutilizan `ocultarFeedback` y
+`restaurarFeedback`, con `versionModeracion` como `versionEsperada`, sesión y CSRF existentes.
+La confirmación usa `Dialog`, el resultado `Notice` y la actualización `refreshKey` de
+`PaginatedListView`. Éxitos y errores 403/404/409 actualizan el listado; los demás errores
+permiten reintento desde el diálogo. Restaurar no levanta restricciones administrativas ni
+preventivas. El detalle, las tarjetas comunitarias e Inicio conservan su presentación.
+
+Evidencia en `docs/tasks/finished/TASK-selector-visibilidad-ui.md`.

@@ -29,3 +29,9 @@
   .filters > div { flex-basis: 100%; }
   .visibility > :global(.button) { width: 100%; }
 }
+
+/* Only the author's list; community and Inicio cards keep their existing presentation. */
+.ownList footer { justify-content: flex-start; gap: var(--space-2); }
+.ownList footer > :global(.button) { min-height: 44px; max-width: 100%; padding: var(--space-2) var(--space-3); gap: var(--space-2); font-size: var(--text-md); white-space: normal; }
+.ownList footer > :global(.button) svg { flex-shrink: 0; }
+.ownList .moderation { padding-block-end: var(--space-2); }

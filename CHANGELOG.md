@@ -2,6 +2,12 @@
 
 ## [Sin publicar]
 
+### Selector de comentarios y visibilidad propia
+
+- Modal con altura estable, resultados desplazables y pie adaptable: Cancelar selección a izquierda, Anterior y Siguiente a derecha en escritorio.
+- Mis experiencias muestra visibilidad y causas simultáneas dentro de cada tarjeta. Permite ocultar o quitar el ocultamiento voluntario desde el listado, con confirmación, versión esperada, errores seguros y actualización localizada.
+- Sin cambios de backend, moderación, detalle, Inicio ni panel administrativo. Pruebas y límites registrados en `TASK-selector-visibilidad-ui`.
+
 ### Reportes administrativos y validación previa al merge
 
 - Experiencias de administración abre directamente Reportes y retira la bandeja de Moderación. Conserva filtros, paginación, URLs y decisiones asociadas al detalle de reporte.

@@ -76,7 +76,8 @@ describe("Experiencias: presentación de moderación y acciones", () => {
     vi.mocked(listarFeedbackPropios).mockResolvedValue({ items: [{ ...item, ocultoReportes: true }], page: 2, pageSize: 9, total: 10 });
     render(<MisExperiencias />);
     const card = await screen.findByRole("article", { name: "Comentario de Anónimo" });
-    expect(within(card).getByText("Oculta por reportes")).toBeTruthy();
+    // TASK-selector-visibilidad-ui: el listado propio explicita el carácter preventivo.
+    expect(within(card).getByText("Oculta preventivamente por reportes")).toBeTruthy();
     expect(within(card).getByText("Pendiente de revisión administrativa")).toBeTruthy();
     expect(within(card).getByText(/Tu experiencia está oculta temporalmente para la comunidad porque recibió reportes/)).toBeTruthy();
     expect(card.textContent).toMatch(/seguir consultando/);

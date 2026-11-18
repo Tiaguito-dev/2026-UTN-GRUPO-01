@@ -44,7 +44,8 @@ export function SeleccionComisionComentario({ onCancel }: { onCancel: () => void
     <p role="status">Paso {step + 1} de 3: elegí {step === 0 ? "una materia" : step === 1 ? "una cursada" : "una comisión"}.</p>
     <ol className={styles.steps} aria-label="Pasos de selección">{["Materia", "Cursada", "Comisión"].map((label, index) => <li key={label} aria-current={index === step ? "step" : undefined}><span>{index + 1}</span>{label}</li>)}</ol>
     {step > 0 ? <p className={styles.context}>{materia?.label}{step > 1 ? ` · ${cursada?.label}` : ""}</p> : null}
-    <div className={styles.results}>
+    {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Scroll region needs keyboard access without changing the selected radio. */}
+    <div className={styles.results} role="region" aria-label="Opciones del paso actual" tabIndex={0}>
     {step === 0 ? <Opciones key="materias" resource="publicacion-materias" searchable selected={materia} disabled={busy} onSelect={option => { if (option.id !== materia?.id) { setCursada(null); setComision(null); } setMateria(option); }} fetchPage={async (page, q) => {
       const result = await listarMaterias({ page, pageSize: 9, q });
       return { ...result, items: result.items.filter(item => item.deletedAt === null).map(item => ({ id: item.id, label: item.nombre })) };
