@@ -79,6 +79,8 @@ model Sugerencia {
   contenido   String @db.VarChar(5000)
   solicitudId String @db.Uuid
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  meGusta     Boolean @default(false)
+  deletedAt   DateTime? @db.Timestamptz(3)
   usuario     User @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
 
   @@unique([usuarioId, solicitudId])
