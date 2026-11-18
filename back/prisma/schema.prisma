@@ -41,6 +41,9 @@ model User {
   valoracionesMaterias ValoracionMateria[]
   feedbackLikes FeedbackLike[]
   feedbackRespuestas FeedbackRespuesta[]
+  feedbackReportes FeedbackReporte[] @relation("DenuncianteReporte")
+  reportesResueltos FeedbackReporte[] @relation("AdministradorReporte")
+
   normasConvivenciaActualizadas NormasConvivencia[]
   sugerencias Sugerencia[]
 
@@ -285,6 +288,12 @@ model ComisionProfesor {
   @@index([profesorId])
 }
 
+enum FeedbackEstadoModeracion {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
 model Feedback {
   id String @id @default(uuid()) @db.Uuid
   autorId String @db.Uuid
@@ -294,6 +303,13 @@ model Feedback {
   // NULL para comentarios históricos; CHECK de 1 a 5 en la migración SQL.
   puntuacion Int?
   anonimo Boolean
+  estadoModeracion FeedbackEstadoModeracion @default(PENDIENTE)
+  versionModeracion Int @default(1)
+  requiereRevisionHumana Boolean @default(false)
+  motivoRechazo String? @db.VarChar(1000)
+  ocultoAutor Boolean @default(false)
+  ocultoAdministracion Boolean @default(false)
+  ocultoReportes Boolean @default(false)
   comisionNombre String @db.VarChar(10)
   materiaId String @db.Uuid
   materiaNombre String @db.VarChar(150)
@@ -312,6 +328,7 @@ model Feedback {
   historial FeedbackHistorial[]
   likes FeedbackLike[]
   respuestas FeedbackRespuesta[]
+  reportes FeedbackReporte[]
 
   // UNIQUE parcial (autorId,comisionId) WHERE deletedAt IS NULL vive en la migración SQL.
   @@index([comisionId, deletedAt, createdAt, id])
@@ -319,6 +336,7 @@ model Feedback {
   @@index([autorId, comisionId])
   @@index([autorId, materiaId, deletedAt])
   @@index([deletedAt, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([estadoModeracion, deletedAt, createdAt, id])
 }
 
 model FeedbackLike {
@@ -371,6 +389,15 @@ enum FeedbackAccion {
   CREACION
   EDICION
   ELIMINACION
+  APROBACION
+  RECHAZO
+  OCULTAMIENTO_AUTOR
+  RESTITUCION_AUTOR
+  OCULTAMIENTO_ADMIN
+  RESTITUCION_ADMIN
+  SOLICITUD_REVISION
+  OCULTAMIENTO_REPORTES
+  RESTITUCION_REPORTES
 }
 
 model FeedbackHistorial {
@@ -381,8 +408,60 @@ model FeedbackHistorial {
   // Los snapshots históricos conservan NULL; CHECK de 1 a 5 en SQL.
   puntuacion Int?
   anonimo Boolean
+  // NULL means no moderation evidence exists for this historical snapshot.
+  estadoModeracion FeedbackEstadoModeracion?
+  versionModeracion Int?
+  requiereRevisionHumana Boolean?
+  motivoRechazo String? @db.VarChar(1000)
+  ocultoAutor Boolean?
+  ocultoAdministracion Boolean?
+  ocultoReportes Boolean?
+  motivoModeracion String? @db.VarChar(1000)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Restrict)
+  reportes FeedbackReporte[]
 
+  @@unique([feedbackId, id])
   @@index([feedbackId, createdAt, id])
+}
+
+enum FeedbackReporteMotivo {
+  INSULTOS_ACOSO
+  AMENAZAS_INTIMIDACION
+  DISCRIMINACION
+  DATOS_PERSONALES
+  SPAM
+  OTRO
+}
+
+enum FeedbackReporteEstado {
+  ABIERTO
+  RESUELTO
+  DESESTIMADO
+}
+
+model FeedbackReporte {
+  id String @id @default(uuid()) @db.Uuid
+  feedbackId String @db.Uuid
+  denuncianteId String @db.Uuid
+  versionReportada Int
+  historialId String @db.Uuid
+  motivo FeedbackReporteMotivo
+  descripcion String? @db.VarChar(1000)
+  estado FeedbackReporteEstado @default(ABIERTO)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  resolvedAt DateTime? @db.Timestamptz(3)
+  administradorId String? @db.Uuid
+  justificacion String? @db.VarChar(1000)
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Restrict)
+  denunciante User @relation("DenuncianteReporte", fields: [denuncianteId], references: [id], onDelete: Restrict)
+  administrador User? @relation("AdministradorReporte", fields: [administradorId], references: [id], onDelete: Restrict)
+  historial FeedbackHistorial @relation(fields: [feedbackId, historialId], references: [feedbackId, id], onDelete: Restrict)
+
+  @@unique([denuncianteId, feedbackId, versionReportada])
+  @@index([denuncianteId, createdAt])
+  @@index([feedbackId, estado, denuncianteId])
+  @@index([estado, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([motivo, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
 }

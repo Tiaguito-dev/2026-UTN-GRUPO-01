@@ -25,7 +25,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { Notice } from "@/components/ui/Notice";
 import { ComisionesMateria } from "./ComisionesMateria";
 import { ValoracionMateria } from "./ValoracionMateria";
-import { experienciasBack } from "@/validations/feedback";
+import { feedbackEntryBreadcrumb } from "@/validations/feedback";
 
 export function MateriaDetail({ materiaId }: { materiaId: string }) {
   const headingId = useId();
@@ -42,6 +42,8 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
   const editHref = `/home/admin/materias/${encodeURIComponent(materiaId)}/editar${detailHref.includes("?") ? detailHref.slice(detailHref.indexOf("?")) : ""}`;
   const { materia, error, notFound, retry } = useMateria(materiaId);
   const materiaLabel = materia?.nombre ?? (error ? "Materia" : "Cargando…");
+  const entryBreadcrumb = isAdmin ? [] : feedbackEntryBreadcrumb(params);
+  const entryBack = entryBreadcrumb.at(-1);
 
   return <section aria-labelledby={headingId}>
     <div className="academic-detail-header">
@@ -49,8 +51,8 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
         id={headingId}
         title={materiaLabel}
         focusKey={materiaId}
-        back={experienciasBack(params) ?? { href: backHref, label: "Materias" }}
-        breadcrumb={[{ label: "Materias", href: backHref }, { label: materiaLabel }]}
+        back={entryBack ?? { href: backHref, label: "Materias" }}
+        breadcrumb={[...(entryBreadcrumb.length ? entryBreadcrumb : [{ label: "Materias", href: backHref }]), { label: materiaLabel }]}
       />
       {materia ? <div className="academic-heading-row">
         <div className="academic-badges">

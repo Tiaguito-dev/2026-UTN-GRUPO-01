@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useEffectEvent, useState } from "react";
 import { HttpError } from "@/services/http";
+import { mensajeErrorModeracion } from "@/validations/feedback-moderation";
 
 /** Module-local resource hook: responses from a prior route never replace current data. */
 export function useFeedbackResource<T>(resourceKey: string, fetchResource: () => Promise<T>) {
@@ -13,7 +14,7 @@ export function useFeedbackResource<T>(resourceKey: string, fetchResource: () =>
     load().then((data) => {
       if (active) setResult({ key, data, error: "", notFound: false });
     }).catch((failure: unknown) => {
-      if (active) setResult({ key, error: failure instanceof Error ? failure.message : "Lo sentimos. No pudimos recuperar la información, intentá nuevamente.", notFound: failure instanceof HttpError && failure.status === 404 });
+      if (active) setResult({ key, error: mensajeErrorModeracion(failure, "Lo sentimos. No pudimos recuperar la información, intentá nuevamente."), notFound: failure instanceof HttpError && failure.status === 404 });
     });
     return () => { active = false; };
   }, [key]);

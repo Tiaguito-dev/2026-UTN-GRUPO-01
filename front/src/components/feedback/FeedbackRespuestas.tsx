@@ -1,11 +1,13 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { MessageCircle } from "lucide-react";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import { Notice } from "@/components/ui/Notice";
 import { Dialog } from "@/components/ui/Dialog";
 import { Pagination } from "@/components/ui/Pagination";
 import { listarRespuestasFeedback, eliminarRespuestaFeedback } from "@/services/feedback-feed";
 import { HttpError } from "@/services/http";
+import { mensajeErrorModeracion } from "@/validations/feedback-moderation";
 import type { FeedbackRespuesta } from "@/types/feedback-feed";
 import { FeedbackRespuestaForm } from "./FeedbackRespuestaForm";
 import styles from "./FeedPrincipal.module.css";
@@ -14,7 +16,7 @@ export function FeedbackRespuestas({ feedbackId, onCount, onUnavailable, unavail
 }) {
   const [page, setPage] = useState(1); const [version, setVersion] = useState(0); const [editing, setEditing] = useState<{ reply: FeedbackRespuesta; token: number } | null>(null);
   const editSequence = useRef(0);
-  const { state, retry } = usePaginatedFetch(`replies:${feedbackId}:${unavailable}`, next => unavailable ? Promise.resolve({ items: [], total: 0, page: 1, pageSize: 20 }) : listarRespuestasFeedback(feedbackId, { page: next, pageSize: 20 }), page, version);
+  const { state, retry } = usePaginatedFetch(`replies:${feedbackId}:${unavailable}`, next => unavailable ? Promise.resolve({ items: [], total: 0, page: 1, pageSize: 20 }) : listarRespuestasFeedback(feedbackId, { page: next, pageSize: 20 }).catch(failure => { throw new HttpError(failure instanceof HttpError ? failure.status : 0, mensajeErrorModeracion(failure, "No pudimos recuperar las respuestas. Intentá nuevamente.")); }), page, version);
   useEffect(() => {
     if (unavailable) return;
     if (state.status === "ready") onCount(state.data.total);
@@ -22,9 +24,9 @@ export function FeedbackRespuestas({ feedbackId, onCount, onUnavailable, unavail
   }, [state, onCount, onUnavailable, unavailable]);
   const changed = useCallback(() => { setPage(1); setVersion(value => value + 1); }, []);
   return <div className={styles.replies}>
-    <h3>Respuestas</h3>
+    <div className={styles.repliesHeader}><h3>Respuestas</h3>{!unavailable && state.status === "ready" ? <span className={styles.repliesCount}>{state.data.total} {state.data.total === 1 ? "respuesta" : "respuestas"}</span> : null}</div>
     {!unavailable ? state.status === "loading" ? <p role="status">Cargando respuestas…</p> : state.status === "error" ? <Notice tone="error">{state.error} <button className="button button-secondary" type="button" onClick={retry}>Reintentar respuestas</button></Notice> : <>
-      {state.data.items.length ? <ul className={styles.replyList}>{state.data.items.map(reply => <li key={reply.id}><Respuesta reply={reply} onChanged={changed} onEdit={() => setEditing({ reply, token: ++editSequence.current })} onUnavailable={changed} /></li>)}</ul> : <p role="status">Todavía no hay respuestas.</p>}
+      {state.data.items.length ? <ul className={styles.replyList}>{state.data.items.map(reply => <li key={reply.id}><Respuesta reply={reply} onChanged={changed} onEdit={() => setEditing({ reply, token: ++editSequence.current })} onUnavailable={changed} /></li>)}</ul> : <div className={styles.repliesEmpty} role="status"><MessageCircle size={22} strokeWidth={1.75} aria-hidden="true" focusable="false" /><div><p className={styles.repliesEmptyTitle}>Todavía no hay respuestas</p><p>Sé el primero en participar de esta conversación</p></div></div>}
       <Pagination page={page} pageSize={state.data.pageSize} total={state.data.total} onChange={setPage} />
     </> : null}
     {editing ? <div><FeedbackRespuestaForm key={`${editing.reply.id}:${editing.token}`} feedbackId={feedbackId} original={editing.reply} unavailable={unavailable} onUnavailable={changed} onSaved={() => { setEditing(current => current?.token === editing.token ? null : current); changed(); }} /><button className="button button-secondary" type="button" onClick={() => setEditing(null)}>Cancelar edición</button></div> : null}
@@ -37,7 +39,7 @@ function Respuesta({ reply, onChanged, onEdit, onUnavailable }: { reply: Feedbac
     if (pending.current || !reply.propio) return;
     pending.current = true; setBusy(true); setError("");
     try { await eliminarRespuestaFeedback(reply.id); setConfirm(false); onChanged(); }
-    catch (failure) { if (failure instanceof HttpError && failure.status === 404) onUnavailable(); setError(failure instanceof Error ? failure.message : "No pudimos eliminar la respuesta."); }
+    catch (failure) { if (failure instanceof HttpError && failure.status === 404) onUnavailable(); setError(mensajeErrorModeracion(failure, "No pudimos eliminar la respuesta. Intentá nuevamente.")); }
     finally { pending.current = false; setBusy(false); }
   }
   const author = reply.anonimo ? "Anónimo" : reply.autor?.displayName ?? "Usuario";

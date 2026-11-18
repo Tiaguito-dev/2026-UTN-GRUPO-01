@@ -2,6 +2,69 @@
 
 ## [Sin publicar]
 
+### Presentación de reportes administrativos
+
+- Bandeja compacta adaptable con filtros agrupados, estados y ocultamiento preventivo con badges; conserva consultas, orden, navegación y paginación.
+- Detalle en dos columnas con evidencia histórica destacada, situación actual y acciones separadas de la resolución individual; denunciante autorizado con identidad principal e ID secundario.
+- Moderación y causas simultáneas de visibilidad diferenciadas; historial compacto con fechas, justificaciones y responsables disponibles. Sin cambios funcionales ni de backend.
+- 179 pruebas frontend satisfactorias, typecheck, lint, build y comprobaciones Chromium/axe a 360, 600 y 1280 px con servicios simulados. Evidencia en `TASK-admin-reportes-ui`.
+
+### Selector de comentarios y visibilidad propia
+
+- Modal con altura estable, resultados desplazables y pie adaptable: Cancelar selección a izquierda, Anterior y Siguiente a derecha en escritorio.
+- Mis experiencias muestra visibilidad y causas simultáneas dentro de cada tarjeta. Permite ocultar o quitar el ocultamiento voluntario desde el listado, con confirmación, versión esperada, errores seguros y actualización localizada.
+- Sin cambios de backend, moderación, detalle, Inicio ni panel administrativo. Pruebas y límites registrados en `TASK-selector-visibilidad-ui`.
+
+### Reportes administrativos y validación previa al merge
+
+- Experiencias de administración abre directamente Reportes y retira la bandeja de Moderación. Conserva filtros, paginación, URLs y decisiones asociadas al detalle de reporte.
+- Validación automática de frontend y backend registrada en `TASK-admin-reportes-merge`. Revisión manual y de navegador a cargo del usuario.
+- Corregido el retorno desde el breadcrumb de Experiencias para conservar filtros y página. Fixtures de integración alineados con la publicación directa existente.
+- Frontend: 1180 pruebas completas y spec final de Inicio 25/25; backend: 1638 aprobadas y tres expectativas antiguas corregidas, con los 52 tests de los specs afectados aprobados en reejecución. Tipos, lint, builds y migraciones aprobados; stack local saludable.
+
+### Selección de comisión al publicar
+
+- Las tarjetas del modal muestran el equipo docente y cargo, o Sin docentes asignados, con selección por tarjeta y teclado y nombre accesible independiente.
+- Dimensiones locales de radios para evitar heredar el tamaño de los campos de texto. Sin nuevos endpoints ni consultas por docente. Evidencia en `TASK-selector-comision-publicacion`.
+
+### Ajuste visual de respuestas a experiencias
+
+- Encabezado y contador, vacío compacto con ícono de comentario y formulario delimitado con título, placeholder y foco visible.
+- Anonimato alineado con área accesible y botón bordó con envío: ancho natural a la derecha en escritorio y completo hasta 600 px. Se conserva la lógica y el contrato existentes.
+- 163 pruebas focalizadas, typecheck, lint y build aprobados. Vacío/listado revisados en Chromium a 360, 600 y 1280 px sin desbordamiento ni incidencias axe graves/críticas, con servicio simulado. Tres fallos de navegación/textos ajenos al ajuste registrados en `TASK-respuestas-ajuste-visual`.
+
+### Corrección de navegación y avisos de Experiencias
+
+- Detalle propio ahora dice “Ocultar comentario”. Breadcrumbs estudiantiles reflejan la entrada real desde Inicio, Experiencias, Mis experiencias o materias/comisiones y conservan filtros y páginas en detalle y edición.
+- Logout explícito vuelve al ingreso sin reutilizar una ruta ADMIN. Si USER recibe un destino administrativo, vuelve a su Inicio y conserva los guards de rol.
+- Tras desestimar o resolver un reporte, el panel explica la restitución preventiva explícita existente y su umbral. Sin cambios de backend ni transiciones automáticas.
+- Pruebas focalizadas 134/134, typecheck, lint y build aprobados. Pruebas manuales/de navegador reservadas al usuario. Evidencia: `TASK-experiencias-navigation-followup`.
+
+### Experiencias: selector y presentación de moderación propia
+
+- Selector segmentado Comunidad/Mis experiencias y filtros agrupados con estilos locales.
+- Estados integrados en cada tarjeta propia, causas simultáneas diferenciadas y motivo de rechazo seguro. Ocultamiento por reportes con aviso de revisión temporal en listado y antes del contenido del detalle.
+- Acción voluntaria con textos y ayuda que explican que no levanta restricciones por reportes ni administración. Sin cambios de endpoints, permisos, transiciones, historial, backend ni archivos de Inicio.
+- Pruebas automáticas de selector, estados, ocho combinaciones de causas, navegación, acciones y regresión de Inicio; comprobaciones y limitaciones registradas en `TASK-experiencias-ui`. Revisión manual y navegador a cargo del usuario.
+
+### Publicación directa y revisión con dos denunciantes
+
+- Las altas se publican inmediatamente y editar una aprobada conserva su estado y causas de ocultamiento. Los rechazos existentes mantienen corrección y solicitud explícita de revisión.
+- Dos personas distintas con reportes abiertos activan ocultamiento preventivo; duplicados no suman denunciantes. Restituir exige menos de dos y una decisión administrativa justificada; cerrar un reporte no republica automáticamente.
+- Mensajes de publicación y edición según la respuesta real, confirmaciones seguras sin JSON y controles administrativos coherentes con el nuevo umbral.
+- T6 e Inicio validados por el usuario; aprobación y restitución administrativas comprobadas manualmente por el usuario. Sin cambios retrospectivos de datos ni ejecución de navegador en este ajuste.
+
+### Inicio: presentación del feed y selección para comentar
+
+- Acciones Actualizar y Agregar comentario agrupadas; variante local de tarjetas con likes, respuestas y comisión en su pie, conservando anonimato e interacciones.
+- Ocultamiento propio confirmado desde Inicio con versión obtenida del detalle autorizado, avisos seguros y actualización del feed. Restauración exclusivamente desde Mis experiencias.
+- Selector de materia, cursada y comisión con pasos explícitos, radios, búsqueda, paginación y navegación fija; estilos acotados sin cambios de primitivas.
+- Pruebas automatizadas y stack Docker registrados en `docs/tasks/finished/TASK-inicio-ui.md`: 164 pruebas relevantes aprobadas, typecheck, lint y build satisfactorios. Validación visual manual pendiente por decisión del usuario; no se ejecutó navegador.
+
+### Integración local de desarrollo
+
+- Incorporados los cambios de identidad visual por rol de `origin/desarrollo` (`1133767`) en `feature/clasificador-comentarios`, conservando por separado el trabajo local de T6. Conflictos de documentación resueltos preservando ambas secciones.
+
 ### HU-C05 — Consulta de términos desde Comunidad
 
 - USER y ADMIN pueden consultar los términos debajo de los bloques de Comunidad, con documento completo y versión vigente en un modal compartido con el registro. Incluye carga, error, reintento, cierre por Cerrar/X/Escape y retorno del foco.
@@ -42,12 +105,144 @@
 - El tema deriva del rol autenticado y no altera autorización ni navegación. Se corrige el nombre accesible de los selectores administrativos detectado por axe.
 - Validación: 1039 pruebas frontend, typecheck, lint y build aprobados; 8 casos E2E únicos con autenticación real y auditoría visual/accesible. La suite visual final compara 28 referencias sin actualizarlas. Sin cambios de backend ni migraciones. Evidencia en [la tarea](docs/tasks/finished/TASK-HU-C06-tema-administrativo.md).
 
+### Integración frontend de moderación y reportes (T6)
+
+- Corrección durante validación manual: ambos proxies enrutan `/rankings/` al
+  backend; el smoke operativo cubre rankings y perfiles (24 comprobaciones).
+  Stack oficial restablecido sobre la base de desarrollo original, con respaldo,
+  migraciones e integridad de registros verificados; sin seeds ni restaurar bajas.
+  Ranking y experiencia original comprobados por HTTP y navegador contra Docker.
+
+- Mis experiencias con paginación de nueve, estados privados y causas de ocultamiento
+  independientes. Ocultar/mostrar y solicitar nueva revisión desde el detalle propio,
+  con versión, confirmación, notificaciones y recarga tras conflictos.
+- Alta guardada pendiente hacia Inicio; edición parcial con versión hacia detalle,
+  correcciones rechazadas sin publicación automática y borradores conservados ante errores.
+- Reportes de experiencias ajenas desde las tarjetas existentes: motivo obligatorio,
+  descripción opcional, prevención de doble envío y actualización de la comunidad.
+- Moderación y Reportes en la administración existente: filtros, evidencia histórica,
+  identidad segura autorizada, resoluciones justificadas y restituciones independientes.
+  Retornos mantienen filtros/página; historial de tres eventos con etiquetas legibles.
+- Mensajes de T6 revisados para evitar respuestas técnicas o JSON en avisos; identidades
+  de denunciantes limitadas al detalle administrativo autorizado. Confirmación pendiente
+  visible en Inicio. Sin cambios de backend, autenticación, primitivas ni dependencias.
+- Validación final: frontend 1084/1084, backend 1640/1640 con PostgreSQL/SMTP reales,
+  moderación E2E 4/4 en dos ejecuciones y registro integrado 1/1. Tipos, lint, builds,
+  axe/responsive y diffcheck aprobados. Evidencia y reejecuciones en la ficha T6
+  de `docs/tasks/finished/`; stack Docker levantado para aceptación manual.
+  Validación productiva y aprobación de unión pendientes; sin commits, push,
+  despliegue, IA ni modificaciones de M1.3.
+
 ### Términos y condiciones en el registro
 
 - El alta pública exige aceptar expresamente los términos vigentes: casilla desmarcada, documento centralizado en secciones y modal accesible con Cerrar, X y Escape que conserva el formulario. Se valida aceptación booleana y versión en frontend/backend.
 - La cuenta y su aceptación se guardan atómicamente reutilizando `AceptacionNormas`, con fecha de PostgreSQL y versión diferenciada de las normas históricas. Sin migración ni aceptaciones ficticias para usuarios existentes o provisión administrativa.
 - Los comentarios dejan de solicitar y registrar consentimiento; conservan sus validaciones y permisos. El contrato ya no admite `versionNormas` al publicar.
 - Validación: 1279 pruebas backend verificadas con PostgreSQL y Mailpit temporales; 1007 casos frontend verificados entre la suite completa y la repetición focalizada de borradores. Tipos, lint y builds aprobados. Revisión visual/Playwright pendiente por falta de navegador en el entorno de pruebas. Evidencia en [la tarea](docs/tasks/finished/TASK-terminos-en-registro.md).
+
+### Ocultamiento preventivo y restitución por reportes (T5)
+
+- El tercer denunciante distinto con reportes ABIERTO entre todas las versiones
+  activa solo ocultoReportes, conserva APROBADO y registra origen automático y actor
+  real. Creación, conteo, snapshot, ledger y sincronización de valoraciones atómicos.
+- Restitución explícita ADMIN mediante la acción existente de moderación, con
+  justificación, versión y menos de tres denunciantes abiertos bajo bloqueo. Cerrar
+  denuncias no restituye; otras causas de ocultamiento permanecen independientes.
+- Bandeja T4 extendida con filtro ocultoReportes y ultimoReporteAt, conteos distintos,
+  versiones y estado/causas actuales; identidades exclusivamente ADMIN. Sin otra cola.
+- Migración aditiva de acciones históricas, reintentos propios seguros tras el
+  umbral, conservación de likes/respuestas y reutilización de política pública T2.
+- 56 pruebas T5 nuevas (25 unitarias, 31 HTTP/PostgreSQL), focalizada final 149/149
+  con regresión T4. Concurrencia entre pools, cierres/restitución, privacidad,
+  independencia de causas, rankings, votos alternativos y rollback de sync/ledger.
+  Evidencia completa: [ficha T5](docs/tasks/finished/TASK-moderacion-T5-ocultamiento.md).
+- Global final: 1622/1622 pruebas en 70 archivos, PostgreSQL/SMTP reales, sin
+  omisiones. Typecheck, lint, build, diffcheck y comprobación HTTP del compilado
+  aprobados; fallos intermedios y correcciones conservados en la ficha.
+- Sin frontend, T6, cambios M1.3, modelos, dependencias nuevas, migraciones sobre
+  datos del usuario, despliegue, commits o push. M1.3 queda estacionada para el final.
+
+### Reportes de experiencias y resoluciones administrativas (T4)
+
+- Ajuste de identidad: detalle exclusivo ADMIN con denunciante `{id,displayName}`
+  mediante selección segura; conserva los contratos previos y la privacidad frente
+  al autor/comunidad. Identidad ligada a sesión y conservada después del cierre.
+  Desestimar no implica mala fe ni genera sanciones o reputación de denunciantes.
+
+- FeedbackReporte dentro de ReviewsModule y migración nueva: estados ABIERTO,
+  RESUELTO y DESESTIMADO, motivos tipados, referencias a evidencia histórica sin
+  duplicar texto, denunciante, versión del servidor y cierre justificado con ADMIN.
+- POST de reporte autenticado sobre experiencias públicas ajenas; unicidad por
+  usuario/experiencia/versión, reintentos idempotentes y conflicto ante otros datos.
+  Cuota de cinco creaciones por diez minutos coordinada en PostgreSQL entre procesos.
+- Listado/detalle ADMIN con filtros, nueve reportes, evidencia y resoluciones previas
+  paginadas de tres. Cierre concurrente protegido y AdministracionHistorial atómico,
+  sin exponer denunciantes al autor/comunidad ni modificar publicación o estadísticas.
+- Conteo transaccional de denunciantes distintos abiertos entre versiones disponible
+  para T5. Sin activar ocultoReportes, umbral preventivo, T5/T6, frontend o clasificadores.
+- Validación inicial: 86 pruebas focalizadas aprobadas con PostgreSQL real, incluidas concurrencia entre
+  pools independientes, privacidad, cuota, evidencia y rollback. Comprobación HTTP
+  sobre backend compilado, tipos, lint, build y diffcheck aprobados. Evidencia y
+  resultados completos en [ficha T4](docs/tasks/finished/TASK-moderacion-T4-reportes.md).
+- Suite global inicial backend serial: 1559/1559 en 68 archivos con PostgreSQL/SMTP reales,
+  ninguna integración omitida; incluye regresiones T1/T2/T3.
+- Ajuste de identidad: siete pruebas adicionales; focalizada final 93/93 con
+  PostgreSQL real, proyección segura ADMIN, privacidad comunitaria y del autor,
+  identidad vigente, cierres con cuenta inactiva y ausencia de sanciones.
+- Global final tras el ajuste de identidad: 1566/1566 en 68 archivos con
+  PostgreSQL/SMTP reales y sin omisiones; HTTP compilado, tipos, lint, build
+  y diffcheck aprobados. Sin migración adicional para el ajuste.
+- Sin migraciones sobre datos del usuario, dependencias nuevas, despliegue o push.
+  Cierre local de T4 y ajuste de identidad en un commit autorizado posteriormente;
+  117 pruebas unitarias de reportes/moderación/acciones repetidas y aprobadas antes
+  del commit. No se repitieron integraciones durante el cierre.
+
+### Acciones de autor y administración de experiencias (T3)
+
+- Consultas privadas de experiencias propias y cola ADMIN por estado, con nueve registros,
+  contexto académico, versión y causas; los DTO comunitarios conservan privacidad y anonimato.
+- Acciones HTTP protegidas para aprobación/rechazo motivados, ocultamiento/restitución propios
+  y administrativos, y solicitud de revisión después de una corrección textual real.
+  Sin autoaprobación ni publicación automática de correcciones; causas independientes.
+- Corrección de rechazados con contexto académico cerrado usando snapshots; edición/baja
+  revalidan versión bajo bloqueo. Transiciones, historial, actor real y valoraciones reutilizan
+  las transacciones T1/T2; los fallos revierten también auditoría y votos.
+- 123 pruebas focalizadas aprobadas con PostgreSQL real, incluidas cuatro carreras HTTP y
+  rollback; global 1473/1473 en 66 archivos con PostgreSQL/SMTP reales, sin omisiones.
+  Comprobación manual sobre backend compilado, tipos, lint y build aprobados.
+  Resultados completos en [la ficha T3](docs/tasks/finished/TASK-moderacion-T3-acciones.md).
+- Sin frontend, reportes, clasificadores, nuevas migraciones/dependencias, despliegue, commits
+  ni push durante la implementación. Cierre local en un commit autorizado posteriormente;
+  sin push. Detenido antes de T4; T4–T6 requieren autorización posterior.
+
+### Visibilidad pública y estadísticas de experiencias (T2)
+
+- Política central: solo experiencias aprobadas, vigentes y sin causas de ocultamiento aparecen
+  en listados, feed, comisiones, rankings e interacciones. Accesos propios y administrativos
+  conservados; padres ocultos no filtran respuestas ni contadores públicos.
+- Altas pendientes sin votos públicos; editar una aprobada la deja pendiente. ValoracionMateria
+  se sincroniza atómicamente con la última experiencia visible puntuada de cada autor/materia,
+  según último evento de contenido, con respaldo visible o baja cuando no quedan elegibles.
+- Lecturas de materias verifican la fuente visible; seed y migración de reconciliación respetan
+  la política. La migración de T1 queda intacta; validación solo en PostgreSQL desechable.
+- 107 pruebas nuevas y global final 1412/1412 en 64 archivos, sin integraciones omitidas; tipos,
+  lint y build aprobados. Primera global 1410/1412 y correcciones documentadas en
+  [la ficha T2](docs/tasks/finished/TASK-moderacion-T2-visibilidad.md).
+- Sin endpoints nuevos, frontend, reportes, clasificadores ni despliegue. Cierre T2 autorizado
+  en cuatro commits locales, sin push; detenido antes de T3. T1 permanece en `2f619db`.
+
+### Moderación humana: persistencia y transiciones internas (T1)
+
+- Estados pendiente/aprobado/rechazado, versión y causas independientes de ocultamiento de autor,
+  administración y reportes; baja lógica separada. Migración aditiva conserva experiencias previas
+  y deja nuevos registros pendientes, sin inventar decisiones históricas.
+- Transiciones internas dentro del repositorio existente, con permisos, justificación obligatoria
+  para resoluciones administrativas, prohibición de aprobación propia y snapshot/auditoría atómicos.
+- 53 pruebas específicas aprobadas con PostgreSQL real, rollback, concurrencia y empates de fecha;
+  typecheck, lint y build aprobados. Regresión global y reintentos documentados en
+  [T1](docs/tasks/finished/TASK-moderacion-T1-persistencia.md).
+- Etapa de base: sin endpoints/UI/reportes activos ni cambios de visibilidad/estadísticas. No
+  desplegar aislada antes de T2. Sin cambios al clasificador ni a M1.3; sin commits automáticos.
 
 ### Ranking de comisiones y profesores
 

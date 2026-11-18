@@ -24,9 +24,9 @@ export function internalDestination(raw: string | null | undefined): string | un
 export function roleDestination(role: Role | undefined, raw?: string | null): string {
   const safe = internalDestination(raw);
   if (!safe) return roleHome(role);
-  if (role !== "ADMIN") return safe;
   const url = new URL(safe, "https://local.invalid");
   const path = url.pathname;
+  if (role !== "ADMIN") return /^\/home\/admin(?:\/|$)/.test(path) ? roleHome(role) : safe;
   if (/^\/home\/admin(\/|$)/.test(path) || /^\/account(\/|$)/.test(path)) return safe;
   // Before the subject match: "ranking" is a route, not a materiaId.
   if (path === "/home/materias/ranking") return `/home/admin/ranking/comisiones${url.search}`;

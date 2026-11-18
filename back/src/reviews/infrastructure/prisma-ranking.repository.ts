@@ -2,6 +2,7 @@ import { Prisma } from "../../generated/prisma/client.js";
 import type { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import type { FilaValoracion } from "../domain/ranking.js";
 import type { RankingRepository } from "../application/ports/ranking.repository.js";
+import { publicFeedbackSql } from "./prisma-feedback-visibility.js";
 
 type Row = Omit<FilaValoracion, "suma" | "cantidad"> & { suma: bigint; cantidad: bigint };
 
@@ -23,7 +24,7 @@ export class PrismaRankingRepository implements RankingRepository {
       JOIN "Materia" m ON m."id" = cu."materiaId"
       LEFT JOIN "Profesor" p ON p."id" = f."profesorId" AND p."deletedAt" IS NULL
       LEFT JOIN "ComisionProfesor" cp ON cp."comisionId" = c."id" AND cp."profesorId" = p."id"
-      WHERE f."deletedAt" IS NULL AND f."puntuacion" IS NOT NULL
+      WHERE ${publicFeedbackSql()} AND f."puntuacion" IS NOT NULL
         AND c."deletedAt" IS NULL AND cu."deletedAt" IS NULL AND m."deletedAt" IS NULL
       GROUP BY c."id", m."id", cu."id", p."id", cp."cargo"`);
     return rows.map(row => ({ ...row, suma: Number(row.suma), cantidad: Number(row.cantidad) }));

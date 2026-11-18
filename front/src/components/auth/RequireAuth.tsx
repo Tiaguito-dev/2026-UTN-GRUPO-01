@@ -33,6 +33,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const origin = `${pathname}${params.size ? `?${params}` : ""}`;
   useEffect(() => {
     if (status === "anonymous") {
+      if (sessionEndReason === "logout") { router.replace("/login?notice=logout"); return; }
       const query = new URLSearchParams({ returnTo: internalDestination(origin) ?? "/home" });
       if (sessionEndReason) query.set("notice", sessionEndReason);
       router.replace(`/login?${query}`);

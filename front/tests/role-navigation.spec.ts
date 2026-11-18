@@ -75,6 +75,11 @@ describe("TASK-068: destinos según el rol confirmado", () => {
     expect(roleDestination("USER", path)).toBe(path);
   });
 
+  it.each(["/home/admin", "/home/admin/experiencias?seccion=reportes"]) ("USER vuelve a su inicio al recibir una ruta administrativa: %s", path => {
+    expect(roleDestination("USER", path)).toBe("/home");
+    expect(roleDestination(undefined, path)).toBe("/home");
+  });
+
   it.each([
     "https://evil.test/home",
     "//evil.test/home",

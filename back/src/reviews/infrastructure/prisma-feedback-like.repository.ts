@@ -3,6 +3,7 @@ import type { PrismaService } from "../../infrastructure/prisma/prisma.service.j
 import type { FeedbackLikeRepository, FeedbackLikeState } from "../application/ports/feedback-like.repository.js";
 import { FeedbackNotFoundError } from "../application/errors.js";
 import { FeedbackSelfLikeError } from "../application/feedback-like.service.js";
+import { isFeedbackVisible, type FeedbackVisibility } from "../domain/feedback-visibility.js";
 
 export class PrismaFeedbackLikeRepository implements FeedbackLikeRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -18,10 +19,11 @@ export class PrismaFeedbackLikeRepository implements FeedbackLikeRepository {
       const commissions = await tx.$queryRaw<{ id: string }[]>`
         SELECT "id" FROM "Comision" WHERE "id" = ${original.comisionId}::uuid FOR UPDATE`;
       if (!commissions.length) throw new FeedbackNotFoundError();
-      const [parent] = await tx.$queryRaw<{ id: string; autorId: string; comisionId: string; deletedAt: Date | null }[]>`
-        SELECT "id", "autorId", "comisionId", "deletedAt" FROM "Feedback" WHERE "id" = ${id}::uuid FOR UPDATE`;
+      const [parent] = await tx.$queryRaw<(FeedbackVisibility & { id: string; autorId: string; comisionId: string })[]>`
+        SELECT "id", "autorId", "comisionId", "deletedAt", "estadoModeracion", "ocultoAutor", "ocultoAdministracion", "ocultoReportes"
+        FROM "Feedback" WHERE "id" = ${id}::uuid FOR UPDATE`;
       // Match public historical visibility: academic inactivity/deletion does not hide Feedback.
-      if (!parent || parent.deletedAt || parent.comisionId !== original.comisionId) throw new FeedbackNotFoundError();
+      if (!parent || !isFeedbackVisible(parent) || parent.comisionId !== original.comisionId) throw new FeedbackNotFoundError();
       if (parent.autorId === viewer) throw new FeedbackSelfLikeError();
       const [previous] = await tx.$queryRaw<{ deletedAt: Date | null }[]>`
         SELECT "deletedAt" FROM "FeedbackLike"

@@ -73,14 +73,14 @@ describe("Feed principal", () => {
   });
   it("retries an initial error and announces empty results", async () => {
     vi.mocked(listarFeedComentarios).mockRejectedValueOnce(new Error("Error inicial")).mockResolvedValueOnce(page([]));
-    render(<FeedPrincipal />); expect(await screen.findByRole("alert")).toHaveProperty("textContent", expect.stringContaining("Error inicial"));
+    render(<FeedPrincipal />); expect(await screen.findByRole("alert")).toHaveProperty("textContent", expect.stringContaining("No pudimos cargar los comentarios")); expect(screen.queryByText("Error inicial")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Reintentar" })); await screen.findByText("Todavía no hay comentarios.");
     expect(listarFeedComentarios).toHaveBeenCalledTimes(2);
   });
   it("preserves existing items and cursor on incremental failure and retries the same page", async () => {
     vi.mocked(listarFeedComentarios).mockResolvedValueOnce(page([item("a")], "cursor1")).mockRejectedValueOnce(new Error("Error siguiente")).mockResolvedValueOnce(page([item("b")]));
     render(<FeedPrincipal />); await screen.findByText("Texto a"); fireEvent.click(screen.getByRole("button", { name: "Cargar más" }));
-    await screen.findByText("Error siguiente"); expect(screen.getByText("Texto a")).toBeTruthy();
+    await screen.findByText(/No pudimos cargar los comentarios/); expect(screen.getByText("Texto a")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Reintentar" })); await screen.findByText("Texto b");
     expect(vi.mocked(listarFeedComentarios).mock.calls.slice(1)).toEqual([["cursor1"], ["cursor1"]]);
   });

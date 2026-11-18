@@ -20,7 +20,7 @@ import { periodoLabel } from "@/lib/format/periodo";
 import { iniciales } from "./detalle";
 import { DocentesComision } from "./DocentesComision";
 import styles from "./ComisionDetail.module.css";
-import { experienciasBack, feedbackOriginParams } from "@/validations/feedback";
+import { experienciasBack, feedbackEntryBreadcrumb, feedbackOriginParams } from "@/validations/feedback";
 import { adminFormHref } from "@/validations/admin";
 import { administrativeDetailHref, comisionNavigation } from "@/validations/admin-academic-navigation";
 import { AdminAudit } from "@/components/admin/AdminAudit";
@@ -103,6 +103,8 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
   }, [actualCursadaId, optionsKey]);
 
   const materiasHref = materiaListHref(carrera, anio, listadoPage, context);
+  const entryBreadcrumb = !administrative ? feedbackEntryBreadcrumb(params) : [];
+  const trailStep = params.get("feedbackPaso");
   const materiaBaseHref = publicMateriaDetailHref(realMateriaId, carrera, anio, listadoPage, context);
   const comisionesPage = parseMateriaPage(params.get("comisionesPage"));
   const returnQuery = new URLSearchParams(materiaBaseHref.split("?")[1]);
@@ -114,7 +116,12 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
   const commentPage = parseMateriaPage(params.get("page"));
   if (commentPage > 1) adminDetailUrl.searchParams.set("page", String(commentPage));
   const adminDetailHref = `${adminDetailUrl.pathname}?${adminDetailUrl.searchParams}`;
-  const materiaHref = administrative ? adminNavigation.materiaHref : `${materiaBaseHref.split("?")[0]}?${returnQuery}`;
+  const materiaEntryQuery = new URLSearchParams(materiaBaseHref.split("?")[1]);
+  for (const [key, value] of feedbackOriginParams(params)) if (key === "origen" || key.startsWith("experiencias")) materiaEntryQuery.set(key, value);
+  if (entryBreadcrumb.length) materiaEntryQuery.set("feedbackPaso", "materia");
+  materiaEntryQuery.set("cursadaId", realCursadaId);
+  if (comisionesPage > 1) materiaEntryQuery.set("comisionesPage", String(comisionesPage));
+  const materiaHref = administrative ? adminNavigation.materiaHref : `${materiaBaseHref.split("?")[0]}?${materiaEntryQuery}`;
   const contextQuery = feedbackOriginParams(params);
   if (carrera) contextQuery.set("carrera", carrera);
   if (anio) contextQuery.set("anioCarrera", anio);
@@ -131,8 +138,8 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
 
   return <section className={styles.page} aria-labelledby={headingId}>
     <div className={styles.header}>
-      <PageHeader id={headingId} title={materiaLabel} eyebrow={eyebrow} back={administrative ? { href: adminBack, label: "contexto administrativo" } : experienciasBack(params) ?? { href: materiaHref, label: "Comisiones de la materia" }}
-        breadcrumb={administrative ? adminNavigation.breadcrumb : [{ label: "Materias", href: materiasHref }, { label: comision?.cursada.materia.nombre ?? "Materia", href: materiaHref }, { label: comision ? `Comisión ${comision.nombre}` : "Comisión" }]} focusKey={comisionId} />
+      <PageHeader id={headingId} title={materiaLabel} eyebrow={eyebrow} back={administrative ? { href: adminBack, label: "contexto administrativo" } : entryBreadcrumb.length ? { href: trailStep === "materia" || trailStep === "materia-comision" ? materiaHref : entryBreadcrumb.at(-1)!.href, label: trailStep === "materia" || trailStep === "materia-comision" ? "Comisiones de la materia" : entryBreadcrumb.at(-1)!.label } : experienciasBack(params) ?? { href: materiaHref, label: "Comisiones de la materia" }}
+        breadcrumb={administrative ? adminNavigation.breadcrumb : [...(entryBreadcrumb.length ? entryBreadcrumb : [{ label: "Materias", href: materiasHref }]), ...(entryBreadcrumb.length && trailStep === "comision" ? [] : [{ label: comision?.cursada.materia.nombre ?? "Materia", href: materiaHref }]), ...(entryBreadcrumb.length && trailStep === "materia" ? [] : [{ label: comision ? `Comisión ${comision.nombre}` : "Comisión" }])]} focusKey={comisionId} />
       {administrative && isAdmin && comision && !comision.deletedAt ? <><Link className="button button-secondary" href={adminFormHref(`/home/admin/comisiones/${encodeURIComponent(comision.id)}/editar`, adminDetailHref)}>Editar comisión</Link><AcademicDeleteAction kind="comisiones" id={comision.id} label={`${comision.nombre} de ${comision.cursada.materia.nombre} (${periodoLabel(comision.cursada.anio, comision.cursada.cuatrimestre)})`} onAttempt={() => setAuditVersion(value => value + 1)} onSuccess={() => { setDeleteMessage("La comisión se dio de baja correctamente."); setRetryToken(value => value + 1); setAuditVersion(value => value + 1); setOptionsRetry(value => value + 1); }} /></> : null}
       {comision ? <div className={styles.contextRow}>
         <div className={styles.context}>

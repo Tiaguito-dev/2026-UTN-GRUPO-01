@@ -13,8 +13,19 @@ const apiChecks = [
   { method: "PATCH", path: `/users/${id}/estado` },
   { method: "GET", path: `/profesores/${id}` },
   { method: "GET", path: `/profesores/${id}/historial` },
+  { method: "GET", path: "/rankings/comisiones?page=1&pageSize=9" },
+  { method: "GET", path: "/rankings/profesores?page=1&pageSize=9" },
+  { method: "GET", path: `/rankings/profesores/${id}` },
 ];
 const pages = ["materias", "profesores", "cursadas", "comisiones", "usuarios", "experiencias"];
+const pageChecks = [
+  ...pages.map((module) => ({ path: `/home/admin/${module}` })),
+  { path: "/home/admin/ranking" },
+  { path: "/home/admin/ranking/comisiones" },
+  { path: `/home/admin/ranking/profesores/${id}` },
+  { path: "/home/profesores" },
+  { path: `/home/profesores/${id}` },
+];
 let failures = 0;
 
 async function check({ method = "GET", path }, backend) {
@@ -41,10 +52,10 @@ async function check({ method = "GET", path }, backend) {
 }
 
 for (const request of apiChecks) await check(request, true);
-for (const module of pages) await check({ path: `/home/admin/${module}` }, false);
+for (const request of pageChecks) await check(request, false);
 if (failures) {
   console.error(`${failures} comprobaciones de enrutamiento fallaron.`);
   process.exitCode = 1;
 } else {
-  console.log("16 comprobaciones aprobadas: API protegida en backend y páginas en frontend.");
+  console.log(`${apiChecks.length + pageChecks.length} comprobaciones aprobadas: API protegida en backend y páginas en frontend.`);
 }

@@ -4,6 +4,7 @@ import { cargoLabel } from "@/lib/format/cargo";
 import { isModalidadMateria, modalidadLabel } from "@/validations/materias";
 import shared from "./AdminMateriaDetail.module.css";
 import styles from "./AdminExperienceCard.module.css";
+import { AdminModerationStatus } from "./AdminModerationActions";
 
 const value = (raw: unknown) => typeof raw === "string" && raw.trim() ? raw.trim() : typeof raw === "number" && Number.isFinite(raw) ? String(raw) : null;
 
@@ -27,7 +28,7 @@ export function AdminExperienceCard({ record }: { record: Record<string, unknown
           <span className={styles.avatar} aria-hidden="true">{author ? iniciales(author) : <UserRound size={22} />}</span>
           <dl className={styles.author}><Field label="Autor" content={author} /></dl>
         </div>
-        <dl className={styles.author}><div><dt>Estado</dt><dd><span className={`${shared.status} ${removed ? shared.inactive : shared.active}`}>{removed ? "Eliminado" : "Publicado"}</span></dd></div></dl>
+        <dl className={styles.author}><div><dt>Estado</dt><dd>{typeof record.estadoModeracion === "string" ? <AdminModerationStatus record={record} /> : <span className={`${shared.status} ${removed ? shared.inactive : shared.active}`}>{removed ? "Eliminado" : "Publicado"}</span>}</dd></div></dl>
       </div>
       <div className={styles.content}>
         <h2><MessageSquare size={20} aria-hidden="true" />Contenido completo</h2>

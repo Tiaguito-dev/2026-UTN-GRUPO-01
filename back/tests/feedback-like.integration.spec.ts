@@ -54,6 +54,7 @@ describe.skipIf(!databaseUrl)("Likes: HTTP y PostgreSQL aislado", () => {
     expect(response.status).toBe(201);
     const feedback = await response.json() as { id: string };
     ids.feedback.push(feedback.id);
+    // Las altas se publican directamente y sincronizan su valoración.
     return { id: feedback.id, comisionId: comision.id, materiaId: materia.id, path: `/feedback/${feedback.id}/like` };
   }
   async function state(path: string, method: "PUT" | "DELETE", expected: { meGusta: boolean; cantidadLikes: number }, cookie = reader.cookie) {
@@ -153,6 +154,7 @@ describe.skipIf(!databaseUrl)("Likes: HTTP y PostgreSQL aislado", () => {
     expect(old.items.find((item: { id: string }) => item.id === f.id)).not.toHaveProperty("cantidadLikes");
     expect(old.items.find((item: { id: string }) => item.id === f.id)).not.toHaveProperty("meGusta");
     expect(await prisma.valoracionMateria.findUniqueOrThrow({ where: { usuarioId_materiaId: { usuarioId: author.id, materiaId: f.materiaId } } })).toEqual(rating);
+    // Likes do not add events to the directly published parent.
     expect(await prisma.feedbackHistorial.count({ where: { feedbackId: f.id } })).toBe(1);
   });
   it("serializa dos PUT simultáneos y tolera DELETE concurrentes", async () => {

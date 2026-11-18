@@ -3,6 +3,7 @@ import type { PrismaService } from "../../infrastructure/prisma/prisma.service.j
 import type { FeedbackFeedRepository } from "../application/ports/feedback-feed.repository.js";
 import type { FeedbackFeed, FeedbackFeedPoint, FeedbackFeedQuery } from "../domain/feedback-feed.js";
 import { includeAutor, present } from "./prisma-feedback.repository.js";
+import { publicFeedbackWhere } from "./prisma-feedback-visibility.js";
 
 function boundary(point: FeedbackFeedPoint, inclusive: boolean): Prisma.FeedbackWhereInput {
   const createdAt = new Date(point.createdAt);
@@ -19,7 +20,7 @@ export class PrismaFeedbackFeedRepository implements FeedbackFeedRepository {
     // The page and its aggregated interactions share a snapshot within this request only.
     return this.prisma.$transaction(async tx => {
       const rows = await tx.feedback.findMany({
-        where: { deletedAt: null, ...(cursor ? { AND: [boundary(cursor.upper, true), boundary(cursor.after, false)] } : {}) },
+        where: { ...publicFeedbackWhere, ...(cursor ? { AND: [boundary(cursor.upper, true), boundary(cursor.after, false)] } : {}) },
         include: includeAutor,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: pageSize + 1,
@@ -32,7 +33,7 @@ export class PrismaFeedbackFeedRepository implements FeedbackFeedRepository {
           AND "feedbackId" IN (${Prisma.join(items.map(item => Prisma.sql`${item.id}::uuid`))})
         GROUP BY "feedbackId"`) : [];
       const replies = items.length ? await tx.feedbackRespuesta.groupBy({
-        by: ["feedbackId"], where: { deletedAt: null, feedback: { deletedAt: null }, feedbackId: { in: items.map(item => item.id) } },
+        by: ["feedbackId"], where: { deletedAt: null, feedback: publicFeedbackWhere, feedbackId: { in: items.map(item => item.id) } },
         _count: { _all: true },
       }) : [];
       const byReplies = new Map(replies.map(reply => [reply.feedbackId, reply._count._all]));

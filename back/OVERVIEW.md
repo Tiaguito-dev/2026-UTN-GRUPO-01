@@ -1,5 +1,293 @@
 # Backend
 
+Las integraciones de likes, respuestas y valoración de materias parten de altas públicas
+ya aprobadas por la política de publicación directa. No ejecutan una aprobación extra
+ni esperan ese evento en el historial; verifican que las interacciones no alteren el
+historial del padre. La validación previa al merge usa una base vacía dedicada para
+las suites que requieren un catálogo inicial sin experiencias.
+
+## Política vigente: publicación directa y revisión por reportes
+
+Después de T6, las altas de experiencias nacen `APROBADO`, versión 1 y sin revisión
+humana previa. Una edición conserva el estado y todas las causas de ocultamiento; solo
+incrementa la versión cuando hay diferencias. Los rechazos existentes requieren corregir
+el texto y solicitar explícitamente revisión; no se aprueban al editar ni se convierten
+retrospectivamente los registros pendientes o rechazados.
+
+Dos usuarios distintos con reportes `ABIERTO` activan el ocultamiento preventivo y la
+revisión administrativa. Se cuentan todas las versiones sin duplicar denunciantes, bajo
+los mismos locks transaccionales. `FEEDBACK_REPORTES_UMBRAL` centraliza el límite en el
+dominio y el repositorio lo reutiliza. La restitución exige menos de dos denunciantes
+abiertos, versión vigente y justificación administrativa; cerrar reportes no restituye
+automáticamente ni levanta otras causas. ADMIN conserva consultas de reportes individuales
+para trazabilidad; alcanzar el umbral determina el ocultamiento y la revisión requerida.
+
+La API, las proyecciones de privacidad y la sincronización del voto por autor/materia
+conservan sus contratos. El seed crea solamente sus nuevas filas como aprobadas y conserva
+el estado de las existentes; este ajuste no ejecuta seeds ni cambia datos de desarrollo.
+Sin migración, clasificador, dependencias ni cambios de permisos. Esta política reemplaza
+las reglas iniciales de alta pendiente y edición a pendiente documentadas históricamente
+en T1/T2/T3 y reduce el umbral original de T5 de tres a dos.
+
+## Ocultamiento preventivo por reportes (T5)
+
+T5 extiende ReviewsModule y los contratos T3/T4. Al crear un reporte nuevo, cuenta
+usuarios distintos con ABIERTO en todas las versiones. Con dos activa exclusivamente
+ocultoReportes y mantiene APROBADO. La política pública T2 lo excluye de comunidad,
+feed, rankings, valoraciones y nuevas interacciones; conserva likes, respuestas,
+contenido e historial para el autor y ADMIN.
+
+Advisory del denunciante -> comisión -> Feedback -> par autor/materia. Reporte,
+conteo, transición, snapshot, ledger y syncMateriaVote comparten la transacción
+ReadCommitted. La función interna persistFeedbackModeration reutiliza la persistencia
+T1/T2 sin transacciones anidadas. Todas las decisiones concurrentes releen bajo lock.
+Un fallo de estadísticas o auditoría revierte también la creación del segundo reporte.
+
+La migración aditiva 20261117030000_feedback_ocultamiento_reportes agrega las acciones
+OCULTAMIENTO_REPORTES y RESTITUCION_REPORTES, sin reescribir datos ni migraciones previas.
+Cada cambio incrementa versionModeracion y correlaciona snapshot/ledger con el mismo UUID.
+El ledger del ocultamiento registra origen=AUTOMATICO y actorId del segundo denunciante;
+el de restitución origen=ADMINISTRATIVO y actorId del ADMIN. Solo ADMIN ve identidades.
+El autor recibe su historial seguro y nunca identidades de denunciantes.
+
+POST `/admin/feedback/:id/moderacion` admite
+`{accion:"RESTITUCION_REPORTES",versionEsperada,motivo}`: ADMIN activo, motivo obligatorio
+normalizado 1–1000 sin controles, versión vigente. Recuenta ABIERTO distintos bajo lock;
+con dos o más devuelve 409. Levanta solo ocultoReportes; otras causas, rechazo, pendiente
+u otra condición privada siguen excluyendo la contribución pública. No-op con versión
+vigente no duplica eventos; versión obsoleta devuelve 409. Rechazo formal usa RECHAZO T3.
+Los cierres individuales T4 nunca restituyen automáticamente, ni reabren reportes.
+Revisar y mantener pendiente consiste en consultar sin escribir una decisión ficticia.
+
+GET `/admin/feedback-reportes` agrega `ocultoReportes=true|false` y mantiene filtros,
+orden y páginas de nueve de T4. Cada item y el detalle agregan `ultimoReporteAt`, máximo
+de creación entre todos los reportes de esa experiencia, incluso cerrados. Mantienen
+cantidadReportesActivos, denunciantesAbiertos, versiones/evidencia y experiencia actual
+con estado y causas. Consultas RepeatableRead, conteos/fechas agrupados por página;
+resoluciones anteriores de tres. No se crea una cola física ni otro endpoint.
+
+POST de reporte mantiene el payload T4. Con cuatro nuevos denunciantes concurrentes,
+se serializan dos creaciones y los restantes reciben 404 tras ocultarse. Para tolerar
+reintentos del reporte que disparó el umbral, una experiencia aprobada oculta solo por
+reportes permite devolver exclusivamente un recibo propio existente con evidencia igual
+al contenido actual. Devuelve 200 incluso cerrado, sin reabrir, consumir cuota ni contar
+otra vez; payload distinto 409. Otra causa/baja impide ese acceso (404). Nuevos reportes
+siempre requieren contenido público; futuras versiones pueden iniciar nuevos ciclos.
+
+La migración no procesa retrospectivamente reportes legados: el umbral se evalúa al
+crear un reporte nuevo. No modifica frontend, M1.3, modelos, dependencias ni configuración
+de Docker/Compose. La coordinación requiere la misma base PostgreSQL para estos escritores;
+un desacoplamiento futuro debe conservar atomicidad y orden de locks. T6 queda pendiente
+sin implementar. Evidencia y resultados: [ficha T5](../docs/tasks/finished/TASK-moderacion-T5-ocultamiento.md).
+Validación T5: 56 pruebas nuevas, focalizada 149/149, global 1622/1622 en 70 archivos
+con PostgreSQL/SMTP reales sin omisiones. Typecheck, lint, build, diffcheck y comprobación
+HTTP del compilado aprobados. Fallos intermedios y límites registrados en la ficha.
+
+## Reportes de experiencias (T4)
+
+Implementado dentro de ReviewsModule, sin frontend ni otro módulo administrativo.
+`FeedbackReporteService` valida contratos; el puerto FeedbackReporteRepository separa
+aplicación y PostgreSQL. PrismaFeedbackReporteRepository mantiene transacciones y auditoría.
+Migración aditiva `20261117020000_feedback_reportes`; no modifica migraciones anteriores.
+
+| Método y ruta | Contrato | Acceso |
+|---|---|---|
+| POST `/feedback/:id/reportes` | `{motivo,descripcion?}`; 201 nuevo, 200 reintento idéntico | Sesión, experiencia visible ajena |
+| GET `/admin/feedback-reportes` | `page`, `pageSize` hasta 9, `estado?`, `motivo?`, `feedbackId?` | ADMIN |
+| GET `/admin/feedback-reportes/:id` | `page`, `pageSize` hasta 3 para resoluciones anteriores | ADMIN |
+| POST `/admin/feedback-reportes/:id/resolucion` | `{estado:RESUELTO\|DESESTIMADO,motivo}`; 200 | ADMIN |
+
+Motivos: INSULTOS_ACOSO, AMENAZAS_INTIMIDACION, DISCRIMINACION, DATOS_PERSONALES,
+SPAM y OTRO. Descripción opcional y justificación obligatoria se recortan y admiten
+hasta 1000 caracteres Unicode, sin controles. Todos los DTO son estrictos; identidad,
+versión, estado inicial y fechas proceden exclusivamente del servidor. Las escrituras
+conservan Origin/CSRF y todas las respuestas usan no-store. 400 contrato inválido,
+401 sin sesión, 403 permiso/autorreporte, 404 privado/inexistente, 409 duplicado con
+otros datos o cierre inválido, 429 cuota excedida. Errores de almacenamiento revierten
+reporte y ledger juntos, sin revelar datos internos al cliente.
+
+FeedbackReporte referencia Feedback, denunciante User y snapshot FeedbackHistorial del
+mismo feedback mediante FK compuesta. Guarda versionReportada, motivo, descripción,
+estado ABIERTO/RESUELTO/DESESTIMADO y fechas; el cierre agrega administrador User y
+justificación. Restricciones SQL exigen cierre completo, versión positiva, claves
+únicas e integridad de evidencia; índices soportan filtros, cuota y conteo por experiencia.
+Los escritores existentes, incluido seed, guardan snapshots de contenido. T4 verifica
+texto/puntuación/anonimato bajo bloqueo y referencia un snapshot exacto: no copia texto
+ni altera historial legado. El snapshot puede tener metadatos de versión nulos; la
+versión denunciada queda en el reporte y el ID ancla inequívocamente el contenido.
+Ante datos corruptos sin evidencia exacta, rechaza con 409 sin fabricar historia.
+
+Unicidad denunciante/feedback/versión conserva denuncias después de editar o retirar.
+Reintento con datos normalizados iguales devuelve el mismo reporte incluso cerrado,
+si la experiencia sigue visible y en esa versión; con otros datos devuelve 409.
+No hay reapertura ni modificación posterior de motivo/evidencia. Las versiones nuevas
+pueden recibir reportes nuevos y no eliminan los anteriores.
+
+Cuota móvil de cinco reportes nuevos por diez minutos, aun si fueron cerrados.
+Un advisory lock transaccional por denunciante serializa procesos PostgreSQL, seguido
+de comisión -> feedback. Se comprueba idempotencia antes de la cuota; reloj de PostgreSQL
+posterior a los bloqueos. El cierre toma comisión -> feedback -> reporte y revalida ADMIN
+activo. Dos cierres concurrentes producen un éxito y un conflicto, nunca dos decisiones.
+AdministracionHistorial registra CREACION/RESOLUCION/DESESTIMACION en entidad
+feedbackReporte, con actor, fecha y diferencias en la misma transacción.
+
+Listado ordena creación/id descendente y usa RepeatableRead para total/página/conteos;
+los conteos de la página se resuelven agrupados en una consulta. Detalle separa reporte,
+evidencia, experiencia actual con contexto académico persistido y resoluciones anteriores
+de la experiencia (resolución/id descendente, tres por página). ADMIN puede consultar
+la evidencia también tras edición, rechazo o baja. Ninguna consulta comunitaria ni del
+autor agrega reportes o identidades de denunciantes; respuestas al denunciante seleccionan
+solo su recibo, sin identidad del autor, terceros o justificación interna.
+
+El detalle ADMIN incorpora `reporte.denunciante: { id, displayName }`, usando la
+selección segura de identidad de las proyecciones administrativas existentes. El ID
+corresponde al usuario autenticado que creó el reporte y el nombre es el actual de
+su cuenta, aun cuando esté inactiva; no representa un nombre legal ni un snapshot
+histórico del nombre. No incluye email, credenciales, sesiones o tokens. Esta ampliación
+es aditiva: mantiene los campos del reporte, sus motivos, descripción, fechas,
+evidencia y resoluciones anteriores de la experiencia; no modifica los contratos
+del listado, creación/reintento o cierre ni crea un historial global de denunciantes.
+Autor, denunciante y terceros sin rol ADMIN no acceden al detalle administrativo.
+El anonimato comunitario de la experiencia no elimina la trazabilidad administrativa.
+Resolver/desestimar conserva denunciante, administrador responsable, justificación
+y fecha. Desestimar no presume mala fe: no activa sanciones, reputación, cambios de
+cuenta o permisos de denunciantes.
+
+`countFeedbackReportesAbiertos(tx,feedbackId)` devuelve cantidadReportesActivos y
+denunciantesAbiertos (COUNT DISTINCT, sin duplicar usuarios entre versiones). Las
+decisiones T5 lo invocan dentro de la transacción tras bloquear Feedback;
+creaciones y cierres comparten ese bloqueo. T4 originalmente no activaba ocultoReportes;
+T5 conecta el umbral y la restitución descritos arriba. Cerrar reportes sigue sin
+modificar moderación ni estadísticas por sí solo. T6 sigue pendiente. Sin nuevas dependencias, variables de entorno o cambios
+de Docker/Compose. Evidencia de pruebas en [ficha T4](../docs/tasks/finished/TASK-moderacion-T4-reportes.md).
+Validación inicial T4: 86/86 focalizadas, global 1559/1559 en 68 archivos con PostgreSQL/SMTP
+reales y regresiones T1/T2/T3; comprobación HTTP del compilado, tipos, lint, build
+y diffcheck aprobados. No se aplicaron migraciones a datos del usuario.
+El ajuste de identidad agrega siete pruebas: focalizada final 93/93 (55 unitarias,
+38 integraciones PostgreSQL reales), incluidos controles de rol, proyección segura,
+no filtraciones y cierres sin sanciones ni pérdida de trazabilidad.
+Global final del ajuste: 1566/1566 en 68 archivos con PostgreSQL/SMTP reales y
+regresiones T1/T2/T3, sin omisiones; tipos, lint, build, diffcheck y comprobación
+HTTP sobre el compilado aprobados. Sin migraciones nuevas para el ajuste.
+
+## Acciones humanas de moderación (T3)
+
+Todas estas rutas requieren sesión y responden con `Cache-Control: no-store`. Las escrituras
+mantienen Origin/CSRF y obtienen actor/rol exclusivamente de la sesión. No hay frontend nuevo.
+
+| Método y ruta | Entrada | Permiso y resultado |
+|---|---|---|
+| GET `/feedback/propios` | `page`, `pageSize` hasta 9 | Autor: sus experiencias vigentes de cualquier estado, con contexto histórico, causas, estado, versión y motivo de rechazo. |
+| POST `/feedback/:id/ocultar` | `{versionEsperada}` | Autor: aprobado -> activa solo `ocultoAutor`. |
+| POST `/feedback/:id/restaurar` | `{versionEsperada}` | Autor: aprobado -> levanta solo `ocultoAutor`; otras causas mantienen privacidad. |
+| POST `/feedback/:id/revision` | `{versionEsperada}` | Autor: rechazado con texto corregido respecto del último rechazo -> pendiente, revisión humana obligatoria. |
+| GET `/admin/feedback` | `page`, `pageSize` hasta 9, `estado` | ADMIN: estado por defecto PENDIENTE; admite APROBADO/RECHAZADO. |
+| POST `/admin/feedback/:id/moderacion` | `{accion,versionEsperada,motivo}` | ADMIN: APROBACION, RECHAZO, OCULTAMIENTO_ADMIN, RESTITUCION_ADMIN. |
+
+Los POST responden 200 con el estado de moderación y su versión. Motivo administrativo obligatorio,
+normalizado, de 1 a 1000 caracteres y sin controles. No se admiten campos adicionales, identidades,
+estados arbitrarios ni causas ajenas. La cola deriva de Feedback y ordena creación/id descendente,
+con total/página consistentes; usa `/admin/feedback/:id/detalle` para el detalle y auditoría existentes.
+No se incluyen bajas en las colas; el detalle administrativo y el historial propio conservan bajas.
+
+PATCH `/feedback/:id` conserva campos de contenido y admite `versionEsperada` opcional. Si falta,
+captura la versión inicial y la revalida bajo el bloqueo existente; DELETE conserva su contrato
+y hace la misma revalidación interna. Los clientes nuevos deben enviar versión en PATCH para
+detectar además formularios desactualizados antes de iniciar la petición. Una edición real
+incrementa versión y conserva estado: APROBADO, PENDIENTE y RECHAZADO. Sin diferencias
+no hay evento. Corregir RECHAZADO usa los snapshots históricos aunque sus padres estén inactivos
+o dados de baja; las demás ediciones y las altas mantienen sus restricciones académicas.
+El destino académico no puede modificarse. Las nuevas altas usan la política de publicación directa.
+
+La aprobación exige pendiente ajeno; un ADMIN autor no puede autoaprobarse. Rechazar conserva
+contenido y motivo para el autor, sin publicar. Ocultar administrativamente exige aprobado;
+restituir administrativamente no cambia estado ni levanta causas de autor/reportes. T3 reemplaza
+la restricción anterior de restitución voluntaria con otras causas: ahora levanta exclusivamente
+la causa del autor y conserva las restantes, sin conceder visibilidad pública.
+
+Las mutaciones reutilizan transiciones de dominio, bloqueo comisión/comentario, versión, snapshot
+FeedbackHistorial, AdministracionHistorial correlacionado y sincronización transaccional del voto
+autor/materia de T1/T2. Los motivos internos y la identidad real del actor quedan en administración;
+el DTO comunitario no cambia. Detalle/consulta propios exponen metadatos seguros; el historial
+privado conserva paginación de tres y no expone justificaciones administrativas internas.
+
+Errores: 400 contrato/UUID/motivo inválido, 401 sin sesión, 403 permiso/CSRF/autoaprobación,
+404 inexistente/baja (o acceso ajeno privado), 409 versión obsoleta/transición no autorizada/texto
+sin corrección. El error de persistencia revierte estado, snapshots, auditoría y votos juntos.
+Sin nuevas dependencias, variables de entorno, migraciones ni cambios de Docker/Compose.
+Validación: 123 pruebas focalizadas, global 1473/1473 en 66 archivos con PostgreSQL/SMTP reales,
+comprobación HTTP del backend compilado, typecheck, lint, build y diffcheck aprobados.
+Evidencia: [ficha T3](../docs/tasks/finished/TASK-moderacion-T3-acciones.md).
+T4 incorpora reportes y T5 conecta el umbral preventivo descrito arriba. La interfaz T6 sigue pendiente.
+
+## Visibilidad de experiencias y valoraciones (T2)
+
+La publicación comunitaria requiere `estadoModeracion: APROBADO`, `deletedAt: null` y
+`ocultoAutor`, `ocultoAdministracion` y `ocultoReportes` falsos simultáneamente. El contrato
+vive en `reviews/domain/feedback-visibility.ts`; sus adaptaciones Prisma/SQL se derivan de
+esa misma definición y se consumen desde los repositorios existentes, sin nuevos endpoints.
+
+Listado general, filtros/totales, comisión, feed, rankings y padres de likes/respuestas usan
+esta política. Una experiencia no visible no admite interacciones públicas ni expone su hilo
+o contadores. Ocultar conserva likes/respuestas vigentes para una restitución posterior.
+Detalle e historial del autor, consulta propia por comisión y detalle administrativo mantienen
+sus permisos separados. El rol ADMIN no habilita contenidos privados en consultas comunitarias.
+El DTO comunitario conserva anonimato y omite motivos/causas/identificadores internos del autor.
+
+La política inicial T2 de alta y edición pendiente fue reemplazada por la publicación directa:
+las nuevas altas son aprobadas y las ediciones conservan estado, incluyendo los rechazos.
+Creación/edición/baja guardan metadatos históricos y versión; el no-op no escribe.
+
+`ValoracionMateria` mantiene un voto por autor/materia: la última experiencia visible puntuada,
+ordenada por su último snapshot CREACION/EDICION (fallback a createdAt), luego identificadores
+estables. Las decisiones de moderación no alteran ese orden; puntuaciones históricas NULL no
+contribuyen. Sin elegibles se da de baja la proyección, conservando su identidad para reactivar.
+El helper de infraestructura de reviews selecciona y sincroniza la proyección dentro de la misma
+transacción de creación, edición, baja o transición interna, bajo bloqueo del par autor/materia.
+Los cambios de valoración se incluyen en la auditoría del evento que los provocó.
+
+La lectura pública de promedios de materia reutiliza esa selección autoritativa acotada a IDs
+de la página; no confía en una proyección antigua para decidir elegibilidad. Rankings conservan
+su agrupación existente por comisión/docente, usando únicamente experiencias visibles.
+T2 reconcilia datos anteriores mediante una migración adicional; la migración T1 queda intacta.
+El seed de demostración sincroniza votos desde la visibilidad persistida; no altera estados existentes.
+
+Plan y evidencia: [ficha T2](../docs/tasks/finished/TASK-moderacion-T2-visibilidad.md).
+Validación: 107 pruebas nuevas y global final 1412/1412 en 64 archivos con PostgreSQL real;
+typecheck, lint y build aprobados. La ficha conserva fallos iniciales y sus reejecuciones.
+Sin endpoints de moderación/reportes, cambios de frontend o clasificadores. No desplegar
+T1/T2 aisladamente: los flujos de autor y administración todavía requieren las etapas siguientes.
+
+## Moderación humana: base de persistencia (T1)
+
+Esta sección documenta la base de T1: preparó datos y transiciones internas dentro de `reviews`,
+sin endpoints ni acciones de interfaz. La política de lectura y estadísticas se conecta en T2,
+descrita arriba; las acciones HTTP corresponden a T3. No desplegar las etapas aisladamente.
+Plan y decisiones: [tarea incremental](../docs/tasks/in-progress/TASK-moderacion-reportes-incremental.md).
+
+El estado `PENDIENTE`, `APROBADO` o `RECHAZADO` es independiente de `deletedAt` y de las causas
+`ocultoAutor`, `ocultoAdministracion` y `ocultoReportes`. Levantar una causa no levanta las demás.
+La migración conserva las experiencias anteriores como aprobadas, sin inventar decisiones humanas;
+el default SQL histórico es pendiente, pero la aplicación crea explícitamente las nuevas altas
+aprobadas con la política vigente. Los snapshots anteriores conservan metadatos de moderación nulos.
+
+Las decisiones internas requieren versión esperada. El repositorio conserva el orden de bloqueo
+comisión y comentario, revalida permisos/versión y escribe el snapshot de `FeedbackHistorial` y
+el actor/motivo en `AdministracionHistorial` con el mismo identificador, dentro de una transacción.
+No hay nuevos permisos HTTP ni cambios al anonimato público en T1.
+
+El autor solo puede ocultar su experiencia aprobada. La restricción inicial T1 de restitución
+con otras causas fue reemplazada en T3: levanta solo su causa y conserva la privacidad restante.
+Administración puede aprobar pendientes ajenos, rechazar pendientes/aprobados, ocultar aprobados y
+levantar su propia causa. Aprobar, rechazar, ocultar y restituir administrativamente requieren justificación
+normalizada de hasta 1000 caracteres. Se rechazan bajas, versiones obsoletas y aprobación propia.
+Un rechazado conserva revisión humana obligatoria y solo solicita revisión después de corregir
+el texto respecto del último rechazo; no se consulta la vigencia del contexto académico histórico.
+
+Los reportes y la restitución preventiva se implementaron en T4/T5; el umbral vigente es dos denunciantes.
+El indicador `ocultoReportes` se prepara en persistencia, sin automatismos en esta etapa. No hay
+clasificador productivo ni dependencia del experimento M1.3.
+
 ## Consulta de normas de Comunidad (HU-C01)
 
 `GET /comunidad/normas` requiere una sesión autenticada, tanto USER como ADMIN. Devuelve

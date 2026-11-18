@@ -1,5 +1,19 @@
 # Frontend
 
+## Presentación de Inicio
+
+`FeedPrincipal` agrupa Actualizar y Agregar comentario. Su variante `inicio` de
+`ExperienceCard` recibe el pie de interacciones de `FeedbackInteracciones` mediante
+composición; los otros usos mantienen su presentación. `HideFeedExperienceAction`
+consulta el detalle propio para obtener `versionModeracion`, confirma mediante
+`Dialog` y consume `POST /feedback/:id/ocultar` con `versionEsperada`. Éxito y
+conflictos actualizan el feed y conservan avisos seguros; no hay restauración pública.
+
+`SeleccionComisionComentario` conserva los servicios de catálogo y la comprobación
+final de comisión. Presenta Materia/Cursada/Comisión con selección explícita,
+Siguiente/Anterior, búsqueda y páginas de nueve opciones. Sus estilos y los del feed
+están acotados a CSS Modules, sin modificar layout ni primitivas compartidas.
+
 ## Comunidad: consulta de términos (HU-C05)
 
 `ComunidadTerminos` aparece debajo de los bloques de USER y ADMIN, también ante fallos de las
@@ -126,6 +140,55 @@ se conservan. La navegación y los permisos siguen a cargo de `sectionsForRole`,
 En móvil se mantiene el sidebar responsive existente; la marca y la etiqueta administrativa
 se apilan y `--header-h` pasa a `6.5rem` solo para ADMIN bajo 600px. El encabezado USER conserva
 su estructura y medidas previas.
+
+## Moderación humana y reportes (T6)
+
+La página `/home/experiencias` conserva la comunidad e incorpora Mis experiencias
+(`seccion=propias`). La consulta privada `GET /feedback/propios` pagina de nueve,
+incluye pendientes, rechazadas y aprobadas ocultas, y conserva el retorno al listado.
+`FeedbackModerationStatus` muestra el estado y cada causa independiente: autor,
+administración y reportes. Una aprobación con restricciones nunca se presenta como publicada.
+
+`FeedbackDetail` conserva edición, retiro e historial privado de tres eventos. Suma
+ocultar/mostrar con EyeOff/Eye y confirmación en Dialog. Las acciones envían
+`versionEsperada`, vuelven a consultar el detalle y notifican resultados mediante Notice.
+Mostrar levanta exclusivamente la causa del autor; las restricciones restantes se explican.
+El historial distingue creación, edición, decisiones, ocultamientos y restituciones.
+
+`FeedbackForm` envía solo diferencias reales y la versión vigente en PATCH. Crear vuelve
+a `/home` con confirmación de publicación inmediata. El aviso se elige según el estado real de la respuesta; un pendiente histórico o de nueva revisión mantiene su explicación. Editar una aprobada conserva la aprobación y vuelve al detalle; un rechazado
+conserva su estado y motivo hasta Solicitar nueva revisión, acción explícita del detalle.
+Las correcciones rechazadas usan el contexto histórico aunque la comisión esté cerrada.
+Un conflicto recarga la versión y conserva el borrador; exige revisar y confirmar antes
+de intentar guardar sobre los datos actuales. No hay integración de clasificadores.
+
+`ReportFeedbackAction` reutiliza Dialog para motivo obligatorio y descripción opcional
+de hasta 1000 caracteres. `ExperienceCard` lo ofrece en lecturas comunitarias ajenas,
+incluidos feed, comisión y perfil docente. Bloquea doble envío y conserva datos ante
+fallos; 409 y 429 muestran pasos para continuar. Tras reportar se recarga la lectura
+comunitaria, evitando conservar una publicación oculta por el segundo denunciante distinto con reporte abierto.
+No se muestran datos de otros reportes en estas superficies.
+
+La administración mantiene `/home/admin/experiencias`, dedicada a Reportes sin bandeja
+ni selector de Moderación. Acepta también las URLs anteriores con `seccion=reportes`.
+Filtra reportes por estado, motivo y ocultamiento preventivo,
+con páginas de nueve. El detalle administrativo existente agrega decisiones justificadas
+y control de versión. El detalle de reporte usa `reporteId` en la misma página, muestra
+snapshot exacto, contexto, estado actual, denunciante limitado a id/displayName y
+resoluciones de tres. Resolver/desestimar no restituye; RESTITUCION_REPORTES exige
+menos de dos denunciantes distintos con reportes abiertos y preserva otras causas. Los retornos conservan
+filtros, página y reporte seleccionado al navegar entre detalles y comisiones.
+
+Servicios y esquemas: `services/feedback.ts`, `feedback-schemas.ts`,
+`feedback-reportes.ts`, `feedback-reportes-schemas.ts`, `feedback-moderation-schemas.ts`;
+tipos en `types/feedback*.ts`, validaciones en `validations/feedback-moderation.ts`.
+Las proyecciones comunitarias eliminan metadatos privados; las propias y ADMIN validan
+los campos de moderación. Los clientes HTTP existentes mantienen sesión y Origin/CSRF;
+el backend verifica permisos y concurrencia en cada solicitud. No cambian autenticación,
+primitivas, layout ni endpoints. Evidencia de componentes, contratos, Playwright real,
+accesibilidad y medidas responsive en la [ficha T6](../docs/tasks/finished/TASK-moderacion-T6-frontend.md).
+La validación automática está completa; la aceptación manual del usuario y la
+comprobación de entornos productivos preceden a aprobar la unión del código.
 
 ## Términos en el registro
 
@@ -1201,3 +1264,100 @@ FeedbackForm consulta GET /feedback/normas al abrir una nueva publicación. Cuan
   y `/home/admin/ranking/comisiones`, con la prop `admin` y los destinos de `ranking/rutas.ts`. Ítem
   "Ranking" en el menú de administración. `roleDestination` manda `/home/materias/ranking` al ranking
   administrativo (antes lo confundía con un `materiaId`).
+
+## Presentación de Experiencias y moderación propia
+
+El selector de comisión de Agregar comentario muestra nombres y cargos del equipo docente
+en cada tarjeta, usando `Comision.profesores` del listado paginado existente. Informa la
+ausencia de docentes y permite seleccionar toda la tarjeta con mouse o el radio con teclado.
+El radio tiene nombre propio y descripción accesible del equipo, con dimensiones locales
+que evitan heredar el alto y padding de los campos de texto.
+
+`ExperienciasList` conserva las URLs de Comunidad y Mis experiencias mediante enlaces
+segmentados con `aria-current`, íconos decorativos y foco visible. Carrera y Materia comparten
+un grupo visual local; consultas, selección y paginación de nueve permanecen iguales.
+
+`MisExperiencias` compone el estado y Ver mi experiencia dentro del pie existente de
+`ExperienceCard`; no cambia la tarjeta compartida ni su variante de Inicio.
+`FeedbackModerationStatus` tiene variantes `compact` (listado) y `detail` (por defecto).
+Presenta badges independientes de moderación y de cada causa de ocultamiento, sin inferir
+publicación de una aprobación si hay restricciones. El motivo de rechazo utiliza la
+explicación segura existente. Reportes agrega un aviso de revisión administrativa temporal,
+conserva acceso del autor y no revela cantidades ni identidades de denunciantes. Si además
+hay rechazo, mantiene su motivo y no afirma que el comentario no fue rechazado.
+
+`FeedbackDetail` coloca ese aviso antes del contenido. Bajo reportes o administración, la
+acción voluntaria dice Quitar mi ocultamiento voluntario u Ocultar también por decisión
+propia, con explicación accesible por `aria-describedby`. Mantiene los endpoints existentes,
+confirmación, versión, condiciones de permisos, Editar, Eliminar e historial. Los estilos
+viven en `ExperienciasPresentation.module.css`, con tokens existentes y adaptación a 600 px.
+Sin hooks, validaciones de negocio, contratos ni dependencias nuevas. La validación manual
+y de navegador queda a cargo del usuario. Evidencia en `TASK-experiencias-ui`.
+
+### Ajuste posterior de navegación y mensajes
+
+`feedbackPaso` identifica el camino que se siguió al llegar a una experiencia: comisión directa,
+materia seguida de comisión o entrada desde Inicio/Experiencias. Breadcrumb, botón Volver,
+detalle y edición conservan esa pista junto con los filtros y páginas validados en URL.
+Las pantallas listadas de Experiencias siempre enlazan Inicio. Logout explícito entra sin
+`returnTo`; rutas ADMIN recibidas por USER se sustituyen por su inicio. El guard por rol sigue
+activo. Desestimar un reporte deja intacto `ocultoReportes`; el detalle administrativo ahora
+explica cuándo usar la restitución preventiva versionada y cuándo aún deben cerrarse reportes.
+Ver `TASK-experiencias-navigation-followup`.
+
+### Presentación de respuestas a experiencias
+
+`FeedbackRespuestas` organiza encabezado, total confirmado, listado o vacío compacto y formulario.
+`FeedbackRespuestaForm` incorpora título accesible, placeholder, textarea con foco visible y
+anonimato nativo alineado con área de interacción de 44 px. El botón primario incluye un ícono
+de envío decorativo, conserva sus estados y se alinea a la derecha en escritorio; hasta 600 px
+ocupa el ancho disponible. Los estilos están limitados a las clases de respuestas existentes
+en `FeedPrincipal.module.css`, dentro de la capa components y con tokens del proyecto.
+
+Se conservan servicios, contratos, validación de 3000 caracteres, anonimato inicial, edición
+por diferencias, solicitudes idempotentes, errores, permisos y paginación actuales. Pruebas
+focalizadas 163/163, typecheck, lint y build aprobados; Chromium y axe a 360, 600 y 1280 px
+con componentes reales y servicio simulado. No se verificó persistencia real por falta de
+NEXT_PUBLIC_API_URL. Evidencia y fallos ajenos al ajuste en
+`docs/tasks/finished/TASK-respuestas-ajuste-visual.md`.
+
+### Selector y visibilidad propia
+
+`SeleccionComisionComentario` conserva sus tres pasos y servicios; su CSS local ajusta el
+diálogo a una altura estable, con resultados desplazables y pie separado. En escritorio,
+Cancelar selección queda a izquierda y Anterior/Siguiente a derecha; en móvil se adapta en
+dos filas. La región de resultados admite foco para desplazamiento por teclado.
+
+`MisExperiencias` usa la variante `own` de `FeedbackModerationStatus`: visibilidad pública,
+decisión del autor, reportes y administración se presentan sin confundir causas simultáneas.
+Las acciones voluntarias de experiencias propias aprobadas reutilizan `ocultarFeedback` y
+`restaurarFeedback`, con `versionModeracion` como `versionEsperada`, sesión y CSRF existentes.
+La confirmación usa `Dialog`, el resultado `Notice` y la actualización `refreshKey` de
+`PaginatedListView`. Éxitos y errores 403/404/409 actualizan el listado; los demás errores
+permiten reintento desde el diálogo. Restaurar no levanta restricciones administrativas ni
+preventivas. El detalle, las tarjetas comunitarias e Inicio conservan su presentación.
+
+Evidencia en `docs/tasks/finished/TASK-selector-visibilidad-ui.md`.
+
+### Presentación de reportes administrativos
+
+`AdminExperiencias` conserva filtros URL, consultas, orden y paginación de nueve reportes.
+La bandeja reutiliza `AdminSelect` y `AdminListResult` con filas semánticas adaptables,
+motivo, fecha, contexto, badges y denunciantes distintos abiertos. El total corresponde a
+la consulta filtrada; no se muestran estadísticas globales ausentes del contrato.
+
+`AdminReporteDetail` organiza evidencia histórica, situación actual e historial en la
+columna principal y datos del reporte, identidad autorizada y resolución individual en la
+secundaria. Hasta 800 px se apilan conservando ese orden de lectura. El snapshot, su
+valoración y la navegación actual se preservan. `AdminReporteEstado` reutiliza `Badge`.
+`AdminReportes.module.css` usa tokens en capa components sin modificar el shell ni UI global.
+
+Las variantes opcionales de `AdminModerationStatus` y `AdminModerationActions` separan
+moderación y visibilidad, muestran causas simultáneas y diferencian rechazo/restitución
+exclusivamente en reportes. Se conservan condiciones de acciones, versiones, permisos,
+diálogos, justificación obligatoria y errores. Resolver/desestimar no restituye visibilidad.
+El historial usa las resoluciones recibidas, con tres elementos por página y administrador
+por ID secundario cuando existe; el contrato no proporciona su nombre ni nuevos eventos.
+No se incorporan servicios, hooks, validaciones, contratos, dependencias ni endpoints.
+
+Validación y limitaciones en `docs/tasks/finished/TASK-admin-reportes-ui.md`.

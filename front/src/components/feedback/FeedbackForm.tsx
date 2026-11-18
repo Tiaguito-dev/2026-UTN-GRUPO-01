@@ -5,6 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { BookOpen, ChevronDown, LoaderCircle, Send } from "lucide-react";
 import { obtenerComision, type ComisionDetalle } from "@/services/academic";
 import { actualizarFeedback, crearFeedback, obtenerFeedback, obtenerFeedbackPropio } from "@/services/feedback";
+import { mensajeErrorModeracion } from "@/validations/feedback-moderation";
+import { FeedbackModerationStatus } from "./FeedbackModerationStatus";
+import { HttpError } from "@/services/http";
 import type { Feedback } from "@/types/feedback";
 import type { ModalidadMateria } from "@/types/materias";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,7 +22,8 @@ import { useFeedbackDraft } from "./FeedbackDraftProvider";
 import { useFeedbackResource } from "./useFeedbackResource";
 import styles from "./feedback.module.css";
 
-interface FormResource { comision: ComisionDetalle | null; feedback: Feedback | null; propio: Feedback | null }
+type EditorComision = Pick<ComisionDetalle, "id" | "cursadaId" | "nombre" | "activa" | "profesores" | "cursada">;
+interface FormResource { comision: EditorComision | null; feedback: Feedback | null; propio: Feedback | null }
 
 function contextPeriod(anio: number, modalidad: ModalidadMateria | null | undefined) {
   if (modalidad === "PRIMERO") return `1.er cuatrimestre de ${anio}`;
@@ -34,7 +38,12 @@ export function FeedbackForm({ feedbackId, comisionId }: { feedbackId?: string; 
   const resource = useFeedbackResource<FormResource>(`form:${account?.id ?? ""}:${feedbackId ?? ""}:${comisionId ?? ""}`, async () => {
     if (feedbackId) {
       const feedback = await obtenerFeedback(feedbackId);
-      const comision = await obtenerComision(feedback.contexto.comisionId);
+      const snapshot = feedback.contexto;
+      const comision: EditorComision = feedback.estadoModeracion === "RECHAZADO" ? {
+        id: snapshot.comisionId, cursadaId: snapshot.cursadaId, nombre: snapshot.nombre, activa: false,
+        profesores: feedback.profesor ? [feedback.profesor] : [],
+        cursada: { id: snapshot.cursadaId, anio: snapshot.anio, cuatrimestre: snapshot.cuatrimestre, materia: { id: snapshot.materiaId, nombre: snapshot.materiaNombre, modalidad: snapshot.modalidad } },
+      } : await obtenerComision(snapshot.comisionId);
       return { comision, feedback, propio: feedback };
     }
     if (!comisionId) throw new Error("Elegí una comisión desde Materias para compartir tu experiencia.");
@@ -60,7 +69,7 @@ export function FeedbackForm({ feedbackId, comisionId }: { feedbackId?: string; 
         <BookOpen size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" />
         <div><strong>{context?.materiaNombre ?? comision.cursada.materia.nombre}</strong><p>Comisión {context?.nombre ?? comision.nombre} · {contextPeriod(context?.anio ?? comision.cursada.anio, modalidad)}</p></div>
       </div>
-      {!comision.activa ? <Notice tone="warning">Esta comisión está inactiva. No se pueden publicar ni editar comentarios.</Notice>
+      {!comision.activa && resource.data.feedback?.estadoModeracion !== "RECHAZADO" ? <Notice tone="warning">Esta comisión está inactiva. No se pueden publicar ni editar comentarios.</Notice>
         : feedbackId && !resource.data.feedback?.propio ? <Notice tone="error">Solo podés editar tus propios comentarios.</Notice>
         : !feedbackId && resource.data.propio ? <Notice tone="warning">Ya tenés un comentario vigente en esta comisión. <Link href={feedbackDetalleHref(resource.data.propio.id, params)}>Ver mi comentario</Link></Notice>
         : <FeedbackEditor key={JSON.stringify([account?.id ?? null, feedbackId ?? comision.id])} comision={comision} original={resource.data.feedback} cancelHref={backHref} />}
@@ -68,13 +77,14 @@ export function FeedbackForm({ feedbackId, comisionId }: { feedbackId?: string; 
   </section>;
 }
 
-function comisionContext(comision: ComisionDetalle) {
+function comisionContext(comision: EditorComision) {
   return { comisionId: comision.id, nombre: comision.nombre, materiaId: comision.cursada.materia.id, materiaNombre: comision.cursada.materia.nombre, cursadaId: comision.cursada.id, anio: comision.cursada.anio, cuatrimestre: comision.cursada.cuatrimestre ?? null, modalidad: comision.cursada.cuatrimestre !== undefined ? comision.cursada.cuatrimestre : comision.cursada.materia.modalidad ?? null };
 }
 
-function FeedbackEditor({ comision, original, cancelHref }: { comision: ComisionDetalle; original: Feedback | null; cancelHref: string }) {
+function FeedbackEditor({ comision, original: initialOriginal, cancelHref }: { comision: EditorComision; original: Feedback | null; cancelHref: string }) {
   const router = useRouter();
   const { account } = useAuth();
+  const [original, setOriginal] = useState(initialOriginal);
   const textId = useId();
   const identityId = useId();
   const profesorId = useId();
@@ -88,6 +98,8 @@ function FeedbackEditor({ comision, original, cancelHref }: { comision: Comision
   const setPuntuacion = (value: number | null) => setField("puntuacion", value);
   const setTarget = (value: string) => setField("target", value);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [currentVersion, setCurrentVersion] = useState(original?.versionModeracion);
+  const [conflict, setConflict] = useState(false);
   const count = Array.from(texto.trim()).length;
   const dirty = texto !== (original?.texto ?? "") || anonimo !== (original?.anonimo ?? false) || puntuacion !== (original?.puntuacion ?? null) || (!original && target !== initialTarget);
   const requiredRating = !original || original.puntuacion !== null;
@@ -112,16 +124,34 @@ function FeedbackEditor({ comision, original, cancelHref }: { comision: Comision
       if (original) {
         const changes = diferenciasFeedback(original, { texto: text, anonimo: anonymous, puntuacion: values.puntuacion === "" ? null : Number(values.puntuacion) });
         if (Object.keys(changes).length === 0) { setSuccess("No hay cambios para guardar."); return; }
-        await actualizarFeedback(original.id, changes);
+        if (currentVersion === undefined) throw new Error("Lo sentimos. No pudimos verificar la versión del comentario. Volvé al detalle y reintentá.");
+        if (conflict) throw new Error("Revisá el conflicto antes de guardar tus cambios sobre la versión actual.");
+        let saved: Feedback;
+        try {
+          saved = await actualizarFeedback(original.id, { ...changes, versionEsperada: currentVersion });
+        } catch (failure) {
+          if (failure instanceof HttpError && failure.status === 409) {
+            let current: Feedback;
+            try { current = await obtenerFeedback(original.id); }
+            catch { throw new Error("Lo sentimos. No pudimos recuperar la versión actual. Tu borrador se conserva; volvé al detalle antes de intentar guardar nuevamente."); }
+            setOriginal(current); setCurrentVersion(current.versionModeracion); setConflict(true);
+          }
+          throw new Error(mensajeErrorModeracion(failure));
+        }
         discardDraft();
-        router.push(feedbackSuccessHref(cancelHref, "El comentario se actualizó correctamente."));
+        router.push(feedbackSuccessHref(cancelHref, saved.estadoModeracion === "RECHAZADO" ? "Los cambios se guardaron. La experiencia continúa rechazada hasta que solicites una nueva revisión." : saved.estadoModeracion === "PENDIENTE" ? "El comentario se actualizó correctamente. Está pendiente de revisión por el equipo administrativo." : "El comentario se actualizó correctamente."));
       } else {
-        await crearFeedback(comision.id, {
-          texto: text, anonimo: anonymous, puntuacion: Number(values.puntuacion),
-          ...(comision.profesores.length === 1 ? {} : { profesorId: values.profesorId || null }),
-        });
+        let saved: Feedback;
+        try {
+          saved = await crearFeedback(comision.id, {
+            texto: text, anonimo: anonymous, puntuacion: Number(values.puntuacion),
+            ...(comision.profesores.length === 1 ? {} : { profesorId: values.profesorId || null }),
+          });
+        } catch (failure) {
+          throw new Error(mensajeErrorModeracion(failure));
+        }
         discardDraft();
-        router.push(feedbackSuccessHref(cancelHref, "El comentario se publicó correctamente."));
+        router.push(feedbackSuccessHref("/home", saved.estadoModeracion === "PENDIENTE" ? "La experiencia se guardó correctamente. Tu comentario está pendiente de revisión por el equipo administrativo." : "El comentario se publicó correctamente."));
       }
     },
   });
@@ -131,6 +161,8 @@ function FeedbackEditor({ comision, original, cancelHref }: { comision: Comision
     else { discardDraft(); router.push(cancelHref); }
   }
   return <>
+    {original ? <FeedbackModerationStatus feedback={original} /> : null}
+    {conflict ? <Notice tone="warning">El comentario cambió. Tu borrador se conserva. Compará la versión actual en el detalle antes de continuar. <Link href={cancelHref} target="_blank" rel="noopener">Consultar versión actual</Link> <button className="button button-secondary" type="button" onClick={() => setConflict(false)}>Conservar mi borrador y continuar</button></Notice> : null}
     <div className={styles.editorSurface}><form onSubmit={handleSubmit} onChange={handleChange} noValidate className={styles.editorForm} aria-busy={busy}>
       {error ? <Notice tone="error" focusOnShow>{error}</Notice> : null}
       {success ? <Notice tone="success" focusOnShow>{success}</Notice> : null}

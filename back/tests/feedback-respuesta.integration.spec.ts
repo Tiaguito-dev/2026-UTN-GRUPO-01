@@ -55,6 +55,7 @@ describe.skipIf(!databaseUrl)("Respuestas: creación HTTP/PostgreSQL aislado", (
     expect(response.status).toBe(201);
     const { id } = await response.json() as { id: string };
     ids.feedback.push(id);
+    // Las altas se publican directamente y sincronizan su valoración.
     return { id, materiaId: materia.id, cursadaId: cursada.id, comisionId: comision.id, path: `/feedback/${id}/respuestas` };
   }
   async function create(path: string, input = body(), status = 201, cookie = reader.cookie): Promise<Reply> {
@@ -128,6 +129,7 @@ describe.skipIf(!databaseUrl)("Respuestas: creación HTTP/PostgreSQL aislado", (
     expect(history[0]).toMatchObject({ texto: input.texto, anonimo: replyAnonymous, accion: "CREACION" });
     expect(await prisma.administracionHistorial.findUnique({ where: { id: history[0]!.id } })).toMatchObject({ entidad: "respuesta", entidadId: reply.id, actorId: reader.id, accion: "CREACION" });
     expect(await prisma.valoracionMateria.findUniqueOrThrow({ where: { usuarioId_materiaId: { usuarioId: author.id, materiaId: f.materiaId } } })).toEqual(rating);
+    // Replies do not add events to the directly published parent.
     expect(await prisma.feedbackHistorial.count({ where: { feedbackId: f.id } })).toBe(1);
   });
   it("reintento idéntico devuelve 200 sin cambios ni nuevos eventos", async () => {

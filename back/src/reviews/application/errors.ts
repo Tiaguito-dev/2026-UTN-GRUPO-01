@@ -1,4 +1,5 @@
 import { DomainError } from "../../shared/domain/domain-error.js";
+export { FeedbackModerationError } from "../domain/feedback-moderation.js";
 
 export class FeedbackInputError extends DomainError {
   readonly httpStatus = 400;
