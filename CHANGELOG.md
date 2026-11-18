@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### HU-C01 — Consulta de normas en Comunidad
+
+- Comunidad reemplaza Próximamente por el mensaje del equipo y las normas vigentes persistidas, disponibles para USER y ADMIN con sus temas y navegación. Incluye carga, ausencia y error con reintento, sin feed ni edición.
+- Nuevo GET autenticado `/comunidad/normas`, sin caché ni escrituras; integrado a los proxies de desarrollo/TLS. No altera términos ni aceptaciones históricas.
+- Migración `20261117000000_normas_convivencia`: documento único con normas ordenadas y fechas, carga inicial idempotente que preserva futuras ediciones.
+- Validación: 1294 pruebas backend y 1061 frontend, tipos/lint/build de ambos aprobados; 15 E2E únicos, axe y comparación final de 28 referencias. Cuatro capturas de Comunidad a 375/1280. Evidencia en [la tarea](docs/tasks/finished/TASK-HU-C01-consultar-normas.md).
+
 ### HU-C06 — Identidad visual administrativa
 
 - ADMIN recibe encabezado y menú bordó oscuro, identificación “Administración” y tokens compartidos para páginas, perfil, formularios y diálogos. USER conserva su identidad actual; la sesión sin confirmar utiliza un estado neutral y el logout restaura el tema público.
