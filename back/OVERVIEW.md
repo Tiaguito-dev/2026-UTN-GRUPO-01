@@ -1,5 +1,25 @@
 # Backend
 
+## Consulta de normas de Comunidad (HU-C01)
+
+`GET /comunidad/normas` requiere una sesión autenticada, tanto USER como ADMIN. Devuelve
+`{id,titulo,introduccion,normas,cierre,createdAt,updatedAt}`: texto plano, normas en su orden
+editorial y fechas ISO 8601. Conserva `Cache-Control: no-store`; no modifica el documento ni
+registra aceptaciones al consultarlo. Sin sesión responde 401; sin documento, 404 con el mensaje
+“Las normas de convivencia no están disponibles.”. Los fallos inesperados conservan el filtro
+global y no revelan detalles internos.
+
+`community` separa el caso `ConsultarNormas`, su puerto de lectura y el repositorio Prisma.
+`NormasConvivencia` contiene el único documento `vigentes` (restricción SQL), con introducción,
+lista ordenada y cierre. Es independiente de `AceptacionNormas`, que conserva consentimientos
+históricos y no se modifica. No existen endpoints de edición, borrado ni sugerencias en esta HU.
+
+Aplicar `20261117000000_normas_convivencia` antes del backend: crea la tabla y carga el contenido
+inicial. El INSERT usa `ON CONFLICT DO NOTHING`, por lo que repetir la carga inicial no pisa
+modificaciones posteriores. No se ejecuta seed durante las lecturas o el arranque. Sin nuevas
+dependencias ni variables de entorno; el administrador responsable se definirá al implementar
+HU-C04.
+
 ## Sesiones e inactividad
 
 `AUTH_ACCESS_TTL_SECONDS` configura el acceso (900 segundos por defecto) y
