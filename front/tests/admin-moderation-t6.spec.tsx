@@ -126,7 +126,7 @@ describe("T6 detalle administrativo de reportes", () => {
     render(<AdminReporteDetail id="r1" returnTo={origin} />);
     await screen.findByText("Contenido exacto denunciado");
     expect(obtenerReporteFeedback).toHaveBeenCalledWith("r1", { page: 1, pageSize: 3 });
-    const identity = screen.getByText("Denunciante").nextElementSibling?.textContent;
+    const identity = screen.getByRole("region", { name: "Identidad del denunciante" }).textContent;
     expect(identity).toContain("Persona denunciante"); expect(identity).toContain("ID: u2");
     expect(screen.getByRole("link", { name: /Volver/ }).getAttribute("href")).toBe(origin);
     const detail = new URL(screen.getByRole("link", { name: "Ver experiencia actual e historial" }).getAttribute("href")!, "https://local.invalid");
@@ -147,7 +147,8 @@ describe("T6 detalle administrativo de reportes", () => {
     vi.mocked(obtenerReporteFeedback).mockResolvedValue({ ...data, denunciantesAbiertos: 1, reporte: { ...data.reporte, estado: "DESESTIMADO", justificacion: "No corresponde a la evidencia", resolvedAt: date } });
     await userEvent.click(within(dialog).getByRole("button", { name: "Confirmar decisión" }));
     await screen.findByText(/El reporte se cerró correctamente/);
-    expect(screen.getByText(/La experiencia sigue oculta por reportes/)).toBeTruthy();
+    // El rediseño explica el ocultamiento en la sección de situación actual.
+    expect(screen.getByText(/permanece oculta para la comunidad mientras administración revisa/)).toBeTruthy();
     expect(screen.getByText(/usá Restituir ocultamiento preventivo/)).toBeTruthy();
     expect(resolverReporteFeedback).toHaveBeenCalledExactlyOnceWith("r1", { estado: "DESESTIMADO", motivo: "No corresponde a la evidencia" });
     expect(moderarFeedback).not.toHaveBeenCalled();
@@ -165,7 +166,7 @@ describe("T6 detalle administrativo de reportes", () => {
     vi.mocked(obtenerReporteFeedback).mockResolvedValue(current);
     await userEvent.click(screen.getByRole("button", { name: "Confirmar decisión" }));
     await screen.findByText(/La información cambió o la acción ya fue realizada/);
-    await screen.findByText("Resuelto");
+    await within(screen.getByRole("region", { name: "Estado y resolución del reporte" })).findByText("Resuelto");
     expect(screen.queryByRole("button", { name: "Resolver reporte" })).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
   });
@@ -188,7 +189,7 @@ describe("T6 bandeja administrativa existente", () => {
     const data = report();
     vi.mocked(listarReportesFeedback).mockResolvedValue({ total: 10, page: 2, pageSize: 9, items: [{ ...data.reporte, experiencia: data.experiencia, cantidadReportesActivos: 3, denunciantesAbiertos: 3, ultimoReporteAt: date }] });
     render(<AdminExperiencias />);
-    await screen.findByRole("link", { name: "Ver reporte" });
+    await screen.findByRole("link", { name: /^Ver reporte/ });
     expect(listarReportesFeedback).toHaveBeenCalledWith({ page: 2, pageSize: 9, estado: "ABIERTO", motivo: "SPAM", ocultoReportes: true });
     expect(screen.queryByText("Persona denunciante")).toBeNull(); expect(screen.queryByText("u2")).toBeNull();
     await userEvent.selectOptions(screen.getByLabelText("Motivo"), "OTRO");

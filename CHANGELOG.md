@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### Presentación de reportes administrativos
+
+- Bandeja compacta adaptable con filtros agrupados, estados y ocultamiento preventivo con badges; conserva consultas, orden, navegación y paginación.
+- Detalle en dos columnas con evidencia histórica destacada, situación actual y acciones separadas de la resolución individual; denunciante autorizado con identidad principal e ID secundario.
+- Moderación y causas simultáneas de visibilidad diferenciadas; historial compacto con fechas, justificaciones y responsables disponibles. Sin cambios funcionales ni de backend.
+- 179 pruebas frontend satisfactorias, typecheck, lint, build y comprobaciones Chromium/axe a 360, 600 y 1280 px con servicios simulados. Evidencia en `TASK-admin-reportes-ui`.
+
 ### Selector de comentarios y visibilidad propia
 
 - Modal con altura estable, resultados desplazables y pie adaptable: Cancelar selección a izquierda, Anterior y Siguiente a derecha en escritorio.

@@ -1338,3 +1338,26 @@ permiten reintento desde el diálogo. Restaurar no levanta restricciones adminis
 preventivas. El detalle, las tarjetas comunitarias e Inicio conservan su presentación.
 
 Evidencia en `docs/tasks/finished/TASK-selector-visibilidad-ui.md`.
+
+### Presentación de reportes administrativos
+
+`AdminExperiencias` conserva filtros URL, consultas, orden y paginación de nueve reportes.
+La bandeja reutiliza `AdminSelect` y `AdminListResult` con filas semánticas adaptables,
+motivo, fecha, contexto, badges y denunciantes distintos abiertos. El total corresponde a
+la consulta filtrada; no se muestran estadísticas globales ausentes del contrato.
+
+`AdminReporteDetail` organiza evidencia histórica, situación actual e historial en la
+columna principal y datos del reporte, identidad autorizada y resolución individual en la
+secundaria. Hasta 800 px se apilan conservando ese orden de lectura. El snapshot, su
+valoración y la navegación actual se preservan. `AdminReporteEstado` reutiliza `Badge`.
+`AdminReportes.module.css` usa tokens en capa components sin modificar el shell ni UI global.
+
+Las variantes opcionales de `AdminModerationStatus` y `AdminModerationActions` separan
+moderación y visibilidad, muestran causas simultáneas y diferencian rechazo/restitución
+exclusivamente en reportes. Se conservan condiciones de acciones, versiones, permisos,
+diálogos, justificación obligatoria y errores. Resolver/desestimar no restituye visibilidad.
+El historial usa las resoluciones recibidas, con tres elementos por página y administrador
+por ID secundario cuando existe; el contrato no proporciona su nombre ni nuevos eventos.
+No se incorporan servicios, hooks, validaciones, contratos, dependencias ni endpoints.
+
+Validación y limitaciones en `docs/tasks/finished/TASK-admin-reportes-ui.md`.
