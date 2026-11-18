@@ -5,6 +5,7 @@ import { Notice } from "@/components/ui/Notice";
 import { validarTextoFeedback } from "@/validations/feedback";
 import { crearRespuestaFeedback, editarRespuestaFeedback } from "@/services/feedback-feed";
 import { HttpError } from "@/services/http";
+import { mensajeErrorModeracion } from "@/validations/feedback-moderation";
 import type { FeedbackRespuesta, FeedbackRespuestaInput, FeedbackRespuestaEdicion } from "@/types/feedback-feed";
 import styles from "./FeedPrincipal.module.css";
 export function FeedbackRespuestaForm({ feedbackId, original, onSaved, onUnavailable, unavailable = false }: {
@@ -19,6 +20,7 @@ export function FeedbackRespuestaForm({ feedbackId, original, onSaved, onUnavail
     onSubmit: async values => {
       if (unavailable || (original && !original.propio)) return;
       const text = values.texto.trim(); const anonymous = values.anonimo === "true";
+      if (!original && attempt.current && (attempt.current.texto !== text || attempt.current.anonimo !== anonymous)) throw new Error("Para publicar otro contenido, elegí Nueva respuesta.");
       try {
         let result: FeedbackRespuesta;
         if (original) {
@@ -28,7 +30,6 @@ export function FeedbackRespuestaForm({ feedbackId, original, onSaved, onUnavail
           if (!Object.keys(changes).length) { setSuccess("No hay cambios para guardar."); return; }
           result = await editarRespuestaFeedback(original.id, changes);
         } else {
-          if (attempt.current && (attempt.current.texto !== text || attempt.current.anonimo !== anonymous)) throw new Error("Para publicar otro contenido, elegí Nueva respuesta.");
           if (!attempt.current) attempt.current = { solicitudId: crypto.randomUUID(), texto: text, anonimo: anonymous };
           setHasAttempt(true);
           result = await crearRespuestaFeedback(feedbackId, attempt.current);
@@ -36,7 +37,7 @@ export function FeedbackRespuestaForm({ feedbackId, original, onSaved, onUnavail
         }
         setSuccess(original ? "La respuesta se actualizó." : "La respuesta se publicó.");
         onSaved(result);
-      } catch (failure) { if (failure instanceof HttpError && failure.status === 404) onUnavailable(); throw failure; }
+      } catch (failure) { if (failure instanceof HttpError && failure.status === 404) onUnavailable(); throw new Error(mensajeErrorModeracion(failure, "No pudimos guardar la respuesta. Intentá nuevamente.")); }
     },
   });
   if (original && !original.propio) return <Notice tone="error">Solo podés gestionar tus propias respuestas.</Notice>;

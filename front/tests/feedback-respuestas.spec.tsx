@@ -24,7 +24,7 @@ describe("Replies", () => {
  });
  it("retries read errors and handles empty replies", async () => {
    vi.mocked(listarRespuestasFeedback).mockRejectedValueOnce(new Error("Read failed")); render(<FeedbackRespuestas feedbackId="f1" onCount={onCount} onUnavailable={onUnavailable} />);
-   await screen.findByText("Read failed"); await userEvent.click(screen.getByRole("button", { name: "Reintentar respuestas" })); await screen.findByText("Todavía no hay respuestas."); await waitFor(() => expect(onCount).toHaveBeenCalledWith(0));
+   await screen.findByText(/No pudimos recuperar las respuestas/); expect(screen.queryByText("Read failed")).toBeNull(); await userEvent.click(screen.getByRole("button", { name: "Reintentar respuestas" })); await screen.findByText("Todavía no hay respuestas."); await waitFor(() => expect(onCount).toHaveBeenCalledWith(0));
  });
  it("creates, revalidates the list and uses the server total rather than adding blindly", async () => {
    vi.mocked(listarRespuestasFeedback).mockResolvedValueOnce(page([])).mockResolvedValueOnce(page([reply], 1));
@@ -36,21 +36,21 @@ describe("Replies", () => {
  it("does not retry a confirmed POST when subsequent list revalidation fails", async () => {
    vi.mocked(listarRespuestasFeedback).mockResolvedValueOnce(page([])).mockRejectedValueOnce(new Error("Revalidation failed")).mockResolvedValueOnce(page([reply]));
    render(<FeedbackRespuestas feedbackId="f1" onCount={onCount} onUnavailable={onUnavailable} />); await screen.findByText("Todavía no hay respuestas.");
-   const text = screen.getByRole("textbox", { name: "Tu respuesta" }); await userEvent.type(text, "Saved reply"); await userEvent.click(screen.getByRole("button", { name: "Publicar respuesta" })); await screen.findByText("Revalidation failed");
+   const text = screen.getByRole("textbox", { name: "Tu respuesta" }); await userEvent.type(text, "Saved reply"); await userEvent.click(screen.getByRole("button", { name: "Publicar respuesta" })); await screen.findByText(/No pudimos recuperar las respuestas/);
    expect((text as HTMLTextAreaElement).value).toBe(""); expect(crearRespuestaFeedback).toHaveBeenCalledTimes(1);
    await userEvent.click(screen.getByRole("button", { name: "Reintentar respuestas" })); await screen.findByText("Reply"); await waitFor(() => expect(onCount).toHaveBeenLastCalledWith(1)); expect(crearRespuestaFeedback).toHaveBeenCalledTimes(1);
  });
  it("keeps the draft and UUID on an idempotent retry, then uses a new key for a new publication", async () => {
    const saved = vi.fn(); vi.mocked(crearRespuestaFeedback).mockRejectedValueOnce(new HttpError(0, "Network error"));
    render(<FeedbackRespuestaForm feedbackId="f1" onSaved={saved} onUnavailable={onUnavailable} />); const text = screen.getByRole("textbox", { name: "Tu respuesta" }); await userEvent.type(text, "Draft");
-   await userEvent.click(screen.getByRole("button", { name: "Publicar respuesta" })); await screen.findByText("Network error"); expect((text as HTMLTextAreaElement).value).toBe("Draft");
+   await userEvent.click(screen.getByRole("button", { name: "Publicar respuesta" })); await screen.findByText(/No pudimos guardar la respuesta/); expect((text as HTMLTextAreaElement).value).toBe("Draft");
    await userEvent.click(screen.getByRole("button", { name: "Publicar respuesta" })); await waitFor(() => expect(saved).toHaveBeenCalledOnce());
    const first = vi.mocked(crearRespuestaFeedback).mock.calls[0][1]; expect(vi.mocked(crearRespuestaFeedback).mock.calls[1][1]).toEqual(first);
    await userEvent.type(text, "Second"); await userEvent.click(screen.getByRole("button", { name: "Publicar respuesta" })); await waitFor(() => expect(saved).toHaveBeenCalledTimes(2)); expect(vi.mocked(crearRespuestaFeedback).mock.calls[2][1].solicitudId).not.toBe(first.solicitudId);
  });
  it("does not reuse a key with changed content without an explicit new-publication action", async () => {
    vi.mocked(crearRespuestaFeedback).mockRejectedValueOnce(new Error("Failed")); render(<FeedbackRespuestaForm feedbackId="f1" onSaved={vi.fn()} onUnavailable={onUnavailable} />);
-   const text = screen.getByRole("textbox", { name: "Tu respuesta" }); await userEvent.type(text, "First"); await userEvent.click(screen.getByRole("button", { name: "Publicar respuesta" })); await screen.findByText("Failed");
+   const text = screen.getByRole("textbox", { name: "Tu respuesta" }); await userEvent.type(text, "First"); await userEvent.click(screen.getByRole("button", { name: "Publicar respuesta" })); await screen.findByText(/No pudimos guardar la respuesta/);
    await userEvent.type(text, " changed"); await userEvent.click(screen.getByRole("button", { name: "Publicar respuesta" })); expect(crearRespuestaFeedback).toHaveBeenCalledTimes(1);
    await userEvent.click(screen.getByRole("button", { name: "Nueva respuesta" })); await userEvent.click(screen.getByRole("button", { name: "Publicar respuesta" })); await waitFor(() => expect(crearRespuestaFeedback).toHaveBeenCalledTimes(2));
    expect(vi.mocked(crearRespuestaFeedback).mock.calls[0][1].solicitudId).not.toBe(vi.mocked(crearRespuestaFeedback).mock.calls[1][1].solicitudId);
@@ -64,7 +64,7 @@ describe("Replies", () => {
  it("edits only owned replies and preserves a failed edit draft", async () => {
    vi.mocked(listarRespuestasFeedback).mockResolvedValue(page([reply])); vi.mocked(editarRespuestaFeedback).mockRejectedValueOnce(new HttpError(409, "Inactive commission"));
    render(<FeedbackRespuestas feedbackId="f1" onCount={onCount} onUnavailable={onUnavailable} />); await userEvent.click(await screen.findByRole("button", { name: "Editar respuesta" }));
-   const text = screen.getByRole("textbox", { name: "Editar tu respuesta" }); await userEvent.clear(text); await userEvent.type(text, "Changed"); await userEvent.click(screen.getByRole("button", { name: "Guardar respuesta" })); await screen.findByText("Inactive commission"); expect((text as HTMLTextAreaElement).value).toBe("Changed");
+   const text = screen.getByRole("textbox", { name: "Editar tu respuesta" }); await userEvent.clear(text); await userEvent.type(text, "Changed"); await userEvent.click(screen.getByRole("button", { name: "Guardar respuesta" })); await screen.findByText(/La información cambió o la acción ya fue realizada/); expect((text as HTMLTextAreaElement).value).toBe("Changed");
    await userEvent.click(screen.getByRole("button", { name: "Guardar respuesta" })); await waitFor(() => expect(editarRespuestaFeedback).toHaveBeenCalledTimes(2)); expect(editarRespuestaFeedback).toHaveBeenLastCalledWith("r1", { texto: "Changed" });
  });
  it.each([false, true])("does not close a newer editor when an earlier edit finishes (same reply=%s)", async same => {
@@ -78,7 +78,7 @@ describe("Replies", () => {
  it("revalidates a reply mutation 404 without assuming the parent is gone", async () => {
    vi.mocked(listarRespuestasFeedback).mockResolvedValueOnce(page([reply])).mockResolvedValueOnce(page([])); vi.mocked(editarRespuestaFeedback).mockRejectedValueOnce(new HttpError(404, "Reply removed"));
    render(<FeedbackRespuestas feedbackId="f1" onCount={onCount} onUnavailable={onUnavailable} />); await userEvent.click(await screen.findByRole("button", { name: "Editar respuesta" }));
-   const text = screen.getByRole("textbox", { name: "Editar tu respuesta" }); await userEvent.type(text, " draft"); await userEvent.click(screen.getByRole("button", { name: "Guardar respuesta" })); await screen.findByText("Reply removed");
+   const text = screen.getByRole("textbox", { name: "Editar tu respuesta" }); await userEvent.type(text, " draft"); await userEvent.click(screen.getByRole("button", { name: "Guardar respuesta" })); await screen.findByText(/ya no está disponible/);
    await waitFor(() => expect(listarRespuestasFeedback).toHaveBeenCalledTimes(2)); expect(onUnavailable).not.toHaveBeenCalled(); expect((screen.getByRole("textbox", { name: "Editar tu respuesta" }) as HTMLTextAreaElement).value).toBe("Reply draft");
  });
  it("requires confirmation for deletion, avoids duplicates and reconciles the total", async () => {

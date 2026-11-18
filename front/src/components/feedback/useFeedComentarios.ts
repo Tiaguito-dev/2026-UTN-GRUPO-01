@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listarFeedComentarios } from "@/services/feedback-feed";
+import { mensajeErrorModeracion } from "@/validations/feedback-moderation";
 import type { FeedbackFeedItem } from "@/types/feedback-feed";
 interface WindowState {
   items: FeedbackFeedItem[];
@@ -35,7 +36,7 @@ export function useFeedComentarios() {
       window.state = { items: [...window.state.items, ...added], nextCursor: page.nextCursor, hasMore: page.hasMore, loaded: true, loading: false, error: "" };
     } catch (failure) {
       if (current.current !== window) return;
-      window.state = { ...window.state, loading: false, error: failure instanceof Error ? failure.message : "No pudimos cargar los comentarios. Intentá nuevamente." };
+      window.state = { ...window.state, loading: false, error: mensajeErrorModeracion(failure, "No pudimos cargar los comentarios. Reintentá o actualizá el feed.") };
     } finally {
       window.inFlight = false;
       if (current.current === window) setState(window.state);

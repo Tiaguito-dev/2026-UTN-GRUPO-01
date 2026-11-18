@@ -6,6 +6,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { Pagination } from "@/components/ui/Pagination";
 import { listarRespuestasFeedback, eliminarRespuestaFeedback } from "@/services/feedback-feed";
 import { HttpError } from "@/services/http";
+import { mensajeErrorModeracion } from "@/validations/feedback-moderation";
 import type { FeedbackRespuesta } from "@/types/feedback-feed";
 import { FeedbackRespuestaForm } from "./FeedbackRespuestaForm";
 import styles from "./FeedPrincipal.module.css";
@@ -14,7 +15,7 @@ export function FeedbackRespuestas({ feedbackId, onCount, onUnavailable, unavail
 }) {
   const [page, setPage] = useState(1); const [version, setVersion] = useState(0); const [editing, setEditing] = useState<{ reply: FeedbackRespuesta; token: number } | null>(null);
   const editSequence = useRef(0);
-  const { state, retry } = usePaginatedFetch(`replies:${feedbackId}:${unavailable}`, next => unavailable ? Promise.resolve({ items: [], total: 0, page: 1, pageSize: 20 }) : listarRespuestasFeedback(feedbackId, { page: next, pageSize: 20 }), page, version);
+  const { state, retry } = usePaginatedFetch(`replies:${feedbackId}:${unavailable}`, next => unavailable ? Promise.resolve({ items: [], total: 0, page: 1, pageSize: 20 }) : listarRespuestasFeedback(feedbackId, { page: next, pageSize: 20 }).catch(failure => { throw new HttpError(failure instanceof HttpError ? failure.status : 0, mensajeErrorModeracion(failure, "No pudimos recuperar las respuestas. Intentá nuevamente.")); }), page, version);
   useEffect(() => {
     if (unavailable) return;
     if (state.status === "ready") onCount(state.data.total);
@@ -37,7 +38,7 @@ function Respuesta({ reply, onChanged, onEdit, onUnavailable }: { reply: Feedbac
     if (pending.current || !reply.propio) return;
     pending.current = true; setBusy(true); setError("");
     try { await eliminarRespuestaFeedback(reply.id); setConfirm(false); onChanged(); }
-    catch (failure) { if (failure instanceof HttpError && failure.status === 404) onUnavailable(); setError(failure instanceof Error ? failure.message : "No pudimos eliminar la respuesta."); }
+    catch (failure) { if (failure instanceof HttpError && failure.status === 404) onUnavailable(); setError(mensajeErrorModeracion(failure, "No pudimos eliminar la respuesta. Intentá nuevamente.")); }
     finally { pending.current = false; setBusy(false); }
   }
   const author = reply.anonimo ? "Anónimo" : reply.autor?.displayName ?? "Usuario";
