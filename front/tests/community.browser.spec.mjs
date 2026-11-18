@@ -76,8 +76,10 @@ for (const width of [375, 1280]) for (const role of ["USER", "ADMIN"]) {
     for (const paragraph of stored.introduccion.split(/\r?\n\s*\r?\n/)) await expect(content.getByText(paragraph, { exact: true })).toBeVisible();
     await expect(page.locator("[data-role-theme]")).toHaveAttribute("data-role-theme", role === "ADMIN" ? "admin" : "student");
     await expect(link).toHaveAttribute("aria-current", "page");
-    await expect(content.getByRole("textbox")).toHaveCount(0);
-    await expect(content.getByRole("button", { name: /editar|guardar|publicar|enviar/i })).toHaveCount(0);
+    // HU-C02 añade sugerencias privadas únicamente a USER, sin habilitar edición de normas.
+    await expect(content.getByRole("textbox")).toHaveCount(role === "USER" ? 1 : 0);
+    await expect(content.getByRole("button", { name: /editar|guardar|publicar/i })).toHaveCount(0);
+    await expect(content.getByRole("button", { name: "Enviar sugerencia", exact: true })).toHaveCount(role === "USER" ? 1 : 0);
     // HU-C04 añade un enlace administrativo; USER conserva una consulta sin edición.
     await expect(content.getByRole("link", { name: "Administrar normas de convivencia", exact: true })).toHaveCount(role === "ADMIN" ? 1 : 0);
     await page.reload();
@@ -110,11 +112,13 @@ for (const role of ["USER", "ADMIN"]) {
       return route.continue();
     });
     await page.goto(role === "ADMIN" ? "/home/admin/comunidad" : "/home/comunidad");
+    // Esperar el foco inicial del encabezado antes de activar un control por teclado.
+    await expect(page.getByRole("heading", { name: "Comunidad", level: 1, exact: true })).toBeFocused();
     await expect(page.getByText("No pudimos cargar las normas de convivencia.", { exact: true })).toBeVisible();
     await expect(page.getByText("private database failure", { exact: true })).toHaveCount(0);
     await expect(page.locator(".system-content").getByRole("listitem")).toHaveCount(0);
     const retry = page.getByRole("button", { name: "Reintentar", exact: true });
-    await retry.focus(); await page.keyboard.press("Enter");
+    await retry.press("Enter");
     const stored = await prisma.normasConvivencia.findUniqueOrThrow({ where: { id: "vigentes" } });
     await expect(page.getByRole("heading", { name: stored.titulo, exact: true })).toBeVisible();
     expect(requests).toBe(2);

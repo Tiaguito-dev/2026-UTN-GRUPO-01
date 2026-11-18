@@ -2,7 +2,7 @@ import { z } from "zod";
 import { HttpError } from "./http";
 import type { Materia, MateriaConValoracion, MateriaCarrera, MateriaHistorial } from "@/types/materias";
 import type { PublicAccount } from "@/types/auth";
-import type { NormasConvivencia } from "@/types/comunidad";
+import type { NormasConvivencia, SugerenciaRegistrada } from "@/types/comunidad";
 import type {
   CargoDocente,
   Comision,
@@ -164,4 +164,9 @@ export const normasConvivenciaSchema: z.ZodType<NormasConvivencia> = z.object({
   cierre: z.string().trim().min(1),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
+});
+
+export const sugerenciaRegistradaSchema: z.ZodType<SugerenciaRegistrada> = z.object({
+  id: z.uuid(),
+  createdAt: z.iso.datetime(),
 });

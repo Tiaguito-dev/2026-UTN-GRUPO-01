@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { obtenerNormas, actualizarNormas } from "@/services/comunidad";
-import { normasConvivenciaSchema } from "@/services/schemas";
+import { obtenerNormas, actualizarNormas, registrarSugerencia } from "@/services/comunidad";
+import { normasConvivenciaSchema, sugerenciaRegistradaSchema } from "@/services/schemas";
 
-const { protectedGet, me, requestJson } = vi.hoisted(() => ({ protectedGet: vi.fn(), me: vi.fn(), requestJson: vi.fn() }));
-vi.mock("@/services/auth", () => ({ getAuthService: () => ({ protectedGet, me }) }));
+const { protectedGet, protectedPost, me, requestJson } = vi.hoisted(() => ({ protectedGet: vi.fn(), protectedPost: vi.fn(), me: vi.fn(), requestJson: vi.fn() }));
+vi.mock("@/services/auth", () => ({ getAuthService: () => ({ protectedGet, protectedPost, me }) }));
 vi.mock("@/services/http", async () => ({ ...await vi.importActual<typeof import("@/services/http")>("@/services/http"), requestJson }));
 const document = { id: "vigentes", titulo: "Construyamos una comunidad que sume", introduccion: "Mensaje introductorio.",
   normas: ["Primera norma.", "Segunda norma."], cierre: "De estudiantes, para estudiantes.",
@@ -53,5 +53,22 @@ describe("HU-C04 transporte de actualización administrativa", () => {
   it("rechaza una respuesta de actualización que no cumple el contrato", async () => {
     me.mockResolvedValue({ role: "ADMIN" }); requestJson.mockResolvedValue({ ...document, normas: [] });
     await expect(actualizarNormas(input)).rejects.toThrow();
+  });
+});
+
+describe("HU-C02 transporte de registro privado", () => {
+  const input = { solicitudId: "de9faf0b-06c7-4b45-aa8b-f7eb810a44e3", categoria: "OTROS" as const, contenido: "Una mejora privada." };
+  const receipt = { id: "be6a4090-7221-4340-aacc-27715417dd1c", createdAt: "2026-11-18T10:00:00.000Z" };
+  it("delega el POST protegido con clave y sin autor provisto por el cliente", async () => {
+    protectedPost.mockResolvedValue(receipt); await expect(registrarSugerencia(input)).resolves.toEqual(receipt);
+    expect(protectedPost).toHaveBeenCalledExactlyOnceWith("/comunidad/sugerencias", input, sugerenciaRegistradaSchema);
+    expect(requestJson).not.toHaveBeenCalled();
+  });
+  it("acepta el recibo mínimo válido", () => { expect(sugerenciaRegistradaSchema.parse(receipt)).toEqual(receipt); });
+  it.each([{ id: "invalid" }, { createdAt: "invalid" }, { id: undefined }, { createdAt: undefined }])("rechaza un recibo inválido: %j", invalid => {
+    expect(sugerenciaRegistradaSchema.safeParse({ ...receipt, ...invalid }).success).toBe(false);
+  });
+  it("propaga el fallo de registro sin producir un agradecimiento ficticio", async () => {
+    protectedPost.mockRejectedValue(new Error("unavailable")); await expect(registrarSugerencia(input)).rejects.toThrow("unavailable");
   });
 });

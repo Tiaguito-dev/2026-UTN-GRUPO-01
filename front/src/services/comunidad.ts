@@ -1,7 +1,7 @@
 import { getAuthService } from "./auth";
-import { normasConvivenciaSchema, parseResponse } from "./schemas";
+import { normasConvivenciaSchema, parseResponse, sugerenciaRegistradaSchema } from "./schemas";
 import { requestJson } from "./http";
-import type { NormasConvivencia, NormasInput } from "@/types/comunidad";
+import type { NormasConvivencia, NormasInput, SugerenciaInput, SugerenciaRegistrada } from "@/types/comunidad";
 
 /** Lectura autenticada del documento persistido, compartida por estudiantes y administración. */
 export function obtenerNormas(): Promise<NormasConvivencia> {
@@ -12,4 +12,9 @@ export function obtenerNormas(): Promise<NormasConvivencia> {
 export async function actualizarNormas(input: NormasInput): Promise<NormasConvivencia> {
   await getAuthService().me();
   return parseResponse(normasConvivenciaSchema, await requestJson("/comunidad/normas", { method: "PUT", body: input }));
+}
+
+/** Alta privada idempotente: el componente conserva la misma solicitud al reintentar. */
+export function registrarSugerencia(input: SugerenciaInput): Promise<SugerenciaRegistrada> {
+  return getAuthService().protectedPost("/comunidad/sugerencias", input, sugerenciaRegistradaSchema);
 }

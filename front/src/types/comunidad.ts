@@ -10,3 +10,18 @@ export interface NormasConvivencia {
 }
 
 export type NormasInput = Pick<NormasConvivencia, "titulo" | "introduccion" | "normas" | "cierre">;
+
+export const CATEGORIAS_SUGERENCIA = ["MEJORA_PLATAFORMA", "NUEVA_FUNCIONALIDAD", "REPORTAR_ERROR", "CORRECCION_ACADEMICA", "OTROS"] as const;
+export type CategoriaSugerencia = typeof CATEGORIAS_SUGERENCIA[number];
+
+export interface SugerenciaInput {
+  solicitudId: string;
+  categoria: CategoriaSugerencia;
+  contenido: string;
+}
+
+/** El alta confirma persistencia sin devolver ni publicar el contenido o su autor. */
+export interface SugerenciaRegistrada {
+  id: string;
+  createdAt: string;
+}

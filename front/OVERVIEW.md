@@ -1,5 +1,26 @@
 # Frontend
 
+## Comunidad: sugerencias privadas (HU-C02)
+
+La vista USER de Comunidad incorpora `SugerenciaForm` junto a las normas en escritorio y debajo
+de ellas bajo 800 px. El mensaje del equipo permanece encima. El formulario se mantiene montado
+durante la carga, el error y el reintento de las normas: su borrador no depende de esa consulta.
+La variante ADMIN conserva la consulta y el editor de HU-C04, sin formulario ni bandeja de sugerencias.
+
+El selector comienza vacío y exige una de las cinco categorías; el contenido es texto plano,
+obligatorio y limitado a 5000 caracteres UTF-16 como el backend. La interfaz usa tarjetas,
+avisos, contador, etiquetas y errores asociados, foco al primer campo inválido y
+`useFormSubmission` para impedir envíos duplicados y bloquear controles mientras envía.
+`services/comunidad.ts` realiza un POST protegido y valida únicamente la confirmación
+`{id,createdAt}`; no incorpora lectura, estados, likes ni publicación de las sugerencias.
+
+Cada intento conserva en memoria su UUID y el contenido/categoría normalizados. Un fallo
+mantiene el borrador y reintentar sin cambios usa la misma solicitud; cambiar el contenido de
+un intento incierto exige la acción explícita Nueva sugerencia. Ese botón libera el intento
+anterior conservando el borrador para una operación distinta, con advertencia sobre un posible
+registro previo. Un éxito muestra el agradecimiento, limpia los campos y deja lista una nueva
+solicitud. No se guardan UUID ni borradores privados en storage del navegador.
+
 ## Comunidad: consulta y administración de normas (HU-C01/HU-C04)
 
 `/home/comunidad` y `/home/admin/comunidad` renderizan el mismo
@@ -19,7 +40,7 @@ Comunidad aparece en ambos menús; un acceso ADMIN a la ruta estudiantil se trad
 equivalente administrativo. Los guards de sesión/rol y la identidad visual de HU-C06 se
 conservan. El CSS Module de la pantalla compone las tarjetas con los tokens actuales, sin
 sobrescribir primitivas ni estilos globales. USER conserva la vista de consulta; no hay feed,
-sugerencias, términos ni controles sin funcionalidad.
+términos ni controles sin funcionalidad; las sugerencias privadas USER se describen arriba.
 
 La ruta administrativa compone `ComunidadAdminPageContent` bajo `Suspense`: lee únicamente la
 señal `actualizada=1`, muestra el aviso de éxito y habilita el enlace “Administrar normas de

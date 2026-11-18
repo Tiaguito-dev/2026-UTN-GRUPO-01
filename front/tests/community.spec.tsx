@@ -6,7 +6,7 @@ import { RoleTheme } from "@/components/auth/RoleTheme";
 import { obtenerNormas } from "@/services/comunidad";
 import { HttpError } from "@/services/http";
 
-vi.mock("@/services/comunidad", () => ({ obtenerNormas: vi.fn() }));
+vi.mock("@/services/comunidad", () => ({ obtenerNormas: vi.fn(), registrarSugerencia: vi.fn() }));
 vi.mock("next/link", () => import("./support/next-link"));
 const document = {
   id: "vigentes", titulo: "Construyamos una comunidad que sume", introduccion: "Primer párrafo del equipo.\n\nSegundo párrafo constructivo.",
@@ -28,7 +28,7 @@ describe("HU-C01 Comunidad de consulta", () => {
     expect(screen.queryByText(/normas.*actualiz/i)).toBeNull();
   });
   it.each(["USER", "ADMIN"] as const)("muestra el mismo contenido vigente bajo el tema de %s, sin controles de edición ni feed", async role => {
-    render(<RoleTheme status="authenticated" role={role}><ComunidadPageContent /></RoleTheme>);
+    render(<RoleTheme status="authenticated" role={role}><ComunidadPageContent administrative={role === "ADMIN"} /></RoleTheme>);
     expect(await screen.findByRole("heading", { name: document.titulo })).toBeTruthy();
     const title = screen.getByRole("heading", { name: "Comunidad", level: 1 });
     expect(title.closest("[data-role-theme]")?.getAttribute("data-role-theme")).toBe(role === "ADMIN" ? "admin" : "student");
@@ -38,8 +38,10 @@ describe("HU-C01 Comunidad de consulta", () => {
     const list = screen.getByRole("list");
     expect(within(list).getAllByRole("listitem").map(item => item.textContent)).toEqual(document.normas);
     expect(screen.getByText("De estudiantes, para estudiantes.")).toBeTruthy();
-    expect(screen.queryByRole("textbox")).toBeNull();
-    expect(screen.queryByRole("button", { name: /editar|guardar|enviar|publicar/i })).toBeNull();
+    // HU-C02 agrega solo el formulario privado de sugerencias USER; las normas siguen siendo lectura.
+    expect(screen.queryAllByRole("textbox")).toHaveLength(role === "USER" ? 1 : 0);
+    expect(screen.queryAllByRole("button", { name: "Enviar sugerencia" })).toHaveLength(role === "USER" ? 1 : 0);
+    expect(screen.queryByRole("button", { name: /editar|guardar|publicar/i })).toBeNull();
     expect(screen.queryByText(/próximamente|Estamos preparando esta sección/i)).toBeNull();
     expect(obtenerNormas).toHaveBeenCalledTimes(1);
   });
@@ -49,6 +51,30 @@ describe("HU-C01 Comunidad de consulta", () => {
     render(<ComunidadPageContent />);
     expect(screen.getByRole("status").textContent).toMatch(/Cargando normas de convivencia/);
     expect(screen.queryByRole("list")).toBeNull();
+  });
+
+  it("HU-C02 conserva el borrador privado cuando termina de cargar el documento de normas", async () => {
+    let resolve!: (value: typeof document) => void;
+    vi.mocked(obtenerNormas).mockReturnValue(new Promise(done => { resolve = done; }));
+    render(<ComunidadPageContent />);
+    const content = screen.getByRole("textbox", { name: "Sugerencia" });
+    fireEvent.change(content, { target: { value: "Borrador mientras cargan las normas." } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Categoría" }), { target: { value: "OTROS" } });
+    resolve(document); await screen.findByRole("heading", { name: document.titulo });
+    expect((screen.getByRole("textbox", { name: "Sugerencia" }) as HTMLTextAreaElement).value).toBe("Borrador mientras cargan las normas.");
+    expect((screen.getByRole("combobox", { name: "Categoría" }) as HTMLSelectElement).value).toBe("OTROS");
+  });
+
+  it("HU-C02 conserva el borrador y la categoría al reintentar una consulta de normas fallida", async () => {
+    vi.mocked(obtenerNormas).mockRejectedValueOnce(new Error("temporary")).mockResolvedValueOnce(document);
+    render(<ComunidadPageContent />);
+    await screen.findByText("No pudimos cargar las normas de convivencia.");
+    fireEvent.change(screen.getByRole("textbox", { name: "Sugerencia" }), { target: { value: "Borrador que no depende del documento." } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Categoría" }), { target: { value: "REPORTAR_ERROR" } });
+    fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+    await screen.findByRole("heading", { name: document.titulo });
+    expect((screen.getByRole("textbox", { name: "Sugerencia" }) as HTMLTextAreaElement).value).toBe("Borrador que no depende del documento.");
+    expect((screen.getByRole("combobox", { name: "Categoría" }) as HTMLSelectElement).value).toBe("REPORTAR_ERROR");
   });
 
   it("permite reintentar un fallo sin descartar la estructura de la página", async () => {
