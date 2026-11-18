@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Pencil, ArrowRight, Eye } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import type { Feedback } from "@/types/feedback";
@@ -12,9 +13,11 @@ import { modalidadLabel } from "@/validations/materias";
 import { carreraLabel } from "@/lib/format/carrera";
 import styles from "./feedback.module.css";
 import { EstrellasFeedback } from "./FeedbackCard";
+import { ReportFeedbackAction } from "./ReportFeedbackAction";
+import feedStyles from "./FeedPrincipal.module.css";
 
 /** Public presentation shared by commission and general reading; private actions require propio. */
-export function ExperienceCard({ feedback, onManage, showContext = false, origin, administrative = false, returnTo, readOnly = false, showTime = false }: { feedback: Feedback; onManage?: () => void; readOnly?: boolean; showTime?: boolean; showContext?: boolean; origin?: URLSearchParams; administrative?: boolean; returnTo?: string }) {
+export function ExperienceCard({ feedback, onManage, onReported, showContext = false, origin, administrative = false, returnTo, readOnly = false, showTime = false, variant, footer, secondaryActions }: { feedback: Feedback; onManage?: () => void; onReported?: () => void; readOnly?: boolean; showTime?: boolean; showContext?: boolean; origin?: URLSearchParams; administrative?: boolean; returnTo?: string; variant?: "inicio"; footer?: ReactNode; secondaryActions?: ReactNode }) {
   const isAdmin = useIsAdmin();
   const author = feedback.anonimo ? "Anónimo" : feedback.autor?.displayName ?? "Usuario";
   const query = origin?.size ? `?${origin}` : "";
@@ -22,7 +25,7 @@ export function ExperienceCard({ feedback, onManage, showContext = false, origin
   if (feedback.contexto.carrera) subjectQuery.set("carrera", feedback.contexto.carrera);
   const subjectHref = administrative ? materiaDetailHref(feedback.contexto.materiaId) : `/home/materias/${encodeURIComponent(feedback.contexto.materiaId)}${subjectQuery.size ? `?${subjectQuery}` : ""}`;
   const commissionHref = administrative ? comisionDetailHref(feedback.contexto.comisionId, returnTo ?? "/home/admin/experiencias") : `${feedbackComisionHref(feedback.contexto)}${query}`;
-  return <article className={`${styles.experienceCard}${feedback.propio ? ` ${styles.experienceCardOwn}` : ""}`} aria-label={`Comentario de ${author}`}>
+  return <article className={`${styles.experienceCard}${feedback.propio ? ` ${styles.experienceCardOwn}` : ""}${variant === "inicio" ? ` ${feedStyles.card}` : ""}`} aria-label={`Comentario de ${author}`}>
     <header className={styles.experienceCardHeader}>
       <span className={styles.experienceAvatar} aria-hidden="true">{feedback.anonimo ? "?" : iniciales(author)}</span>
       <div className={styles.experienceAuthor}><strong>{author}</strong>{feedback.propio ? <span className={styles.experienceOwn}>Tu comentario</span> : null}</div>
@@ -32,7 +35,10 @@ export function ExperienceCard({ feedback, onManage, showContext = false, origin
     <p className={styles.experienceTarget}>{feedback.profesor ? `Sobre ${feedback.profesor.nombreCompleto}` : "Sobre la comisión en general"}</p>
     <EstrellasFeedback puntuacion={feedback.puntuacion} />
     <p className={styles.experienceText}>{feedback.texto}</p>
-    {(!readOnly && (isAdmin || (!administrative && feedback.propio && onManage))) || showContext ? <footer className={styles.experienceFooter}>
+    {secondaryActions ? <div className={feedStyles.secondaryActions}>{secondaryActions}</div> : null}
+    {!administrative && !feedback.propio && (!feedback.estadoModeracion || feedback.estadoModeracion === "APROBADO") && !feedback.ocultoAutor && !feedback.ocultoAdministracion && !feedback.ocultoReportes ? <ReportFeedbackAction feedbackId={feedback.id} onReported={onReported} /> : null}
+    {footer || (!readOnly && (isAdmin || (!administrative && feedback.propio && onManage))) || showContext ? <footer className={`${styles.experienceFooter}${variant === "inicio" ? ` ${feedStyles.cardFooter}` : ""}`}>
+      {footer}
       {isAdmin && !readOnly ? <Link className="button button-secondary" href={`/home/admin/experiencias/${encodeURIComponent(feedback.id)}?${new URLSearchParams({ returnTo: returnTo ?? "/home/admin/experiencias" })}`}><Eye size={16} aria-hidden="true" />Ver detalle y auditoría</Link> : null}
       {showContext ? <Link className="button button-secondary" href={commissionHref}>Ver comisión<ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" focusable="false" /></Link> : null}
       {feedback.propio && !administrative && !readOnly && onManage ? <button className="button button-secondary" type="button" onClick={onManage}><Pencil size={16} strokeWidth={1.75} aria-hidden="true" focusable="false" />Administrar mi comentario</button> : null}

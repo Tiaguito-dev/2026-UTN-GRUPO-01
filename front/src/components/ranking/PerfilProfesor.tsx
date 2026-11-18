@@ -2,7 +2,7 @@
 
 import { Trophy } from "lucide-react";
 import Link from "next/link";
-import { useId } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PaginatedListView } from "@/components/ui/PaginatedListView";
@@ -29,6 +29,7 @@ export function PerfilProfesor({ profesorId, admin = false }: { profesorId: stri
   const headingId = useId();
   const comisionesId = useId();
   const comentariosId = useId();
+  const [reported, setReported] = useState(0);
   const router = useRouter();
   const { page, setPage } = useUrlPagination();
   const profesor = useFeedbackResource(`ranking-profesor:${profesorId}`, () => obtenerRankingProfesor(profesorId));
@@ -63,14 +64,15 @@ export function PerfilProfesor({ profesorId, admin = false }: { profesorId: stri
       </section>
       <section className={styles.section} aria-labelledby={comentariosId}>
         <h2 id={comentariosId} className={styles.sectionTitle}>Comentarios</h2>
-        <PaginatedListView resetKey={`comentarios-profesor:${profesorId}`} page={page} onPageChange={setPage} loadingMessage="Cargando comentarios…"
+        {reported ? <Notice tone="success">El reporte se envió correctamente. El equipo administrativo lo revisará.</Notice> : null}
+        <PaginatedListView resetKey={`comentarios-profesor:${profesorId}:${reported}`} page={page} onPageChange={setPage} loadingMessage="Cargando comentarios…"
           errorMessage="Lo sentimos. No pudimos recuperar los comentarios."
           fetchPage={(next) => listarFeedback({ page: next, pageSize: 9, profesorId })}
           empty={<p role="status" className={styles.empty}>Todavía no hay comentarios sobre este profesor.</p>}>
           {(result) => <>
             <div className={styles.summary}><p className={styles.total}>{result.total === 1 ? "1 comentario" : `${result.total} comentarios`}</p><p>{rangoMostrado(result.page, result.pageSize, result.items.length, result.total)}</p></div>
             <ul className={feedbackStyles.experienceList}>{result.items.map((feedback) => <li key={feedback.id}>
-              <ExperienceCard feedback={feedback} showContext administrative={admin} returnTo={admin ? rutas.profesor(profesorId) : undefined} onManage={() => router.push(feedbackDetalleHref(feedback.id))} />
+              <ExperienceCard feedback={feedback} onReported={() => { setReported(value => value + 1); profesor.retry(); }} showContext administrative={admin} returnTo={admin ? rutas.profesor(profesorId) : undefined} onManage={() => router.push(feedbackDetalleHref(feedback.id))} />
             </li>)}</ul>
           </>}
         </PaginatedListView>
