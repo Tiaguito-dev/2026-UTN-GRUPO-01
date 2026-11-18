@@ -18,7 +18,7 @@ interface SelectorProps {
 
 /** Opciones paginadas bajo demanda; la selección por URL se recupera por ID, fuera de la página. */
 export function AdminParentSelector({ label, resourceKey, value, disabled, searchable, fetchPage, fetchSelected, onChange }: SelectorProps) {
-  const labelId = useId(); const [open, setOpen] = useState(false); const [attempt, setAttempt] = useState(0);
+  const labelId = useId(); const valueId = useId(); const [open, setOpen] = useState(false); const [attempt, setAttempt] = useState(0);
   const [settled, setSettled] = useState<{ key: string; option?: AdminOption; error?: string }>();
   const key = `${resourceKey}:${value}:${attempt}`;
   const getSelected = useEffectEvent((id: string) => fetchSelected(id));
@@ -32,7 +32,7 @@ export function AdminParentSelector({ label, resourceKey, value, disabled, searc
   function select(id: string) { onChange(id); setOpen(false); }
   return <div className={styles.filterField}>
     <span id={labelId} className={styles.selectorLabel}>{label}</span>
-    <button className={`button button-secondary ${styles.selectorButton}`} type="button" disabled={disabled} aria-labelledby={labelId} aria-haspopup="dialog" onClick={() => setOpen(true)}>{value ? selected?.option?.label ?? `${label} seleccionado` : `Elegí ${label.toLocaleLowerCase("es")}`}</button>
+    <button className={`button button-secondary ${styles.selectorButton}`} type="button" disabled={disabled} aria-labelledby={`${labelId} ${valueId}`} aria-haspopup="dialog" onClick={() => setOpen(true)}><span id={valueId}>{value ? selected?.option?.label ?? `${label} seleccionado` : `Elegí ${label.toLocaleLowerCase("es")}`}</span></button>
     {selected?.error ? <Notice tone="error">{selected.error} <button className="button button-secondary" type="button" onClick={() => setAttempt((n) => n + 1)}>Reintentar {label.toLocaleLowerCase("es")}</button></Notice> : null}
     {open ? <Dialog open title={`Elegir ${label.toLocaleLowerCase("es")}`} onClose={() => setOpen(false)}><AdminParentOptions key={resourceKey} label={label} value={value} searchable={searchable} fetchPage={fetchPage} resourceKey={resourceKey} onChange={select} /></Dialog> : null}
   </div>;

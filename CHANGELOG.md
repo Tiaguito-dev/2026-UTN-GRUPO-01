@@ -2,6 +2,16 @@
 
 ## [Sin publicar]
 
+### Integración local de desarrollo
+
+- Incorporados los cambios de identidad visual por rol de `origin/desarrollo` (`1133767`) en `feature/clasificador-comentarios`, conservando por separado el trabajo local de T6. Conflictos de documentación resueltos preservando ambas secciones.
+
+### HU-C06 — Identidad visual administrativa
+
+- ADMIN recibe encabezado y menú bordó oscuro, identificación “Administración” y tokens compartidos para páginas, perfil, formularios y diálogos. USER conserva su identidad actual; la sesión sin confirmar utiliza un estado neutral y el logout restaura el tema público.
+- El tema deriva del rol autenticado y no altera autorización ni navegación. Se corrige el nombre accesible de los selectores administrativos detectado por axe.
+- Validación: 1039 pruebas frontend, typecheck, lint y build aprobados; 8 casos E2E únicos con autenticación real y auditoría visual/accesible. La suite visual final compara 28 referencias sin actualizarlas. Sin cambios de backend ni migraciones. Evidencia en [la tarea](docs/tasks/finished/TASK-HU-C06-tema-administrativo.md).
+
 ### Términos y condiciones en el registro
 
 - El alta pública exige aceptar expresamente los términos vigentes: casilla desmarcada, documento centralizado en secciones y modal accesible con Cerrar, X y Escape que conserva el formulario. Se valida aceptación booleana y versión en frontend/backend.

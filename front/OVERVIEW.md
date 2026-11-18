@@ -1,5 +1,30 @@
 # Frontend
 
+## Identidad visual según el rol (HU-C06)
+
+`AuthProvider` envuelve sus hijos y `SessionIdleMonitor` con `auth/RoleTheme`: un contenedor
+presentacional estable cuyo `data-role-theme` se deriva del estado de sesión y del rol
+confirmado. `ADMIN` utiliza `admin`, `USER` utiliza `student`, una cuenta anónima utiliza
+`public` y la comprobación o error temporal utilizan `pending`. No se lee la URL ni se guarda
+una preferencia de tema. Cerrar sesión vuelve al tema público; un cierre fallido conserva la
+sesión real y su identidad, como antes. El contenedor no sustituye los guards de sesión/rol.
+
+Los tokens de `styles/tokens.css` definen la variante administrativa: encabezado bordó,
+sidebar oscuro, texto/iconos claros, selección visible y foco de teclado con contraste sobre
+ambas superficies. `SiteHeader` identifica “Administración” con `Badge`, conservando el logo,
+la tipografía, el destino y el nombre accesible de la marca. Mientras la sesión no está
+confirmada, el encabezado es neutral y no anuncia un rol ni muestra opciones de cuenta.
+
+La herencia cubre `/home`, rutas administrativas, `/account`, cambio de contraseña, altas,
+ediciones, detalles y diálogos, incluido el aviso de inactividad. Las páginas futuras heredan
+los mismos tokens sin duplicar componentes. Fondos crema y colores de error/éxito/advertencia
+se conservan. La navegación y los permisos siguen a cargo de `sectionsForRole`,
+`RoleRouteBoundary`, `RequireAuth`, `RequireRole` y el backend.
+
+En móvil se mantiene el sidebar responsive existente; la marca y la etiqueta administrativa
+se apilan y `--header-h` pasa a `6.5rem` solo para ADMIN bajo 600px. El encabezado USER conserva
+su estructura y medidas previas.
+
 ## Términos en el registro
 
 El registro carga el documento público `GET /auth/terms` mediante `services/terminos.ts`, que
