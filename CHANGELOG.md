@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### HU-C04 — Administración de normas de convivencia
+
+- ADMIN puede editar el mensaje y agregar, modificar, eliminar y ordenar normas. El formulario precarga el documento vigente, valida campos, conserva el borrador ante errores y confirma su descarte al abandonar; USER conserva su vista de consulta.
+- PUT `/comunidad/normas` exige sesión ADMIN y CSRF, valida el cuerpo estricto y actualiza contenido, fecha y responsable atómicamente. Conserva createdAt y aceptaciones históricas; no expone el UUID del responsable en el documento público.
+- Nueva migración `20261118000000_normas_responsable`, aditiva y sin seed/backfill. No modifica el contenido previo ni la migración de HU-C01.
+- Validación: 1332 pruebas backend y 1080 frontend, tipos/lint/build de ambos y 24 E2E aprobados, con Nginx, axe y 28 referencias visuales sin regenerar. Evidencia y capturas en [la tarea](docs/tasks/finished/TASK-HU-C04-administrar-normas.md).
+
 ### HU-C01 — Consulta de normas en Comunidad
 
 - Comunidad reemplaza Próximamente por el mensaje del equipo y las normas vigentes persistidas, disponibles para USER y ADMIN con sus temas y navegación. Incluye carga, ausencia y error con reintento, sin feed ni edición.
