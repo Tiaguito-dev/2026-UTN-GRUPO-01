@@ -2,6 +2,8 @@
 
 ## [Sin publicar]
 
+- La bienvenida pública se integra con el sprint actual y aplica las mismas reglas de moderación y ocultamiento que el resto del sitio (TASK-078).
+
 ### Presentación de reportes administrativos
 
 - Bandeja compacta adaptable con filtros agrupados, estados y ocultamiento preventivo con badges; conserva consultas, orden, navegación y paginación.

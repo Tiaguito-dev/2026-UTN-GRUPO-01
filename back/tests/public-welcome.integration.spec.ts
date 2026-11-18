@@ -64,13 +64,19 @@ describe.skipIf(!databaseUrl)("Bienvenida pública HTTP", () => {
     }
     const cursadas = await Promise.all(visible.map(({ id }) => cursada(id)));
     async function experience(subject: { id: string; nombre: string }, cursadaId: string, numero: number, createdAt: Date,
-      options: { activa?: boolean; comisionDeleted?: boolean; feedbackDeleted?: boolean } = {}) {
+      options: { activa?: boolean; comisionDeleted?: boolean; feedbackDeleted?: boolean;
+        estadoModeracion?: "APROBADO" | "PENDIENTE" | "RECHAZADO";
+        ocultoAutor?: boolean; ocultoAdministracion?: boolean; ocultoReportes?: boolean } = {}) {
       const comision = await prisma.comision.create({ data: { cursadaId, carrera: "S", numero, activa: options.activa, deletedAt: options.comisionDeleted ? new Date() : null } });
       comisionIds.push(comision.id);
       const texto = `Experiencia ${numero}-${tag}`;
       const row = await prisma.feedback.create({ data: { comisionId: comision.id, autorId: author.id, texto,
         cursadaId, materiaId: hidden.id, materiaNombre: hidden.nombre, comisionNombre: `S-${numero}`, anio: 2026, anonimo: false,
-        createdAt, deletedAt: options.feedbackDeleted ? new Date() : null } });
+        createdAt, deletedAt: options.feedbackDeleted ? new Date() : null,
+        estadoModeracion: options.estadoModeracion ?? "APROBADO", ocultoAutor: options.ocultoAutor,
+        motivoRechazo: options.estadoModeracion === "RECHAZADO" ? "Rechazo ficticio de prueba" : null,
+        requiereRevisionHumana: options.estadoModeracion === "RECHAZADO",
+        ocultoAdministracion: options.ocultoAdministracion, ocultoReportes: options.ocultoReportes } });
       feedbackIds.push(row.id);
       return { id: row.id, texto, createdAt: createdAt.toISOString(), materia: subject };
     }
@@ -82,6 +88,11 @@ describe.skipIf(!databaseUrl)("Bienvenida pública HTTP", () => {
     await experience(visible[0]!, cursadas[0]!.id, 10, date(10), { comisionDeleted: true });
     await experience(visible[0]!, (await cursada(visible[0]!.id, new Date())).id, 11, date(11));
     await experience(hidden, (await cursada(hidden.id)).id, 12, date(12));
+    await experience(visible[0]!, cursadas[0]!.id, 14, date(14), { estadoModeracion: "PENDIENTE" });
+    await experience(visible[0]!, cursadas[0]!.id, 15, date(15), { estadoModeracion: "RECHAZADO" });
+    await experience(visible[0]!, cursadas[0]!.id, 16, date(16), { ocultoAutor: true });
+    await experience(visible[0]!, cursadas[0]!.id, 17, date(17), { ocultoAdministracion: true });
+    await experience(visible[0]!, cursadas[0]!.id, 18, date(18), { ocultoReportes: true });
 
     const route = `/materias/explorar/${visible[0]!.id}/experiencias`;
     const response = await get(route);

@@ -69,8 +69,8 @@
 }
 
 @layer components {
-  body:has(> .guided-landing) > .site-header { display: none; }
-  body:has(#public-welcome) > .landing { padding-block: 0; }
+  .role-theme:has(> .guided-landing) > .site-header { display: none; }
+  .role-theme > .guided-landing { padding-block: 0; }
   #public-welcome { --guided-top: clamp(var(--space-16), 8vw, 6rem); padding-block: var(--guided-top) var(--space-16); min-height: 100svh; overflow-x: clip; }
   #public-welcome .guided-access { position: fixed; inset: var(--space-4) max(var(--space-4), calc((100vw - var(--content-max)) / 2)) auto auto; z-index: 5; }
   #public-welcome .guided-login { display: inline-flex; align-items: center; gap: var(--space-2); background: var(--surface); }

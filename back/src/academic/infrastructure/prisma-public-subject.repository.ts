@@ -1,5 +1,6 @@
 import type { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import type { PublicSubjectRepository } from "../application/ports/public-subject.repository.js";
+import { publicFeedbackWhere } from "../../reviews/infrastructure/prisma-feedback-visibility.js";
 
 const publicSubjectFields = { id: true, nombre: true } as const;
 
@@ -23,7 +24,7 @@ export class PrismaPublicSubjectRepository implements PublicSubjectRepository {
       if (!materia) return null;
       const rows = await tx.feedback.findMany({
         where: {
-          deletedAt: null,
+          ...publicFeedbackWhere,
           // Use the current hierarchy instead of the historical snapshot stored in Feedback.
           comision: { activa: true, deletedAt: null, cursada: { materiaId: subjectId, deletedAt: null } },
         },
