@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import { useId, useRef, useState, type FormEvent } from "react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useAllPages } from "@/hooks/useAllPages";
@@ -117,7 +118,7 @@ export function DocentesComision({ comisionId, profesores: initial, onChange, on
   const asignacion = canManage ? <details className={gestionSolo ? undefined : "academic-assign"} open={asignacionAbierta} onToggle={(event) => setAsignacionAbierta(event.currentTarget.open)}>
     <summary ref={summaryRef} id={`${id}-asignar`} className={styles.assignmentToggle}>Asignar profesor</summary>
     <form className={gestionSolo ? detailStyles.assignment : undefined} onSubmit={asignar} aria-labelledby={`${id}-asignar`} aria-busy={busy}>
-      {catalogo.state.status === "loading" ? <p role="status">Cargando profesores…</p> : null}
+      {catalogo.state.status === "loading" ? <BrandLoading message="Cargando profesores…" /> : null}
       {catalogo.state.status === "error" ? <Notice tone="error">{catalogo.state.error} <button type="button" className="button" onClick={catalogo.retry}>{gestionSolo ? "Reintentar profesores" : "Reintentar"}</button></Notice> : null}
       {catalogo.state.status === "ready" && !disponibles.length ? <p>No hay profesores disponibles para asignar. Podés registrar profesores desde Administración.</p> : null}
       <fieldset className={styles.controls} disabled={locked || catalogo.state.status !== "ready"}>

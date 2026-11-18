@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Notice } from "@/components/ui/Notice";
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import type { AsyncState } from "@/hooks/usePaginatedFetch";
 
 export interface RecursoDeOpciones {
@@ -20,7 +21,7 @@ export function bloqueoDeOpciones(recursos: RecursoDeOpciones[]): ReactNode {
   const fallido = recursos.find((recurso) => recurso.state.status === "error");
   if (fallido?.state.status === "error") return <Notice tone="error">{fallido.state.error} <button className="button" type="button" onClick={fallido.retry}>Reintentar</button></Notice>;
   const cargando = recursos.find((recurso) => recurso.state.status === "loading");
-  if (cargando) return <Notice tone="warning">Cargando {cargando.nombre}…</Notice>;
+  if (cargando) return <BrandLoading message={`Cargando ${cargando.nombre}…`} />;
   const vacio = recursos.find((recurso) => recurso.state.status === "ready" && recurso.state.data.length === 0);
   if (vacio) return <Notice tone="warning">{vacio.vacio}</Notice>;
   return null;

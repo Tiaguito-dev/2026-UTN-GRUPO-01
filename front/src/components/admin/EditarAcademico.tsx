@@ -1,4 +1,5 @@
 "use client";
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
@@ -29,7 +30,7 @@ function DetailEditor<T>({ id, load, children }: { id: string; load: (id: string
   useEffect(() => { let active = true; load(id).then((data) => { if (active) setResult({ key, data }); }, (error: unknown) => { if (active) setResult({ key, error: error instanceof Error ? error.message : "No pudimos cargar el registro." }); }); return () => { active = false; }; }, [id, key, load]);
   const current = result?.key === key ? result : undefined;
   if (current?.error) return <Notice tone="error">{current.error} <button className="button" type="button" onClick={() => setAttempt((n) => n + 1)}>Reintentar</button></Notice>;
-  if (!current?.data) return <p role="status">Cargando registro…</p>;
+  if (!current?.data) return <BrandLoading message="Cargando registro…" />;
   return children(current.data);
 }
 /** FormField currently initializes selects only; keep input initialization local to these editors. */
@@ -75,7 +76,7 @@ export function EditarComision({ comisionId }: { comisionId: string }) { const r
 function ComisionOptions({ comision, returnTo }: { comision: ComisionDetalle; returnTo: string }) {
   const { materia, error, retry } = useMateria(comision.cursada.materia.id);
   if (error) return <Notice tone="error">{error} <button className="button" type="button" onClick={retry}>Reintentar</button></Notice>;
-  if (!materia) return <p role="status">Cargando carreras de la materia…</p>;
+  if (!materia) return <BrandLoading message="Cargando carreras de la materia…" />;
   if (!materia.carreras.length) return <Notice tone="warning">Antes de guardar la comisión, debés asociar una carrera a esta materia desde su edición.</Notice>;
   return <ComisionEditor comision={comision} returnTo={returnTo} carreras={materia.carreras.map((entry) => entry.carrera)} />;
 }

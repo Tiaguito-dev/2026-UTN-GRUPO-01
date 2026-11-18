@@ -1,4 +1,5 @@
 "use client";
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import Link from "next/link";
 import { useId, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -67,7 +68,7 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
     </div>
     {params.get("successMessage") ? <Notice tone="success">{params.get("successMessage")}</Notice> : null}
     {error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la materia. {error} {notFound ? <Link href={backHref}>Volver al listado de materias</Link> : <button className="button" onClick={retry} type="button">Reintentar</button>}</Notice> : null}
-    {!materia && !error ? <p role="status">Cargando materia…</p> : null}
+    {!materia && !error ? <BrandLoading message="Cargando materia…" /> : null}
     {materia ? <div className="academic-columns">
       <div className="academic-main">
         <ComisionesMateria key={materiaId} materiaId={materiaId} materiaNombre={materia.nombre} carreras={materia.carreras} materiasHref={backHref} />
@@ -86,7 +87,7 @@ export function MateriaHistory({ materiaId, materiaCreatedAt }: { materiaId: str
   const { state, retry } = usePaginatedFetch(`historial:${materiaId}`, (next) => listarHistorialMateria(materiaId, { page: next }), page);
   return <section className="academic-panel" aria-labelledby={headingId}>
     <div className="academic-panel-header"><h2 id={headingId}>Historial de cambios</h2></div>
-    {state.status === "loading" ? <p className="academic-empty" role="status">Cargando historial…</p> : null}
+    {state.status === "loading" ? <BrandLoading className="academic-empty" message="Cargando historial…" /> : null}
     {state.status === "error" ? <p className="academic-empty" role="alert">Lo sentimos. No pudimos recuperar el historial. {state.error} <button className="button" type="button" onClick={retry}>Reintentar</button></p> : null}
     {state.status === "ready" ? <>
       {/* TASK-054: "Alta de la materia" se agrega como última entrada de la última página, sin actor ni diffs. */}

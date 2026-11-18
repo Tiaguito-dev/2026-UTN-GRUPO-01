@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import type { ReactNode } from "react";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { PaginatedResult } from "@/services/pagination";
@@ -24,7 +25,7 @@ export function PaginatedListView<T>({ fetchPage, resetKey, page, refreshKey, on
   children: (result: PaginatedResult<T>) => ReactNode;
 }) {
   const { state, retry } = usePaginatedFetch(resetKey, fetchPage, page, refreshKey);
-  if (state.status === "loading") return <p role="status">{loadingMessage}</p>;
+  if (state.status === "loading") return <BrandLoading message={loadingMessage} />;
   if (state.status === "error") return <Notice tone="error">
     {errorMessage ? <>{errorMessage} <span>{state.error}</span></> : state.error}{" "}
     {state.notFound && notFoundAction ? notFoundAction : <button className="button" type="button" onClick={retry}>Reintentar</button>}

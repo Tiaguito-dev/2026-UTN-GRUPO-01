@@ -65,7 +65,7 @@ async function mailbox(email) {
 
 test("entrada pública separada del home interno, perfil protegido y logo según sesión", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /Tu carrera, con/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "¿Qué querés hacer hoy?" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Opciones de cuenta" })).toHaveCount(0);
   await expect(page.locator("header .brand")).toHaveAttribute("href", "/");
   for (const target of ["/home", "/account", "/account/change-password"]) {
@@ -78,14 +78,14 @@ test("entrada pública separada del home interno, perfil protegido y logo según
   await page.locator("header .brand").click(); await expect(page).toHaveURL(/\/home$/);
   for (const target of ["/", "/login", "/register"]) {
     await page.goto(target); await expect(page).toHaveURL(/\/home$/);
-    await expect(page.getByRole("heading", { name: /Tu carrera, con/ })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "¿Qué querés hacer hoy?" })).toHaveCount(0);
   }
   await page.getByRole("button", { name: "Opciones de cuenta" }).click();
   await page.getByRole("link", { name: "Mi perfil", exact: true }).click();
   await expect(page).toHaveURL(/\/account$/); await expect(page.getByText(f.email, { exact: true })).toBeVisible();
   await page.getByRole("button", { name: /cerrar sesión/i }).click();
   await expect(page).toHaveURL(/\/login/);
-  await page.goto("/"); await expect(page.getByRole("heading", { name: /Tu carrera, con/ })).toBeVisible();
+  await page.goto("/"); await expect(page.getByRole("heading", { name: "¿Qué querés hacer hoy?" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Opciones de cuenta" })).toHaveCount(0);
 });
 
