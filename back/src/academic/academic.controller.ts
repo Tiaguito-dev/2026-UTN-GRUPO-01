@@ -23,7 +23,7 @@ import { CrearCursada } from "./application/crear-cursada.js";
 import { CrearComision } from "./application/crear-comision.js";
 import { AsignarProfesorComision } from "./application/asignar-profesor-comision.js";
 import { QuitarProfesorComision } from "./application/quitar-profesor-comision.js";
-import type { Materia } from "./domain/materia.js";
+import type { Materia, MateriaConValoracion } from "./domain/materia.js";
 import type { Profesor } from "./domain/profesor.js";
 import type { Cursada, CursadaResumen } from "./domain/cursada.js";
 import type { Comision, ComisionDetalle, ProfesorAsignado } from "./domain/comision.js";
@@ -82,12 +82,12 @@ export class AcademicController {
   }
 
   @Get("materias")
-  materias(@Query() query: unknown): Promise<PaginatedResult<Materia>> {
+  materias(@Query() query: unknown): Promise<PaginatedResult<MateriaConValoracion>> {
     return this.listarMaterias.execute(query);
   }
 
   @Get("materias/:materiaId")
-  materia(@Param("materiaId") materiaId: string): Promise<Materia> {
+  materia(@Param("materiaId") materiaId: string): Promise<MateriaConValoracion> {
     return this.obtenerMateria.execute(materiaId);
   }
 

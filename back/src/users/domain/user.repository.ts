@@ -9,6 +9,8 @@ export interface CreateUserInput {
   displayName: string;
   passwordHash: string;
   role: UserRole;
+  /** Solo el alta pública validada registra consentimiento; la provisión administrativa lo omite. */
+  versionTerminos?: string;
 }
 
 export interface UserRepository {

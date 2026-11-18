@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { UpcomingSection } from "@/components/home/UpcomingSection";
+import { Suspense } from "react";
+import { ProfesoresRanking } from "@/components/ranking/ProfesoresRanking";
 
-export const metadata: Metadata = { title: "Profesores | Profesor Butchery" };
+export const metadata: Metadata = { title: "Profesores | Professors' butchery" };
 
 export default function ProfesoresPage() {
-  return <UpcomingSection id="profesores" />;
+  return <Suspense fallback={<p role="status">Cargando profesores…</p>}><ProfesoresRanking /></Suspense>;
 }

@@ -29,7 +29,7 @@ describe.skipIf(!database || !mailbox)("Institutional verification PostgreSQL an
   });
   async function account() {
     const email = `verify-${randomUUID()}@alu.frlp.utn.edu.ar`;
-    const response = await post("register", { email, displayName: "Estudiante", password }); expect(response.status).toBe(201); const user = await response.json(); ids.push(user.id); expect(response.headers.get("set-cookie")).toBeNull();
+    const response = await post("register", { aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email, displayName: "Estudiante", password }); expect(response.status).toBe(201); const user = await response.json(); ids.push(user.id); expect(response.headers.get("set-cookie")).toBeNull();
     return { email, id: user.id as string };
   }
   async function tokens(email: string): Promise<string[]> {
@@ -62,7 +62,7 @@ describe.skipIf(!database || !mailbox)("Institutional verification PostgreSQL an
     const failedApp = module.createNestApplication(); failedApp.useLogger(false); configureAuthHttp(failedApp, config); await failedApp.listen(0, "127.0.0.1");
     const email = `failed-${randomUUID()}@alu.frlp.utn.edu.ar`;
     try {
-      const response = await fetch(`${await failedApp.getUrl()}/auth/register`, { method: "POST", headers: csrfHeaders, body: JSON.stringify({ email, displayName: "Delivery failure", password }) });
+      const response = await fetch(`${await failedApp.getUrl()}/auth/register`, { method: "POST", headers: csrfHeaders, body: JSON.stringify({ aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email, displayName: "Delivery failure", password }) });
       expect(response.status).toBe(503); expect(JSON.stringify(await response.json())).not.toContain("private SMTP");
       const user = await prisma.user.findUniqueOrThrow({ where: { email } }); ids.push(user.id); expect(user.emailVerifiedAt).toBeNull();
       const credential = await prisma.emailVerificationCredential.findFirstOrThrow({ where: { userId: user.id } }); expect(credential.invalidatedAt).not.toBeNull(); expect(credential.deliveredAt).toBeNull();

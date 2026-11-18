@@ -32,7 +32,8 @@ describe("Login", () => {
     expect(f.users.findByEmail).toHaveBeenCalledWith("person@example.com");
     expect(f.passwords.verify).toHaveBeenCalledWith(f.user.passwordHash, password);
     expect(f.tokens.issue).toHaveBeenCalledWith({ userId: f.user.id, sessionId: f.sessionId, issuedAt: 1791460800, expiresAt: 1791461700 });
-    expect(f.refreshRepo.createSession).toHaveBeenCalledWith({ id: f.sessionId, userId: f.user.id, createdAt: new Date("2026-10-08T12:00:00Z"), expiresAt: new Date("2026-10-15T12:00:00Z"), revokedAt: null }, expect.objectContaining({ sessionId: f.sessionId, tokenHash: "a".repeat(64), expiresAt: new Date("2026-10-15T12:00:00Z") }), f.user.passwordHash);
+    // La actividad inicial coincide con la creación y no modifica el límite absoluto.
+    expect(f.refreshRepo.createSession).toHaveBeenCalledWith({ id: f.sessionId, userId: f.user.id, createdAt: new Date("2026-10-08T12:00:00Z"), lastActivityAt: new Date("2026-10-08T12:00:00Z"), expiresAt: new Date("2026-10-15T12:00:00Z"), revokedAt: null }, expect.objectContaining({ sessionId: f.sessionId, tokenHash: "a".repeat(64), expiresAt: new Date("2026-10-15T12:00:00Z") }), f.user.passwordHash);
     expect(result.refreshToken).toBe("private-refresh");
     expect(result.refreshExpiresAt).toEqual(new Date("2026-10-15T12:00:00Z"));
     expect(result.user).not.toHaveProperty("passwordHash");
@@ -74,14 +75,14 @@ describe("AuthenticateRequest", () => {
   it("devuelve contexto público con rol actual consultado en persistencia", async () => {
     const f = fixture(); f.user.role = "ADMIN";
     f.tokens.verify.mockResolvedValue({ userId: f.user.id, sessionId: f.sessionId, issuedAt: 1791460800, expiresAt: 1791461700 });
-    f.sessions.findValidById.mockResolvedValue({ id: f.sessionId, userId: f.user.id, createdAt: new Date("2026-10-08T12:00:00Z"), expiresAt: new Date("2026-10-08T12:15:00Z"), revokedAt: null });
+    f.sessions.findValidById.mockResolvedValue({ id: f.sessionId, userId: f.user.id, createdAt: new Date("2026-10-08T12:00:00Z"), lastActivityAt: now, expiresAt: new Date("2026-10-08T12:15:00Z"), revokedAt: null });
     const authenticate = new AuthenticateRequest(f.users, f.sessions, f.tokens, () => now);
     expect(await authenticate.execute("private-token")).toEqual({ id: f.user.id, email: f.user.email, displayName: f.user.displayName, role: "ADMIN" });
   });
   it.each(["absent", "other-user", "deleted-user"])("rechaza sesión/usuario %s", async (condition) => {
     const f = fixture();
     f.tokens.verify.mockResolvedValue({ userId: f.user.id, sessionId: f.sessionId, issuedAt: 1791460800, expiresAt: 1791461700 });
-    f.sessions.findValidById.mockResolvedValue(condition === "absent" ? null : { id: f.sessionId, userId: condition === "other-user" ? randomUUID() : f.user.id, createdAt: new Date("2026-10-08T12:00:00Z"), expiresAt: new Date("2026-10-08T12:15:00Z"), revokedAt: null });
+    f.sessions.findValidById.mockResolvedValue(condition === "absent" ? null : { id: f.sessionId, userId: condition === "other-user" ? randomUUID() : f.user.id, createdAt: new Date("2026-10-08T12:00:00Z"), lastActivityAt: now, expiresAt: new Date("2026-10-08T12:15:00Z"), revokedAt: null });
     if (condition === "deleted-user") f.users.findById.mockResolvedValue(null);
     await expect(new AuthenticateRequest(f.users, f.sessions, f.tokens, () => now).execute("token")).rejects.toBeInstanceOf(UnauthenticatedError);
     if (condition === "deleted-user") expect(f.users.findById).toHaveBeenCalledWith(f.user.id);

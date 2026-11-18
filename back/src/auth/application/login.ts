@@ -46,7 +46,7 @@ export class Login {
     const refresh = this.refreshTokens.generate();
     const createdAt = new Date(issuedAt * 1000);
     const created = await this.credentials.createSession(
-      { id: sessionId, userId: user.id, createdAt, expiresAt: sessionExpiry, revokedAt: null },
+      { id: sessionId, userId: user.id, createdAt, lastActivityAt: createdAt, expiresAt: sessionExpiry, revokedAt: null },
       { id: this.id(), sessionId, tokenHash: refresh.hash, createdAt, expiresAt: sessionExpiry, consumedAt: null, invalidatedAt: null },
       user.passwordHash,
     );

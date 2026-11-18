@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { MateriaDetail } from "@/components/academic/MateriaDetail";
 import { listarHistorialMateria } from "@/services/materias";
-import type { Materia } from "@/types/materias";
+import type { MateriaConValoracion } from "@/types/materias";
 
 const { state } = vi.hoisted(() => ({
   state: {
@@ -11,7 +11,7 @@ const { state } = vi.hoisted(() => ({
     query: "carrera=S&anioCarrera=ELECTIVA&listadoPage=2&q=Plan&nivelElectiva=4",
     realCursadas: false,
     deletedAt: null as string | null,
-    detail: null as null | { materia: Materia | null; error: string; notFound: boolean; retry: () => void },
+    detail: null as null | { materia: MateriaConValoracion | null; error: string; notFound: boolean; retry: () => void },
     historyData: null as null | { items: import("@/types/materias").MateriaHistorial[]; total: number; page: number; pageSize: number },
   },
 }));
@@ -33,6 +33,7 @@ vi.mock("@/hooks/useMateria", () => ({
   useMateria: () =>
     state.detail ?? {
       materia: {
+        valoracion: { promedio: null, cantidad: 0 },
         id: "m1",
         nombre: "Materia",
         carreras: [{ carrera: "S", anioCarrera: "ELECTIVA", nivelElectiva: "4" }],
@@ -83,7 +84,7 @@ afterEach(() => {
 
 describe("Detalle de materia", () => {
   it("identifica Básica con todas sus asociaciones y cambia el año según la carrera sin perderlas", () => {
-    state.detail = { materia: { id: "m1", nombre: "Compartida", carreras: [
+    state.detail = { materia: { valoracion: { promedio: null, cantidad: 0 }, id: "m1", nombre: "Compartida", carreras: [
       { carrera: "S", anioCarrera: "1", nivelElectiva: null }, { carrera: "I", anioCarrera: "2", nivelElectiva: null },
     ], modalidad: "ANUAL", createdAt: "2026-01-01", deletedAt: null }, error: "", notFound: false, retry: vi.fn() };
     state.query = "carrera=I";

@@ -33,7 +33,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   auth.role = "ADMIN";
   vi.mocked(listarMaterias).mockResolvedValue({
-    items: [{ id: "m1", nombre: "Álgebra", carreras: [], createdAt: "", deletedAt: null }],
+    items: [{ valoracion: { promedio: null, cantidad: 0 }, id: "m1", nombre: "Álgebra", carreras: [], createdAt: "", deletedAt: null }],
     total: 1,
     page: 1,
     pageSize: 100,

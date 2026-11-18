@@ -96,7 +96,7 @@ const SISTEMAS_MATERIAS: MateriaSeed[] = [
     // Corregido según el PDF: pertenece al 2.º año, NO al 3.º.
     carreras: [{ carrera: "S", anioCarrera: "2" }],
     cursadas: [
-      cursada(2026, "PRIMERO", comisionS(1, [["Daniel Ocampo (Demo)", "TITULAR"]]), comisionS(2, [["Daniel Ocampo (Demo)", "TITULAR"], ["Sofía Medina (Demo)", "JTP"]], false)),
+      cursada(2026, "PRIMERO", comisionS(1, [["Daniel Ocampo", "TITULAR"]]), comisionS(2, [["Daniel Ocampo", "TITULAR"], ["Sofía Medina (Demo)", "JTP"]], false)),
     ],
   },
   deSistemas("Análisis de Sistemas de Información (Integradora)", "2", [
@@ -139,7 +139,7 @@ const SISTEMAS_MATERIAS: MateriaSeed[] = [
   deSistemas("Gestión Gerencial", "5"),
   deSistemas("Seguridad en los Sistemas de Información", "5"),
   deSistemas("Proyecto Final (Integradora)", "5", [
-    cursada(2026, "ANUAL", comisionS(51, [["Daniel Ocampo (Demo)", "TITULAR"]])),
+    cursada(2026, "ANUAL", comisionS(51, [["Daniel Ocampo", "TITULAR"]])),
   ]),
 
   // Electivas: la base usa anioCarrera=ELECTIVA + nivelElectiva=3/4/5

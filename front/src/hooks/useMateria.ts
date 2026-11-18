@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
-import type { Materia } from "@/types/materias";
+import type { MateriaConValoracion } from "@/types/materias";
 import { obtenerMateria } from "@/services/materias";
 import { HttpError } from "@/services/http";
 /** Fetch local al módulo; descarta respuestas de materias anteriores al navegar. */
 export function useMateria(id: string) {
-  const [result, setResult] = useState<{ key: string; materia: Materia | null; error: string; notFound: boolean } | null>(null);
+  const [result, setResult] = useState<{ key: string; materia: MateriaConValoracion | null; error: string; notFound: boolean } | null>(null);
   const [retryToken, setRetryToken] = useState(0);
   const requestKey = `${id}:${retryToken}`;
   useEffect(() => {

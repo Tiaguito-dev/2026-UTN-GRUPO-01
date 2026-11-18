@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ComisionDetail } from "@/components/academic/ComisionDetail";
 
-export const metadata: Metadata = { title: "Comisión | Profesor Butchery" };
+export const metadata: Metadata = { title: "Comisión | Professors' butchery" };
 
 export default async function ComisionDetailPage({
   params,

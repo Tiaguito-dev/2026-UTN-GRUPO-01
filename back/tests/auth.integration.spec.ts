@@ -1,3 +1,4 @@
+import { VERIFICATION_EMAIL } from "../src/auth/domain/email-verification.js";
 import "reflect-metadata";
 import { randomUUID } from "node:crypto";
 import type { INestApplication } from "@nestjs/common";
@@ -19,6 +20,7 @@ import { testAuthConfig, csrfHeaders } from "./auth-test.config.js";
 // Nunca usar DATABASE_URL como fallback: esta suite exige una base de pruebas explícita.
 const testDatabaseUrl = process.env["TEST_DATABASE_URL"];
 const createdIds = new Set<string>();
+const requestedEmails = new Set<string>();
 
 describe.skipIf(!testDatabaseUrl)("Autenticación HTTP y persistencia PostgreSQL real", () => {
   let app: INestApplication;
@@ -29,8 +31,8 @@ describe.skipIf(!testDatabaseUrl)("Autenticación HTTP y persistencia PostgreSQL
   const password = " contraseña real verificable ";
   const hasher = new Argon2PasswordHasher();
 
-  const uniqueEmail = () => `auth-test-${randomUUID()}@alu.frlp.utn.edu.ar`;
-  const post = (body: unknown) => fetch(`${baseUrl}/auth/register`, { method: "POST", headers: csrfHeaders, body: JSON.stringify(body) });
+  const uniqueEmail = () => { const email = `auth-test-${randomUUID()}@alu.frlp.utn.edu.ar`; requestedEmails.add(email); return email; };
+  const post = (body: unknown) => fetch(`${baseUrl}/auth/register`, { method: "POST", headers: csrfHeaders, body: JSON.stringify({ aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", ...(body as object) }) });
 
   beforeAll(async () => {
     prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: testDatabaseUrl! }) });
@@ -40,7 +42,7 @@ describe.skipIf(!testDatabaseUrl)("Autenticación HTTP y persistencia PostgreSQL
     const config = testAuthConfig();
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(AUTH_CONFIG).useValue(config)
-      .overrideProvider(PrismaService).useValue(prisma).compile();
+      .overrideProvider(PrismaService).useValue(prisma).overrideProvider(VERIFICATION_EMAIL).useValue({ send: async () => {} }).compile();
     app = moduleRef.createNestApplication();
     app.useLogger(false);
     configureAuthHttp(app, config);
@@ -49,10 +51,65 @@ describe.skipIf(!testDatabaseUrl)("Autenticación HTTP y persistencia PostgreSQL
   }, 20_000);
 
   afterAll(async () => {
-    // Solo elimina UUID obtenidos por esta suite; no trunca tablas ni toca cuentas existentes.
-    if (prisma && createdIds.size > 0) await prisma.emailVerificationCredential.deleteMany({ where: { userId: { in: [...createdIds] } } }); await prisma.user.deleteMany({ where: { id: { in: [...createdIds] } } });
+    // Incluir altas que persistieron aunque un fallo posterior (por ejemplo entrega) no devolvió id.
+    if (prisma) {
+      const own = await prisma.user.findMany({ where: { email: { in: [...requestedEmails] } }, select: { id: true } });
+      for (const user of own) createdIds.add(user.id);
+    }
+    // Solo elimina UUID/correos únicos de esta suite; no trunca tablas ni toca cuentas existentes.
+    if (prisma && createdIds.size > 0) {
+      await prisma.emailVerificationCredential.deleteMany({ where: { userId: { in: [...createdIds] } } });
+      await prisma.user.deleteMany({ where: { id: { in: [...createdIds] } } });
+    }
     if (app) await app.close();
     if (prisma) await prisma.$disconnect();
+  });
+
+  it("sirve los términos sin sesión y persiste fecha real y versión junto al alta", async () => {
+    const documentResponse = await fetch(`${baseUrl}/auth/terms`);
+    expect(documentResponse.status).toBe(200);
+    const document = await documentResponse.json() as { version: string; secciones: { titulo: string; parrafos: string[] }[] };
+    expect(document.version).toBe("terminos-2026-11-17");
+    expect(document.secciones.length).toBeGreaterThanOrEqual(8);
+    const text = document.secciones.flatMap(section => section.parrafos).join(" ");
+    for (const required of [/académic/i, /suplant/i, /discrimin/i, /spam/i, /datos personales/i, /opiniones/i]) expect(text).toMatch(required);
+    const email = uniqueEmail();
+    const before = Date.now();
+    const response = await post({ email, displayName: "Consentimiento", password, aceptaTerminos: true, versionTerminos: document.version });
+    const body = await response.json() as { id: string };
+    if (body.id) createdIds.add(body.id);
+    expect(response.status).toBe(201);
+    const records = await prisma.aceptacionNormas.findMany({ where: { usuarioId: body.id } });
+    expect(records).toHaveLength(1);
+    expect(records[0]!.version).toBe(document.version);
+    expect(records[0]!.aceptadaEn.getTime()).toBeGreaterThanOrEqual(before - 1000);
+    expect(records[0]!.aceptadaEn.getTime()).toBeLessThanOrEqual(Date.now() + 1000);
+  });
+
+  it.each([undefined, false, "true", 1, null])("HTTP rechaza aceptación omitida/falsa/no booleana sin crear cuenta: %s", async aceptaTerminos => {
+    const email = uniqueEmail();
+    const response = await fetch(`${baseUrl}/auth/register`, { method: "POST", headers: csrfHeaders,
+      body: JSON.stringify({ email, displayName: "Sin consentimiento", password, ...(aceptaTerminos === undefined ? {} : { aceptaTerminos }), versionTerminos: "terminos-2026-11-17" }) });
+    expect(response.status).toBe(400);
+    expect((await response.json()).message).toBe("Debés aceptar los términos y condiciones para crear tu cuenta");
+    expect(await prisma.user.count({ where: { email } })).toBe(0);
+  });
+
+  it("HTTP no acepta una versión antigua ni confunde normas previas con términos", async () => {
+    const email = uniqueEmail();
+    const response = await post({ email, displayName: "Versión antigua", password, aceptaTerminos: true, versionTerminos: "1" });
+    expect(response.status).toBe(400);
+    expect((await response.json()).message).toMatch(/versión vigente/);
+    expect(await prisma.user.count({ where: { email } })).toBe(0);
+  });
+
+  it("la cuenta tampoco persiste si falla la escritura anidada de su aceptación", async () => {
+    const email = uniqueEmail();
+    // La columna de versión admite 32 caracteres: provocar fallo real de la escritura hija.
+    await expect(repository.create({ email, displayName: "Atomicidad", passwordHash: "hash-de-prueba", role: "USER", versionTerminos: "x".repeat(33) })).rejects.toThrow();
+    const residual = await prisma.user.findUnique({ where: { email } });
+    if (residual) createdIds.add(residual.id);
+    expect(residual).toBeNull();
   });
 
   it.each(["12345678", "😀".repeat(8)])("registro admite ocho caracteres y rechaza siete con persistencia real", async (accepted) => {

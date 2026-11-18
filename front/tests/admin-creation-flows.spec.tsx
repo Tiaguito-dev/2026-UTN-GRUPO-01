@@ -18,7 +18,7 @@ const materia = { id: "m1", nombre: "Álgebra", modalidad: "ANUAL" as const, car
 const profesor = { id: "p1", nombreCompleto: "Ada Lovelace", createdAt: date, deletedAt: null };
 beforeEach(() => {
   vi.clearAllMocks(); nav.query = "";
-  vi.mocked(listarMaterias).mockResolvedValue({ items: [materia], total: 1, page: 1, pageSize: 100 });
+  vi.mocked(listarMaterias).mockResolvedValue({ items: [{ ...materia, valoracion: { promedio: null, cantidad: 0 } }], total: 1, page: 1, pageSize: 100 });
   vi.mocked(crearProfesor).mockResolvedValue(profesor);
   vi.mocked(crearCursada).mockResolvedValue({ id: "c1", materiaId: "m1", anio: 2026, cuatrimestre: "ANUAL", createdAt: date, deletedAt: null });
   vi.mocked(crearMateria).mockResolvedValue(materia);

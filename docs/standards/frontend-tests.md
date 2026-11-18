@@ -65,8 +65,14 @@ a esa tabla. Detalle en [validacion-con-zod.md](./validacion-con-zod.md#frontend
   `mcr.microsoft.com/playwright:v<versión de @playwright/test>-noble` más
   `npx playwright install --with-deps chrome`, con el repo copiado sin `node_modules` y
   `npm ci` adentro, y Postgres y Mailpit en la red del contenedor.
-- **Versión de la línea base:** la actual se generó entera en TASK-033 con
+- **Versión de la línea base:** la original se generó entera en TASK-033 con
   `mcr.microsoft.com/playwright:v1.64.0-noble` y Google Chrome 156.0.8078.47.
+  HU-C06 renueva las referencias a 390/1280 px con Chrome oficial 158.0.8127.36 en Linux Debian
+  y Node 22.22.3: incorpora el tema administrativo y el encabezado neutral, y sincroniza las
+  referencias públicas que todavía mostraban la antigua paleta azul. La apariencia USER de
+  la aplicación se conserva; las referencias anteriores eran previas al rediseño rojo/crema.
+  El recorrido interno tiene 180 s para varias capturas y auditorías axe; cada aserción mantiene
+  el límite de 10 s. Los recorridos públicos y guards conservan su presupuesto original.
   `playwright install chrome` baja la estable del día: si `google-chrome --version` da otra,
   una diferencia de captura puede venir del navegador y no del cambio.
 - **axe:** no hay lista de violaciones conocidas (TASK-032 la vació). Una violación nueva se

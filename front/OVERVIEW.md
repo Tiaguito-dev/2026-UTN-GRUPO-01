@@ -1,5 +1,269 @@
 # Frontend
 
+## Presentación de Inicio
+
+`FeedPrincipal` agrupa Actualizar y Agregar comentario. Su variante `inicio` de
+`ExperienceCard` recibe el pie de interacciones de `FeedbackInteracciones` mediante
+composición; los otros usos mantienen su presentación. `HideFeedExperienceAction`
+consulta el detalle propio para obtener `versionModeracion`, confirma mediante
+`Dialog` y consume `POST /feedback/:id/ocultar` con `versionEsperada`. Éxito y
+conflictos actualizan el feed y conservan avisos seguros; no hay restauración pública.
+
+`SeleccionComisionComentario` conserva los servicios de catálogo y la comprobación
+final de comisión. Presenta Materia/Cursada/Comisión con selección explícita,
+Siguiente/Anterior, búsqueda y páginas de nueve opciones. Sus estilos y los del feed
+están acotados a CSS Modules, sin modificar layout ni primitivas compartidas.
+
+## Comunidad: consulta de términos (HU-C05)
+
+`ComunidadTerminos` aparece debajo de los bloques de USER y ADMIN, también ante fallos de las
+normas. El botón “Ver términos y condiciones” abre un visor en la misma pantalla y consulta
+por demanda `GET /auth/terms` mediante el servicio existente. Cada apertura recupera la versión
+vigente; cerrar, reintentar o desmontar descarta respuestas anteriores. Un fallo permite
+reintentar y cerrar sin mostrar contenido inventado ni errores técnicos.
+
+`components/terminos/TerminosDialog` es el visor de dominio compartido con el registro: recibe
+el documento, carga/error y callbacks del consumidor, presenta versión y secciones completas
+como texto y reutiliza `Dialog` para Cerrar, X, Escape y devolución del foco al disparador.
+La región desplazable permite lectura con teclado; al retirar un botón de reintento, el foco
+solo se recupera si quedó fuera del modal, sin desplazar a quien ya permanece dentro.
+Los estilos del documento se trasladaron desde `TerminosRegistro.module.css` sin alterar
+primitivas, tema ni estilos globales.
+
+`AccountForm` conserva su carga, checkbox, versión enviada, validaciones y manejo de versiones
+obsoletas; únicamente delega la visualización. Consultar desde Comunidad no registra aceptación,
+no agrega casillas ni modifica los borradores de sugerencias o la edición de normas. No se
+crearon endpoints, documentos, versiones, modelos ni migraciones para esta consulta.
+
+## Comunidad: sugerencias privadas (HU-C02)
+
+La vista USER de Comunidad incorpora `SugerenciaForm` junto a las normas en escritorio y debajo
+de ellas bajo 800 px. El mensaje del equipo permanece encima. El formulario se mantiene montado
+durante la carga, el error y el reintento de las normas: su borrador no depende de esa consulta.
+La variante ADMIN conserva la consulta y el editor de HU-C04, sin formulario de envío;
+HU-C03 incorpora la bandeja privada descrita a continuación.
+
+El selector comienza vacío y exige una de las cinco categorías; el contenido es texto plano,
+obligatorio y limitado a 5000 caracteres UTF-16 como el backend. La interfaz usa tarjetas,
+avisos, contador, etiquetas y errores asociados, foco al primer campo inválido y
+`useFormSubmission` para impedir envíos duplicados y bloquear controles mientras envía.
+`services/comunidad.ts` realiza un POST protegido y valida únicamente la confirmación
+`{id,createdAt}`; no incorpora lectura, estados, likes ni publicación de las sugerencias.
+
+Cada intento conserva en memoria su UUID y el contenido/categoría normalizados. Un fallo
+mantiene el borrador y reintentar sin cambios usa la misma solicitud; cambiar el contenido de
+un intento incierto exige la acción explícita Nueva sugerencia. Ese botón libera el intento
+anterior conservando el borrador para una operación distinta, con advertencia sobre un posible
+registro previo. Un éxito muestra el agradecimiento, limpia los campos y deja lista una nueva
+solicitud. No se guardan UUID ni borradores privados en storage del navegador.
+
+## Comunidad: consulta y administración de normas (HU-C01/HU-C04)
+
+HU-C03 compone `SugerenciasAdmin` junto a las normas en escritorio y debajo en móvil.
+La bandeja usa datos reales, categorías en español, autor y fecha, corazón con aria-pressed
+y eliminación confirmada mediante Dialog (Cancelar, Escape y retorno del foco).
+Reutiliza FilterChips, useUrlPagination y PaginatedListView: Todas/Me gusta viven en la URL,
+el filtro reinicia page y una página vacía fuera de rango vuelve a la última disponible.
+Un PUT explícito comparte el corazón entre administradores; un DELETE solo se envía al
+confirmar. Ambas operaciones bloquean dobles clics, informan errores y refrescan únicamente
+el listado, manteniendo las normas. Un fallo de eliminación conserva el diálogo para reintentar.
+Los servicios comprueban sesión y validan respuestas con Zod; no repiten escrituras automáticamente.
+No se modifican los guards, temas, layout global ni componentes compartidos.
+
+`/home/comunidad` y `/home/admin/comunidad` renderizan el mismo
+`components/comunidad/ComunidadPageContent`, que consulta `GET /comunidad/normas` mediante
+`services/comunidad.ts`. El servicio usa `AuthService.protectedGet` y el esquema central
+`normasConvivenciaSchema`: exige el documento `vigentes`, textos no vacíos, una lista ordenada
+de normas y fechas ISO. El contenido proviene de la base de datos; consultarlo no registra
+aceptación ni cambia los consentimientos históricos.
+
+La pantalla reutiliza `PageHeader`, `Card` y `Notice`. Presenta el mensaje del equipo, las
+normas como lista semántica y el cierre, conservando párrafos y tratando todo como texto, sin
+HTML. Mientras carga muestra un estado anunciado; un fallo presenta un mensaje informativo y
+Reintentar, incluido el caso de documento ausente. Los errores técnicos no se muestran al
+usuario y las respuestas de una consulta desmontada o reemplazada se descartan.
+
+Comunidad aparece en ambos menús; un acceso ADMIN a la ruta estudiantil se traduce a su
+equivalente administrativo. Los guards de sesión/rol y la identidad visual de HU-C06 se
+conservan. El CSS Module de la pantalla compone las tarjetas con los tokens actuales, sin
+sobrescribir primitivas ni estilos globales. USER conserva la vista de consulta; no hay feed
+ni controles sin funcionalidad. Las sugerencias privadas y la consulta de términos se describen arriba.
+
+La ruta administrativa compone `ComunidadAdminPageContent` bajo `Suspense`: lee la
+señal `actualizada=1`, muestra el aviso de éxito y habilita el enlace “Administrar normas de
+convivencia”. La variante estudiantil no lee parámetros ni incorpora controles administrativos.
+El acceso a `/home/admin/comunidad/editar` permanece bajo `RequireRole` del segmento existente.
+
+`NormasForm` precarga el documento vigente y `NormasEditor` mantiene un borrador local con filas
+identificadas de forma estable. Permite agregar, eliminar y mover normas con botones accesibles;
+siempre conserva al menos una fila. Los campos obligatorios y el límite de 160 caracteres del
+título se validan antes de enviar, con foco en el primer error. `useFormSubmission` impide envíos
+duplicados con su ref y deshabilita el editor durante la escritura. Un fallo conserva texto y
+orden y permite reintentar. El servicio comprueba sesión y envía un único PUT con título,
+introducción, normas y cierre; no manda responsable, fechas ni identificadores, y no repite
+escrituras automáticamente. El servidor conserva la autoridad de autorización y trazabilidad.
+
+Tras guardar, vuelve a Comunidad con aviso y una consulta nueva del contenido. Cancelar sin
+cambios regresa directamente. `useNormasLeaveGuard`, local al editor, confirma cancelar,
+enlaces que abandonan la pantalla y Atrás si existe un borrador. Agrega una entrada protectora
+del mismo URL conservando el estado de Next; la restaura al intentar Atrás y la colapsa antes de
+una salida confirmada o guardada. Seguir editando conserva el borrador y devuelve el foco al
+control que abrió el diálogo.
+Recarga/cierre utilizan `beforeunload`: el navegador decide el texto nativo y puede omitir el
+aviso sin activación previa del usuario. El botón de cierre de sesión deliberado solicita una
+confirmación nativa síncrona: aceptar deja pasar su click original y cancelar lo detiene, sin
+mover foco, desmontar el menú ni duplicar la lógica de logout. Si falla el cierre, el guard sigue
+protegiendo el borrador. Los listeners se retiran al desmontar; la navegación programática de
+vencimiento o seguridad no se intercepta. No se parchean router, autenticación ni hooks compartidos.
+
+## Identidad visual según el rol (HU-C06)
+
+`AuthProvider` envuelve sus hijos y `SessionIdleMonitor` con `auth/RoleTheme`: un contenedor
+presentacional estable cuyo `data-role-theme` se deriva del estado de sesión y del rol
+confirmado. `ADMIN` utiliza `admin`, `USER` utiliza `student`, una cuenta anónima utiliza
+`public` y la comprobación o error temporal utilizan `pending`. No se lee la URL ni se guarda
+una preferencia de tema. Cerrar sesión vuelve al tema público; un cierre fallido conserva la
+sesión real y su identidad, como antes. El contenedor no sustituye los guards de sesión/rol.
+
+Los tokens de `styles/tokens.css` definen la variante administrativa: encabezado bordó,
+sidebar oscuro, texto/iconos claros, selección visible y foco de teclado con contraste sobre
+ambas superficies. `SiteHeader` identifica “Administración” con `Badge`, conservando el logo,
+la tipografía, el destino y el nombre accesible de la marca. Mientras la sesión no está
+confirmada, el encabezado es neutral y no anuncia un rol ni muestra opciones de cuenta.
+
+La herencia cubre `/home`, rutas administrativas, `/account`, cambio de contraseña, altas,
+ediciones, detalles y diálogos, incluido el aviso de inactividad. Las páginas futuras heredan
+los mismos tokens sin duplicar componentes. Fondos crema y colores de error/éxito/advertencia
+se conservan. La navegación y los permisos siguen a cargo de `sectionsForRole`,
+`RoleRouteBoundary`, `RequireAuth`, `RequireRole` y el backend.
+
+En móvil se mantiene el sidebar responsive existente; la marca y la etiqueta administrativa
+se apilan y `--header-h` pasa a `6.5rem` solo para ADMIN bajo 600px. El encabezado USER conserva
+su estructura y medidas previas.
+
+## Moderación humana y reportes (T6)
+
+La página `/home/experiencias` conserva la comunidad e incorpora Mis experiencias
+(`seccion=propias`). La consulta privada `GET /feedback/propios` pagina de nueve,
+incluye pendientes, rechazadas y aprobadas ocultas, y conserva el retorno al listado.
+`FeedbackModerationStatus` muestra el estado y cada causa independiente: autor,
+administración y reportes. Una aprobación con restricciones nunca se presenta como publicada.
+
+`FeedbackDetail` conserva edición, retiro e historial privado de tres eventos. Suma
+ocultar/mostrar con EyeOff/Eye y confirmación en Dialog. Las acciones envían
+`versionEsperada`, vuelven a consultar el detalle y notifican resultados mediante Notice.
+Mostrar levanta exclusivamente la causa del autor; las restricciones restantes se explican.
+El historial distingue creación, edición, decisiones, ocultamientos y restituciones.
+
+`FeedbackForm` envía solo diferencias reales y la versión vigente en PATCH. Crear vuelve
+a `/home` con confirmación de publicación inmediata. El aviso se elige según el estado real de la respuesta; un pendiente histórico o de nueva revisión mantiene su explicación. Editar una aprobada conserva la aprobación y vuelve al detalle; un rechazado
+conserva su estado y motivo hasta Solicitar nueva revisión, acción explícita del detalle.
+Las correcciones rechazadas usan el contexto histórico aunque la comisión esté cerrada.
+Un conflicto recarga la versión y conserva el borrador; exige revisar y confirmar antes
+de intentar guardar sobre los datos actuales. No hay integración de clasificadores.
+
+`ReportFeedbackAction` reutiliza Dialog para motivo obligatorio y descripción opcional
+de hasta 1000 caracteres. `ExperienceCard` lo ofrece en lecturas comunitarias ajenas,
+incluidos feed, comisión y perfil docente. Bloquea doble envío y conserva datos ante
+fallos; 409 y 429 muestran pasos para continuar. Tras reportar se recarga la lectura
+comunitaria, evitando conservar una publicación oculta por el segundo denunciante distinto con reporte abierto.
+No se muestran datos de otros reportes en estas superficies.
+
+La administración mantiene `/home/admin/experiencias`, dedicada a Reportes sin bandeja
+ni selector de Moderación. Acepta también las URLs anteriores con `seccion=reportes`.
+Filtra reportes por estado, motivo y ocultamiento preventivo,
+con páginas de nueve. El detalle administrativo existente agrega decisiones justificadas
+y control de versión. El detalle de reporte usa `reporteId` en la misma página, muestra
+snapshot exacto, contexto, estado actual, denunciante limitado a id/displayName y
+resoluciones de tres. Resolver/desestimar no restituye; RESTITUCION_REPORTES exige
+menos de dos denunciantes distintos con reportes abiertos y preserva otras causas. Los retornos conservan
+filtros, página y reporte seleccionado al navegar entre detalles y comisiones.
+
+Servicios y esquemas: `services/feedback.ts`, `feedback-schemas.ts`,
+`feedback-reportes.ts`, `feedback-reportes-schemas.ts`, `feedback-moderation-schemas.ts`;
+tipos en `types/feedback*.ts`, validaciones en `validations/feedback-moderation.ts`.
+Las proyecciones comunitarias eliminan metadatos privados; las propias y ADMIN validan
+los campos de moderación. Los clientes HTTP existentes mantienen sesión y Origin/CSRF;
+el backend verifica permisos y concurrencia en cada solicitud. No cambian autenticación,
+primitivas, layout ni endpoints. Evidencia de componentes, contratos, Playwright real,
+accesibilidad y medidas responsive en la [ficha T6](../docs/tasks/finished/TASK-moderacion-T6-frontend.md).
+La validación automática está completa; la aceptación manual del usuario y la
+comprobación de entornos productivos preceden a aprobar la unión del código.
+
+## Términos en el registro
+
+El registro carga el documento público `GET /auth/terms` mediante `services/terminos.ts`, que
+valida su versión y sus secciones con Zod. Su contenido y versión se mantienen únicamente en
+el backend. La casilla “He leído y acepto los Términos y condiciones” comienza desmarcada y
+es obligatoria; `AuthService.register` envía `aceptaTerminos` booleano y `versionTerminos`.
+Si no se acepta, el formulario muestra “Debés aceptar los términos y condiciones para crear
+tu cuenta”. No permite aceptar un documento que todavía no se pudo cargar y ofrece reintento.
+
+El enlace de los términos abre `TerminosDialog`, compuesto sobre `Dialog`, en la misma pantalla sin enviar el formulario ni
+cambiar la casilla. El contenido tiene desplazamiento propio y secciones con encabezados;
+se cierra mediante Cerrar, X o Escape, devolviendo el foco al enlace. Los datos del registro
+permanecen en el formulario. Si el servidor indica una versión obsoleta, se recarga el documento
+y se desmarca la aceptación sin borrar email, nombre ni contraseña. Los estilos son locales
+al módulo de autenticación y reutilizan los tokens y el diálogo adaptado a celulares.
+
+El editor de comentarios ya no consulta ni solicita aceptación de normas, ni envía
+`versionNormas`: conserva las validaciones de texto, puntuación, comisión, autoría y permisos.
+La consulta histórica de normas sigue disponible en el servicio, sin formar parte del alta
+de comentarios. El traslado no fabrica aceptaciones para las cuentas existentes.
+
+## Aviso y renovación por inactividad
+
+`AuthProvider` monta `SessionIdleMonitor` para la cuenta autenticada, con un controlador de
+actividad por sesión. Al iniciar y al recuperar foco consulta el plazo del servidor; esas
+comprobaciones y la renovación automática del token no cuentan como actividad.
+
+Los eventos reales de puntero, teclado, rueda y gesto táctil en una pestaña visible se agrupan
+con un máximo de una escritura cada quince segundos entre pestañas. La actividad se comunica
+mediante `SessionService`, sus tipos y esquema de respuesta propios, reutilizando la coordinación
+de cookies de `AuthService`. No se almacenan tokens ni credenciales en JavaScript.
+
+Con los valores predeterminados, el aviso aparece a los 28 minutos sin actividad y muestra
+dos minutos para elegir Renovar sesión o Cerrar sesión. Solo confirmar renueva durante el aviso;
+Escape y otras interacciones no lo descartan. El diálogo es local al módulo auth, utiliza
+controles accesibles y bloquea el contenido protegido al llegar al límite o si no se pudo
+obtener la política inicial. Renovar conserva la pantalla y sus formularios.
+
+El servidor fija `serverNow`, `warningAt`, `idleExpiresAt` y `absoluteExpiresAt`. La cuenta
+regresiva usa esos valores más el tiempo transcurrido, también tras suspensión del navegador.
+Las observaciones entre pestañas conservan la hora original del servidor y su fecha local de
+recepción por separado. Una respuesta autoritativa vuelve a sincronizar el reloj tras un cambio
+de hora del equipo; una estimación local no invalida esa respuesta ni provoca cierres repetidos.
+`GET /auth/session` consulta, `POST /auth/session/activity` registra actividad antes del aviso y
+`POST /auth/session/renew` confirma continuidad. Las escrituras no reciben identificadores ni
+fechas del cliente y conservan protección CSRF. No se repiten escrituras con resultado ambiguo;
+un nuevo intento de renovación primero comprueba el estado actual del servidor.
+
+Actividad, renovación y cierre se comparten entre pestañas de la misma cuenta y revisión de
+sesión. Las operaciones se serializan con login, logout y refresh para que una pantalla anterior
+no cierre una cuenta recién autenticada. Un cierre sin conexión deja una marca local que impide
+reabrir automáticamente la cuenta con cookies antiguas; un login explícito inicia otra revisión.
+La revocación remota sigue dependiendo de que el servidor reciba la solicitud o venza el plazo.
+
+Si no se confirma a los treinta minutos, vuelve al login con un mensaje de inactividad.
+El límite absoluto de siete días no se prolonga: su aviso solicita iniciar sesión nuevamente.
+`AccountForm` muestra los motivos de cierre recibidos en `notice`; los valores desconocidos se
+ignoran. No se guardan borradores automáticamente ni se modifican permisos o estilos globales.
+
+## Hotfix de sesiones y confirmaciones
+
+`AuthProvider` vuelve a comprobar la sesión mediante `AuthService.me()` cada minuto mientras
+la pestaña está visible y al recuperar foco o visibilidad. Las comprobaciones se realizan
+en segundo plano, sin pasar por el estado de carga inicial; no se solapan y sus resultados
+se descartan si cambió la cuenta o se desmontó el proveedor. Un 401 lleva a estado anónimo;
+un fallo transitorio conserva la cuenta con el estado recuperable de error existente.
+La renovación mantiene el límite absoluto impuesto por el backend. La política de inactividad
+adicional se describe en la sección anterior; el contrato existente de `/auth/me` se conserva.
+
+`ExperienciasList` muestra el `successMessage` del retorno tras eliminar un comentario,
+tanto en el listado público autenticado como administrativo. `DocentesComision` solicita
+confirmación antes de desvincular un profesor; cancelar no envía la operación. Conserva
+permisos de ADMIN, mensajes, control de solicitudes duplicadas y validaciones existentes.
+
 ## Eliminación de experiencias
 
 Un ADMIN puede eliminar un comentario vigente desde su detalle administrativo mediante
@@ -68,7 +332,7 @@ defecto y el runtime de Node.js.
 ## Estructura
 
 - `src/app/`: rutas, layouts y estados del App Router.
-- `src/components/`: componentes por módulo (`home/`, `academic/`, `admin/`, `auth/`), más
+- `src/components/`: componentes por módulo (`home/`, `academic/`, `admin/`, `auth/`, `comunidad/`), más
   `SiteHeader` y `FeatureCarousel` en la raíz.
 - `src/components/ui/`: primitivas de UI genéricas, sin lógica de dominio.
 - `src/lib/`: utilidades sin estado. `lib/format/` formatea valores para mostrar (`periodo.ts`,
@@ -103,8 +367,9 @@ ADMIN: sin ese rol muestra "Acceso no permitido" dentro del shell.
 - `/verify-email`: confirma el enlace SMTP y retira el token de la URL; no inicia sesión.
 - `/resend-verification`: solicita un enlace para una cuenta pendiente, incluso anterior al cambio.
 - `/home`: inicio protegido con saludo, estado vacío informativo y acceso al perfil.
-- `/home/profesores`, `/home/comunidad`: secciones en preparación
-  (Próximamente), sin llamadas a endpoints académicos.
+- `/home/comunidad`: mensaje del equipo y normas de convivencia vigentes, con consulta autenticada.
+- `/home/admin/comunidad`: el mismo documento de consulta bajo el entorno administrativo, con acceso al editor de normas.
+- `/home/admin/comunidad/editar`: formulario ADMIN para actualizar el documento vigente, con protección de cambios sin guardar.
 - `/home/experiencias`: comentarios públicos para cuentas autenticadas, ordenados por publicación, con materia, comisión y período (TASK-061).
 - `/home/materias`: catálogo paginado de materias únicas, con carrera, año y búsqueda independientes; agrupación por años y niveles de electivas en los metadatos (TASK-060).
 - `/home/materias/[materiaId]`: detalle de materia y comisiones del período seleccionado, sin paso intermedio; historial y gestión de períodos solo ADMIN (TASK-061).
@@ -138,8 +403,8 @@ El logo apunta a `/home` para cuentas autenticadas y a `/` para visitantes.
 El botón anuncia su estado con `aria-expanded`;
 Tab recorre las opciones nativas, Escape cierra y devuelve el foco al botón, y un clic fuera
 cierra el desplegable. La comprobación y los errores temporales tienen mensajes y reintento.
-El detalle de comisión permite consultar y compartir comentarios textuales. Las secciones
-generales de Profesores y Comunidad siguen como funcionalidades futuras; Experiencias muestra los comentarios publicados de todas las comisiones.
+El detalle de comisión permite consultar y compartir comentarios textuales. Comunidad permite
+consultar las normas vigentes; Experiencias muestra los comentarios publicados de todas las comisiones.
 
 `FeatureCarousel` utiliza perspectiva CSS y controles explícitos, sin reproducción automática
 ni dependencias adicionales. Permite avanzar con flechas, elegir una tarjeta con botones y
@@ -180,10 +445,9 @@ también de una renovación cuya respuesta no pudo confirmarse.
 `/home` (`InicioSection`) presenta un saludo con el nombre público de la cuenta y un estado
 vacío que explica qué funcionalidades llegarán al sistema. El menú lateral permanece fijo en
 escritorio y se adapta a botones superiores en móvil, sin desbordamiento horizontal. Cada
-sección del menú (`components/home/sections.ts`) es una ruta propia: Inicio, Profesores,
-Materias, Experiencias, Comunidad y, solo para ADMIN, Administración. Profesores
-y Comunidad muestran Próximamente (`UpcomingSection`); no llaman a endpoints académicos ni
-presentan datos inventados. El enlace de la sección actual lleva `aria-current`, y el título de
+sección del menú (`components/home/sections.ts`) es una ruta propia; las opciones y destinos
+corresponden al rol confirmado. Comunidad muestra las normas persistidas tanto para USER como
+para ADMIN, con rutas y tema de cada entorno. El enlace de la sección actual lleva `aria-current`, y el título de
 cada pantalla recibe el foco al montar. El perfil se abre desde el menú de cuenta o Ver mi perfil. `RequireAuth`, vía `AppShell`, protege
 el home, perfil y cambio; ante un error temporal muestra la pantalla "No pudimos comprobar tu
 sesión" con Reintentar comprobación (la misma que usa `RequireGuest` en landing y registro). Los
@@ -479,7 +743,7 @@ El propio se identifica con un acento azul y una única acción Administrar mi c
 Los comentarios ajenos se leen en la lista y no acceden al detalle privado; el backend
 rechaza ese acceso con 403. La ayuda de reglas usa un details/summary nativo, sin modal nuevo.
 
-La pestaña del navegador conserva siempre Profesor Butchery: metadata raíz con default y
+La pestaña del navegador conserva siempre Professors' butchery: metadata raíz con default y
 template constantes, sin asignaciones document.title al cargar materias o comisiones.
 Esta política no cambia los encabezados visibles ni la navegación global.
 
@@ -978,3 +1242,122 @@ El ajuste posterior de actores en backend agrega los nombres autorizados ya acep
 ## Actores de auditoría de todos los módulos
 
 Los detalles administrativos de materias, profesores, cursadas, comisiones, usuarios y experiencias consumen nombres de actores resueltos por backend, tanto en metadatos como en el historial paginado. `UserAudit` y la presentación anterior `AdminAuditPanel` usan el nombre autorizado cuando existe, Usuario no identificado cuando solo existe la referencia y No registrado cuando falta el dato. AdminAuditPanel conserva su presentación y comportamiento para comisiones/experiencias; deja de mostrar referencias técnicas como actores. Sin cambios de permisos, operaciones, navegación ni reconstrucción de eventos. Materias recibe también el nombre de la última modificación desde su historial propio aunque el evento no esté en la página abierta. Evidencia en `docs/tasks/finished/TASK-system-audit-actors.md`.
+
+## Normas antes de publicar
+
+FeedbackForm consulta GET /feedback/normas al abrir una nueva publicación. Cuando falta la aceptación vigente, presenta una casilla desmarcada y el documento completo en un diálogo que conserva el borrador. La creación envía versionNormas explícitamente. Si cambia la versión durante la escritura, actualiza las reglas y solicita otra aceptación. La API registra usuario, versión y fecha en la transacción de publicación. Una aceptación vigente permite las publicaciones posteriores.
+
+## Ranking de profesores y comisiones
+
+- `/home/profesores` (`ranking/ProfesoresRanking`): buscador `ui/SearchForm` con la búsqueda en
+  `?q=`, ranking paginado con `RankingList` (puesto, cargos, estrellas) y enlace al perfil.
+- `/home/profesores/[profesorId]` (`ranking/PerfilProfesor`): resumen, "Por comisión" (filas sin
+  puesto) y comentarios con `ExperienceCard`, vía `listarFeedback({ profesorId })`.
+- `/home/materias/ranking` (`ranking/ComisionesRanking`): ranking global con mínimo de valoraciones
+  en `?min=1|3|5` (`FilterChips`). Botón "Ranking de comisiones" en el encabezado de Materias.
+- Tarjetas de comisión de `ComisionesMateria` y `ComisionesList`: `useValoracionesCursada` +
+  `ValoracionComision` muestran estrellas y "Mejor valorada" (solo con dos o más comisiones
+  valoradas). Un fallo del ranking no rompe las tarjetas.
+- `ui/SearchForm` es el buscador por nombre compartido (antes vivía dentro de `MateriasList`).
+- Servicios en `services/ranking.ts`; contrato en `back/OVERVIEW.md`.
+- ADMIN: las mismas vistas viven en `/home/admin/ranking` (profesores), `/home/admin/ranking/profesores/[id]`
+  y `/home/admin/ranking/comisiones`, con la prop `admin` y los destinos de `ranking/rutas.ts`. Ítem
+  "Ranking" en el menú de administración. `roleDestination` manda `/home/materias/ranking` al ranking
+  administrativo (antes lo confundía con un `materiaId`).
+
+## Presentación de Experiencias y moderación propia
+
+El selector de comisión de Agregar comentario muestra nombres y cargos del equipo docente
+en cada tarjeta, usando `Comision.profesores` del listado paginado existente. Informa la
+ausencia de docentes y permite seleccionar toda la tarjeta con mouse o el radio con teclado.
+El radio tiene nombre propio y descripción accesible del equipo, con dimensiones locales
+que evitan heredar el alto y padding de los campos de texto.
+
+`ExperienciasList` conserva las URLs de Comunidad y Mis experiencias mediante enlaces
+segmentados con `aria-current`, íconos decorativos y foco visible. Carrera y Materia comparten
+un grupo visual local; consultas, selección y paginación de nueve permanecen iguales.
+
+`MisExperiencias` compone el estado y Ver mi experiencia dentro del pie existente de
+`ExperienceCard`; no cambia la tarjeta compartida ni su variante de Inicio.
+`FeedbackModerationStatus` tiene variantes `compact` (listado) y `detail` (por defecto).
+Presenta badges independientes de moderación y de cada causa de ocultamiento, sin inferir
+publicación de una aprobación si hay restricciones. El motivo de rechazo utiliza la
+explicación segura existente. Reportes agrega un aviso de revisión administrativa temporal,
+conserva acceso del autor y no revela cantidades ni identidades de denunciantes. Si además
+hay rechazo, mantiene su motivo y no afirma que el comentario no fue rechazado.
+
+`FeedbackDetail` coloca ese aviso antes del contenido. Bajo reportes o administración, la
+acción voluntaria dice Quitar mi ocultamiento voluntario u Ocultar también por decisión
+propia, con explicación accesible por `aria-describedby`. Mantiene los endpoints existentes,
+confirmación, versión, condiciones de permisos, Editar, Eliminar e historial. Los estilos
+viven en `ExperienciasPresentation.module.css`, con tokens existentes y adaptación a 600 px.
+Sin hooks, validaciones de negocio, contratos ni dependencias nuevas. La validación manual
+y de navegador queda a cargo del usuario. Evidencia en `TASK-experiencias-ui`.
+
+### Ajuste posterior de navegación y mensajes
+
+`feedbackPaso` identifica el camino que se siguió al llegar a una experiencia: comisión directa,
+materia seguida de comisión o entrada desde Inicio/Experiencias. Breadcrumb, botón Volver,
+detalle y edición conservan esa pista junto con los filtros y páginas validados en URL.
+Las pantallas listadas de Experiencias siempre enlazan Inicio. Logout explícito entra sin
+`returnTo`; rutas ADMIN recibidas por USER se sustituyen por su inicio. El guard por rol sigue
+activo. Desestimar un reporte deja intacto `ocultoReportes`; el detalle administrativo ahora
+explica cuándo usar la restitución preventiva versionada y cuándo aún deben cerrarse reportes.
+Ver `TASK-experiencias-navigation-followup`.
+
+### Presentación de respuestas a experiencias
+
+`FeedbackRespuestas` organiza encabezado, total confirmado, listado o vacío compacto y formulario.
+`FeedbackRespuestaForm` incorpora título accesible, placeholder, textarea con foco visible y
+anonimato nativo alineado con área de interacción de 44 px. El botón primario incluye un ícono
+de envío decorativo, conserva sus estados y se alinea a la derecha en escritorio; hasta 600 px
+ocupa el ancho disponible. Los estilos están limitados a las clases de respuestas existentes
+en `FeedPrincipal.module.css`, dentro de la capa components y con tokens del proyecto.
+
+Se conservan servicios, contratos, validación de 3000 caracteres, anonimato inicial, edición
+por diferencias, solicitudes idempotentes, errores, permisos y paginación actuales. Pruebas
+focalizadas 163/163, typecheck, lint y build aprobados; Chromium y axe a 360, 600 y 1280 px
+con componentes reales y servicio simulado. No se verificó persistencia real por falta de
+NEXT_PUBLIC_API_URL. Evidencia y fallos ajenos al ajuste en
+`docs/tasks/finished/TASK-respuestas-ajuste-visual.md`.
+
+### Selector y visibilidad propia
+
+`SeleccionComisionComentario` conserva sus tres pasos y servicios; su CSS local ajusta el
+diálogo a una altura estable, con resultados desplazables y pie separado. En escritorio,
+Cancelar selección queda a izquierda y Anterior/Siguiente a derecha; en móvil se adapta en
+dos filas. La región de resultados admite foco para desplazamiento por teclado.
+
+`MisExperiencias` usa la variante `own` de `FeedbackModerationStatus`: visibilidad pública,
+decisión del autor, reportes y administración se presentan sin confundir causas simultáneas.
+Las acciones voluntarias de experiencias propias aprobadas reutilizan `ocultarFeedback` y
+`restaurarFeedback`, con `versionModeracion` como `versionEsperada`, sesión y CSRF existentes.
+La confirmación usa `Dialog`, el resultado `Notice` y la actualización `refreshKey` de
+`PaginatedListView`. Éxitos y errores 403/404/409 actualizan el listado; los demás errores
+permiten reintento desde el diálogo. Restaurar no levanta restricciones administrativas ni
+preventivas. El detalle, las tarjetas comunitarias e Inicio conservan su presentación.
+
+Evidencia en `docs/tasks/finished/TASK-selector-visibilidad-ui.md`.
+
+### Presentación de reportes administrativos
+
+`AdminExperiencias` conserva filtros URL, consultas, orden y paginación de nueve reportes.
+La bandeja reutiliza `AdminSelect` y `AdminListResult` con filas semánticas adaptables,
+motivo, fecha, contexto, badges y denunciantes distintos abiertos. El total corresponde a
+la consulta filtrada; no se muestran estadísticas globales ausentes del contrato.
+
+`AdminReporteDetail` organiza evidencia histórica, situación actual e historial en la
+columna principal y datos del reporte, identidad autorizada y resolución individual en la
+secundaria. Hasta 800 px se apilan conservando ese orden de lectura. El snapshot, su
+valoración y la navegación actual se preservan. `AdminReporteEstado` reutiliza `Badge`.
+`AdminReportes.module.css` usa tokens en capa components sin modificar el shell ni UI global.
+
+Las variantes opcionales de `AdminModerationStatus` y `AdminModerationActions` separan
+moderación y visibilidad, muestran causas simultáneas y diferencian rechazo/restitución
+exclusivamente en reportes. Se conservan condiciones de acciones, versiones, permisos,
+diálogos, justificación obligatoria y errores. Resolver/desestimar no restituye visibilidad.
+El historial usa las resoluciones recibidas, con tres elementos por página y administrador
+por ID secundario cuando existe; el contrato no proporciona su nombre ni nuevos eventos.
+No se incorporan servicios, hooks, validaciones, contratos, dependencias ni endpoints.
+
+Validación y limitaciones en `docs/tasks/finished/TASK-admin-reportes-ui.md`.

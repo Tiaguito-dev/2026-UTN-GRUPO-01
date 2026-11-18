@@ -6,7 +6,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 
 export const metadata: Metadata = {
   // A constant template keeps child route metadata from changing the browser tab name.
-  title: { default: "Profesor Butchery", template: "Profesor Butchery" },
+  title: { default: "Professors' butchery", template: "Professors' butchery" },
   description: "Una comunidad de estudiantes para compartir experiencias sobre materias y profesores.",
   referrer: "no-referrer",
 };

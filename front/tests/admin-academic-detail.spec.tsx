@@ -16,7 +16,7 @@ vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(r
 vi.mock("@/services/materias", async (importOriginal) => ({ ...await importOriginal<typeof import("@/services/materias")>(), obtenerMateria: vi.fn(), listarHistorialMateria: vi.fn() }));
 vi.mock("@/services/academic", async (importOriginal) => ({ ...await importOriginal<typeof import("@/services/academic")>(), obtenerCursada: vi.fn() }));
 vi.mock("@/services/admin-academic", () => ({ obtenerProfesor: vi.fn() }));
-const materia = {
+const materia = { valoracion: { promedio: null, cantidad: 0 },
   id: "m1", nombre: "Materia de nombre académico extenso", modalidad: "ANUAL" as const,
   carreras: [
     { carrera: "S" as const, anioCarrera: "2" as const, nivelElectiva: null },
@@ -62,7 +62,8 @@ describe("detalles académicos administrativos", () => {
     expect(link("Ver cursadas").searchParams.get("materiaId")).toBe("m1");
     expect(link("Ver cursadas").searchParams.get("materiaReturnTo")).toBe("/home/admin/materias");
     expect(link("Editar materia").pathname).toBe("/home/admin/materias/m1/editar");
-    expect(link("Editar materia").searchParams.get("returnTo")).toBe(`/home/admin/materias/m1?${new URLSearchParams({ returnTo: "/home/admin/materias" })}`);
+    expect(link("Editar materia").searchParams.get("returnTo")).toBe("/home/admin/materias/m1");
+    expect(link("Editar materia").searchParams.get("materiaReturnTo")).toBe("/home/admin/materias");
     // Shared administrative audit replaces the public timeline.
     expect(await screen.findByRole("heading", {name:"Auditoría"})).toBeTruthy();
     expect(obtenerDetalleAdministrativo).toHaveBeenCalledWith("materias", "m1");
@@ -87,7 +88,8 @@ describe("detalles académicos administrativos", () => {
     administrativeBreadcrumb("Docente de nombre extenso");
     expect(link(/Volver a/).pathname + link(/Volver a/).search).toBe(origin);
     expect(link("Editar profesor").pathname).toBe("/home/admin/profesores/p1/editar");
-    expect(link("Editar profesor").searchParams.get("returnTo")).toBe(`/home/admin/profesores/p1?${new URLSearchParams({ returnTo: origin })}`);
+    // BUG-02: la edición guarda un solo nivel, el detalle; la página del listado no se anida.
+    expect(link("Editar profesor").searchParams.get("returnTo")).toBe("/home/admin/profesores/p1");
   });
 
   it.each(["https://evil.test", "/home/materias/m1"])('profesor rechaza el origen no administrativo %s', async (returnTo) => {

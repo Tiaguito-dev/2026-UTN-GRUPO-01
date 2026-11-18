@@ -14,12 +14,12 @@ test.beforeEach(async ({ page }) => {
     const url = new URL(route.request().url()); let body;
     if (url.pathname === "/auth/me") body = usuario;
     else if (url.pathname.endsWith("/historial") || url.pathname.endsWith("/feedback")) body = pageOf([], url.searchParams);
-    else if (url.pathname === "/materias") body = pageOf([materia], url.searchParams);
+    else if (url.pathname === "/materias") body = pageOf([route.request().method() === "GET" ? { ...materia, valoracion: { promedio: null, cantidad: 0 } } : materia], url.searchParams);
     else if (url.pathname === "/profesores") body = pageOf([profesor], url.searchParams);
     else if (url.pathname === "/users") body = pageOf([usuario], url.searchParams);
     else if (url.pathname === "/materias/m1/cursadas") body = pageOf([cursada], url.searchParams);
     else if (url.pathname === "/cursadas/c1/comisiones") body = pageOf([comision], url.searchParams);
-    else if (url.pathname === "/materias/m1") body = materia;
+    else if (url.pathname === "/materias/m1") body = route.request().method() === "GET" ? { ...materia, valoracion: { promedio: null, cantidad: 0 } } : materia;
     else if (url.pathname === "/profesores/p1") body = profesor;
     else if (url.pathname === "/cursadas/c1") body = cursada;
     else if (url.pathname === "/comisiones/co1") body = comision;

@@ -1,14 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { adminReturnTo, roleDestination, roleHome } from "@/lib/navigation";
+import { roleDestination, roleHome } from "@/lib/navigation";
+import { experienciasOriginHref, safeAdminReturnTo } from "@/validations/admin";
 
 describe("TASK-068: destinos según el rol confirmado", () => {
   it("conserva el origen administrativo filtrado para volver desde un detalle", () => {
     const origin = "/home/admin/experiencias?carrera=I&materiaId=mat1&page=3";
-    expect(adminReturnTo(origin)).toBe(origin);
+    expect(safeAdminReturnTo(origin)).toBe(origin);
   });
 
-  it.each(["https://evil.test", "//evil.test", "/home/experiencias?carrera=S", "/home/admin/../materias", "/home/admin/%2e%2e/materias", "/home/administer"])('el retorno administrativo rechaza %s y usa su alternativa interna', (origin) => {
-    expect(adminReturnTo(origin, "/home/admin/materias")).toBe("/home/admin/materias");
+  it.each(["https://evil.test", "//evil.test", "/home/experiencias?carrera=S", "/home/admin/../materias", "/home/admin/%2e%2e/materias", "/home/administer"])('el retorno administrativo rechaza %s', (origin) => {
+    expect(safeAdminReturnTo(origin)).toBeUndefined();
+  });
+
+  it("el ranking de comisiones del alumno lleva al ranking administrativo, no a una materia llamada ranking", () => {
+    expect(roleDestination("ADMIN", "/home/materias/ranking?min=3")).toBe("/home/admin/ranking/comisiones?min=3");
+    expect(roleDestination("USER", "/home/materias/ranking")).toBe("/home/materias/ranking");
+    expect(roleDestination("ADMIN", "/home/admin/ranking/profesores/p1")).toBe("/home/admin/ranking/profesores/p1");
   });
 
   it("define un inicio separado para administración", () => {
@@ -37,7 +44,9 @@ describe("TASK-068: destinos según el rol confirmado", () => {
   it("traduce el origen de Experiencias al abrir directamente una comisión estudiantil", () => {
     const url = new URL(roleDestination("ADMIN", "/home/materias/m1/cursadas/cu1/comisiones/co1?origen=experiencias&experienciasCarrera=S&experienciasMateriaId=m1&experienciasPage=3"), "https://local.test");
     expect(url.pathname).toBe("/home/admin/comisiones/co1");
-    expect(url.searchParams.get("returnTo")).toBe("/home/admin/experiencias?carrera=S&materiaId=m1&page=3");
+    // BUG-02: el origen viaja plano (origen=experiencias), sin un returnTo armado aparte.
+    expect(url.searchParams.get("returnTo")).toBeNull();
+    expect(experienciasOriginHref(url.searchParams)).toBe("/home/admin/experiencias?carrera=S&materiaId=m1&page=3");
   });
 
   it("un enlace de publicación ADMIN conserva la comisión pero no abre el formulario", () => {
@@ -64,6 +73,11 @@ describe("TASK-068: destinos según el rol confirmado", () => {
     "/account",
   ])("conserva el recorrido habitual de USER: %s", (path) => {
     expect(roleDestination("USER", path)).toBe(path);
+  });
+
+  it.each(["/home/admin", "/home/admin/experiencias?seccion=reportes"]) ("USER vuelve a su inicio al recibir una ruta administrativa: %s", path => {
+    expect(roleDestination("USER", path)).toBe("/home");
+    expect(roleDestination(undefined, path)).toBe("/home");
   });
 
   it.each([

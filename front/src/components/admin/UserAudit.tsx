@@ -21,6 +21,34 @@ function actorName(id: string | null, name?: string | null) {
 const actions: Record<string, string> = { CREACION: "Creación", EDICION: "Edición", DESACTIVACION: "Desactivación", REACTIVACION: "Reactivación", ACTIVACION: "Activación", BAJA_BLOQUEADA: "Baja bloqueada", VINCULACION: "Vinculación", DESVINCULACION: "Desvinculación" };
 const fields: Record<string, string> = { texto: "Contenido", anonimo: "Publicación anónima", estado: "Estado", disabledAt: "Fecha de desactivación", displayName: "Nombre público", email: "Correo electrónico", role: "Rol", resultado: "Resultado", motivo: "Motivo", nombre: "Nombre", nombreCompleto: "Nombre completo", modalidad: "Modalidad", carreras: "Carreras", anioCarrera: "Año de carrera", nivelElectiva: "Nivel de electiva", deletedAt: "Fecha de baja", materiaId: "Materia", anio: "Año", cuatrimestre: "Cuatrimestre", carrera: "Carrera", numero: "Número", activa: "Estado" };
 const values: Record<string, string> = { ACTIVO: "Activo", INACTIVO: "Inactivo", ADMIN: "Administrador", USER: "Usuario", true: "Sí", false: "No", BLOQUEADA: "Bloqueada", EXITOSA: "Exitosa" };
+const feedbackActions: Record<string, string> = {
+  APROBACION: "Aprobación de la experiencia", RECHAZO: "Rechazo de la experiencia",
+  OCULTAMIENTO_AUTOR: "Ocultamiento por el autor", RESTITUCION_AUTOR: "Restitución por el autor",
+  OCULTAMIENTO_ADMIN: "Ocultamiento administrativo", RESTITUCION_ADMIN: "Restitución administrativa",
+  SOLICITUD_REVISION: "Solicitud de nueva revisión", OCULTAMIENTO_REPORTES: "Ocultamiento preventivo por reportes",
+  RESTITUCION_REPORTES: "Restitución del ocultamiento preventivo",
+};
+const feedbackFields: Record<string, string> = {
+  puntuacion: "Valoración de la experiencia", estadoModeracion: "Estado de moderación", versionModeracion: "Versión de la experiencia",
+  requiereRevisionHumana: "Revisión administrativa requerida", motivoRechazo: "Motivo del rechazo",
+  ocultoAutor: "Oculta por el autor", ocultoAdministracion: "Oculta por administración", ocultoReportes: "Oculta preventivamente por reportes",
+  origen: "Origen de la decisión", "valoracionMateria.puntuacion": "Valoración de la materia", "valoracionMateria.deletedAt": "Fecha de retiro de la valoración",
+};
+const feedbackStates: Record<string, string> = { PENDIENTE: "Pendiente de revisión", APROBADO: "Aprobada", RECHAZADO: "Rechazada", AUTOMATICO: "Automático por reportes", ADMINISTRATIVO: "Decisión administrativa" };
+
+function feedbackChangeValue(field: string, value: string | null) {
+  if (value === null || value === "") return changeValue(field, value);
+  if (field === "estadoModeracion" || field === "origen") return feedbackStates[value] ?? "Información no disponible";
+  if (field === "versionModeracion") return /^\d+$/.test(value) ? value : "Versión no disponible";
+  if (field === "puntuacion" || field === "valoracionMateria.puntuacion") return /^[1-5]$/.test(value) ? `${value} de 5` : "Sin valoración";
+  if (field === "valoracionMateria.deletedAt") return <AuditDate value={value} />;
+  if (["requiereRevisionHumana", "ocultoAutor", "ocultoAdministracion", "ocultoReportes"].includes(field)) return value === "true" ? "Sí" : value === "false" ? "No" : "Información no disponible";
+  // Content is the historical user text. Unrecognized metadata never reaches the UI as raw JSON or identifiers.
+  if (field === "texto") return value;
+  if ((field === "motivo" || field === "motivoRechazo") && ["{", "["].some(prefix => value.trimStart().startsWith(prefix))) return "Motivo no disponible";
+  if (Object.hasOwn(fields, field) || field === "motivoRechazo") return changeValue(field, value);
+  return "Información no disponible";
+}
 
 /** El historial de carreras usa el contrato compacto carrera:año[:nivel], separado por comas. */
 function careerChanges(value: string) {
@@ -70,9 +98,9 @@ export function UserAudit({ data, page, onPageChange, kind = "users" }: { data: 
     <details className={styles.history}>
       <summary><History size={18} aria-hidden="true" /><span>Historial de cambios</span>{Number.isFinite(data.historial.total) ? <span className={styles.counter}>{data.historial.total}</span> : null}<ChevronDown className={styles.chevron} size={18} aria-hidden="true" /></summary>
       {data.historial.items.length ? <ol className={styles.events}>{data.historial.items.map(entry => <li key={entry.id}>
-        <div className={styles.eventHeader}><strong>{entry.accion === "ELIMINACION" ? removal.title : actions[entry.accion] ?? "Cambio registrado"}</strong><AuditDate value={entry.createdAt} /></div>
+        <div className={styles.eventHeader}><strong>{entry.accion === "ELIMINACION" ? removal.title : (kind === "feedback" ? feedbackActions[entry.accion] : undefined) ?? actions[entry.accion] ?? "Cambio registrado"}</strong><AuditDate value={entry.createdAt} /></div>
         <p className={styles.note}>Actor: {actorName(entry.actorId, entry.actorName)}</p>
-        {entry.cambios.length ? <div className={styles.tableScroll}><table><caption className="sr-only">Cambios registrados</caption><thead><tr><th scope="col">Campo</th><th scope="col">Antes</th><th scope="col">Después</th></tr></thead><tbody>{entry.cambios.map((change, index) => <tr key={index}><th scope="row">{fields[change.campo] ?? "Dato del registro"}</th><td>{changeValue(change.campo, change.anterior)}</td><td>{changeValue(change.campo, change.nuevo)}</td></tr>)}</tbody></table></div> : <p className={styles.note}>No se registraron cambios de campos para este evento.</p>}
+        {entry.cambios.length ? <div className={styles.tableScroll}><table><caption className="sr-only">Cambios registrados</caption><thead><tr><th scope="col">Campo</th><th scope="col">Antes</th><th scope="col">Después</th></tr></thead><tbody>{entry.cambios.map((change, index) => <tr key={index}><th scope="row">{(kind === "feedback" ? feedbackFields[change.campo] : undefined) ?? fields[change.campo] ?? "Dato del registro"}</th><td>{kind === "feedback" ? feedbackChangeValue(change.campo, change.anterior) : changeValue(change.campo, change.anterior)}</td><td>{kind === "feedback" ? feedbackChangeValue(change.campo, change.nuevo) : changeValue(change.campo, change.nuevo)}</td></tr>)}</tbody></table></div> : <p className={styles.note}>No se registraron cambios de campos para este evento.</p>}
       </li>)}</ol> : <div className={styles.empty}><p>No hay eventos registrados</p><p className={styles.note}>Solo se muestran cambios que fueron registrados por el sistema</p></div>}
       <Pagination page={page} pageSize={3} total={data.historial.total} onChange={onPageChange} />
     </details>

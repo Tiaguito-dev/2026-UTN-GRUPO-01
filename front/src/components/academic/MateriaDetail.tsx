@@ -24,7 +24,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Notice } from "@/components/ui/Notice";
 import { ComisionesMateria } from "./ComisionesMateria";
-import { experienciasBack } from "@/validations/feedback";
+import { ValoracionMateria } from "./ValoracionMateria";
+import { feedbackEntryBreadcrumb } from "@/validations/feedback";
 
 export function MateriaDetail({ materiaId }: { materiaId: string }) {
   const headingId = useId();
@@ -41,6 +42,8 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
   const editHref = `/home/admin/materias/${encodeURIComponent(materiaId)}/editar${detailHref.includes("?") ? detailHref.slice(detailHref.indexOf("?")) : ""}`;
   const { materia, error, notFound, retry } = useMateria(materiaId);
   const materiaLabel = materia?.nombre ?? (error ? "Materia" : "Cargando…");
+  const entryBreadcrumb = isAdmin ? [] : feedbackEntryBreadcrumb(params);
+  const entryBack = entryBreadcrumb.at(-1);
 
   return <section aria-labelledby={headingId}>
     <div className="academic-detail-header">
@@ -48,8 +51,8 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
         id={headingId}
         title={materiaLabel}
         focusKey={materiaId}
-        back={experienciasBack(params) ?? { href: backHref, label: "Materias" }}
-        breadcrumb={[{ label: "Materias", href: backHref }, { label: materiaLabel }]}
+        back={entryBack ?? { href: backHref, label: "Materias" }}
+        breadcrumb={[...(entryBreadcrumb.length ? entryBreadcrumb : [{ label: "Materias", href: backHref }]), { label: materiaLabel }]}
       />
       {materia ? <div className="academic-heading-row">
         <div className="academic-badges">
@@ -60,6 +63,7 @@ export function MateriaDetail({ materiaId }: { materiaId: string }) {
         {isAdmin && !materia.deletedAt ? <Link className="button button-secondary" href={editHref}>Editar materia</Link> : null}
       </div> : null}
       {materia ? <p className="system-description">Modalidad: {modalidadLabel(materia.modalidad)}</p> : null}
+      {materia ? <ValoracionMateria valoracion={materia.valoracion} /> : null}
     </div>
     {params.get("successMessage") ? <Notice tone="success">{params.get("successMessage")}</Notice> : null}
     {error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la materia. {error} {notFound ? <Link href={backHref}>Volver al listado de materias</Link> : <button className="button" onClick={retry} type="button">Reintentar</button>}</Notice> : null}

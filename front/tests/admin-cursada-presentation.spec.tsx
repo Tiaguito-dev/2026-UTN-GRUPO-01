@@ -78,7 +78,9 @@ describe("presentación administrativa de Cursadas", () => {
     expect(within(breadcrumb).getByText("Anual 2026").getAttribute("aria-current")).toBe("page");
     expect(href(/Volver a/).pathname + href(/Volver a/).search).toBe(list);
     // TASK-admin-navigation-context: edición conserva el detalle como destino de cancelación.
-    expect(href("Editar cursada").searchParams.get("returnTo")).toBe(`/home/admin/cursadas/cu1?${new URLSearchParams({ returnTo: list })}`);
+    // BUG-02: un nivel en returnTo; los filtros de Materias viajan al lado.
+    expect(href("Editar cursada").searchParams.get("returnTo")).toBe("/home/admin/cursadas/cu1");
+    expect(href("Editar cursada").searchParams.get("materiaReturnTo")).toBe(origin);
     const materia = new URL(within(field("Materia")).getByRole("link").getAttribute("href")!, "https://local.test");
     expect(materia.pathname).toBe("/home/admin/materias/m1");
     expect(materia.searchParams.get("returnTo")).toBe(origin);
@@ -87,9 +89,8 @@ describe("presentación administrativa de Cursadas", () => {
     expect(commissions.searchParams.get("materiaId")).toBe("m1");
     expect(commissions.searchParams.get("cursadaId")).toBe("cu1");
     expect(commissions.searchParams.get("materiaReturnTo")).toBe(origin);
-    const returnTo = new URL(commissions.searchParams.get("returnTo")!, "https://local.test");
-    expect(returnTo.pathname).toBe("/home/admin/cursadas/cu1");
-    expect(returnTo.searchParams.get("returnTo")).toBe(list);
+    // La lista de comisiones deriva su padre (esta cursada) de los IDs.
+    expect(commissions.searchParams.get("returnTo")).toBeNull();
     expect(document.querySelector('a[href^="/home/materias"]')).toBeNull();
   });
 

@@ -9,6 +9,20 @@ beforeAll(() => {
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
 });
 describe("Opciones administrativas remotas TASK-070", () => {
+  // El nombre accesible incluye el texto visible del disparador (WCAG 2.5.3, también al resolver un ID).
+  it.each([
+    ["Materia", "", "Elegí materia"],
+    ["Materia", "m1", "Álgebra"],
+    ["Período", "", "Elegí período"],
+    ["Período", "c1", "Anual 2026"],
+  ])("conserva la etiqueta y el valor visible en el nombre accesible: %s / %s", async (label, value, visible) => {
+    render(<AdminParentSelector label={label} resourceKey={label} value={value}
+      fetchPage={async () => ({ items: [], total: 0, page: 1, pageSize: 9 })}
+      fetchSelected={async (id) => ({ id, label: visible })} onChange={vi.fn()} />);
+    const trigger = await screen.findByRole("button", { name: `${label} ${visible}` });
+    expect(trigger.textContent).toBe(visible);
+  });
+
   it("resuelve la selección por ID fuera de página sin descargar más de 2000 opciones", async () => {
     const fetchPage = vi.fn(async () => ({ items: [{ id: "m1", label: "Álgebra" }], total: 5000, page: 1, pageSize: 9 }));
     const fetchSelected = vi.fn(async () => ({ id: "m4000", label: "Materia fuera de la primera página" }));
@@ -16,7 +30,7 @@ describe("Opciones administrativas remotas TASK-070", () => {
     expect(await screen.findByText("Materia fuera de la primera página")).toBeTruthy();
     expect(fetchSelected).toHaveBeenCalledExactlyOnceWith("m4000");
     expect(fetchPage).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole("button", { name: "Materia" }));
+    await userEvent.click(screen.getByRole("button", { name: /^Materia / }));
     const dialog = screen.getByRole("dialog", { name: "Elegir materia" });
     expect(await within(dialog).findByText("5000 opciones")).toBeTruthy();
     expect(fetchPage).toHaveBeenCalledExactlyOnceWith(1, "");
@@ -30,7 +44,7 @@ describe("Opciones administrativas remotas TASK-070", () => {
   it("seleccionar un período comunica su identificador y cierra el diálogo", async () => {
     const onChange = vi.fn();
     render(<AdminParentSelector label="Período" resourceKey="periodos:m1" value="" fetchPage={async () => ({ items: [{ id: "c20", label: "Anual 2026" }], total: 1, page: 1, pageSize: 9 })} fetchSelected={vi.fn()} onChange={onChange} />);
-    await userEvent.click(screen.getByRole("button", { name: "Período" }));
+    await userEvent.click(screen.getByRole("button", { name: /^Período / }));
     await userEvent.click(await screen.findByRole("button", { name: "Anual 2026" }));
     expect(onChange).toHaveBeenCalledWith("c20");
     expect(screen.queryByRole("dialog")).toBeNull();

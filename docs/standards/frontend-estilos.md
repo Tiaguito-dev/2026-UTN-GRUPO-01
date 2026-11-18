@@ -23,7 +23,7 @@ regla de `components` le gana a una de `base` sin overrides ni selectores más l
 | Archivo | Capa | Qué va |
 |---|---|---|
 | `styles/reset.css` | `reset` | Reset del navegador. |
-| `styles/tokens.css` | `tokens` | El `:root` con todos los tokens (tabla abajo). |
+| `styles/tokens.css` | `tokens` | El `:root` con los tokens base y los ámbitos visuales por rol (tabla abajo). |
 | `styles/base.css` | `base` | Selectores de elemento (regla 3). |
 | `styles/layout.css` | `layout` | Header, sidebar, contenido y `.page`. |
 | `styles/components/<área>.css` | `components` | Un archivo por área: `button`, `notice`, `form`, `breadcrumb`, `pagination`, `card`, `badge`, `account-menu`, `landing`, `academic`. |
@@ -61,7 +61,7 @@ por qué.
 | Texto | `--text-xs` .75rem (mínimo, ver [frontend-pantallas.md](./frontend-pantallas.md#accesibilidad)), `--text-sm` .8rem, `--text-md` .9rem, `--text-base` 1rem, `--text-xl` 1.5rem, `--text-2xl` 2rem |
 | Peso | `--weight-medium` 600, `--weight-semibold` 650, `--weight-bold` 700, `--weight-heavy` 750 |
 | Sombra | `--shadow-popover`, `--shadow-card`, `--shadow-floating`; todas sobre `--shadow-rgb` (el tono de `--text`) |
-| Layout | `--header-h` 5.5rem, `--sidebar-w` 15rem, `--content-max` 72rem (páginas públicas y encabezado), `--content-max-app` 83rem (`.system-content` de la aplicación) |
+| Layout | `--header-h` 4.5rem, `--sidebar-w` 13rem, `--content-max` 72rem (páginas públicas y encabezado), `--content-max-app` 83rem (`.system-content` de la aplicación) |
 | Capas (`z-index`) | `--z-skip-link` 10, `--z-popover` 20, `--z-header` 30 |
 | Color | `--primary`, `--primary-rgb` (canal RGB de `--primary` para `rgb(var(--primary-rgb) / N%)`), `--primary-hover`, `--accent`, `--link`, `--surface`, `--background`, `--text`, `--muted`, `--border`, `--input-border`, `--soft-blue`, y `--error`, `--success`, `--warning` con su `-background` |
 
@@ -89,3 +89,33 @@ toca un módulo existente, también usa tokens.
 ## Referencia
 
 `front/src/app/globals.css`, `front/src/styles/tokens.css`, `front/src/styles/base.css`.
+
+## Identidad visual
+
+La tarea `TASK-rediseno-visual-frontend` establece la paleta bordó y crema, encabezado bordó y superficies cálidas. `--soft-blue` conserva su nombre histórico por compatibilidad y representa ahora el fondo salmón de selección. No se incorporan funciones del collage que no estén implementadas.
+
+### Variantes por rol (HU-C06)
+
+El contenedor `auth/RoleTheme`, situado dentro de `AuthProvider`, establece el ámbito de todas
+las páginas y del monitor de sesión. `[data-role-theme="admin"]` redefine la paleta primaria
+y los tokens semánticos del shell; los otros roles conservan el diseño base. `pending` muestra
+un encabezado neutral mientras se comprueba la sesión. Esta variante es presentación, nunca
+autorización ni una preferencia que pueda elegirse o persistirse desde una pantalla.
+
+| Área | Tokens semánticos |
+|---|---|
+| Encabezado | `--header-background`, `--header-foreground`, `--header-border`, `--header-focus` |
+| Sidebar | `--sidebar-background`, `--sidebar-border`, `--sidebar-text`, `--sidebar-muted`, `--sidebar-hover-background`, `--sidebar-hover-text`, `--sidebar-active-background`, `--sidebar-active-text`, `--sidebar-focus` |
+
+Los valores base de estos tokens coinciden con la identidad estudiantil existente. ADMIN
+utiliza encabezado bordó oscuro y sidebar más oscuro con texto, selección y foco claros;
+conserva fondo crema y colores de estado. Cada override debe redefinir los alias que dependen
+de él, incluidos `--link` y los semánticos del shell: un alias heredado desde `:root` conserva
+su valor calculado y no se recalcula al cambiar una variable descendiente. `--primary-rgb`
+también debe corresponder a `--primary`.
+
+Las páginas y componentes reutilizan esos tokens; no agregan colores ni componentes
+duplicados para cada rol. Los diálogos nativos heredan el ámbito DOM aunque se muestren en
+top layer. El encabezado ADMIN apila marca e identificación bajo 600px y ajusta localmente
+`--header-h` a `6.5rem`; USER mantiene la medida base. Las nuevas superficies oscuras requieren
+contraste de texto y foco de teclado, incluidos estados hover y seleccionado.

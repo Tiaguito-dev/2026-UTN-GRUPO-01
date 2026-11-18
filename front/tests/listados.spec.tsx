@@ -8,6 +8,9 @@ import { ProfesoresList } from "@/components/admin/ProfesoresList";
 import { MateriasAdminList } from "@/components/admin/MateriasAdminList";
 import { CursadasAdminList } from "@/components/admin/CursadasAdminList";
 import { ComisionesAdminList } from "@/components/admin/ComisionesAdminList";
+import { SugerenciasAdmin } from "@/components/comunidad/SugerenciasAdmin";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { listarSugerencias } from "@/services/comunidad";
 import { listarMaterias } from "@/services/materias";
 import { listarUsuarios } from "@/services/users";
 import { listarProfesores, listarMaterias as listarMateriasAdmin, listarCursadasPorMateria, listarComisionesPorCursada, type Comision, type CursadaResumen } from "@/services/academic";
@@ -21,18 +24,22 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(location.search),
 }));
 vi.mock("@/services/academic", () => ({ listarMaterias: vi.fn(), listarProfesores: vi.fn(), listarCursadasPorMateria: vi.fn(), listarComisionesPorCursada: vi.fn(), obtenerCursada: vi.fn(async (id: string) => cursadaDetalleFixture(id)) }));
-vi.mock("@/services/materias", () => ({ listarMaterias: vi.fn(), obtenerMateria: vi.fn(async (id: string) => materiaFixture(id)) }));
+vi.mock("@/services/materias", () => ({ listarMaterias: vi.fn(), obtenerMateria: vi.fn(async (id: string) => ({ ...materiaFixture(id), valoracion: { promedio: null, cantidad: 0 } })) }));
 vi.mock("@/services/users", () => ({ listarUsuarios: vi.fn() }));
+vi.mock("@/services/comunidad", () => ({ listarSugerencias: vi.fn(), asignarMeGustaSugerencia: vi.fn(), eliminarSugerencia: vi.fn() }));
 // TASK-043: MateriasList reads the role (useIsAdmin → useAuth) for "Nueva materia".
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ account: { role: "USER" } }) }));
 
 afterEach(cleanup);
 
 const usuario = (id: string) => ({ id, email: `${id}@alu.frlp.utn.edu.ar`, displayName: `Cuenta ${id}`, role: "USER" as const, createdAt: "2026-01-02T00:00:00.000Z" });
-const materia = (id: string) => ({ id, nombre: `Materia ${id}`, carreras: [], createdAt: "2026-01-02T00:00:00.000Z", deletedAt: null });
+const materia = (id: string) => ({ valoracion: { promedio: null, cantidad: 0 }, id, nombre: `Materia ${id}`, carreras: [], createdAt: "2026-01-02T00:00:00.000Z", deletedAt: null });
 const profesor = (id: string) => ({ id, nombreCompleto: `Profesor ${id}`, createdAt: "2026-01-02T00:00:00.000Z", deletedAt: null });
+// HU-C03: bandeja embebida; el encabezado y su foco siguen siendo responsabilidad de Comunidad.
+function SugerenciasListadoPrueba() { return <><PageHeader id="comunidad" title="Comunidad" /><SugerenciasAdmin /></>; }
 
 describe.each([
+  { name: "SugerenciasAdmin", Component: SugerenciasListadoPrueba, fetch: vi.mocked(listarSugerencias) as Mock, pathname: "/home/admin/comunidad", heading: "Comunidad", item: (id: string) => ({ id, autor: { displayName: "María" }, categoria: "OTROS", contenido: `Sugerencia ${id}`, meGusta: false, createdAt: "2026-01-02T00:00:00.000Z" }), itemText: "Sugerencia a", loading: "Cargando sugerencias…", empty: /Todavía no hay sugerencias para mostrar/ },
   { name: "MateriasList", Component: MateriasList, fetch: vi.mocked(listarMaterias) as Mock, pathname: "/home/materias", heading: "Materias", item: materia, itemText: "Materia a", loading: "Cargando materias…", empty: /No hay materias que coincidan con la búsqueda y los filtros/ },
   { name: "UsuariosList", Component: UsuariosList, fetch: vi.mocked(listarUsuarios) as Mock, pathname: "/home/admin/usuarios", heading: "Usuarios registrados", item: usuario, itemText: "Cuenta a", loading: "Cargando usuarios…", empty: /Todavía no hay cuentas registradas/ },
   { name: "ProfesoresList", Component: ProfesoresList, fetch: vi.mocked(listarProfesores) as Mock, pathname: "/home/admin/profesores", heading: "Profesores", item: profesor, itemText: "Profesor a", loading: "Cargando profesores…", empty: /No hay registros para mostrar/ },
@@ -42,19 +49,11 @@ describe.each([
 ])("$name", ({ name, Component, fetch, pathname, heading, item, itemText, loading, empty, search }) => {
   const page = (ids: string[], total = ids.length) => ({ items: ids.map((id) => item(id)), total, page: 1, pageSize: 9 });
   // TASK-069: los tooltips también nombran el registro; buscar la celda identifica el dato visible.
-  const visibleItem = () => name === "MateriasList" ? screen.findByText(itemText) : screen.findByRole("cell", { name: itemText });
+  const visibleItem = () => name === "MateriasList" || name === "SugerenciasAdmin" ? screen.findByText(itemText) : screen.findByRole("cell", { name: itemText });
 
-  // La URL visible puede ser simple; los enlaces de fila reconstruyen toda la jerarquía.
+  // BUG-02: los enlaces de fila vuelven solo a esta lista (un nivel); los ancestros salen de los IDs.
   function expectedReturnTo(pageNumber = 1) {
     const query = new URLSearchParams(search);
-    if (name === "CursadasAdminList" || name === "ComisionesAdminList") {
-      const materiaOrigin = "/home/admin/materias";
-      const materiaDetail = `/home/admin/materias/m1?${new URLSearchParams({ returnTo: materiaOrigin })}`;
-      const cursadasList = `/home/admin/cursadas?${new URLSearchParams({ materiaId: "m1", materiaReturnTo: materiaOrigin, returnTo: materiaDetail })}`;
-      const parent = name === "CursadasAdminList" ? materiaDetail : `/home/admin/cursadas/c1?${new URLSearchParams({ returnTo: cursadasList })}`;
-      query.set("materiaReturnTo", materiaOrigin);
-      query.set("returnTo", parent);
-    }
     if (pageNumber > 1) query.set("page", String(pageNumber));
     return `${pathname}${query.size ? `?${query}` : ""}`;
   }
@@ -95,11 +94,11 @@ describe.each([
     fetch.mockResolvedValue(page([]));
     setup();
     // TASK-069: las tablas distinguen resultados filtrados vacíos del catálogo estudiantil.
-    expect(await screen.findByText(name === "MateriasList" ? empty : /No hay registros que coincidan con los filtros/)).toBeTruthy();
+    expect(await screen.findByText(name === "MateriasList" || name === "SugerenciasAdmin" ? empty : /No hay registros que coincidan con los filtros/)).toBeTruthy();
   });
 
   it("los listados administrativos son tablas y usuarios no ofrece gestión", async () => {
-    if (name === "MateriasList") return;
+    if (name === "MateriasList" || name === "SugerenciasAdmin") return;
     fetch.mockResolvedValue(page(["a"]));
     setup();
     await visibleItem();
@@ -114,6 +113,7 @@ describe.each([
       const detail = new URL(screen.getByRole("link", { name: /^Ver detalle de/ }).getAttribute("href")!, "https://local.test");
       expect(detail.pathname).toBe(`${pathname}/a`);
       expect(detail.searchParams.get("returnTo")).toBe(expectedReturnTo());
+      if (search) expect(detail.searchParams.get("materiaReturnTo")).toBe("/home/admin/materias");
     }
   });
 
@@ -125,13 +125,14 @@ describe.each([
     expect(router.replace).toHaveBeenCalledWith(`${pathname}?${search ? `${search}&` : ""}page=2`, { scroll: false });
     view.rerender(<Component />);
     await waitFor(() => expect(fetch).toHaveBeenLastCalledWith(...fetchArgs(2)));
-    if (name !== "MateriasList" && name !== "UsuariosList") {
+    if (name !== "MateriasList" && name !== "UsuariosList" && name !== "SugerenciasAdmin") {
       const detail = new URL((await screen.findAllByRole("link", { name: /^Ver detalle de/ }))[0].getAttribute("href")!, "https://local.test");
       expect(detail.searchParams.get("returnTo")).toBe(expectedReturnTo(2));
     }
   });
 
   function fetchArgs(page: number) {
+    if (name === "SugerenciasAdmin") return [{ page, pageSize: 20, soloMeGusta: false }];
     if (name === "MateriasList") return [{ page, carrera: undefined, anioCarrera: undefined }];
     if (name === "MateriasAdminList") return [{ page, pageSize: 9, q: undefined, carrera: undefined, anioCarrera: undefined, nivelElectiva: undefined }];
     if (name === "ProfesoresList") return [{ page, pageSize: 9, q: undefined }];

@@ -35,6 +35,6 @@ export function useAdminCommissionOrigin(origin: string) {
   const current = result?.id === id ? result : undefined;
   return {
     id, error: Boolean(current?.error), data: current?.data,
-    navigation: current?.data ? comisionNavigation(url.searchParams.get("returnTo"), current.data) : null,
+    navigation: current?.data ? comisionNavigation(url.searchParams, current.data) : null,
   };
 }

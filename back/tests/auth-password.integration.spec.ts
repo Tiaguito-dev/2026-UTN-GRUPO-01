@@ -1,3 +1,4 @@
+import { VERIFICATION_EMAIL } from "../src/auth/domain/email-verification.js";
 import "reflect-metadata";
 import { randomUUID } from "node:crypto";
 import type { INestApplication } from "@nestjs/common";
@@ -37,7 +38,7 @@ describe.skipIf(!databaseUrl)("Recuperación y cambio HTTP con persistencia Post
   const me = (cookies: string) => fetch(`${url}/auth/me`, { headers: { Cookie: cookies } });
   async function fixture() {
     const email = `password-${randomUUID()}@alu.frlp.utn.edu.ar`;
-    const registered = await post("/auth/register", { email, displayName: "Recovery", password: oldPassword });
+    const registered = await post("/auth/register", { aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email, displayName: "Recovery", password: oldPassword });
     expect(registered.status).toBe(201); const user = await registered.json(); ids.push(user.id);
     await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
     const login = await post("/auth/login", { email, password: oldPassword }); expect(login.status).toBe(200);
@@ -59,7 +60,7 @@ describe.skipIf(!databaseUrl)("Recuperación y cambio HTTP con persistencia Post
   }
   beforeAll(async () => {
     prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl! }) }); await prisma.$connect();
-    const module = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(AUTH_CONFIG).useValue(config)
+    const module = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(VERIFICATION_EMAIL).useValue({ send: async () => {} }).overrideProvider(AUTH_CONFIG).useValue(config)
       .overrideProvider(PASSWORD_RESET_EMAIL).useValue({ send: async (message: typeof inbox[number]) => { if (failMail) throw new Error("private smtp detail"); inbox.push(message); } }).compile();
     app = module.createNestApplication(); app.useLogger(false); configureAuthHttp(app, config); await app.listen(0, "127.0.0.1"); url = await app.getUrl();
   }, 20000);
@@ -209,7 +210,7 @@ describe.skipIf(!databaseUrl)("Recuperación y cambio HTTP con persistencia Post
   });
   it("falla técnica reset informa 500 sin limpiar cookies ni consumir credencial", async () => {
     const f = await fixture(); const message = await request(f.email); const repository = new PrismaPasswordRecoveryRepository(prisma as PrismaService);
-    const module = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(AUTH_CONFIG).useValue(config).overrideProvider(PASSWORD_RESET_EMAIL).useValue({ send: async () => {} })
+    const module = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(VERIFICATION_EMAIL).useValue({ send: async () => {} }).overrideProvider(AUTH_CONFIG).useValue(config).overrideProvider(PASSWORD_RESET_EMAIL).useValue({ send: async () => {} })
       .overrideProvider(PASSWORD_RECOVERY_REPOSITORY).useValue({ findByHash: repository.findByHash.bind(repository), reset: async () => { throw new Error("private database details"); } }).compile();
     const failing = module.createNestApplication(); failing.useLogger(false); configureAuthHttp(failing, config); await failing.listen(0, "127.0.0.1");
     try {
@@ -242,7 +243,7 @@ describe.skipIf(!databaseUrl)("Recuperación y cambio HTTP con persistencia Post
   });
   it.each(["forgot-password", "reset-password", "change-password"])("rate configurable protege %s e ignora XFF no confiable", async (endpoint) => {
     const prefix = endpoint.replaceAll("-", "_").toUpperCase(); const limitedConfig = testAuthConfig({ [`AUTH_${prefix}_MAX_ATTEMPTS`]: "1" });
-    const module = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(AUTH_CONFIG).useValue(limitedConfig).overrideProvider(PASSWORD_RESET_EMAIL).useValue({ send: async () => {} }).compile();
+    const module = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider(PrismaService).useValue(prisma).overrideProvider(VERIFICATION_EMAIL).useValue({ send: async () => {} }).overrideProvider(AUTH_CONFIG).useValue(limitedConfig).overrideProvider(PASSWORD_RESET_EMAIL).useValue({ send: async () => {} }).compile();
     const limited = module.createNestApplication(); limited.useLogger(false); configureAuthHttp(limited, limitedConfig); await limited.listen(0, "127.0.0.1");
     try {
       for (let i = 0; i < 2; i++) {

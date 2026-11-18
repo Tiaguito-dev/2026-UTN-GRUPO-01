@@ -12,8 +12,8 @@ function Harness({ validate = () => ({}), onSubmit }: {
   validate?: (values: Record<Campo, string>) => Partial<Record<Campo, string>>;
   onSubmit: (values: Record<Campo, string>) => Promise<void>;
 }) {
-  const { busy, errors, error, handleSubmit } = useFormSubmission({ fields: ["nombre", "codigo"], validate, onSubmit, fallbackError: "No pudimos guardar." });
-  return <form onSubmit={handleSubmit} noValidate aria-busy={busy}>
+  const { busy, errors, error, handleSubmit, handleChange } = useFormSubmission({ fields: ["nombre", "codigo"], validate, onSubmit, fallbackError: "No pudimos guardar." });
+  return <form onSubmit={handleSubmit} onChange={handleChange} noValidate aria-busy={busy}>
     <input name="nombre" aria-label="Nombre" />
     <input name="codigo" aria-label="Código" />
     {errors.nombre ? <p>{errors.nombre}</p> : null}
@@ -43,6 +43,14 @@ describe("useFormSubmission", () => {
     expect(screen.getByText("Falta el código.")).toBeTruthy();
     expect(document.activeElement).toBe(screen.getByLabelText("Nombre"));
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("al cambiar un campo borra solo su error, sin revalidar", async () => {
+    render(<Harness onSubmit={vi.fn(async () => {})} validate={() => ({ nombre: "Falta el nombre.", codigo: "Falta el código." })} />);
+    await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+    await userEvent.type(screen.getByLabelText("Nombre"), "Á");
+    expect(screen.queryByText("Falta el nombre.")).toBeNull();
+    expect(screen.getByText("Falta el código.")).toBeTruthy();
   });
 
   it("si el envío falla sin un Error, muestra el mensaje de respaldo y libera el envío", async () => {

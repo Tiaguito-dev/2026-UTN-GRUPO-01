@@ -4,18 +4,24 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import userEvent from "@testing-library/user-event";
 import { FeedbackForm } from "@/components/feedback/FeedbackForm";
 import { FeedbackDetail } from "@/components/feedback/FeedbackDetail";
-import { obtenerComision } from "@/services/academic";
-import { obtenerFeedback, obtenerFeedbackPropio, crearFeedback, actualizarFeedback, eliminarFeedback, listarHistorialFeedback } from "@/services/feedback";
-import type { Feedback } from "@/types/feedback";
+import { listarCursadasPorMateria, listarComisionesPorCursada, obtenerComision } from "@/services/academic";
+import { obtenerFeedback, obtenerFeedbackPropio, obtenerNormasConvivencia, crearFeedback, actualizarFeedback, eliminarFeedback, listarHistorialFeedback } from "@/services/feedback";
+import type { Feedback, FeedbackOwn } from "@/types/feedback";
+import { FeedPrincipal } from "@/components/feedback/FeedPrincipal";
+import { listarMaterias } from "@/services/materias";
+import { listarFeedComentarios } from "@/services/feedback-feed";
 import { HttpError } from "@/services/http";
 
 const { push, origin } = vi.hoisted(() => ({ push: vi.fn(), origin: { query: "" } }));
 vi.mock("next/link", () => import("./support/next-link"));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: push }), useSearchParams: () => new URLSearchParams(origin.query) }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ account: { id: "u1", role: "USER", displayName: "Benjamín" } }) }));
-vi.mock("@/services/academic", () => ({ obtenerComision: vi.fn() }));
+vi.mock("@/services/academic", () => ({ obtenerComision: vi.fn(), listarCursadasPorMateria: vi.fn(), listarComisionesPorCursada: vi.fn() }));
+vi.mock("@/services/materias", () => ({ listarMaterias: vi.fn() }));
+vi.mock("@/services/feedback-feed", () => ({ listarFeedComentarios: vi.fn() }));
+vi.mock("@/hooks/useIsAdmin", () => ({ useIsAdmin: () => false }));
 vi.mock("@/services/feedback", () => ({
-  obtenerFeedback: vi.fn(), obtenerFeedbackPropio: vi.fn(), crearFeedback: vi.fn(),
+  obtenerFeedback: vi.fn(), obtenerFeedbackPropio: vi.fn(), obtenerNormasConvivencia: vi.fn(), crearFeedback: vi.fn(),
   actualizarFeedback: vi.fn(), eliminarFeedback: vi.fn(), listarHistorialFeedback: vi.fn(),
 }));
 const comision = {
@@ -24,8 +30,9 @@ const comision = {
   createdAt: "2026-10-26T12:00:00.000Z", deletedAt: null,
   cursada: { id: "cu1", anio: 2026, cuatrimestre: "PRIMERO" as const, materia: { id: "m1", nombre: "Álgebra" } },
 };
-const feedback: Feedback = {
-  id: "f1", texto: "Buena experiencia", anonimo: true, autor: null, propio: true,
+const feedback: FeedbackOwn = {
+  estadoModeracion: "APROBADO", versionModeracion: 1, requiereRevisionHumana: false, motivoRechazo: null, ocultoAutor: false, ocultoAdministracion: false, ocultoReportes: false,
+  id: "f1", texto: "Buena experiencia", puntuacion: 3, anonimo: true, autor: null, propio: true,
   profesor: { id: "p1", nombreCompleto: "Ada", cargo: "TITULAR" },
   contexto: { carrera: "S", comisionId: "c1", nombre: "S-31", materiaId: "m1", materiaNombre: "Álgebra", cursadaId: "cu1", anio: 2026, cuatrimestre: "PRIMERO" },
   createdAt: "2026-10-26T12:00:00.000Z", updatedAt: "2026-10-26T12:00:00.000Z",
@@ -36,6 +43,7 @@ beforeEach(() => {
   origin.query = "";
   vi.mocked(obtenerComision).mockResolvedValue(comision);
   vi.mocked(obtenerFeedbackPropio).mockResolvedValue(null);
+  vi.mocked(obtenerNormasConvivencia).mockResolvedValue({ version: "1", aceptada: true, reglas: ["Respetá a otras personas."] });
   vi.mocked(obtenerFeedback).mockResolvedValue(feedback);
   vi.mocked(crearFeedback).mockResolvedValue(feedback);
   vi.mocked(actualizarFeedback).mockResolvedValue(feedback);
@@ -46,7 +54,77 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+describe("Estrellas en snapshots del historial", () => {
+  it("carga diferida muestra cada puntuación de versión sin sustituirla por la actual", async () => {
+    vi.mocked(listarHistorialFeedback).mockResolvedValue({ items: [
+      { id: "h1", accion: "CREACION", texto: "Histórico sin voto", puntuacion: null, anonimo: true, createdAt: feedback.createdAt },
+      { id: "h2", accion: "EDICION", texto: "Versión con cuatro", puntuacion: 4, anonimo: false, createdAt: feedback.updatedAt },
+      { id: "h3", accion: "ELIMINACION", texto: "Versión con cinco", puntuacion: 5, anonimo: true, createdAt: feedback.updatedAt },
+    ], total: 3, page: 1, pageSize: 3 });
+    render(<FeedbackDetail feedbackId="f1" />);
+    const summary = await screen.findByText("Historial de cambios");
+    expect(listarHistorialFeedback).not.toHaveBeenCalled();
+    await userEvent.click(summary);
+    const historical = (await screen.findByText("Histórico sin voto")).closest("li")!;
+    expect(within(historical).queryByText(/de 5 estrellas/)).toBeNull();
+    const edited = screen.getByText("Versión con cuatro").closest("li")!;
+    expect(within(edited).getByText("4 de 5 estrellas")).toBeTruthy();
+    expect(within(edited).getByText(/Con nombre visible/)).toBeTruthy();
+    const removed = screen.getByText("Versión con cinco").closest("li")!;
+    expect(within(removed).getByText("5 de 5 estrellas")).toBeTruthy();
+    expect(listarHistorialFeedback).toHaveBeenCalledTimes(1);
+    expect(listarHistorialFeedback).toHaveBeenCalledWith("f1", { page: 1, pageSize: 3 });
+    expect(obtenerFeedback).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("Formulario de feedback", () => {
+  it.each([
+    "Ya publicó un comentario en esta comisión. Puede editarlo o eliminarlo antes de volver a publicar.",
+    "La comisión no está activa. Puede consultar los comentarios o retirar el suyo.",
+    "La cuenta cambió en otra pestaña. Comprobá la sesión antes de continuar.",
+  ])("conserva el borrador sin refrescar normas ante otro 409: %s", async (message) => {
+    vi.mocked(crearFeedback).mockRejectedValueOnce(new HttpError(409, message));
+    render(<FeedbackForm comisionId="c1" />);
+    const text = await screen.findByRole("textbox", { name: "Tu experiencia" });
+    await userEvent.type(text, "Borrador con estrellas");
+    await userEvent.click(screen.getByRole("radio", { name: "4 estrellas" }));
+    await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
+    // Los errores remotos se traducen; el texto arbitrario del servidor no se imprime en UI.
+    expect(await screen.findByText(/La información cambió o la acción ya fue realizada/)).toBeTruthy();
+    expect(obtenerNormasConvivencia).not.toHaveBeenCalled();
+    expect((text as HTMLTextAreaElement).value).toBe("Borrador con estrellas");
+    expect((screen.getByRole("radio", { name: "4 estrellas" }) as HTMLInputElement).checked).toBe(true);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  // El consentimiento ahora pertenece al registro, incluso para cuentas sin aceptación histórica.
+  it.each(["APROBADO", "PENDIENTE"] as const)("el aviso de alta refleja el estado real %s", async estadoModeracion => {
+    vi.mocked(crearFeedback).mockResolvedValue({ ...feedback, estadoModeracion });
+    render(<FeedbackForm comisionId="c1" />);
+    await userEvent.type(await screen.findByRole("textbox", { name: "Tu experiencia" }), "Una experiencia guardada");
+    await userEvent.click(screen.getByRole("radio", { name: "4 estrellas" }));
+    await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+    const target = new URL(String(push.mock.calls[0][0]), "http://local");
+    expect(target.pathname).toBe("/home");
+    expect(target.searchParams.get("successMessage")).toBe(estadoModeracion === "APROBADO"
+      ? "El comentario se publicó correctamente."
+      : "La experiencia se guardó correctamente. Tu comentario está pendiente de revisión por el equipo administrativo.");
+  });
+  it("publica sin consultar normas ni pedir consentimiento en el comentario", async () => {
+    vi.mocked(obtenerNormasConvivencia).mockResolvedValue({ version: "1", aceptada: false, reglas: ["Respeto"] });
+    render(<FeedbackForm comisionId="c1" />);
+    const text = await screen.findByRole("textbox", { name: "Tu experiencia" });
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    await userEvent.type(text, "Buen acompañamiento");
+    await userEvent.click(screen.getByRole("radio", { name: "4 estrellas" }));
+    await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
+    expect(crearFeedback).toHaveBeenCalledExactlyOnceWith("c1", {
+      texto: "Buen acompañamiento", anonimo: false, puntuacion: 4, profesorId: null,
+    });
+    expect(obtenerNormasConvivencia).not.toHaveBeenCalled();
+  });
   it("regresa a la página de Experiencias de origen y conserva ese regreso al editar", async () => {
     origin.query = "origen=experiencias&experienciasPage=4&experienciasCarrera=I&experienciasMateriaId=m1";
     render(<FeedbackDetail feedbackId="f1" />);
@@ -57,7 +135,8 @@ describe("Formulario de feedback", () => {
     expect(new URL(edit.getAttribute("href")!, "http://local").searchParams.get("experienciasMateriaId")).toBe("m1");
     const subject = screen.getByRole("heading", { name: "Álgebra" }).querySelector("a")!;
     expect(new URL(subject.getAttribute("href")!, "http://local").searchParams.get("experienciasMateriaId")).toBe("m1");
-    expect(within(screen.getByRole("navigation")).getByRole("link", { name: "Comisión S-31" })).toBeTruthy();
+    // La entrada directa conserva el origen sin inventar un paso por comisión.
+    expect(within(screen.getByRole("navigation")).queryByRole("link", { name: "Comisión S-31" })).toBeNull();
   });
   it("conserva materia, comisión y filtros en el recorrido de alta y edición", async () => {
     origin.query = "carrera=S&anioCarrera=2&listadoPage=3&q=álgebra&cursadaId=cu1&comisionesPage=2";
@@ -112,11 +191,13 @@ describe("Formulario de feedback", () => {
     vi.mocked(obtenerComision).mockResolvedValue({ ...comision, profesores: [...comision.profesores, { id: "p3", nombreCompleto: "Docente con nombre largo", cargo: "ADJUNTO" }] });
     render(<FeedbackForm comisionId="c1" />);
     const target = await screen.findByRole("combobox", { name: "¿A quién se refiere tu comentario?" });
+    expect(screen.queryByRole("checkbox", { name: /Acepto las Normas de convivencia/i })).toBeNull();
     expect((target as HTMLSelectElement).value).toBe("");
     await userEvent.selectOptions(target, "p3");
     await userEvent.type(screen.getByRole("textbox", { name: "Tu experiencia" }), "Clases claras");
+    await userEvent.click(screen.getByRole("radio", { name: "3 estrellas" }));
     await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
-    expect(crearFeedback).toHaveBeenCalledWith("c1", { texto: "Clases claras", anonimo: false, profesorId: "p3" });
+    expect(crearFeedback).toHaveBeenCalledWith("c1", { texto: "Clases claras", anonimo: false, profesorId: "p3", puntuacion: 3 });
   });
   it("con un docente conserva la asociación automática y muestra una modalidad anual real", async () => {
     // TASK-067: la cursada real es anual; su período prima sobre la modalidad de materia.
@@ -127,8 +208,9 @@ describe("Formulario de feedback", () => {
     expect(screen.queryByRole("radio", { name: /^La comisión en general/ })).toBeNull();
     expect((screen.getByRole("radio", { name: /^Ada/ }) as HTMLInputElement).checked).toBe(true);
     await userEvent.type(screen.getByRole("textbox", { name: "Tu experiencia" }), "Buen acompañamiento");
+    await userEvent.click(screen.getByRole("radio", { name: "3 estrellas" }));
     await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
-    expect(crearFeedback).toHaveBeenCalledWith("c1", { texto: "Buen acompañamiento", anonimo: false });
+    expect(crearFeedback).toHaveBeenCalledWith("c1", { texto: "Buen acompañamiento", anonimo: false, puntuacion: 3 });
   });
   it("cuenta puntos de código como backend, rechaza exceso y espacios y vincula el error", async () => {
     render(<FeedbackForm comisionId="c1" />);
@@ -176,11 +258,13 @@ describe("Formulario de feedback", () => {
     render(<FeedbackForm comisionId="c1" />);
     const text = await screen.findByRole("textbox", { name: "Tu experiencia" });
     fireEvent.change(text, { target: { value: "Experiencia pendiente" } });
+    await userEvent.click(screen.getByRole("radio", { name: "3 estrellas" }));
     const form = text.closest("form")!;
     fireEvent.submit(form); fireEvent.submit(form);
     expect(crearFeedback).toHaveBeenCalledTimes(1);
     expect((screen.getByRole("button", { name: "Publicando…" }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole("button", { name: "Cancelar" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("radio", { name: "5 estrellas" }) as HTMLInputElement).disabled).toBe(true);
     await act(async () => finish(feedback));
     expect(push).toHaveBeenCalledTimes(1);
   });
@@ -189,12 +273,13 @@ describe("Formulario de feedback", () => {
     render(<FeedbackForm comisionId="c1" />);
     const textarea = await screen.findByRole("textbox", { name: "Tu experiencia" });
     await user.type(textarea, "  Explica con muchos ejemplos  ");
+    await user.click(screen.getByRole("radio", { name: "3 estrellas" }));
     await user.click(screen.getByRole("radio", { name: /^Grace/ }));
     const anonymous = screen.getByRole("radio", { name: /^De forma anónima/ });
     if (!(anonymous as HTMLInputElement).checked) await user.click(anonymous);
     await user.click(screen.getByRole("button", { name: "Publicar comentario" }));
-    await waitFor(() => expect(crearFeedback).toHaveBeenCalledWith("c1", { texto: "Explica con muchos ejemplos", anonimo: true, profesorId: "p2" }));
-    expect(String(push.mock.calls[0][0])).toContain("/home/materias/m1/cursadas/cu1/comisiones/c1");
+    await waitFor(() => expect(crearFeedback).toHaveBeenCalledWith("c1", { texto: "Explica con muchos ejemplos", anonimo: true, profesorId: "p2", puntuacion: 3 }));
+    expect(String(push.mock.calls[0][0])).toContain("/home?");
     expect(String(push.mock.calls[0][0])).toContain("successMessage=");
   });
   it("no envía una edición sin diferencias reales", async () => {
@@ -212,9 +297,42 @@ describe("Formulario de feedback", () => {
     await screen.findByRole("textbox", { name: "Tu experiencia" });
     await user.click(screen.getByRole("radio", { name: /^Con mi nombre/ }));
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
-    await waitFor(() => expect(actualizarFeedback).toHaveBeenCalledWith("f1", { anonimo: false }));
+    await waitFor(() => expect(actualizarFeedback).toHaveBeenCalledWith("f1", { anonimo: false, versionEsperada: 1 }));
     expect(String(push.mock.calls[0][0])).toContain("/home/feedback/f1?successMessage=");
     expect(screen.queryByRole("combobox")).toBeNull();
+  });
+  it("un conflicto de versión recarga datos y conserva el borrador hasta confirmar la comparación", async () => {
+    vi.mocked(obtenerFeedback).mockResolvedValueOnce(feedback).mockResolvedValue({ ...feedback, texto: "Corrección concurrente", versionModeracion: 2, estadoModeracion: "PENDIENTE" });
+    vi.mocked(actualizarFeedback).mockRejectedValueOnce(new HttpError(409, '{"token":"PRIVATE_TOKEN"}')).mockResolvedValue({ ...feedback, texto: "Mi corrección", versionModeracion: 3, estadoModeracion: "PENDIENTE" });
+    render(<FeedbackForm feedbackId="f1" />);
+    const text = await screen.findByRole("textbox", { name: "Tu experiencia" });
+    await userEvent.clear(text); await userEvent.type(text, "Mi corrección");
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    const compare = await screen.findByRole("button", { name: "Conservar mi borrador y continuar" });
+    expect(obtenerFeedback).toHaveBeenCalledTimes(2);
+    expect((text as HTMLTextAreaElement).value).toBe("Mi corrección");
+    expect(screen.queryByText(/PRIVATE_TOKEN/)).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(actualizarFeedback).toHaveBeenCalledTimes(1);
+    await userEvent.click(compare);
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(actualizarFeedback).toHaveBeenLastCalledWith("f1", { texto: "Mi corrección", versionEsperada: 2 });
+    await waitFor(() => expect(push).toHaveBeenCalledOnce());
+  });
+  it("corrige un rechazo desde el contexto histórico sin exigir que la comisión continúe disponible", async () => {
+    vi.mocked(obtenerFeedback).mockResolvedValue({ ...feedback, estadoModeracion: "RECHAZADO", motivoRechazo: "Revisá el contexto académico" });
+    vi.mocked(actualizarFeedback).mockResolvedValue({ ...feedback, estadoModeracion: "RECHAZADO", motivoRechazo: "Revisá el contexto académico", versionModeracion: 2 });
+    vi.mocked(obtenerComision).mockRejectedValue(new HttpError(404, "Contexto eliminado"));
+    render(<FeedbackForm feedbackId="f1" />);
+    const text = await screen.findByRole("textbox", { name: "Tu experiencia" });
+    expect(screen.getByText(/Revisá el contexto académico/)).toBeTruthy();
+    expect(obtenerComision).not.toHaveBeenCalled();
+    await userEvent.clear(text); await userEvent.type(text, "Corrección respetuosa");
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(actualizarFeedback).toHaveBeenCalledExactlyOnceWith("f1", { texto: "Corrección respetuosa", versionEsperada: 1 });
+    const destination = new URL(String(push.mock.calls[0][0]), "https://local.invalid");
+    expect(destination.pathname).toBe("/home/feedback/f1");
+    expect(destination.searchParams.get("successMessage")).toContain("continúa rechazada");
   });
   it("cancelar una edición sin cambios regresa al detalle privado con su origen filtrado", async () => {
     origin.query = "origen=experiencias&experienciasCarrera=S&experienciasMateriaId=m1&experienciasPage=2";
@@ -245,18 +363,112 @@ describe("Formulario de feedback", () => {
     render(<FeedbackForm comisionId="c1" />);
     const textarea = await screen.findByRole("textbox", { name: "Tu experiencia" });
     await user.type(textarea, "Experiencia para conservar");
+    await user.click(screen.getByRole("radio", { name: "3 estrellas" }));
     await user.click(screen.getByRole("radio", { name: /^De forma anónima/ }));
     await user.click(screen.getByRole("radio", { name: /^Grace/ }));
     await user.click(screen.getByRole("button", { name: "Publicar comentario" }));
-    expect(await screen.findByText(/No pudimos publicar/)).toBeTruthy();
+    expect(await screen.findByText(/No pudimos completar la solicitud/)).toBeTruthy();
     expect((textarea as HTMLTextAreaElement).value).toBe("Experiencia para conservar");
     expect(push).not.toHaveBeenCalled();
     expect((screen.getByRole("radio", { name: /^De forma anónima/ }) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByRole("radio", { name: /^Grace/ }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole("radio", { name: "3 estrellas" }) as HTMLInputElement).checked).toBe(true);
     vi.mocked(crearFeedback).mockResolvedValue(feedback);
     await user.click(screen.getByRole("button", { name: "Publicar comentario" }));
-    expect(crearFeedback).toHaveBeenLastCalledWith("c1", { texto: "Experiencia para conservar", anonimo: true, profesorId: "p2" });
+    expect(crearFeedback).toHaveBeenLastCalledWith("c1", { texto: "Experiencia para conservar", anonimo: true, profesorId: "p2", puntuacion: 3 });
     expect(push).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Estrellas en el formulario", () => {
+  it("creación empieza con cinco estrellas sin selección y exige una antes de publicar", async () => {
+    render(<FeedbackForm comisionId="c1" />);
+    const text = await screen.findByRole("textbox", { name: "Tu experiencia" });
+    const group = screen.getByRole("group", { name: "Valoración de la materia" });
+    expect(within(group).getAllByRole("radio")).toHaveLength(5);
+    expect(within(group).getAllByRole("radio").every(radio => !(radio as HTMLInputElement).checked)).toBe(true);
+    await userEvent.type(text, "Experiencia completa");
+    await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
+    expect(crearFeedback).not.toHaveBeenCalled();
+    const first = screen.getByRole("radio", { name: "1 estrella" });
+    expect(document.activeElement).toBe(first);
+    expect(first.closest("fieldset")?.getAttribute("aria-invalid")).toBe("true");
+    const ids = first.getAttribute("aria-describedby")!.split(" ");
+    expect(ids.some(id => document.getElementById(id)?.textContent?.includes("Elegí una puntuación"))).toBe(true);
+    expect((text as HTMLTextAreaElement).value).toBe("Experiencia completa");
+    await userEvent.click(screen.getByRole("radio", { name: "5 estrellas" }));
+    expect(screen.queryByText("Elegí una puntuación de 1 a 5 estrellas.")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
+    expect(crearFeedback).toHaveBeenCalledWith("c1", { texto: "Experiencia completa", anonimo: false, profesorId: null, puntuacion: 5 });
+  });
+
+  it("edición precarga estrellas, conserva selección al reclicar y envía solo la nueva puntuación", async () => {
+    vi.mocked(obtenerFeedback).mockResolvedValue({ ...feedback, puntuacion: 3 });
+    render(<FeedbackForm feedbackId="f1" />);
+    const selected = await screen.findByRole("radio", { name: "3 estrellas" });
+    expect((selected as HTMLInputElement).checked).toBe(true);
+    await userEvent.click(selected);
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(actualizarFeedback).not.toHaveBeenCalled();
+    expect(screen.getByText("No hay cambios para guardar.")).toBeTruthy();
+    await userEvent.click(screen.getByRole("radio", { name: "4 estrellas" }));
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(actualizarFeedback).toHaveBeenCalledWith("f1", { puntuacion: 4, versionEsperada: 1 });
+  });
+
+  it("edición de texto no reenvía estrellas precargadas", async () => {
+    vi.mocked(obtenerFeedback).mockResolvedValue({ ...feedback, puntuacion: 3 });
+    render(<FeedbackForm feedbackId="f1" />);
+    const text = await screen.findByRole("textbox", { name: "Tu experiencia" });
+    await userEvent.clear(text);
+    await userEvent.type(text, "Texto ampliado");
+    expect((screen.getByRole("radio", { name: "3 estrellas" }) as HTMLInputElement).checked).toBe(true);
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(actualizarFeedback).toHaveBeenCalledWith("f1", { texto: "Texto ampliado", versionEsperada: 1 });
+  });
+
+  it("histórico puede editar anonimato sin añadir estrellas", async () => {
+    vi.mocked(obtenerFeedback).mockResolvedValue({ ...feedback, puntuacion: null });
+    render(<FeedbackForm feedbackId="f1" />);
+    const group = await screen.findByRole("group", { name: "Valoración de la materia" });
+    expect(within(group).getAllByRole("radio").every(radio => !(radio as HTMLInputElement).checked)).toBe(true);
+    await userEvent.click(screen.getByRole("radio", { name: /^Con mi nombre/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(actualizarFeedback).toHaveBeenCalledWith("f1", { anonimo: false, versionEsperada: 1 });
+  });
+
+  it("histórico puede incorporar una puntuación sin cambiar texto", async () => {
+    vi.mocked(obtenerFeedback).mockResolvedValue({ ...feedback, puntuacion: null });
+    render(<FeedbackForm feedbackId="f1" />);
+    await userEvent.click(await screen.findByRole("radio", { name: "1 estrella" }));
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(actualizarFeedback).toHaveBeenCalledWith("f1", { puntuacion: 1, versionEsperada: 1 });
+  });
+
+  it("solo cambiar estrellas activa confirmación de cancelación y conserva la selección", async () => {
+    render(<FeedbackForm comisionId="c1" />);
+    await userEvent.click(await screen.findByRole("radio", { name: "4 estrellas" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.getByRole("dialog", { name: "Descartar cambios" })).toBeTruthy();
+    expect(push).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Seguir escribiendo" }));
+    expect((screen.getByRole("radio", { name: "4 estrellas" }) as HTMLInputElement).checked).toBe(true);
+    expect(crearFeedback).not.toHaveBeenCalled();
+  });
+
+  it("un fallo de edición conserva las estrellas elegidas y permite reintentar el mismo PATCH", async () => {
+    vi.mocked(obtenerFeedback).mockResolvedValue({ ...feedback, puntuacion: 3 });
+    vi.mocked(actualizarFeedback).mockRejectedValueOnce(new HttpError(422, "No se pudo guardar la puntuación"));
+    render(<FeedbackForm feedbackId="f1" />);
+    await userEvent.click(await screen.findByRole("radio", { name: "5 estrellas" }));
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(await screen.findByText(/No pudimos procesar los datos/)).toBeTruthy();
+    expect((screen.getByRole("radio", { name: "5 estrellas" }) as HTMLInputElement).checked).toBe(true);
+    expect(push).not.toHaveBeenCalled();
+    vi.mocked(actualizarFeedback).mockResolvedValue({ ...feedback, puntuacion: 5 });
+    await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(actualizarFeedback).toHaveBeenCalledTimes(2);
+    expect(actualizarFeedback).toHaveBeenLastCalledWith("f1", { puntuacion: 5, versionEsperada: 1 });
   });
 });
 
@@ -301,7 +513,7 @@ describe("Detalle de feedback", () => {
     expect(card.getAllByRole("time").map(node => node.getAttribute("dateTime"))).toEqual([feedback.createdAt, "2026-10-27T14:00:00.000Z"]);
   });
   it("carga el historial al abrir, pagina tres versiones y deja de repetirlas al cerrar", async () => {
-    const row = { id: "h1", accion: "CREACION" as const, texto: "Versión original real", anonimo: true, createdAt: feedback.createdAt };
+    const row = { id: "h1", accion: "CREACION" as const, texto: "Versión original real", puntuacion: null, anonimo: true, createdAt: feedback.createdAt };
     vi.mocked(listarHistorialFeedback).mockResolvedValue({ items: [row], total: 4, page: 1, pageSize: 3 });
     render(<FeedbackDetail feedbackId="f1" />);
     const summary = await screen.findByText("Historial de cambios");
@@ -357,7 +569,7 @@ describe("Detalle de feedback", () => {
     const remove = await screen.findByRole("button", { name: "Eliminar comentario" });
     await userEvent.click(remove);
     await userEvent.click(screen.getByRole("button", { name: "Confirmar eliminación" }));
-    expect(await screen.findByText(/No pudimos eliminar tu comentario/)).toBeTruthy();
+    expect(await screen.findByRole("alert")).toBeTruthy();
     expect(screen.getByText(feedback.texto)).toBeTruthy();
     expect(push).not.toHaveBeenCalled();
     await userEvent.click(remove);
@@ -382,6 +594,8 @@ describe("Detalle de feedback", () => {
     await userEvent.tab();
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Álgebra" }).querySelector("a"));
     await userEvent.tab();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Ocultar comentario" }));
+    await userEvent.tab();
     expect(document.activeElement).toBe(screen.getByText("Historial de cambios"));
   });
   it("escapa el texto propio publicado al mostrar el detalle privado", async () => {
@@ -395,7 +609,7 @@ describe("Detalle de feedback", () => {
   it("un detalle ajeno rechazado por backend no ofrece gestión ni consulta historial", async () => {
     vi.mocked(obtenerFeedback).mockRejectedValue(new HttpError(403, "Solo podés consultar el detalle de tus propios comentarios."));
     render(<FeedbackDetail feedbackId="ajeno" />);
-    expect(await screen.findByText(/Solo podés consultar el detalle/)).toBeTruthy();
+    expect(await screen.findByText(/No tenés permiso para realizar esta acción/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Eliminar comentario" })).toBeNull();
     expect(listarHistorialFeedback).not.toHaveBeenCalled();
   });
@@ -408,4 +622,117 @@ describe("Detalle de feedback", () => {
     await waitFor(() => expect(eliminarFeedback).toHaveBeenCalledWith("f1"));
     expect(String(push.mock.calls[0][0])).toContain("comisiones/c1?successMessage=");
   });
+});
+
+
+describe("Block 7A: publishing from Inicio", () => {
+  const materia = { id: "m1", nombre: "Algebra", modalidad: "ANUAL" as const, carreras: [], createdAt: "2026-01-01", deletedAt: null, valoracion: { promedio: null, cantidad: 0 } };
+  beforeEach(() => {
+    vi.mocked(listarMaterias).mockResolvedValue({ items: [materia, { ...materia, id: "deleted", nombre: "Deleted subject", deletedAt: "2026-01-01" }], total: 2, page: 1, pageSize: 9 });
+    vi.mocked(listarCursadasPorMateria).mockResolvedValue({ items: [{ id: "cu1", anio: 2026, cuatrimestre: "ANUAL", comisiones: 3, profesores: 2, carreras: ["S"] }], total: 1, page: 1, pageSize: 9 });
+    vi.mocked(listarComisionesPorCursada).mockResolvedValue({ items: [comision, { ...comision, id: "inactive", nombre: "Inactive", activa: false }, { ...comision, id: "deleted", nombre: "Deleted", deletedAt: "2026-01-01" }, { ...comision, id: "foreign", nombre: "Foreign", cursadaId: "other" }], total: 4, page: 1, pageSize: 9 });
+    vi.mocked(listarFeedComentarios).mockResolvedValue({ items: [], nextCursor: null, hasMore: false });
+  });
+  async function chooseUntilCommission() {
+    render(<FeedPrincipal />); expect(listarMaterias).not.toHaveBeenCalled(); await userEvent.click(screen.getByRole("button", { name: "Agregar comentario" }));
+    // Inicio keeps the academic flow but now requires an explicit next step after selection.
+    expect(screen.queryByRole("radio", { name: "Deleted subject" })).toBeNull();
+    await userEvent.click(await screen.findByRole("radio", { name: "Algebra" }));
+    await userEvent.click(screen.getByRole("button", { name: "Siguiente" }));
+    await userEvent.click(await screen.findByRole("radio", { name: /Cursada 2026/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Siguiente" }));
+    await screen.findByRole("radio", { name: "Comisión S-31" });
+  }
+  it("requires explicit subject, course and valid commission selection, then opens the existing form", async () => {
+    await chooseUntilCommission();
+    expect(screen.queryByRole("radio", { name: /Inactive|Deleted|Foreign/ })).toBeNull();
+    expect(push).not.toHaveBeenCalled(); expect(obtenerComision).not.toHaveBeenCalled();
+    expect(listarMaterias).toHaveBeenCalledWith({ page: 1, pageSize: 9, q: "" });
+    expect(listarCursadasPorMateria).toHaveBeenCalledWith("m1", { page: 1, pageSize: 9 });
+    expect(listarComisionesPorCursada).toHaveBeenCalledWith("cu1", { page: 1, pageSize: 9 });
+    await userEvent.click(screen.getByRole("radio", { name: "Comisión S-31" }));
+    await userEvent.click(screen.getByRole("button", { name: "Siguiente" }));
+    await waitFor(() => expect(push).toHaveBeenCalledOnce());
+    const target = new URL(String(push.mock.calls[0][0]), "http://local");
+    expect(target.pathname).toBe("/home/feedback/nuevo"); expect(Object.fromEntries(target.searchParams)).toEqual({ comisionId: "c1", origen: "inicio" });
+  });
+  it("rechecks a commission before opening the form and rejects a newly inactive or foreign one", async () => {
+    await chooseUntilCommission(); vi.mocked(obtenerComision).mockResolvedValue({ ...comision, activa: false });
+    await userEvent.click(screen.getByRole("radio", { name: "Comisión S-31" })); await userEvent.click(screen.getByRole("button", { name: "Siguiente" })); await screen.findByRole("alert"); expect(push).not.toHaveBeenCalled();
+    vi.mocked(obtenerComision).mockResolvedValue({ ...comision, cursada: { ...comision.cursada, materia: { id: "other", nombre: "Other" } } });
+    await userEvent.click(screen.getByRole("button", { name: "Siguiente" })); await waitFor(() => expect(obtenerComision).toHaveBeenCalledTimes(2)); expect(push).not.toHaveBeenCalled();
+  });
+  it("paginates and searches subjects without downloading the catalog", async () => {
+    vi.mocked(listarMaterias).mockResolvedValueOnce({ items: [materia], total: 10, page: 1, pageSize: 9 }).mockResolvedValueOnce({ items: [{ ...materia, id: "m2", nombre: "Otra materia" }], total: 10, page: 2, pageSize: 9 });
+    render(<FeedPrincipal />); await userEvent.click(screen.getByRole("button", { name: "Agregar comentario" })); await screen.findByRole("radio", { name: "Algebra" });
+    await userEvent.click(screen.getByRole("button", { name: "Página siguiente" })); await screen.findByRole("radio", { name: "Otra materia" });
+    expect(listarMaterias).toHaveBeenLastCalledWith({ page: 2, pageSize: 9, q: "" });
+    await userEvent.type(screen.getByRole("searchbox", { name: "Buscar materia por nombre" }), "Algebra"); await userEvent.click(screen.getByRole("button", { name: "Buscar materia" }));
+    await waitFor(() => expect(listarMaterias).toHaveBeenLastCalledWith({ page: 1, pageSize: 9, q: "Algebra" })); expect(push).not.toHaveBeenCalled();
+  });
+  it("ignores a late commission check after cancelling selection", async () => {
+    await chooseUntilCommission(); let resolve!: (value: typeof comision) => void;
+    vi.mocked(obtenerComision).mockReturnValueOnce(new Promise(yes => { resolve = yes; }));
+    await userEvent.click(screen.getByRole("radio", { name: "Comisión S-31" }));
+    await userEvent.click(screen.getByRole("button", { name: "Siguiente" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar selección" }));
+    await act(async () => resolve(comision)); expect(push).not.toHaveBeenCalled(); expect(screen.queryByRole("dialog")).toBeNull();
+  });
+  it("keeps automatic professor assignment for a single-professor commission", async () => {
+    origin.query = "origen=inicio"; vi.mocked(obtenerComision).mockResolvedValue({ ...comision, profesores: [comision.profesores[0]] });
+    render(<FeedbackForm comisionId="c1" />); await userEvent.type(await screen.findByRole("textbox", { name: "Tu experiencia" }), "Docente unico");
+    await userEvent.click(screen.getByRole("radio", { name: "3 estrellas" })); await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
+    await waitFor(() => expect(crearFeedback).toHaveBeenCalledExactlyOnceWith("c1", { texto: "Docente unico", anonimo: false, puntuacion: 3 }));
+  });
+  it("cancels academic selection without navigating or posting", async () => {
+    render(<FeedPrincipal />); await userEvent.click(screen.getByRole("button", { name: "Agregar comentario" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar selección" }));
+    expect(screen.queryByRole("dialog")).toBeNull(); expect(push).not.toHaveBeenCalled(); expect(crearFeedback).not.toHaveBeenCalled();
+  });
+  it("uses the existing stars, anonymity and professor rules and returns to a new home window", async () => {
+    origin.query = "origen=inicio"; render(<FeedbackForm comisionId="c1" />);
+    const text = await screen.findByRole("textbox", { name: "Tu experiencia" }); await userEvent.type(text, "Publicada desde Inicio");
+    await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" })); expect(crearFeedback).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("radio", { name: "5 estrellas" })); await userEvent.click(screen.getByRole("radio", { name: /^Grace/ }));
+    await userEvent.click(screen.getByRole("radio", { name: /^De forma anónima/ })); await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
+    await waitFor(() => expect(crearFeedback).toHaveBeenCalledExactlyOnceWith("c1", { texto: "Publicada desde Inicio", anonimo: true, puntuacion: 5, profesorId: "p2" }));
+    const target = new URL(String(push.mock.calls[0][0]), "http://local"); expect(target.pathname).toBe("/home"); expect(target.searchParams.get("feedRefresh")).toMatch(/^[0-9a-f-]{36}$/i);
+  });
+  it("keeps the draft and selections after failure, then cancels back to Inicio", async () => {
+    origin.query = "origen=inicio"; vi.mocked(crearFeedback).mockRejectedValueOnce(new Error("Publication failed"));
+    render(<FeedbackForm comisionId="c1" />); const text = await screen.findByRole("textbox", { name: "Tu experiencia" });
+    await userEvent.type(text, "Borrador pendiente"); await userEvent.click(screen.getByRole("radio", { name: "4 estrellas" }));
+    await userEvent.click(screen.getByRole("radio", { name: /^Grace/ })); await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
+    await screen.findByText(/No pudimos completar la solicitud/); expect(screen.queryByText("Publication failed")).toBeNull(); expect((text as HTMLTextAreaElement).value).toBe("Borrador pendiente"); expect((screen.getByRole("radio", { name: "4 estrellas" }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole("radio", { name: /^Grace/ }) as HTMLInputElement).checked).toBe(true); expect(push).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar" })); await userEvent.click(screen.getByRole("button", { name: "Descartar y volver" })); expect(push).toHaveBeenCalledExactlyOnceWith("/home");
+  });
+  it("cancels an untouched Inicio form directly to Inicio", async () => {
+    origin.query = "origen=inicio"; render(<FeedbackForm comisionId="c1" />); await screen.findByRole("textbox", { name: "Tu experiencia" });
+    expect(screen.getByRole("link", { name: "Volver a Inicio" }).getAttribute("href")).toBe("/home");
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar" })); expect(push).toHaveBeenCalledExactlyOnceWith("/home");
+  });
+  it("starts at the first feed page after publication and deduplicates the server result", async () => {
+    const Home = (await import("../src/app/home/page")).default;
+    const posted = { ...feedback, texto: "New published item", cantidadLikes: 0, cantidadRespuestas: 0, meGusta: false };
+    vi.mocked(listarFeedComentarios).mockResolvedValueOnce({ items: [{ ...posted, id: "old", texto: "Old window" }], nextCursor: "old-cursor", hasMore: true }).mockResolvedValueOnce({ items: [posted, posted], nextCursor: null, hasMore: false });
+    const view = render(await Home({ searchParams: Promise.resolve({}) })); await screen.findByText("Old window");
+    view.rerender(await Home({ searchParams: Promise.resolve({ feedRefresh: "12345678-1234-4234-8234-123456789012" }) }));
+    await screen.findByText("New published item"); expect(screen.queryByText("Old window")).toBeNull(); expect(screen.getAllByText("New published item")).toHaveLength(1);
+    expect(vi.mocked(listarFeedComentarios).mock.calls).toEqual([[], []]);
+  });
+  it("publica desde Inicio sin volver a aceptar términos ni perder selección de docente", async () => {
+    origin.query = "origen=inicio";
+    render(<FeedbackForm comisionId="c1" />);
+    await userEvent.type(await screen.findByRole("textbox", { name: "Tu experiencia" }), "Experiencia desde Inicio");
+    await userEvent.click(screen.getByRole("radio", { name: "5 estrellas" }));
+    await userEvent.click(screen.getByRole("radio", { name: /^Grace/ }));
+    await userEvent.click(screen.getByRole("radio", { name: /^De forma anónima/ }));
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Publicar comentario" }));
+    await waitFor(() => expect(push).toHaveBeenCalledOnce());
+    expect(crearFeedback).toHaveBeenCalledExactlyOnceWith("c1", { texto: "Experiencia desde Inicio", anonimo: true, puntuacion: 5, profesorId: "p2" });
+    expect(obtenerNormasConvivencia).not.toHaveBeenCalled();
+  });
+
 });

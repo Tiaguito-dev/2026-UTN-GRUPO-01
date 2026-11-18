@@ -1,0 +1,12 @@
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-block: var(--space-3); }
+.actions > p, .actions > :global(.notice) { flex-basis: 100%; }
+.form { display: grid; gap: var(--space-2); }
+.form textarea { width: 100%; min-width: 0; resize: vertical; }
+.tabs { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-block: var(--space-4); }
+.detail { display: grid; gap: var(--space-4); min-width: 0; }
+.card { padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); min-width: 0; overflow-wrap: anywhere; }
+.card h2 { margin-top: 0; font-size: var(--text-base); }
+.card dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-3); }
+.card dt { color: var(--muted); font-size: var(--text-sm); }
+.card dd { margin: var(--space-1) 0 0; }
+.content { white-space: pre-wrap; overflow-wrap: anywhere; }

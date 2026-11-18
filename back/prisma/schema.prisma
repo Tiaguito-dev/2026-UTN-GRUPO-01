@@ -14,6 +14,14 @@ enum UserRole {
   USER
 }
 
+enum CategoriaSugerencia {
+  MEJORA_PLATAFORMA
+  NUEVA_FUNCIONALIDAD
+  REPORTAR_ERROR
+  CORRECCION_ACADEMICA
+  OTROS
+}
+
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   email        String   @unique @db.VarChar(254)
@@ -28,9 +36,58 @@ model User {
   passwordResetCredentials PasswordResetCredential[]
   historialMaterias MateriaHistorial[]
   feedback Feedback[]
+  aceptacionesNormas AceptacionNormas[]
   administracionHistorial AdministracionHistorial[]
+  valoracionesMaterias ValoracionMateria[]
+  feedbackLikes FeedbackLike[]
+  feedbackRespuestas FeedbackRespuesta[]
+  feedbackReportes FeedbackReporte[] @relation("DenuncianteReporte")
+  reportesResueltos FeedbackReporte[] @relation("AdministradorReporte")
+
+  normasConvivenciaActualizadas NormasConvivencia[]
+  sugerencias Sugerencia[]
 
   @@index([role, disabledAt, createdAt, id])
+}
+
+model AceptacionNormas {
+  usuarioId String   @db.Uuid
+  version   String   @db.VarChar(32)
+  aceptadaEn DateTime @default(now()) @db.Timestamptz(3)
+  usuario User @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@id([usuarioId, version])
+}
+
+// Documento vigente de Comunidad; no representa consentimientos ni términos.
+// La migración restringe el ID a "vigentes" para mantener un único documento.
+model NormasConvivencia {
+  id           String   @id @default("vigentes") @db.VarChar(16)
+  titulo       String   @db.VarChar(160)
+  introduccion String
+  normas       String[]
+  cierre       String
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+  actualizadoPorId String? @db.Uuid
+  actualizadoPor User? @relation(fields: [actualizadoPorId], references: [id], onDelete: Restrict)
+
+  @@index([actualizadoPorId])
+}
+
+model Sugerencia {
+  id          String @id @default(uuid()) @db.Uuid
+  usuarioId   String @db.Uuid
+  categoria   CategoriaSugerencia
+  contenido   String @db.VarChar(5000)
+  solicitudId String @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  meGusta     Boolean @default(false)
+  deletedAt   DateTime? @db.Timestamptz(3)
+  usuario     User @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@unique([usuarioId, solicitudId])
+  @@index([createdAt, id])
 }
 
 model AdministracionHistorial {
@@ -79,6 +136,7 @@ model Session {
   id        String   @id @db.Uuid
   userId    String   @db.Uuid
   createdAt DateTime @db.Timestamptz(3)
+  lastActivityAt DateTime @default(now()) @db.Timestamptz(3)
   expiresAt DateTime @db.Timestamptz(3)
   revokedAt DateTime? @db.Timestamptz(3)
   user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -128,7 +186,8 @@ enum CargoDocente {
 
 model Materia {
   id        String    @id @default(uuid()) @db.Uuid
-  // Unicidad solo de registros vigentes, definida en la migración SQL.
+  // Unicidad solo de registros vigentes y sin distinguir mayúsculas ni tildes: índice funcional
+  // de la migración 20261107000000_materia_nombre_normalizado (Prisma no lo representa).
   nombre    String    @db.VarChar(150)
   modalidad ModalidadMateria?
   createdAt DateTime  @default(now()) @db.Timestamptz(3)
@@ -136,6 +195,22 @@ model Materia {
   cursadas  Cursada[]
   historial MateriaHistorial[]
   carreras  MateriaCarrera[]
+  valoraciones ValoracionMateria[]
+}
+
+model ValoracionMateria {
+  usuarioId String @db.Uuid
+  materiaId String @db.Uuid
+  // CHECK de puntuacion entre 1 y 5 en la migración SQL.
+  puntuacion Int
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
+  usuario User @relation(fields: [usuarioId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  materia Materia @relation(fields: [materiaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([usuarioId, materiaId])
+  @@index([materiaId, deletedAt])
 }
 
 model MateriaCarrera {
@@ -213,13 +288,28 @@ model ComisionProfesor {
   @@index([profesorId])
 }
 
+enum FeedbackEstadoModeracion {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
 model Feedback {
   id String @id @default(uuid()) @db.Uuid
   autorId String @db.Uuid
   comisionId String @db.Uuid
   profesorId String? @db.Uuid
   texto String @db.Text
+  // NULL para comentarios históricos; CHECK de 1 a 5 en la migración SQL.
+  puntuacion Int?
   anonimo Boolean
+  estadoModeracion FeedbackEstadoModeracion @default(PENDIENTE)
+  versionModeracion Int @default(1)
+  requiereRevisionHumana Boolean @default(false)
+  motivoRechazo String? @db.VarChar(1000)
+  ocultoAutor Boolean @default(false)
+  ocultoAdministracion Boolean @default(false)
+  ocultoReportes Boolean @default(false)
   comisionNombre String @db.VarChar(10)
   materiaId String @db.Uuid
   materiaNombre String @db.VarChar(150)
@@ -236,17 +326,78 @@ model Feedback {
   comision Comision @relation(fields: [comisionId], references: [id], onDelete: Restrict)
   profesor Profesor? @relation(fields: [profesorId], references: [id], onDelete: Restrict)
   historial FeedbackHistorial[]
+  likes FeedbackLike[]
+  respuestas FeedbackRespuesta[]
+  reportes FeedbackReporte[]
 
   // UNIQUE parcial (autorId,comisionId) WHERE deletedAt IS NULL vive en la migración SQL.
   @@index([comisionId, deletedAt, createdAt, id])
   @@index([profesorId, deletedAt, createdAt, id])
   @@index([autorId, comisionId])
+  @@index([autorId, materiaId, deletedAt])
+  @@index([deletedAt, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([estadoModeracion, deletedAt, createdAt, id])
+}
+
+model FeedbackLike {
+  usuarioId String @db.Uuid
+  feedbackId String @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
+  usuario User @relation(fields: [usuarioId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  // Una identidad por par, también durante la baja; reactivar la misma fila.
+  @@id([usuarioId, feedbackId])
+  @@index([feedbackId, deletedAt])
+}
+
+model FeedbackRespuesta {
+  id String @id @default(uuid()) @db.Uuid
+  feedbackId String @db.Uuid
+  autorId String @db.Uuid
+  texto String @db.Text
+  anonimo Boolean
+  solicitudId String @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  autor User @relation(fields: [autorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  historial FeedbackRespuestaHistorial[]
+
+  // No liberar la clave al eliminar: un reintento no puede recrear la respuesta.
+  @@unique([autorId, solicitudId])
+  @@index([feedbackId, deletedAt, createdAt, id])
+}
+
+model FeedbackRespuestaHistorial {
+  id String @id @default(uuid()) @db.Uuid
+  respuestaId String @db.Uuid
+  accion FeedbackAccion
+  texto String @db.Text
+  anonimo Boolean
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  respuesta FeedbackRespuesta @relation(fields: [respuestaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  // Snapshots inmutables como FeedbackHistorial; el actor se audita en AdministracionHistorial.
+  @@index([respuestaId, createdAt, id])
 }
 
 enum FeedbackAccion {
   CREACION
   EDICION
   ELIMINACION
+  APROBACION
+  RECHAZO
+  OCULTAMIENTO_AUTOR
+  RESTITUCION_AUTOR
+  OCULTAMIENTO_ADMIN
+  RESTITUCION_ADMIN
+  SOLICITUD_REVISION
+  OCULTAMIENTO_REPORTES
+  RESTITUCION_REPORTES
 }
 
 model FeedbackHistorial {
@@ -254,9 +405,63 @@ model FeedbackHistorial {
   feedbackId String @db.Uuid
   accion FeedbackAccion
   texto String @db.Text
+  // Los snapshots históricos conservan NULL; CHECK de 1 a 5 en SQL.
+  puntuacion Int?
   anonimo Boolean
+  // NULL means no moderation evidence exists for this historical snapshot.
+  estadoModeracion FeedbackEstadoModeracion?
+  versionModeracion Int?
+  requiereRevisionHumana Boolean?
+  motivoRechazo String? @db.VarChar(1000)
+  ocultoAutor Boolean?
+  ocultoAdministracion Boolean?
+  ocultoReportes Boolean?
+  motivoModeracion String? @db.VarChar(1000)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Restrict)
+  reportes FeedbackReporte[]
 
+  @@unique([feedbackId, id])
   @@index([feedbackId, createdAt, id])
+}
+
+enum FeedbackReporteMotivo {
+  INSULTOS_ACOSO
+  AMENAZAS_INTIMIDACION
+  DISCRIMINACION
+  DATOS_PERSONALES
+  SPAM
+  OTRO
+}
+
+enum FeedbackReporteEstado {
+  ABIERTO
+  RESUELTO
+  DESESTIMADO
+}
+
+model FeedbackReporte {
+  id String @id @default(uuid()) @db.Uuid
+  feedbackId String @db.Uuid
+  denuncianteId String @db.Uuid
+  versionReportada Int
+  historialId String @db.Uuid
+  motivo FeedbackReporteMotivo
+  descripcion String? @db.VarChar(1000)
+  estado FeedbackReporteEstado @default(ABIERTO)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  resolvedAt DateTime? @db.Timestamptz(3)
+  administradorId String? @db.Uuid
+  justificacion String? @db.VarChar(1000)
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Restrict)
+  denunciante User @relation("DenuncianteReporte", fields: [denuncianteId], references: [id], onDelete: Restrict)
+  administrador User? @relation("AdministradorReporte", fields: [administradorId], references: [id], onDelete: Restrict)
+  historial FeedbackHistorial @relation(fields: [feedbackId, historialId], references: [feedbackId, id], onDelete: Restrict)
+
+  @@unique([denuncianteId, feedbackId, versionReportada])
+  @@index([denuncianteId, createdAt])
+  @@index([feedbackId, estado, denuncianteId])
+  @@index([estado, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([motivo, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
 }

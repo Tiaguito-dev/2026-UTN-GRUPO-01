@@ -1,21 +1,25 @@
 import { Prisma } from "../../generated/prisma/client.js";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import type { Pagination, PaginatedResult } from "../../shared/domain/pagination.js";
-import { serializarCarreras, type AnioCarrera, type Carrera, type NivelElectiva, type Materia, type MateriaCambio, type MateriaCarrera, type MateriaHistorial } from "../domain/materia.js";
+import { serializarCarreras, type AnioCarrera, type Carrera, type NivelElectiva, type Materia, type MateriaConValoracion, type ResumenValoracionMateria, type MateriaCambio, type MateriaCarrera, type MateriaHistorial } from "../domain/materia.js";
 import { CarreraConComisionesError, MateriaAlreadyExistsError, MateriaNotFoundError } from "../application/errors.js";
 import type { CreateMateriaInput, MateriaFilters, MateriaRepository } from "../application/ports/materia.repository.js";
 import { parseMateriaHistoryChanges } from "../application/academic-history.js";
+import { visibleMateriaVotesSql } from "../../reviews/infrastructure/prisma-feedback-rating.js";
 
 const conCarreras = { carreras: { orderBy: { carrera: "asc" } } } satisfies Prisma.MateriaInclude;
 // NFD separates Spanish accents/diacritics; translate removes the same combining marks on
 // both SQL names and the search term, without requiring an extension or changing stored names.
 const combiningMarks = Array.from({ length: 0x70 }, (_, index) => String.fromCodePoint(0x300 + index)).join("");
+// Must match the unique index of migration 20261107000000_materia_nombre_normalizado; see the
+// DATA-01 uniqueness test in tests/academic.integration.spec.ts.
+const normalizedNombre = (nombre: Prisma.Sql) => Prisma.sql`lower(translate(normalize(${nombre}, NFD), ${combiningMarks}, ''))`;
 
 export class PrismaMateriaRepository implements MateriaRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(pagination: Pagination, filters: MateriaFilters = {}): Promise<PaginatedResult<Materia>> {
-    const normalizedNombre = Prisma.sql`lower(translate(normalize(m."nombre", NFD), ${combiningMarks}, ''))`;
+  async findAll(pagination: Pagination, filters: MateriaFilters = {}): Promise<PaginatedResult<MateriaConValoracion>> {
+    const nombreNormalizado = normalizedNombre(Prisma.sql`m."nombre"`);
     const predicates: Prisma.Sql[] = [Prisma.sql`m."deletedAt" IS NULL`];
     const associations: Prisma.Sql[] = [];
     if (filters.carrera) associations.push(Prisma.sql`mc."carrera" = ${filters.carrera}::"Carrera"`);
@@ -30,23 +34,25 @@ export class PrismaMateriaRepository implements MateriaRepository {
       const term = filters.q.normalize("NFD").replace(/[\u0300-\u036f]/gu, "").toLowerCase();
       // Escape AFTER normalization: %, _ and backslash must remain literal input.
       const pattern = `%${term.replace(/[\\%_]/g, "\\$&")}%`;
-      predicates.push(Prisma.sql`${normalizedNombre} LIKE ${pattern}`);
+      predicates.push(Prisma.sql`${nombreNormalizado} LIKE ${pattern}`);
     }
     const where = Prisma.join(predicates, " AND ");
     const skip = (pagination.page - 1) * pagination.pageSize;
     return this.prisma.$transaction(async (tx) => {
       const [ids, counts] = await Promise.all([
         tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT m."id" FROM "Materia" m
-          WHERE ${where} ORDER BY ${normalizedNombre}, m."nombre", m."id"
+          WHERE ${where} ORDER BY ${nombreNormalizado}, m."nombre", m."id"
           LIMIT ${pagination.pageSize} OFFSET ${skip}`),
         tx.$queryRaw<{ total: bigint }[]>(Prisma.sql`SELECT COUNT(*) AS total FROM "Materia" m WHERE ${where}`),
       ]);
       // Hydrate only the requested page, retaining every career association for detail/grouping.
-      const rows = ids.length ? await tx.materia.findMany({
-        where: { id: { in: ids.map(({ id }) => id) } }, include: conCarreras,
-      }) : [];
+      const materiaIds = ids.map(({ id }) => id);
+      const [rows, valoraciones] = await Promise.all([
+        ids.length ? tx.materia.findMany({ where: { id: { in: materiaIds } }, include: conCarreras }) : [],
+        this.resumirValoraciones(tx, materiaIds),
+      ]);
       const byId = new Map(rows.map((row) => [row.id, row]));
-      return { items: ids.map(({ id }) => toMateria(byId.get(id)!)), total: Number(counts[0]!.total), ...pagination };
+      return { items: ids.map(({ id }) => ({ ...toMateria(byId.get(id)!), valoracion: valoraciones.get(id) ?? { promedio: null, cantidad: 0 } })), total: Number(counts[0]!.total), ...pagination };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
   }
 
@@ -55,9 +61,33 @@ export class PrismaMateriaRepository implements MateriaRepository {
     return materia ? toMateria(materia) : null;
   }
 
+  async findByIdConValoracion(id: string): Promise<MateriaConValoracion | null> {
+    return this.prisma.$transaction(async tx => {
+      const materia = await tx.materia.findFirst({ where: { id, deletedAt: null }, include: conCarreras });
+      if (!materia) return null;
+      const valoraciones = await this.resumirValoraciones(tx, [id]);
+      return { ...toMateria(materia), valoracion: valoraciones.get(id) ?? { promedio: null, cantidad: 0 } };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+  }
+
+  private async resumirValoraciones(tx: Prisma.TransactionClient, materiaIds: string[]): Promise<Map<string, ResumenValoracionMateria>> {
+    if (!materiaIds.length) return new Map();
+    // Solo los IDs de la página, sin joins que multipliquen votos por carrera o comentario.
+    const rows = await tx.$queryRaw<{ materiaId: string; promedio: number; cantidad: bigint }[]>(Prisma.sql`
+      SELECT "materiaId", ROUND(AVG("puntuacion"), 1)::double precision AS promedio, COUNT(*) AS cantidad
+      FROM (${visibleMateriaVotesSql(materiaIds)}) visible_votes
+      GROUP BY "materiaId"`);
+    return new Map(rows.map(row => {
+      const cantidad = Number(row.cantidad);
+      if (!Number.isSafeInteger(cantidad)) throw new RangeError("La cantidad de valoraciones excede el rango numérico seguro.");
+      return [row.materiaId, { promedio: row.promedio, cantidad }];
+    }));
+  }
+
   async findByNombre(nombre: string): Promise<Materia | null> {
-    const materia = await this.prisma.materia.findFirst({ where: { nombre, deletedAt: null }, include: conCarreras });
-    return materia ? toMateria(materia) : null;
+    const [match] = await this.prisma.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT "id" FROM "Materia"
+      WHERE "deletedAt" IS NULL AND ${normalizedNombre(Prisma.sql`"nombre"`)} = ${normalizedNombre(Prisma.sql`${nombre}`)} LIMIT 1`);
+    return match ? this.findById(match.id) : null;
   }
 
   async findCarreras(materiaId: string): Promise<Carrera[]> {

@@ -22,11 +22,31 @@ El stack local ejecuta PostgreSQL, migraciones Prisma, backend NestJS, frontend 
 Nginx y, con el perfil `mail`, Mailpit. Frontend y API comparten
 `http://localhost:8080`: Nginx enruta `/auth/` y los healthchecks al backend
 y comprime recursos públicos. La autenticación y la pantalla de recuperación no usan gzip.
+La consulta autenticada `/comunidad/normas` también se envía al backend mediante un location
+exacto en ambas configuraciones; las páginas `/home/comunidad` y `/home/admin/comunidad`
+permanecen en el frontend.
+El alta privada `/comunidad/sugerencias` usa otro location exacto hacia el backend; los
+permisos USER y CSRF se validan allí. No existe una lectura pública de sugerencias en HU-C02.
+HU-C03 reutiliza esa ruta exacta para el listado ADMIN y agrega el prefijo
+`/comunidad/sugerencias/` en desarrollo y TLS para corazón y eliminación. La autorización
+ADMIN y CSRF siguen a cargo del backend; no se publica la bandeja para USER.
 Los logs de acceso y errores de peticiones del proxy están desactivados para evitar registrar
 enlaces de recuperación. La disponibilidad se observa mediante healthchecks; una integración
 futura de logs deberá sanitizar URLs antes de registrarlas.
 
 ## Ejecución local
+
+### Vencimiento por inactividad
+
+Ambos Compose exponen `AUTH_IDLE_TTL_SECONDS` (1800) y `AUTH_IDLE_WARNING_SECONDS` (120).
+El aviso comienza a los 28 minutos sin actividad y exige confirmar para continuar; cambiar
+estos valores requiere recrear el backend. El frontend consume los plazos del servidor,
+sin variables públicas adicionales. El refresh automático no reinicia la inactividad.
+
+Desplegar la migración que agrega `Session.lastActivityAt` y el backend antes que el frontend.
+La migración inicializa la última actividad de las sesiones existentes con la hora de aplicación,
+conservando su vencimiento absoluto. No aplicar esta migración sobre otra base para probarla:
+las integraciones deben usar exclusivamente `TEST_DATABASE_URL`.
 
 ### Verificación de correo institucional
 
@@ -91,6 +111,15 @@ El módulo de feedback (TASK-057/061) usa la ruta exacta `/feedback` para el lis
 Ambos proxies enrutan esos endpoints a NestJS; las páginas
 continúan bajo `/home/`. La migración aditiva `20261102000000_feedback_comisiones` debe
 aplicarse antes de iniciar el backend actualizado. No agrega variables de entorno ni servicios.
+
+Los endpoints `/rankings/comisiones`, `/rankings/profesores` y
+`/rankings/profesores/:id` se enrutan a NestJS mediante `/rankings/` en ambos
+proxies. Las pantallas `/home/profesores` y `/home/admin/ranking` permanecen en
+Next.js. `node scripts/check-admin-proxy.mjs http://localhost:8080` incluye estas
+consultas y páginas: una consulta sin sesión debe devolver 401 JSON del backend,
+no un 404 HTML del frontend. Después de modificar el proxy se reconstruye con
+el comando Compose de arranque; `docker compose -f docker-compose.dev.yml
+--profile mail exec -T proxy nginx -t` comprueba la configuración cargada.
 
 - Backend y frontend tienen builds por etapas con Node 22.22.3, `npm ci` y lockfile único.
   Backend runtime conserva dependencias de producción; el CLI Prisma vive en la imagen del job.

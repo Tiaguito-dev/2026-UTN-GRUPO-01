@@ -126,6 +126,19 @@ export function MateriaForm({
     }
   }
 
+  // BUG-03: a field that changes drops its own error; the change event bubbles to the form.
+  // Changing Año also drops the nivel error: that field hides and must not reappear stale.
+  function clearError(event: FormEvent<HTMLFormElement>) {
+    const name = (event.target as { name?: string }).name;
+    const names = name === "anioCarrera" ? [name, "nivelElectiva"] : name ? [name] : [];
+    if (names.length) setErrors((current) => {
+      if (!names.some((key) => key in current)) return current;
+      const next = { ...current };
+      for (const key of names) delete next[key];
+      return next;
+    });
+  }
+
   return (
     <>
       {aniosDistintos ? (
@@ -135,7 +148,7 @@ export function MateriaForm({
       ) : null}
       {error ? <Notice tone="error" focusOnShow>{error}</Notice> : null}
       {notice ? <p role="status">{notice}</p> : null}
-      <form onSubmit={submit} noValidate aria-busy={busy}>
+      <form onSubmit={submit} onChange={clearError} noValidate aria-busy={busy}>
         <div className="field">
           <label htmlFor="nombre">Nombre de la materia</label>
           <input

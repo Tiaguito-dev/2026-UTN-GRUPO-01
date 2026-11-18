@@ -4,7 +4,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { ComisionFeedback } from "@/components/feedback/ComisionFeedback";
 import { listarFeedbackComision, obtenerFeedbackPropio } from "@/services/feedback";
-import type { Feedback } from "@/types/feedback";
+import type { FeedbackOwn } from "@/types/feedback";
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("@/hooks/useIsAdmin", () => ({ useIsAdmin: () => false }));
 vi.mock("next/navigation", () => ({
@@ -18,8 +18,9 @@ const comision = {
   profesores: [], createdAt: "2026-10-26T12:00:00.000Z", deletedAt: null,
   cursada: { id: "cu1", anio: 2026, cuatrimestre: "PRIMERO" as const, materia: { id: "m1", nombre: "Álgebra" } },
 };
-const feedback: Feedback = {
-  id: "f1", texto: "Buena experiencia", anonimo: true, autor: null, propio: false, profesor: null,
+const feedback: FeedbackOwn = {
+  estadoModeracion: "APROBADO", versionModeracion: 1, requiereRevisionHumana: false, motivoRechazo: null, ocultoAutor: false, ocultoAdministracion: false, ocultoReportes: false,
+  id: "f1", texto: "Buena experiencia", puntuacion: null, anonimo: true, autor: null, propio: false, profesor: null,
   contexto: { comisionId: "c1", nombre: "S-31", materiaId: "m1", materiaNombre: "Álgebra", cursadaId: "cu1", anio: 2026, cuatrimestre: "PRIMERO" },
   createdAt: "2026-10-26T12:00:00.000Z", updatedAt: "2026-10-26T12:00:00.000Z",
 };
@@ -57,7 +58,7 @@ describe("Experiencias en detalle de comisión", () => {
     expect(screen.queryByText("Identidad oculta")).toBeNull();
     const article = screen.getByRole("article", { name: "Comentario de Anónimo" });
     expect(article.querySelector("header time")?.getAttribute("dateTime")).toBe(feedback.createdAt);
-    expect(within(article).queryByRole("button")).toBeNull();
+    expect(within(article).getByRole("button", { name: "Reportar" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Ver comentario/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Administrar mi comentario" })).toBeNull();
     await user.click(await screen.findByRole("button", { name: "Compartir mi experiencia" }));

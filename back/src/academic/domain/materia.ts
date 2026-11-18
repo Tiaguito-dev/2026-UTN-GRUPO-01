@@ -21,6 +21,15 @@ export interface Materia {
   deletedAt: Date | null;
 }
 
+export interface ResumenValoracionMateria {
+  promedio: number | null;
+  cantidad: number;
+}
+
+export interface MateriaConValoracion extends Materia {
+  valoracion: ResumenValoracionMateria;
+}
+
 export interface MateriaCambio {
   campo: "nombre" | "modalidad" | "anioCarrera" | "nivelElectiva" | "carreras" | "deletedAt";
   anterior: string | null;

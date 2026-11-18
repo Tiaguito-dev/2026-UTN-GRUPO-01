@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { AdminRecordDetail } from "@/components/admin/AdminRecordDetail";
 import { obtenerDetalleAdministrativo, type AdminRecord } from "@/services/admin-detail";
+import { joinedReturnTo, returnToQuery } from "@/validations/admin";
+import { comisionDetailHref } from "@/validations/admin-academic-navigation";
 
 const nav = vi.hoisted(() => ({ query: "" }));
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(nav.query) }));
@@ -44,7 +46,8 @@ describe("retorno del detalle administrativo de comentario", () => {
     ["/home/admin/experiencias?carrera=S&materiaId=m1&page=4", "Experiencias"],
     ["/home/admin/comisiones?materiaId=m1&cursadaId=cu1&carrera=S&page=3", "Materias"],
   ])("desde una comisión con contexto %s conserva la página de comentarios y el padre", async (origin, section) => {
-    const returnTo = `/home/admin/comisiones/co1?${new URLSearchParams({ returnTo: origin, page: "2" })}`;
+    // BUG-02: la experiencia vuelve a la comisión ya plana (comisionNavigation.detailHref), con su página.
+    const returnTo = `${joinedReturnTo(returnToQuery(comisionDetailHref("co1", origin)))}${origin.includes("experiencias") ? "&" : "?"}page=2`;
     nav.query = new URLSearchParams({ returnTo }).toString();
     render(<AdminRecordDetail kind="feedback" id="f1" />);
     await screen.findByText("Experiencia publicada");
@@ -58,7 +61,7 @@ describe("retorno del detalle administrativo de comentario", () => {
   });
 
   it("si la comisión de origen ya no existe vuelve a Experiencias sin mantener un enlace roto", async () => {
-    const returnTo = `/home/admin/comisiones/co1?${new URLSearchParams({ returnTo: "/home/admin/experiencias?page=3" })}`;
+    const returnTo = comisionDetailHref("co1", "/home/admin/experiencias?page=3");
     nav.query = new URLSearchParams({ returnTo }).toString();
     vi.mocked(obtenerDetalleAdministrativo).mockImplementation(async (kind) => {
       if (kind === "comisiones") throw new Error("No encontrada");
@@ -73,7 +76,7 @@ describe("retorno del detalle administrativo de comentario", () => {
   });
 
   it("no adopta como padre una comisión distinta de la del comentario", async () => {
-    const returnTo = `/home/admin/comisiones/otra?${new URLSearchParams({ returnTo: "/home/admin/experiencias?page=3" })}`;
+    const returnTo = comisionDetailHref("otra", "/home/admin/experiencias?page=3");
     nav.query = new URLSearchParams({ returnTo }).toString();
     vi.mocked(obtenerDetalleAdministrativo).mockImplementation(async (kind) => kind === "comisiones" ? { ...detail, registro: { ...commission, id: "otra", nombre: "S-99", numero: 99 } } : detail);
     render(<AdminRecordDetail kind="feedback" id="f1" />);

@@ -8,7 +8,7 @@ vi.mock("next/link", () => import("./support/next-link"));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ account: { id: "u1", role: session.role } }) }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/home/experiencias", useSearchParams: () => new URLSearchParams("carrera=S&materiaId=m1&page=4") }));
 const feedback: Feedback = {
-  id: "f1", texto: "Contenido completo", anonimo: true, autor: null, propio: false, profesor: null,
+  id: "f1", texto: "Contenido completo", puntuacion: null, anonimo: true, autor: null, propio: false, profesor: null,
   contexto: { carrera: "S", comisionId: "c1", nombre: "S-31", materiaId: "m1", materiaNombre: "Álgebra", cursadaId: "cu1", anio: 2026, cuatrimestre: "PRIMERO" },
   createdAt: "2026-01-01T12:00:00.000Z", updatedAt: "2026-01-01T12:00:00.000Z",
 };

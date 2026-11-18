@@ -61,7 +61,8 @@ export function fixture() {
 
   const materiaRepository: MateriaRepository = {
     findAll: vi.fn(async (pagination, filters = {}) => {
-      const items = [...materias.values()].filter(m => !m.deletedAt && (!filters.q || m.nombre.toLowerCase().includes(filters.q.toLowerCase())));
+      const items = [...materias.values()].filter(m => !m.deletedAt && (!filters.q || m.nombre.toLowerCase().includes(filters.q.toLowerCase())))
+        .map(m => ({ ...m, valoracion: { promedio: null, cantidad: 0 } }));
       if (filters.carrera) {
         return paginate(items.filter((m) => m.carreras.some((c) => c.carrera === filters.carrera && (!filters.anioCarrera || c.anioCarrera === filters.anioCarrera) && (!filters.nivelElectiva || c.nivelElectiva === filters.nivelElectiva))), pagination);
       }
@@ -74,6 +75,7 @@ export function fixture() {
     // TASK-070: historial reconoce también entidades dadas de baja; la existencia la verifica el puerto.
     findHistorial: vi.fn(async (id, pagination) => { if (!materias.has(id)) throw new MateriaNotFoundError(); return paginate([], pagination); }),
     findById: vi.fn(async (id) => { const m = materias.get(id); return m && !m.deletedAt ? m : null; }),
+    findByIdConValoracion: vi.fn(async (id) => { const m = materias.get(id); return m && !m.deletedAt ? { ...m, valoracion: { promedio: null, cantidad: 0 } } : null; }),
     findByNombre: vi.fn(async (nombre) => [...materias.values()].find((m) => m.nombre === nombre) ?? null),
     create: vi.fn(async ({ nombre, modalidad, carreras: filas }) => {
       const materia: Materia = { id: randomUUID(), nombre, modalidad, carreras: porCarrera(filas ?? []), createdAt: new Date(), deletedAt: null };

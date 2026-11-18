@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { eliminarFeedback } from "@/services/feedback";
+import { mensajeErrorModeracion } from "@/validations/feedback-moderation";
 import { AdminConfirmDialog } from "./AdminConfirmDialog";
 import styles from "./AdminMateriaDetail.module.css";
 
@@ -14,7 +15,8 @@ export function AdminExperienceDeleteAction({ id, onSuccess }: { id: string; onS
   return <>
     <button className={`button button-secondary ${styles.remove}`} type="button" onClick={() => setConfirm(true)}><Trash2 size={17} aria-hidden="true" />Eliminar comentario</button>
     {confirm ? <AdminConfirmDialog title="Eliminar comentario" confirmLabel="Confirmar eliminación" onClose={() => setConfirm(false)} onConfirm={async () => {
-      await eliminarFeedback(id);
+      try { await eliminarFeedback(id); }
+      catch (failure) { throw new Error(mensajeErrorModeracion(failure)); }
       setConfirm(false);
       onSuccess();
     }}>

@@ -1,13 +1,32 @@
 import type { FeedbackRepository } from "./ports/feedback.repository.js";
 import type { UserRole } from "../../users/domain/user.js";
-import { validateCreateFeedback, validateFeedbackId, validateFeedbackPagination, validateGeneralFeedbackQuery, validateUpdateFeedback } from "./feedback-input.js";
+import { validateCreateFeedback, validateFeedbackId, validateFeedbackPagination, validateGeneralFeedbackQuery, validateUpdateFeedback, validateModerationQuery, validateModerationCommand, validateOwnerModerationCommand } from "./feedback-input.js";
+import type { FeedbackModerationActor } from "../domain/feedback-moderation.js";
+
+import { normasConvivencia } from "../domain/normas.js";
 
 /** Application boundary: all external inputs are normalized before reaching persistence. */
 export class FeedbackService {
   constructor(private readonly repository: FeedbackRepository) {}
+  async normas(viewer: string) {
+    return { ...normasConvivencia, aceptada: await this.repository.aceptoNormas(viewer, normasConvivencia.version) };
+  }
   listGeneral(viewer: string, query: unknown) {
     const { page, pageSize, ...filters } = validateGeneralFeedbackQuery(query);
     return this.repository.listGeneral(viewer, { page, pageSize }, filters);
+  }
+  listOwn(viewer: string, query: unknown) {
+    return this.repository.listOwn(viewer, validateFeedbackPagination(query));
+  }
+  listModeration(query: unknown) {
+    const { estado, ...pagination } = validateModerationQuery(query);
+    return this.repository.listModeration(pagination, estado);
+  }
+  moderate(id: unknown, actor: FeedbackModerationActor, body: unknown) {
+    return this.repository.transitionModeration(validateFeedbackId(id), actor, validateModerationCommand(body));
+  }
+  ownerAction(id: unknown, actor: FeedbackModerationActor, accion: "OCULTAMIENTO_AUTOR" | "RESTITUCION_AUTOR" | "SOLICITUD_REVISION", body: unknown) {
+    return this.repository.transitionModeration(validateFeedbackId(id), actor, { ...validateOwnerModerationCommand(body), accion });
   }
   listComision(id: unknown, viewer: string, query: unknown) { return this.repository.listComision(validateFeedbackId(id), viewer, validateFeedbackPagination(query)); }
   propio(id: unknown, viewer: string) { return this.repository.propio(validateFeedbackId(id), viewer); }

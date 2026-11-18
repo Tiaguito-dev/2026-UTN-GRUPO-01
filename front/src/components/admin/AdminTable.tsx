@@ -7,7 +7,7 @@ import type { AsyncState } from "@/hooks/usePaginatedFetch";
 import type { PaginatedResult } from "@/services/pagination";
 import { Notice } from "@/components/ui/Notice";
 import { Pagination } from "@/components/ui/Pagination";
-import { adminFormHref } from "@/validations/admin";
+import { adminFormHref, returnToQuery } from "@/validations/admin";
 import { validateMateriaSearch } from "@/validations/materias";
 import styles from "./AdminTables.module.css";
 
@@ -25,7 +25,7 @@ export function AdminTable({ title, columns, rows, actions }: { title: string; c
 
 export function AdminRowActions({ row, kind, returnTo, onDelete }: { row: AdminRow; kind: string; returnTo: string; onDelete?: () => void }) {
   const path = `/home/admin/${kind}/${encodeURIComponent(row.id)}`;
-  return <><ActionLink href={`${path}?${new URLSearchParams({ returnTo })}`} label={`Ver detalle de ${row.cells[0]}`} icon="view" />
+  return <><ActionLink href={`${path}?${returnToQuery(returnTo)}`} label={`Ver detalle de ${row.cells[0]}`} icon="view" />
     {row.editable !== false ? <ActionLink href={adminFormHref(`${path}/editar`, returnTo)} label={`Editar ${row.cells[0]}`} icon="edit" /> : null}
     {onDelete && row.deletable !== false ? <AdminActionButton label={`Dar de baja ${row.cells[0]}`} icon={Trash2} onClick={onDelete} /> : null}</>;
 }

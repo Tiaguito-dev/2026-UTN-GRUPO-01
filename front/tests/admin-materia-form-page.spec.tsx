@@ -37,8 +37,9 @@ const mockMateria: Materia = {
 describe("MateriaFormPage", () => {
   it("cancelar y guardar desde el detalle conserva filtros sin anidar su propia URL", async () => {
     const origin = "/home/admin/materias?q=Sistemas&carrera=S&page=3";
-    const detailHref = `/home/admin/materias/m-1?${new URLSearchParams({ returnTo: origin })}`;
-    search = new URLSearchParams({ returnTo: detailHref }).toString();
+    // BUG-02: la edición vuelve al detalle (un nivel); los filtros de Materias viajan al lado.
+    const detailHref = `/home/admin/materias/m-1?${new URLSearchParams({ materiaReturnTo: origin })}`;
+    search = new URLSearchParams({ returnTo: "/home/admin/materias/m-1", materiaReturnTo: origin }).toString();
     vi.mocked(actualizarMateria).mockResolvedValue({ ...mockMateria, nombre: "Sistemas II" });
     render(<MateriaFormPage materia={mockMateria} />);
     expect(screen.getByRole("link", { name: /Volver a contexto administrativo/ }).getAttribute("href")).toBe(detailHref);
@@ -52,7 +53,7 @@ describe("MateriaFormPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
     const target = new URL(String(push.mock.calls.at(-1)?.[0]), "https://local.test");
     expect(target.pathname).toBe("/home/admin/materias/m-1");
-    expect(target.searchParams.get("returnTo")).toBe(origin);
+    expect(target.searchParams.get("materiaReturnTo")).toBe(origin);
     expect(target.searchParams.get("successMessage")).toBe("Materia actualizada correctamente.");
   });
 

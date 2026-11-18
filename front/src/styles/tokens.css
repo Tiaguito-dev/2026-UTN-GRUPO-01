@@ -1,8 +1,13 @@
 @layer tokens {
   :root {
-    --primary: #1240C9; --primary-rgb: 18 64 201; --primary-hover: #1E4CD4; --accent: #2169FC; --link: var(--primary);
-    --surface: #ffffff; --background: #f7f9fe; --text: #17233d; --muted: #56647a;
-    --border: #d8e0ed; --input-border: #8190a8; --soft-blue: #edf2ff;
+    --primary: #990f13; --primary-rgb: 153 15 19; --primary-hover: #780b10; --accent: #b51a20; --link: var(--primary);
+    --surface: #fffaf5; --background: #fcf3eb; --text: #231a18; --muted: #6c5851;
+    --border: #e4d2c7; --input-border: #a18a7e; --soft-blue: #f9d7cd;
+    /* Semánticos del shell: los valores por defecto conservan la identidad estudiantil. */
+    --header-background: var(--primary); --header-foreground: var(--surface); --header-border: var(--primary-hover); --header-focus: var(--accent);
+    --sidebar-background: var(--background); --sidebar-border: var(--border); --sidebar-text: var(--text); --sidebar-muted: var(--muted);
+    --sidebar-hover-background: var(--background); --sidebar-hover-text: var(--primary);
+    --sidebar-active-background: var(--soft-blue); --sidebar-active-text: var(--primary); --sidebar-focus: var(--accent);
     --error: #a61b1b; --error-background: #fff1f1; --success: #166534; --success-background: #f0fdf4; --warning: #854d0e; --warning-background: #fffbeb;
     /* Espaciado: --space-N vale N × .25rem. */
     --space-1: .25rem; --space-2: .5rem; --space-3: .75rem; --space-4: 1rem; --space-5: 1.25rem;
@@ -13,14 +18,30 @@
     --text-xs: .75rem; --text-sm: .8rem; --text-md: .9rem; --text-base: 1rem; --text-xl: 1.5rem; --text-2xl: 2rem;
     --weight-medium: 600; --weight-semibold: 650; --weight-bold: 700; --weight-heavy: 750;
     /* Sombras: mismo tono que --text */
-    --shadow-rgb: 23 35 61;
+    --shadow-rgb: 65 27 20;
     --shadow-popover: 0 14px 35px rgb(var(--shadow-rgb) / 12%); --shadow-card: 0 18px 55px rgb(var(--shadow-rgb) / 6%); --shadow-floating: 0 20px 40px rgb(var(--shadow-rgb) / 8%);
     --shadow-sheet: 0 -14px 35px rgb(var(--shadow-rgb) / 12%); --backdrop: rgb(var(--shadow-rgb) / 45%);
     /* Layout y capas */
-    --header-h: 5.5rem; --sidebar-w: 15rem; --content-max: 72rem; --content-max-app: 83rem;
+    --header-h: 4.5rem; --sidebar-w: 13rem; --content-max: 72rem; --content-max-app: 83rem;
     --z-skip-link: 10; --z-popover: 20; --z-header: 30; --z-modal: 40;
     /* breakpoints: 800px shell, 600px landing y auth (las media queries no aceptan variables CSS) */
     /* Los valores que no coinciden con una escala quedan literales hasta normalizarlos: ver TASK-024, sección 6. */
     color-scheme: light; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--background); color: var(--text);
+  }
+  /* Los alias se vuelven a declarar en el ámbito para no heredar su valor calculado en :root. */
+  [data-role-theme="admin"] {
+    --primary: #650c15; --primary-rgb: 101 12 21; --primary-hover: #4c0910; --accent: #84212b; --link: var(--primary); --soft-blue: #f1dfe1;
+    --header-background: var(--primary); --header-foreground: #ffffff; --header-border: var(--primary-hover); --header-focus: var(--header-foreground);
+    --sidebar-background: #350f15; --sidebar-border: var(--sidebar-background); --sidebar-text: var(--header-foreground); --sidebar-muted: #f2dce0;
+    --sidebar-hover-background: #51151e; --sidebar-hover-text: var(--sidebar-text);
+    --sidebar-active-background: var(--accent); --sidebar-active-text: var(--sidebar-text); --sidebar-focus: var(--sidebar-text);
+  }
+  /* La comprobación de sesión no anticipa ninguna identidad de rol. */
+  [data-role-theme="pending"] {
+    --header-background: var(--surface); --header-foreground: var(--muted); --header-border: var(--border); --header-focus: var(--primary);
+  }
+  @media (max-width: 600px) {
+    /* Marca y etiqueta administrativa conservan su espacio sin afectar el encabezado USER. */
+    [data-role-theme="admin"] { --header-h: 6.5rem; }
   }
 }

@@ -4,6 +4,8 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SidebarNav } from "@/components/home/SidebarNav";
+import { joinedReturnTo, returnToQuery } from "@/validations/admin";
+import { comisionDetailHref } from "@/validations/admin-academic-navigation";
 
 const { auth, location } = vi.hoisted(() => ({
   auth: { value: { status: "authenticated", account: { role: "USER" }, logout: async () => {} } as Record<string, unknown> },
@@ -16,12 +18,13 @@ vi.mock("@/hooks/useAuth", () => ({ useAuth: () => auth.value }));
 afterEach(() => { cleanup(); location.query = ""; });
 
 describe("SiteHeader", () => {
-  it.each([["ADMIN", "/home/admin"], ["USER", "/home"]])("marca BookOpen decorativa conserva destino de %s", (role, href) => {
+  // El nuevo logo conserva el nombre accesible y los destinos de la marca anterior.
+  it.each([["ADMIN", "/home/admin"], ["USER", "/home"]])("marca decorativa conserva destino de %s", (role, href) => {
     auth.value = { status: "authenticated", account: { role } };
     render(<SiteHeader />);
-    const brand = screen.getByRole("link", { name: "Profesor Butchery" });
+    const brand = screen.getByRole("link", { name: "Professors' butchery" });
     expect(brand.getAttribute("href")).toBe(href);
-    expect(brand.querySelector("svg.lucide-book-open")?.getAttribute("aria-hidden")).toBe("true");
+    expect(brand.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
     expect(brand.textContent).not.toContain("PB");
   });
   function setup() {
@@ -62,7 +65,7 @@ describe("SiteHeader", () => {
     const logout = vi.fn().mockResolvedValue(undefined);
     auth.value = { status: "authenticated", account: { role: "ADMIN" }, logout };
     render(<SiteHeader />);
-    expect(screen.getByRole("link", { name: /Profesor Butchery/ }).getAttribute("href")).toBe("/home/admin");
+    expect(screen.getByRole("link", { name: /Professors' butchery/ }).getAttribute("href")).toBe("/home/admin");
     await userEvent.click(screen.getByRole("button", { name: "Opciones de cuenta" }));
     expect(screen.getByRole("link", { name: "Mi perfil" }).getAttribute("href")).toBe("/account");
     expect(screen.getByRole("link", { name: "Cambiar contraseña" }).getAttribute("href")).toBe("/account/change-password");
@@ -77,9 +80,10 @@ describe("SidebarNav", () => {
 
   it.each(["/home/admin/comisiones/co1", "/home/admin/comisiones/co1/editar"])("mantiene Experiencias seleccionado en %s con origen persistido en URL", (pathname) => {
     const list = "/home/admin/experiencias?carrera=S&materiaId=m1&page=3";
-    const returnTo = pathname.endsWith("/editar") ? `/home/admin/comisiones/co1?${new URLSearchParams({ returnTo: list })}` : list;
+    // BUG-02: la comisión lleva origen=experiencias plano; su edición vuelve a esa misma URL.
+    const commission = comisionDetailHref("co1", list);
     location.pathname = pathname;
-    location.query = new URLSearchParams({ returnTo }).toString();
+    location.query = pathname.endsWith("/editar") ? new URLSearchParams({ returnTo: commission }).toString() : new URL(commission, "https://local.test").search.slice(1);
     auth.value = { status: "authenticated", account: { role: "ADMIN" } };
     render(<SidebarNav />);
     expect(current()).toEqual(["Experiencias"]);
@@ -97,7 +101,9 @@ describe("SidebarNav", () => {
     ["/home/admin/experiencias?carrera=S&page=3", "Experiencias"],
     ["/home/admin/comisiones?materiaId=m1&cursadaId=cu1&page=2", "Materias"],
   ])("comentario desde comisión conserva la sección de %s", (origin, expected) => {
-    const commission = `/home/admin/comisiones/co1?${new URLSearchParams({ returnTo: origin, page: "2" })}`;
+    // La experiencia vuelve a la comisión ya plana (comisionNavigation.detailHref), con su página.
+    const flat = joinedReturnTo(returnToQuery(comisionDetailHref("co1", origin)))!;
+    const commission = `${flat}${flat.includes("?") ? "&" : "?"}page=2`;
     location.pathname = "/home/admin/experiencias/f1";
     location.query = new URLSearchParams({ returnTo: commission }).toString();
     auth.value = { status: "authenticated", account: { role: "ADMIN" } };
@@ -142,9 +148,9 @@ describe("SidebarNav", () => {
     auth.value = { status: "authenticated", account: { role: "ADMIN" } };
     render(<SidebarNav />);
     const links = screen.getAllByRole("link");
-    // TASK-068: administración tiene su propio recorrido, sin enlaces de participación.
-    expect(links.map(link => link.getAttribute("href"))).toEqual(["/home/admin", "/home/admin/materias", "/home/admin/profesores", "/home/admin/usuarios", "/home/admin/experiencias"]);
-    expect(links.map(link => link.textContent)).toEqual(["Inicio", "Materias", "Profesores", "Usuarios", "Experiencias"]);
+    // HU-C01 añade consulta de Comunidad al recorrido administrativo, sin funciones de participación.
+    expect(links.map(link => link.getAttribute("href"))).toEqual(["/home/admin", "/home/admin/materias", "/home/admin/profesores", "/home/admin/usuarios", "/home/admin/experiencias", "/home/admin/ranking", "/home/admin/comunidad"]);
+    expect(links.map(link => link.textContent)).toEqual(["Inicio", "Materias", "Profesores", "Usuarios", "Experiencias", "Ranking", "Comunidad"]);
     expect(screen.getByText("Administración")).toBeTruthy();
     expect(screen.queryByText(/De estudiantes/)).toBeNull();
     for (const link of links) {
@@ -182,6 +188,10 @@ describe("SidebarNav", () => {
     ["/home/admin/profesores/p1/editar", "Profesores"],
     ["/home/admin/usuarios", "Usuarios"],
     ["/home/admin/experiencias?page=2", "Experiencias"],
+    ["/home/admin/ranking", "Ranking"],
+    ["/home/admin/ranking/comisiones", "Ranking"],
+    ["/home/admin/ranking/profesores/p1", "Ranking"],
+    ["/home/admin/comunidad", "Comunidad"],
     ["/account", "Inicio"],
   ])("ADMIN en %s tiene una única sección activa: %s", (path, expected) => {
     location.pathname = path.split("?")[0];
