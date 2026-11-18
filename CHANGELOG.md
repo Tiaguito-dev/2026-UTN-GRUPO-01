@@ -2,6 +2,12 @@
 
 ## [Sin publicar]
 
+### HU-C05 — Consulta de términos desde Comunidad
+
+- USER y ADMIN pueden consultar los términos debajo de los bloques de Comunidad, con documento completo y versión vigente en un modal compartido con el registro. Incluye carga, error, reintento, cierre por Cerrar/X/Escape y retorno del foco.
+- Se reutiliza GET `/auth/terms` y se extraen el visor y sus estilos; el registro conserva su aceptación obligatoria y sus validaciones. Consultar no crea aceptaciones ni altera las históricas. Sin nuevos endpoints, modelos, migraciones o cambios al documento.
+- Validación focal: 39 pruebas frontend, typecheck y lint aprobados, más 6 E2E únicos verificados con repeticiones focales. Sin validación integral, builds ni capturas nuevas. Evidencia en [la tarea](docs/tasks/finished/TASK-HU-C05-consultar-terminos.md).
+
 ### HU-C03 — Administración privada de sugerencias
 
 - Bandeja exclusiva ADMIN junto a las normas, con autor, categoría, fecha, contenido, orden reciente, paginación, filtro Todas/Me gusta, corazón compartido y eliminación confirmada. Actualiza el listado sin recargar la página y permite reintentar errores.
