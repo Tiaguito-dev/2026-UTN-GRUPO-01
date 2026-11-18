@@ -6,8 +6,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { findSection } from "./sections";
 
-/** Pantalla compartida de las secciones todavía no implementadas (Profesores, Experiencias,
- *  Comunidad). No llama a ningún endpoint ni muestra datos inventados. */
+/** Pantalla compartida de las secciones todavía no implementadas.
+ *  No llama a ningún endpoint ni muestra datos inventados. */
 export function UpcomingSection({ id }: { id: string }) {
   const section = findSection(id);
   const headingId = useId();

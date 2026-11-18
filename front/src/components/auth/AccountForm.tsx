@@ -11,7 +11,7 @@ import { roleDestination } from "@/lib/navigation";
 import { FormField } from "@/components/ui/FormField";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Dialog } from "@/components/ui/Dialog";
+import { TerminosDialog } from "@/components/terminos/TerminosDialog";
 import { obtenerTerminosCondiciones } from "@/services/terminos";
 import { HttpError } from "@/services/http";
 import type { TerminosCondiciones } from "@/types/auth";
@@ -166,16 +166,7 @@ export function AccountForm({ mode }: { mode: Mode }) {
       </div> : null}
       <button className="button submit" disabled={busy || !tokenReady}>{busy ? "Enviando…" : actions[mode]}</button>
     </form>
-    {mode === "register" && terminos && mostrarTerminos ? <Dialog open onClose={() => setMostrarTerminos(false)} title="Términos y condiciones" description={`Versión ${terminos.version}`}>
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- La región desplazable recibe foco para leer y desplazar los términos con teclado. */}
-      <div id={`${termsId}-documento`} className={styles.document} role="region" aria-label="Texto de los términos y condiciones" tabIndex={0} data-autofocus>
-        {terminos.secciones.map((seccion, index) => <section className={styles.section} key={`${index}-${seccion.titulo}`} aria-labelledby={`${termsId}-seccion-${index}`}>
-          <h3 id={`${termsId}-seccion-${index}`}>{seccion.titulo}</h3>
-          {seccion.parrafos.map((parrafo, paragraph) => <p key={`${index}-${paragraph}`}>{parrafo}</p>)}
-        </section>)}
-      </div>
-      <div className="dialog-actions"><button className="button" type="button" onClick={() => setMostrarTerminos(false)}>Cerrar</button></div>
-    </Dialog> : null}
+    {mode === "register" && terminos && mostrarTerminos ? <TerminosDialog documento={terminos} documentId={`${termsId}-documento`} onClose={() => setMostrarTerminos(false)} /> : null}
     {mode === "change" ? <div className="form-links"><Link href="/account">Volver a mi perfil</Link></div> : null}
     <div className="form-links">{mode === "login" ? <><Link href="/register">Crear una cuenta</Link><Link href="/forgot-password">¿Olvidaste tu contraseña?</Link></> : null}{["forgot", "register", "reset"].includes(mode) ? <Link href="/login">Volver al login</Link> : null}{mode === "reset" ? <Link href="/forgot-password">Solicitar un nuevo enlace de recuperación</Link> : null}</div>
     {["login", "register"].includes(mode) ? <div className="form-links"><Link href="/resend-verification">¿No verificaste tu correo? Solicitar un nuevo enlace</Link></div> : null}

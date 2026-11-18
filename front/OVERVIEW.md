@@ -14,6 +14,108 @@ final de comisión. Presenta Materia/Cursada/Comisión con selección explícita
 Siguiente/Anterior, búsqueda y páginas de nueve opciones. Sus estilos y los del feed
 están acotados a CSS Modules, sin modificar layout ni primitivas compartidas.
 
+## Comunidad: consulta de términos (HU-C05)
+
+`ComunidadTerminos` aparece debajo de los bloques de USER y ADMIN, también ante fallos de las
+normas. El botón “Ver términos y condiciones” abre un visor en la misma pantalla y consulta
+por demanda `GET /auth/terms` mediante el servicio existente. Cada apertura recupera la versión
+vigente; cerrar, reintentar o desmontar descarta respuestas anteriores. Un fallo permite
+reintentar y cerrar sin mostrar contenido inventado ni errores técnicos.
+
+`components/terminos/TerminosDialog` es el visor de dominio compartido con el registro: recibe
+el documento, carga/error y callbacks del consumidor, presenta versión y secciones completas
+como texto y reutiliza `Dialog` para Cerrar, X, Escape y devolución del foco al disparador.
+La región desplazable permite lectura con teclado; al retirar un botón de reintento, el foco
+solo se recupera si quedó fuera del modal, sin desplazar a quien ya permanece dentro.
+Los estilos del documento se trasladaron desde `TerminosRegistro.module.css` sin alterar
+primitivas, tema ni estilos globales.
+
+`AccountForm` conserva su carga, checkbox, versión enviada, validaciones y manejo de versiones
+obsoletas; únicamente delega la visualización. Consultar desde Comunidad no registra aceptación,
+no agrega casillas ni modifica los borradores de sugerencias o la edición de normas. No se
+crearon endpoints, documentos, versiones, modelos ni migraciones para esta consulta.
+
+## Comunidad: sugerencias privadas (HU-C02)
+
+La vista USER de Comunidad incorpora `SugerenciaForm` junto a las normas en escritorio y debajo
+de ellas bajo 800 px. El mensaje del equipo permanece encima. El formulario se mantiene montado
+durante la carga, el error y el reintento de las normas: su borrador no depende de esa consulta.
+La variante ADMIN conserva la consulta y el editor de HU-C04, sin formulario de envío;
+HU-C03 incorpora la bandeja privada descrita a continuación.
+
+El selector comienza vacío y exige una de las cinco categorías; el contenido es texto plano,
+obligatorio y limitado a 5000 caracteres UTF-16 como el backend. La interfaz usa tarjetas,
+avisos, contador, etiquetas y errores asociados, foco al primer campo inválido y
+`useFormSubmission` para impedir envíos duplicados y bloquear controles mientras envía.
+`services/comunidad.ts` realiza un POST protegido y valida únicamente la confirmación
+`{id,createdAt}`; no incorpora lectura, estados, likes ni publicación de las sugerencias.
+
+Cada intento conserva en memoria su UUID y el contenido/categoría normalizados. Un fallo
+mantiene el borrador y reintentar sin cambios usa la misma solicitud; cambiar el contenido de
+un intento incierto exige la acción explícita Nueva sugerencia. Ese botón libera el intento
+anterior conservando el borrador para una operación distinta, con advertencia sobre un posible
+registro previo. Un éxito muestra el agradecimiento, limpia los campos y deja lista una nueva
+solicitud. No se guardan UUID ni borradores privados en storage del navegador.
+
+## Comunidad: consulta y administración de normas (HU-C01/HU-C04)
+
+HU-C03 compone `SugerenciasAdmin` junto a las normas en escritorio y debajo en móvil.
+La bandeja usa datos reales, categorías en español, autor y fecha, corazón con aria-pressed
+y eliminación confirmada mediante Dialog (Cancelar, Escape y retorno del foco).
+Reutiliza FilterChips, useUrlPagination y PaginatedListView: Todas/Me gusta viven en la URL,
+el filtro reinicia page y una página vacía fuera de rango vuelve a la última disponible.
+Un PUT explícito comparte el corazón entre administradores; un DELETE solo se envía al
+confirmar. Ambas operaciones bloquean dobles clics, informan errores y refrescan únicamente
+el listado, manteniendo las normas. Un fallo de eliminación conserva el diálogo para reintentar.
+Los servicios comprueban sesión y validan respuestas con Zod; no repiten escrituras automáticamente.
+No se modifican los guards, temas, layout global ni componentes compartidos.
+
+`/home/comunidad` y `/home/admin/comunidad` renderizan el mismo
+`components/comunidad/ComunidadPageContent`, que consulta `GET /comunidad/normas` mediante
+`services/comunidad.ts`. El servicio usa `AuthService.protectedGet` y el esquema central
+`normasConvivenciaSchema`: exige el documento `vigentes`, textos no vacíos, una lista ordenada
+de normas y fechas ISO. El contenido proviene de la base de datos; consultarlo no registra
+aceptación ni cambia los consentimientos históricos.
+
+La pantalla reutiliza `PageHeader`, `Card` y `Notice`. Presenta el mensaje del equipo, las
+normas como lista semántica y el cierre, conservando párrafos y tratando todo como texto, sin
+HTML. Mientras carga muestra un estado anunciado; un fallo presenta un mensaje informativo y
+Reintentar, incluido el caso de documento ausente. Los errores técnicos no se muestran al
+usuario y las respuestas de una consulta desmontada o reemplazada se descartan.
+
+Comunidad aparece en ambos menús; un acceso ADMIN a la ruta estudiantil se traduce a su
+equivalente administrativo. Los guards de sesión/rol y la identidad visual de HU-C06 se
+conservan. El CSS Module de la pantalla compone las tarjetas con los tokens actuales, sin
+sobrescribir primitivas ni estilos globales. USER conserva la vista de consulta; no hay feed
+ni controles sin funcionalidad. Las sugerencias privadas y la consulta de términos se describen arriba.
+
+La ruta administrativa compone `ComunidadAdminPageContent` bajo `Suspense`: lee la
+señal `actualizada=1`, muestra el aviso de éxito y habilita el enlace “Administrar normas de
+convivencia”. La variante estudiantil no lee parámetros ni incorpora controles administrativos.
+El acceso a `/home/admin/comunidad/editar` permanece bajo `RequireRole` del segmento existente.
+
+`NormasForm` precarga el documento vigente y `NormasEditor` mantiene un borrador local con filas
+identificadas de forma estable. Permite agregar, eliminar y mover normas con botones accesibles;
+siempre conserva al menos una fila. Los campos obligatorios y el límite de 160 caracteres del
+título se validan antes de enviar, con foco en el primer error. `useFormSubmission` impide envíos
+duplicados con su ref y deshabilita el editor durante la escritura. Un fallo conserva texto y
+orden y permite reintentar. El servicio comprueba sesión y envía un único PUT con título,
+introducción, normas y cierre; no manda responsable, fechas ni identificadores, y no repite
+escrituras automáticamente. El servidor conserva la autoridad de autorización y trazabilidad.
+
+Tras guardar, vuelve a Comunidad con aviso y una consulta nueva del contenido. Cancelar sin
+cambios regresa directamente. `useNormasLeaveGuard`, local al editor, confirma cancelar,
+enlaces que abandonan la pantalla y Atrás si existe un borrador. Agrega una entrada protectora
+del mismo URL conservando el estado de Next; la restaura al intentar Atrás y la colapsa antes de
+una salida confirmada o guardada. Seguir editando conserva el borrador y devuelve el foco al
+control que abrió el diálogo.
+Recarga/cierre utilizan `beforeunload`: el navegador decide el texto nativo y puede omitir el
+aviso sin activación previa del usuario. El botón de cierre de sesión deliberado solicita una
+confirmación nativa síncrona: aceptar deja pasar su click original y cancelar lo detiene, sin
+mover foco, desmontar el menú ni duplicar la lógica de logout. Si falla el cierre, el guard sigue
+protegiendo el borrador. Los listeners se retiran al desmontar; la navegación programática de
+vencimiento o seguridad no se intercepta. No se parchean router, autenticación ni hooks compartidos.
+
 ## Identidad visual según el rol (HU-C06)
 
 `AuthProvider` envuelve sus hijos y `SessionIdleMonitor` con `auth/RoleTheme`: un contenedor
@@ -97,7 +199,7 @@ es obligatoria; `AuthService.register` envía `aceptaTerminos` booleano y `versi
 Si no se acepta, el formulario muestra “Debés aceptar los términos y condiciones para crear
 tu cuenta”. No permite aceptar un documento que todavía no se pudo cargar y ofrece reintento.
 
-El enlace de los términos abre `Dialog` en la misma pantalla sin enviar el formulario ni
+El enlace de los términos abre `TerminosDialog`, compuesto sobre `Dialog`, en la misma pantalla sin enviar el formulario ni
 cambiar la casilla. El contenido tiene desplazamiento propio y secciones con encabezados;
 se cierra mediante Cerrar, X o Escape, devolviendo el foco al enlace. Los datos del registro
 permanecen en el formulario. Si el servidor indica una versión obsoleta, se recarga el documento
@@ -230,7 +332,7 @@ defecto y el runtime de Node.js.
 ## Estructura
 
 - `src/app/`: rutas, layouts y estados del App Router.
-- `src/components/`: componentes por módulo (`home/`, `academic/`, `admin/`, `auth/`), más
+- `src/components/`: componentes por módulo (`home/`, `academic/`, `admin/`, `auth/`, `comunidad/`), más
   `SiteHeader` y `FeatureCarousel` en la raíz.
 - `src/components/ui/`: primitivas de UI genéricas, sin lógica de dominio.
 - `src/lib/`: utilidades sin estado. `lib/format/` formatea valores para mostrar (`periodo.ts`,
@@ -265,8 +367,9 @@ ADMIN: sin ese rol muestra "Acceso no permitido" dentro del shell.
 - `/verify-email`: confirma el enlace SMTP y retira el token de la URL; no inicia sesión.
 - `/resend-verification`: solicita un enlace para una cuenta pendiente, incluso anterior al cambio.
 - `/home`: inicio protegido con saludo, estado vacío informativo y acceso al perfil.
-- `/home/profesores`, `/home/comunidad`: secciones en preparación
-  (Próximamente), sin llamadas a endpoints académicos.
+- `/home/comunidad`: mensaje del equipo y normas de convivencia vigentes, con consulta autenticada.
+- `/home/admin/comunidad`: el mismo documento de consulta bajo el entorno administrativo, con acceso al editor de normas.
+- `/home/admin/comunidad/editar`: formulario ADMIN para actualizar el documento vigente, con protección de cambios sin guardar.
 - `/home/experiencias`: comentarios públicos para cuentas autenticadas, ordenados por publicación, con materia, comisión y período (TASK-061).
 - `/home/materias`: catálogo paginado de materias únicas, con carrera, año y búsqueda independientes; agrupación por años y niveles de electivas en los metadatos (TASK-060).
 - `/home/materias/[materiaId]`: detalle de materia y comisiones del período seleccionado, sin paso intermedio; historial y gestión de períodos solo ADMIN (TASK-061).
@@ -300,8 +403,8 @@ El logo apunta a `/home` para cuentas autenticadas y a `/` para visitantes.
 El botón anuncia su estado con `aria-expanded`;
 Tab recorre las opciones nativas, Escape cierra y devuelve el foco al botón, y un clic fuera
 cierra el desplegable. La comprobación y los errores temporales tienen mensajes y reintento.
-El detalle de comisión permite consultar y compartir comentarios textuales. Las secciones
-generales de Profesores y Comunidad siguen como funcionalidades futuras; Experiencias muestra los comentarios publicados de todas las comisiones.
+El detalle de comisión permite consultar y compartir comentarios textuales. Comunidad permite
+consultar las normas vigentes; Experiencias muestra los comentarios publicados de todas las comisiones.
 
 `FeatureCarousel` utiliza perspectiva CSS y controles explícitos, sin reproducción automática
 ni dependencias adicionales. Permite avanzar con flechas, elegir una tarjeta con botones y
@@ -342,10 +445,9 @@ también de una renovación cuya respuesta no pudo confirmarse.
 `/home` (`InicioSection`) presenta un saludo con el nombre público de la cuenta y un estado
 vacío que explica qué funcionalidades llegarán al sistema. El menú lateral permanece fijo en
 escritorio y se adapta a botones superiores en móvil, sin desbordamiento horizontal. Cada
-sección del menú (`components/home/sections.ts`) es una ruta propia: Inicio, Profesores,
-Materias, Experiencias, Comunidad y, solo para ADMIN, Administración. Profesores
-y Comunidad muestran Próximamente (`UpcomingSection`); no llaman a endpoints académicos ni
-presentan datos inventados. El enlace de la sección actual lleva `aria-current`, y el título de
+sección del menú (`components/home/sections.ts`) es una ruta propia; las opciones y destinos
+corresponden al rol confirmado. Comunidad muestra las normas persistidas tanto para USER como
+para ADMIN, con rutas y tema de cada entorno. El enlace de la sección actual lleva `aria-current`, y el título de
 cada pantalla recibe el foco al montar. El perfil se abre desde el menú de cuenta o Ver mi perfil. `RequireAuth`, vía `AppShell`, protege
 el home, perfil y cambio; ante un error temporal muestra la pantalla "No pudimos comprobar tu
 sesión" con Reintentar comprobación (la misma que usa `RequireGuest` en landing y registro). Los

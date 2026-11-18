@@ -6,9 +6,10 @@ import { AuthModule } from "./auth/auth.module.js";
 import { AcademicModule } from "./academic/academic.module.js";
 import { UsersAdminModule } from "./users/users-admin.module.js";
 import { ReviewsModule } from "./reviews/reviews.module.js";
+import { ComunidadModule } from "./community/community.module.js";
 
 @Module({
-  imports: [AdministrationModule, PrismaModule, AuthModule, AcademicModule, UsersAdminModule, ReviewsModule],
+  imports: [AdministrationModule, PrismaModule, AuthModule, AcademicModule, UsersAdminModule, ReviewsModule, ComunidadModule],
   controllers: [HealthController],
 })
 export class AppModule {}

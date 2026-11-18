@@ -1,0 +1,10 @@
+.title { margin: 0 0 var(--space-4); overflow-wrap: anywhere; }
+.description { margin: 0 0 var(--space-6); color: var(--muted); }
+.form { display: grid; gap: var(--space-5); min-width: 0; }
+.textarea { display: block; box-sizing: border-box; width: 100%; min-height: 9rem; resize: vertical; font: inherit; padding: var(--space-3) var(--space-4); color: var(--text); background: var(--surface); border: 1px solid var(--input-border); border-radius: var(--radius-md); }
+.textarea[aria-invalid="true"] { border: 2px solid var(--error); }
+.textarea:disabled { opacity: .7; }
+.count { margin: var(--space-2) 0 0; color: var(--muted); font-size: var(--text-sm); text-align: right; }
+.privacy { margin: 0; color: var(--muted); font-size: var(--text-md); }
+.retry { display: grid; gap: var(--space-3); }
+.retry p { margin: 0; font-size: var(--text-md); }

@@ -56,7 +56,14 @@ describe("límite de navegación según rol", () => {
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/home/admin/experiencias?carrera=S&materiaId=m1&page=3"));
   });
 
-  it.each(["/home/admin", "/home/admin/materias/m1", "/account"])('no redirige ni oculta un destino válido ADMIN: %s', (pathname) => {
+  it("HU-C01 traduce Comunidad al recorrido administrativo sin montar la vista estudiantil", async () => {
+    state.pathname = "/home/comunidad";
+    render(<RoleRouteBoundary><p>Comunidad estudiantil</p></RoleRouteBoundary>);
+    expect(screen.queryByText("Comunidad estudiantil")).toBeNull();
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/home/admin/comunidad"));
+  });
+
+  it.each(["/home/admin", "/home/admin/materias/m1", "/home/admin/comunidad", "/account"])('no redirige ni oculta un destino válido ADMIN: %s', (pathname) => {
     state.pathname = pathname;
     render(<RoleRouteBoundary><p>Contenido autorizado</p></RoleRouteBoundary>);
     expect(screen.getByText("Contenido autorizado")).toBeTruthy();

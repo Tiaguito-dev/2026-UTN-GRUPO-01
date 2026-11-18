@@ -148,9 +148,9 @@ describe("SidebarNav", () => {
     auth.value = { status: "authenticated", account: { role: "ADMIN" } };
     render(<SidebarNav />);
     const links = screen.getAllByRole("link");
-    // TASK-068: administración tiene su propio recorrido, sin enlaces de participación.
-    expect(links.map(link => link.getAttribute("href"))).toEqual(["/home/admin", "/home/admin/materias", "/home/admin/profesores", "/home/admin/usuarios", "/home/admin/experiencias", "/home/admin/ranking"]);
-    expect(links.map(link => link.textContent)).toEqual(["Inicio", "Materias", "Profesores", "Usuarios", "Experiencias", "Ranking"]);
+    // HU-C01 añade consulta de Comunidad al recorrido administrativo, sin funciones de participación.
+    expect(links.map(link => link.getAttribute("href"))).toEqual(["/home/admin", "/home/admin/materias", "/home/admin/profesores", "/home/admin/usuarios", "/home/admin/experiencias", "/home/admin/ranking", "/home/admin/comunidad"]);
+    expect(links.map(link => link.textContent)).toEqual(["Inicio", "Materias", "Profesores", "Usuarios", "Experiencias", "Ranking", "Comunidad"]);
     expect(screen.getByText("Administración")).toBeTruthy();
     expect(screen.queryByText(/De estudiantes/)).toBeNull();
     for (const link of links) {
@@ -191,6 +191,7 @@ describe("SidebarNav", () => {
     ["/home/admin/ranking", "Ranking"],
     ["/home/admin/ranking/comisiones", "Ranking"],
     ["/home/admin/ranking/profesores/p1", "Ranking"],
+    ["/home/admin/comunidad", "Comunidad"],
     ["/account", "Inicio"],
   ])("ADMIN en %s tiene una única sección activa: %s", (path, expected) => {
     location.pathname = path.split("?")[0];
