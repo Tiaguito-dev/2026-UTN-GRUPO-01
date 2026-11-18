@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### HU-C02 — Sugerencias privadas de estudiantes
+
+- Comunidad incorpora un formulario USER con cinco categorías, texto de hasta 5000 caracteres, privacidad, confirmación y limpieza al enviar; se ubica junto a las normas en escritorio y debajo en móvil. Conserva datos y clave de operación ante errores.
+- POST `/comunidad/sugerencias` exclusivo USER, con sesión/CSRF y autor de sesión. La unicidad por usuario/solicitud y una transacción evitan duplicados concurrentes; reintentos conservan ID/fecha y claves con otro contenido devuelven409. Sin lecturas públicas ni bandeja administrativa.
+- Migración `20261118010000_sugerencias`, aditiva y sin seed/estados. No altera normas ni aceptaciones históricas.
+- Validación: 1383 pruebas backend y 1100 frontend, tipos/lint/build aprobados, 31 E2E únicos verificados con repeticiones focalizadas, axe y comparación de 28 referencias sin regenerar. Incidencias de preparación y evidencia en [la tarea](docs/tasks/finished/TASK-HU-C02-enviar-sugerencias.md).
+
 ### HU-C04 — Administración de normas de convivencia
 
 - ADMIN puede editar el mensaje y agregar, modificar, eliminar y ordenar normas. El formulario precarga el documento vigente, valida campos, conserva el borrador ante errores y confirma su descarte al abandonar; USER conserva su vista de consulta.
