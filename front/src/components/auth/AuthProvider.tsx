@@ -11,6 +11,7 @@ import { LOGOUT_UNCONFIRMED, SESSION_CHECK_FAILED } from "@/lib/messages";
 import { internalDestination } from "@/lib/navigation";
 import type { SessionEndReason } from "@/types/session";
 import { SessionIdleMonitor } from "./SessionIdleMonitor";
+import { RoleTheme } from "./RoleTheme";
 
 export interface AuthContextValue {
   status: AuthStatus;
@@ -167,5 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   return <AuthContext.Provider value={{ status, account, error, coordinationAvailable, sessionEndReason, checkSession, login,
     register: (input) => getAuthService().register(input), forgotPassword: (input) => getAuthService().forgotPassword(input),
-    resetPassword, changePassword, logout }}>{children}{monitorSession && account ? <SessionIdleMonitor key={`${account.id}:${sessionEpoch}`} accountId={account.id} onExpire={endSession} /> : null}</AuthContext.Provider>;
+    resetPassword, changePassword, logout }}><RoleTheme status={status} role={account?.role}>
+      {children}{monitorSession && account ? <SessionIdleMonitor key={`${account.id}:${sessionEpoch}`} accountId={account.id} onExpire={endSession} /> : null}
+    </RoleTheme></AuthContext.Provider>;
 }

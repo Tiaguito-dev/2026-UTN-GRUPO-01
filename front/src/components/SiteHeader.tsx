@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { roleHome } from "@/lib/navigation";
+import { Badge } from "@/components/ui/Badge";
 
 export function SiteHeader() {
   const { status, account } = useAuth();
@@ -28,8 +29,10 @@ export function SiteHeader() {
   }, [open]);
 
   function close() { setOpen(false); }
+  const administrative = status === "authenticated" && account?.role === "ADMIN";
+  const brand = <Link href={status === "authenticated" ? roleHome(account?.role) : "/"} className="brand"><span className="brand-mark" aria-hidden="true"><BrandMark /></span><span>Professors&apos; butchery</span></Link>;
   return <header className={`site-header${status === "authenticated" ? " site-header-auth" : ""}`}>
-    <Link href={status === "authenticated" ? roleHome(account?.role) : "/"} className="brand"><span className="brand-mark" aria-hidden="true"><BrandMark /></span><span>Professors&apos; butchery</span></Link>
+    {administrative ? <div className="site-header-identity">{brand}<Badge tone="role">Administración</Badge></div> : brand}
     {status === "authenticated" ? <div className="account-menu" ref={containerRef} onBlur={(event) => {
       if (!event.currentTarget.contains(event.relatedTarget)) close();
     }}>

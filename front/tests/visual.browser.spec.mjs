@@ -41,16 +41,21 @@ async function loginAs(page, role) {
     return { status: response.status, body: await response.json() };
   }, { url: `${API}/auth/register`, body: { aceptaTerminos: true, versionTerminos: "terminos-2026-11-17", email, displayName: "Cuenta de prueba", password } });
   expect(registered.status).toBe(201); userIds.push(registered.body.id);
-  await prisma.user.update({ where: { id: registered.body.id }, data: { role, emailVerifiedAt: new Date() } });
+  await prisma.user.update({ where: { id: registered.body.id }, data: { role, emailVerifiedAt: new Date(), createdAt: new Date("2026-01-02T00:00:00.000Z") } });
   await page.getByLabel(/^Email$/i).fill(email);
   await page.getByLabel(/^Contraseña$/i).fill(password);
   await page.getByRole("button", { name: /iniciar sesión/i }).click();
-  await expect(page).toHaveURL(/\/home(?:\?|$)/);
+  await expect(page).toHaveURL(role === "ADMIN" ? /\/home\/admin(?:\?|$)/ : /\/home(?:\?|$)/);
 }
 
 async function check(page, name, path, width) {
   await page.goto(path);
   await expect(page.locator("h1")).toBeVisible();
+  // La barra neutral es transitoria salvo en la pantalla que representa un error de sesión.
+  if (name === "error-sesion") await expect(page.locator("[data-role-theme]")).toHaveAttribute("data-role-theme", "pending");
+  else await expect(page.locator("[data-role-theme]")).not.toHaveAttribute("data-role-theme", "pending");
+  if (name === "error-sesion") await expect(page.getByRole("heading", { name: "No pudimos comprobar tu sesión", exact: true })).toBeVisible();
+  if (name === "acceso-denegado") await expect(page.getByRole("heading", { name: "Acceso no permitido", exact: true })).toBeVisible();
   // Heading rule (TASK-032): a breadcrumb only when the screen has a parent level.
   await expect(page.getByRole("navigation", { name: "Ubicación actual" }).getByRole("listitem")).not.toHaveCount(1);
   // No screenshot while a "Comprobando sesión…"/"Cargando …" status is still on screen.
@@ -76,11 +81,18 @@ for (const width of [390, 1280]) {
     });
 
     test("pantallas internas", async ({ page }) => {
+      // Este recorrido reúne varias pantallas con capturas y Axe; cada aserción conserva su timeout de 10 s.
+      test.setTimeout(180_000);
       await loginAs(page, "ADMIN");
       // The test database keeps the profesores of earlier runs: a fixed page keeps the capture stable.
       await page.route((url) => url.origin === API && url.pathname === "/profesores", async (route) => route.fulfill({
         response: await route.fetch(),
         json: { items: [{ id: "p1", nombreCompleto: "Profesor de prueba", createdAt: "2026-01-02T00:00:00.000Z", deletedAt: null }], total: 1, page: 1, pageSize: 10 },
+      }));
+      // La cuenta de prueba y su fecha son estables, sin depender del día ni de residuos de otras suites.
+      await page.route((url) => url.origin === API && url.pathname === "/users", async (route) => route.fulfill({
+        response: await route.fetch(),
+        json: { items: [{ id: "33333333-3333-4333-8333-333333333333", displayName: "Estudiante de prueba", email: "fixture@alu.frlp.utn.edu.ar", role: "USER", createdAt: "2026-01-02T00:00:00.000Z", disabledAt: null }], total: 1, page: 1, pageSize: 9 },
       }));
       for (const [name, path] of SCREENS.private) await test.step(name, () => check(page, name, path, width));
     });
