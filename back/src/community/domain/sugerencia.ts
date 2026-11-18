@@ -15,3 +15,11 @@ export interface Sugerencia {
 }
 
 export type SugerenciaRegistrada = Pick<Sugerencia, "id" | "createdAt">;
+
+/** Proyección exclusiva de administración: no expone correo ni claves de envío. */
+export interface SugerenciaAdministrativa extends SugerenciaRegistrada {
+  categoria: CategoriaSugerencia;
+  contenido: string;
+  meGusta: boolean;
+  autor: { displayName: string };
+}

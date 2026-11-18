@@ -89,7 +89,9 @@ describe.skipIf(!databaseUrl)("HU-C02 sugerencias HTTP privadas e idempotentes",
   it("no ofrece lectura, listado ni publicación de sugerencias a otros usuarios", async () => {
     const first = await fixture(); const other = await fixture(); const receipt = await (await post(first.cookie)).json();
     for (const cookie of ["", first.cookie, other.cookie]) for (const path of ["/comunidad/sugerencias", `/comunidad/sugerencias/${receipt.id}`]) {
-      const response = await fetch(`${baseUrl}${path}`, { headers: { Cookie: cookie } }); expect(response.status).toBe(404);
+      // HU-C03 incorpora listado solo ADMIN; la lectura por ID sigue sin existir.
+      const response = await fetch(`${baseUrl}${path}`, { headers: { Cookie: cookie } });
+      expect(response.status).toBe(path === "/comunidad/sugerencias" ? (cookie ? 403 : 401) : 404);
       expect(JSON.stringify(await response.json())).not.toContain("Una sugerencia privada");
     }
   });

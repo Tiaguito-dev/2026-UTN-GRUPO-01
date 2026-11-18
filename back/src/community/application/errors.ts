@@ -1,5 +1,10 @@
 import { DomainError } from "../../shared/domain/domain-error.js";
 
+export class SugerenciaNoEncontradaError extends DomainError {
+  readonly httpStatus = 404;
+  constructor() { super("La sugerencia ya no está disponible."); this.name = "SugerenciaNoEncontradaError"; }
+}
+
 export class NormasNoDisponiblesError extends DomainError {
   readonly httpStatus = 404;
   constructor() {

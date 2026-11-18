@@ -60,7 +60,23 @@ Aplicar `20261118010000_sugerencias` antes del backend: agrega enum y tabla `Sug
 autor con FK User `ON DELETE RESTRICT`, contenido `VARCHAR(5000)`, unicidad por usuario/clave
 e índice por creación/ID. No hay seed ni estado administrativo. Esta HU no incorpora GET de
 sugerencias, bandeja, búsqueda por ID, edición, likes ni borrado, y ningún envío se publica en
-Comunidad. HU-C03 definirá su administración; HU-C01 y HU-C04 conservan sus contratos.
+Comunidad. HU-C03 añade la administración siguiente; HU-C01 y HU-C04 conservan sus contratos.
+
+### Bandeja administrativa de sugerencias (HU-C03)
+
+Solo ADMIN puede usar GET `/comunidad/sugerencias`, PUT
+`/comunidad/sugerencias/:id/me-gusta` y DELETE `/comunidad/sugerencias/:id`.
+El GET acepta page/pageSize (defaults 1/20, máximo 100) y soloMeGusta=true|false; devuelve
+PaginatedResult ordenado por creación/ID descendentes con autor {displayName}, categoría,
+contenido, fecha y meGusta. No expone email ni usuarioId/solicitudId. Página y total usan un
+snapshot RepeatableRead. Las respuestas son no-store y las escrituras conservan Origin/CSRF.
+El PUT exige exactamente {meGusta:boolean}: es una asignación compartida e idempotente, no un
+toggle por administrador. DELETE devuelve 204 y realiza baja lógica; una sugerencia ausente
+o eliminada responde 404 en las escrituras. No hay lectura individual ni respuestas/estados.
+
+Aplicar `20261118020000_administrar_sugerencias` antes del backend: agrega meGusta=false
+y deletedAt nullable sin modificar datos previos. La baja se excluye de listado y total,
+pero conserva la clave y el recibo de HU-C02: repetir un envío anterior no la recrea.
 
 ## Sesiones e inactividad
 
