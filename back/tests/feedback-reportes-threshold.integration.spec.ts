@@ -34,7 +34,7 @@ describe.skipIf(!databaseUrl)("T5: umbral preventivo HTTP y PostgreSQL reales", 
   }
   async function threshold(id: string) {
     const reports = [];
-    for (const who of reporters.slice(0, 3)) {
+    for (const who of reporters.slice(0, 2)) {
       const response = await report(id, who); expect(response.status).toBe(201); reports.push(await response.json());
     }
     return reports;
@@ -50,11 +50,39 @@ describe.skipIf(!databaseUrl)("T5: umbral preventivo HTTP y PostgreSQL reales", 
     return (await response.json()).items;
   }
 
-  it("1 y 2 denunciantes mantienen publicación; el tercero oculta y retira el voto sin rechazar", async () => {
+  it("publica por HTTP sin aprobación previa, oculta al segundo denunciante y requiere restitución explícita", async () => {
+    const context = await h.context();
+    const created = await h.request(`/comisiones/${context.comision.id}/feedback`, owner.cookie, "POST", {
+      texto: "Publicación directa y revisión comunitaria", anonimo: true, puntuacion: 5,
+    });
+    expect(created.status).toBe(201);
+    const feedback = await created.json();
+    expect(await current(feedback.id)).toMatchObject({ estadoModeracion: "APROBADO", versionModeracion: 1 });
+    expect(await community(feedback.id)).toHaveLength(1);
+    const first = await report(feedback.id, reporters[0]!); expect(first.status).toBe(201);
+    expect(await current(feedback.id)).toMatchObject({ ocultoReportes: false, versionModeracion: 1 });
+    expect(await community(feedback.id)).toHaveLength(1);
+    const retry = await report(feedback.id, reporters[0]!); expect(retry.status).toBe(200);
+    expect(await h.prisma.feedbackReporte.count()).toBe(1);
+    expect((await report(feedback.id, reporters[1]!)).status).toBe(201);
+    expect(await current(feedback.id)).toMatchObject({ estadoModeracion: "APROBADO", ocultoReportes: true, versionModeracion: 2 });
+    expect(await community(feedback.id)).toEqual([]);
+    const own = await h.request(`/feedback/${feedback.id}`, owner.cookie); expect(own.status).toBe(200);
+    expect(await own.json()).toMatchObject({ id: feedback.id, propio: true, ocultoReportes: true });
+    expect((await moderate(feedback.id, "RESTITUCION_REPORTES")).status).toBe(409);
+    expect((await resolve((await first.json()).id)).status).toBe(200);
+    expect(await community(feedback.id)).toEqual([]);
+    expect((await moderate(feedback.id, "RESTITUCION_REPORTES")).status).toBe(200);
+    expect(await community(feedback.id)).toHaveLength(1);
+    expect(await summary(context.materia.id)).toEqual({ promedio: 5, cantidad: 1 });
+    expect(await h.prisma.feedbackHistorial.count({ where: { feedbackId: feedback.id, accion: "APROBACION" } })).toBe(0);
+  });
+
+  it("1 denunciante mantiene publicación; el segundo oculta y retira el voto sin rechazar", async () => {
     const { feedback, context } = await published();
-    for (const [index, who] of reporters.slice(0, 3).entries()) {
+    for (const [index, who] of reporters.slice(0, 2).entries()) {
       expect((await report(feedback.id, who)).status).toBe(201);
-      const hidden = index === 2;
+      const hidden = index === 1;
       expect(await current(feedback.id)).toMatchObject({ estadoModeracion: "APROBADO", ocultoReportes: hidden,
         ocultoAutor: false, ocultoAdministracion: false, versionModeracion: hidden ? 3 : 2, motivoRechazo: null });
       expect((await community(feedback.id)).some((item: { id: string }) => item.id === feedback.id)).toBe(!hidden);
@@ -63,31 +91,31 @@ describe.skipIf(!databaseUrl)("T5: umbral preventivo HTTP y PostgreSQL reales", 
     }
   });
 
-  it("registra snapshot y ledger correlacionados con origen automático y el tercer denunciante real", async () => {
+  it("registra snapshot y ledger correlacionados con origen automático y el segundo denunciante real", async () => {
     const { feedback } = await published(); const reports = await threshold(feedback.id);
     const snapshot = await h.prisma.feedbackHistorial.findFirstOrThrow({ where: { feedbackId: feedback.id, accion: "OCULTAMIENTO_REPORTES" } });
     expect(snapshot).toMatchObject({ texto: feedback.texto, puntuacion: 5, anonimo: true, ocultoReportes: true, estadoModeracion: "APROBADO", versionModeracion: 3 });
     const event = await h.prisma.administracionHistorial.findUniqueOrThrow({ where: { id: snapshot.id } });
-    expect(event).toMatchObject({ entidad: "feedback", entidadId: feedback.id, actorId: reporters[2]!.id, accion: "OCULTAMIENTO_REPORTES" });
+    expect(event).toMatchObject({ entidad: "feedback", entidadId: feedback.id, actorId: reporters[1]!.id, accion: "OCULTAMIENTO_REPORTES" });
     expect(event.cambios).toEqual(expect.arrayContaining([
       { campo: "ocultoReportes", anterior: "false", nuevo: "true" },
       { campo: "origen", anterior: null, nuevo: "AUTOMATICO" },
     ]));
     expect(await h.prisma.feedbackHistorial.count({ where: { feedbackId: feedback.id, accion: "OCULTAMIENTO_REPORTES" } })).toBe(1);
-    expect(reports[2].versionReportada).toBe(2);
+    expect(reports[1].versionReportada).toBe(2);
     const detail = await (await h.request(`/admin/feedback/${feedback.id}/detalle`, admin.cookie)).json();
     expect(JSON.stringify(detail)).toContain("AUTOMATICO");
   });
 
-  it("reintentos idénticos del tercer denunciante oculto son idempotentes y nunca crean otra versión", async () => {
+  it("reintentos idénticos del segundo denunciante oculto son idempotentes y nunca crean otra versión", async () => {
     const { feedback } = await published(); const reports = await threshold(feedback.id);
     const before = await current(feedback.id);
-    const responses = await Promise.all(Array.from({ length: 4 }, () => report(feedback.id, reporters[2]!)));
+    const responses = await Promise.all(Array.from({ length: 4 }, () => report(feedback.id, reporters[1]!)));
     expect(responses.map(response => response.status)).toEqual([200, 200, 200, 200]);
-    for (const response of responses) expect(await response.json()).toEqual(reports[2]);
-    expect((await report(feedback.id, reporters[2]!, { motivo: "OTRO" })).status).toBe(409);
+    for (const response of responses) expect(await response.json()).toEqual(reports[1]);
+    expect((await report(feedback.id, reporters[1]!, { motivo: "OTRO" })).status).toBe(409);
     expect(await current(feedback.id)).toEqual(before);
-    expect(await h.prisma.feedbackReporte.count()).toBe(3);
+    expect(await h.prisma.feedbackReporte.count()).toBe(2);
     expect(await h.prisma.feedbackHistorial.count({ where: { accion: "OCULTAMIENTO_REPORTES" } })).toBe(1);
   });
 
@@ -95,38 +123,38 @@ describe.skipIf(!databaseUrl)("T5: umbral preventivo HTTP y PostgreSQL reales", 
     const { feedback } = await published(); await threshold(feedback.id);
     const response = await report(feedback.id, reporters[3]!); expect(response.status).toBe(404);
     expect(JSON.stringify(await response.json())).not.toContain(feedback.texto);
-    expect(await h.prisma.feedbackReporte.count()).toBe(3);
+    expect(await h.prisma.feedbackReporte.count()).toBe(2);
   });
 
-  it("segundo y tercer reporte simultáneos se serializan y generan un solo ocultamiento", async () => {
-    const { feedback } = await published(); expect((await report(feedback.id)).status).toBe(201);
-    const responses = await Promise.all(reporters.slice(1, 3).map(who => report(feedback.id, who)));
+  it("primer y segundo reporte simultáneos se serializan y generan un solo ocultamiento", async () => {
+    const { feedback } = await published();
+    const responses = await Promise.all(reporters.slice(0, 2).map(who => report(feedback.id, who)));
     expect(responses.map(response => response.status)).toEqual([201, 201]);
     expect(await current(feedback.id)).toMatchObject({ ocultoReportes: true, versionModeracion: 3 });
-    expect(await h.prisma.feedbackReporte.count()).toBe(3);
+    expect(await h.prisma.feedbackReporte.count()).toBe(2);
     expect(await h.prisma.feedbackHistorial.count({ where: { accion: "OCULTAMIENTO_REPORTES" } })).toBe(1);
   });
 
-  it("cuatro reportes concurrentes ocultan al tercero y bloquean la interacción posterior", async () => {
+  it("cuatro reportes concurrentes ocultan al segundo y bloquean la interacción posterior", async () => {
     const { feedback } = await published();
     const responses = await Promise.all(reporters.map(who => report(feedback.id, who)));
-    expect(responses.map(response => response.status).sort()).toEqual([201, 201, 201, 404]);
+    expect(responses.map(response => response.status).sort()).toEqual([201, 201, 404, 404]);
     expect(await current(feedback.id)).toMatchObject({ ocultoReportes: true, estadoModeracion: "APROBADO", versionModeracion: 3 });
-    expect(await h.prisma.feedbackReporte.count()).toBe(3);
+    expect(await h.prisma.feedbackReporte.count()).toBe(2);
     expect(await h.prisma.feedbackHistorial.count({ where: { accion: "OCULTAMIENTO_REPORTES" } })).toBe(1);
   });
 
   it("coordina el umbral entre pools Prisma independientes", async () => {
-    const { feedback } = await published(); expect((await report(feedback.id)).status).toBe(201);
+    const { feedback } = await published();
     const schema = (await h.sql.query<{ current_schema: string }>("SELECT current_schema()")).rows[0]!.current_schema;
     const second = new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl!, options: `-c search_path=${schema},public` }, { schema }) });
     await second.$connect();
     try {
       const repositories = [new PrismaFeedbackReporteRepository(h.prisma as unknown as PrismaService), new PrismaFeedbackReporteRepository(second as unknown as PrismaService)];
-      const results = await Promise.all(repositories.map((repo, index) => repo.create(feedback.id, reporters[index + 1]!.id, { motivo: "SPAM" })));
+      const results = await Promise.all(repositories.map((repo, index) => repo.create(feedback.id, reporters[index]!.id, { motivo: "SPAM" })));
       expect(results.every(result => result.created)).toBe(true);
       expect(await current(feedback.id)).toMatchObject({ ocultoReportes: true, versionModeracion: 3 });
-      expect(await h.prisma.feedbackReporte.count()).toBe(3);
+      expect(await h.prisma.feedbackReporte.count()).toBe(2);
       expect(await h.prisma.feedbackHistorial.count({ where: { accion: "OCULTAMIENTO_REPORTES" } })).toBe(1);
     } finally { await second.$disconnect(); }
   });
@@ -134,28 +162,26 @@ describe.skipIf(!databaseUrl)("T5: umbral preventivo HTTP y PostgreSQL reales", 
   it("varias versiones del mismo denunciante cuentan una sola vez, incluyendo carreras de reintento", async () => {
     const { feedback } = await published(); expect((await report(feedback.id)).status).toBe(201);
     expect((await h.request(`/feedback/${feedback.id}`, owner.cookie, "PATCH", { texto: "Contenido corregido y revisado", versionEsperada: 2 })).status).toBe(200);
-    expect((await moderate(feedback.id, "APROBACION")).status).toBe(200);
     const duplicateVersion = await Promise.all([report(feedback.id), report(feedback.id)]);
     expect(duplicateVersion.map(response => response.status).sort()).toEqual([200, 201]);
-    expect((await report(feedback.id, reporters[1]!)).status).toBe(201);
-    expect(await current(feedback.id)).toMatchObject({ ocultoReportes: false, versionModeracion: 4 });
-    const created = await (await report(feedback.id, reporters[2]!)).json();
+    expect(await current(feedback.id)).toMatchObject({ ocultoReportes: false, versionModeracion: 3 });
+    const created = await (await report(feedback.id, reporters[1]!)).json();
     const detail = await (await h.request(`/admin/feedback-reportes/${created.id}`, admin.cookie)).json();
-    expect(detail).toMatchObject({ cantidadReportesActivos: 4, denunciantesAbiertos: 3 });
-    expect(await current(feedback.id)).toMatchObject({ ocultoReportes: true, versionModeracion: 5 });
-    expect(await h.prisma.feedbackReporte.findMany({ select: { versionReportada: true } })).toEqual(expect.arrayContaining([{ versionReportada: 2 }, { versionReportada: 4 }]));
+    expect(detail).toMatchObject({ cantidadReportesActivos: 3, denunciantesAbiertos: 2 });
+    expect(await current(feedback.id)).toMatchObject({ ocultoReportes: true, versionModeracion: 4 });
+    expect(await h.prisma.feedbackReporte.findMany({ select: { versionReportada: true } })).toEqual(expect.arrayContaining([{ versionReportada: 2 }, { versionReportada: 3 }]));
     const own = await h.prisma.feedbackReporte.findMany({ where: { feedbackId: feedback.id, denuncianteId: reporters[0]!.id }, orderBy: { versionReportada: "asc" } });
     expect(own).toHaveLength(2);
     expect((await resolve(own[0]!.id)).status).toBe(200);
     const partlyClosed = await (await h.request(`/admin/feedback-reportes/${created.id}`, admin.cookie)).json();
-    expect(partlyClosed).toMatchObject({ cantidadReportesActivos: 3, denunciantesAbiertos: 3 });
+    expect(partlyClosed).toMatchObject({ cantidadReportesActivos: 2, denunciantesAbiertos: 2 });
     expect((await moderate(feedback.id, "RESTITUCION_REPORTES")).status).toBe(409);
     expect((await resolve(own[1]!.id)).status).toBe(200);
     const retryClosedWhileHidden = await report(feedback.id); expect(retryClosedWhileHidden.status).toBe(200);
     expect(await retryClosedWhileHidden.json()).toMatchObject({ id: own[1]!.id, estado: "DESESTIMADO" });
     const closed = await (await h.request(`/admin/feedback-reportes/${created.id}`, admin.cookie)).json();
-    expect(closed).toMatchObject({ cantidadReportesActivos: 2, denunciantesAbiertos: 2 });
-    expect(await current(feedback.id)).toMatchObject({ ocultoReportes: true, versionModeracion: 5 });
+    expect(closed).toMatchObject({ cantidadReportesActivos: 1, denunciantesAbiertos: 1 });
+    expect(await current(feedback.id)).toMatchObject({ ocultoReportes: true, versionModeracion: 4 });
     expect((await moderate(feedback.id, "RESTITUCION_REPORTES")).status).toBe(200);
     expect(await h.prisma.feedbackReporte.count({ where: { estado: "DESESTIMADO" } })).toBe(2);
   });
@@ -165,14 +191,13 @@ describe.skipIf(!databaseUrl)("T5: umbral preventivo HTTP y PostgreSQL reales", 
     const first = await (await report(feedback.id)).json(); expect((await resolve(first.id)).status).toBe(200);
     const retry = await report(feedback.id); expect(retry.status).toBe(200); expect((await retry.json()).estado).toBe("DESESTIMADO");
     expect((await report(feedback.id, reporters[1]!)).status).toBe(201);
-    expect((await report(feedback.id, reporters[2]!)).status).toBe(201);
     expect(await current(feedback.id)).toMatchObject({ ocultoReportes: false });
-    expect((await report(feedback.id, reporters[3]!)).status).toBe(201);
+    expect((await report(feedback.id, reporters[2]!)).status).toBe(201);
     expect(await current(feedback.id)).toMatchObject({ ocultoReportes: true });
     expect(await h.prisma.feedbackReporte.findUniqueOrThrow({ where: { id: first.id } })).toMatchObject({ estado: "DESESTIMADO", denuncianteId: reporters[0]!.id });
   });
 
-  it("cerrar denuncias no restituye; ADMIN debe decidir explícitamente con menos de tres", async () => {
+  it("cerrar denuncias no restituye; ADMIN debe decidir explícitamente con menos de dos", async () => {
     const { feedback, context } = await published(); const reports = await threshold(feedback.id);
     expect((await moderate(feedback.id, "RESTITUCION_REPORTES")).status).toBe(409);
     expect((await resolve(reports[0].id, "RESUELTO")).status).toBe(200);
@@ -218,19 +243,19 @@ describe.skipIf(!databaseUrl)("T5: umbral preventivo HTTP y PostgreSQL reales", 
     expect((await moderate(feedback.id, "RESTITUCION_REPORTES")).status).toBe(200);
     await threshold(feedback.id);
     expect(await current(feedback.id)).toMatchObject({ ocultoReportes: true, versionModeracion: 5 });
-    expect(await h.prisma.feedbackReporte.count({ where: { estado: "DESESTIMADO" } })).toBe(3);
-    expect(await h.prisma.feedbackReporte.count({ where: { estado: "ABIERTO" } })).toBe(3);
+    expect(await h.prisma.feedbackReporte.count({ where: { estado: "DESESTIMADO" } })).toBe(2);
+    expect(await h.prisma.feedbackReporte.count({ where: { estado: "ABIERTO" } })).toBe(2);
     expect(await h.prisma.feedbackHistorial.count({ where: { accion: "OCULTAMIENTO_REPORTES" } })).toBe(2);
   });
 
-  it("cierre concurrente con tercer reporte nunca publica y decide el umbral desde el conteo bloqueado", async () => {
+  it("cierre concurrente con segundo reporte nunca publica y decide el umbral desde el conteo bloqueado", async () => {
     const { feedback } = await published();
-    const first = await (await report(feedback.id)).json(); expect((await report(feedback.id, reporters[1]!)).status).toBe(201);
-    const responses = await Promise.all([resolve(first.id), report(feedback.id, reporters[2]!)]);
+    const first = await (await report(feedback.id)).json();
+    const responses = await Promise.all([resolve(first.id), report(feedback.id, reporters[1]!)]);
     expect(responses.map(response => response.status)).toEqual([200, 201]);
     const row = await current(feedback.id);
     expect(row.estadoModeracion).toBe("APROBADO");
-    expect(await h.prisma.feedbackReporte.count({ where: { estado: "ABIERTO" } })).toBe(2);
+    expect(await h.prisma.feedbackReporte.count({ where: { estado: "ABIERTO" } })).toBe(1);
     // Either serialization is safe: close first avoids the threshold; report first
     // hides permanently until a separate explicit decision, even after the close.
     expect(await h.prisma.feedbackHistorial.count({ where: { accion: "OCULTAMIENTO_REPORTES" } })).toBe(row.ocultoReportes ? 1 : 0);
@@ -242,8 +267,8 @@ describe.skipIf(!databaseUrl)("T5: umbral preventivo HTTP y PostgreSQL reales", 
     const [restored, reported] = await Promise.all([moderate(feedback.id, "RESTITUCION_REPORTES"), report(feedback.id, reporters[3]!)]);
     expect(restored.status).toBe(200); expect([201, 404]).toContain(reported.status);
     const count = await h.prisma.feedbackReporte.count({ where: { estado: "ABIERTO" } }); const row = await current(feedback.id);
-    expect(count).toBe(reported.status === 201 ? 3 : 2); expect(row.ocultoReportes).toBe(count >= 3);
-    expect((await community(feedback.id)).length).toBe(count >= 3 ? 0 : 1);
+    expect(count).toBe(reported.status === 201 ? 2 : 1); expect(row.ocultoReportes).toBe(count >= 2);
+    expect((await community(feedback.id)).length).toBe(count >= 2 ? 0 : 1);
   });
 
   it("dos ADMIN concurrentes restituyen una vez; versión vieja produce 409", async () => {
@@ -321,8 +346,8 @@ describe.skipIf(!databaseUrl)("T5: umbral preventivo HTTP y PostgreSQL reales", 
     if (cause === "deletedAt") expect((await h.request(`/feedback/${feedback.id}`, owner.cookie, "DELETE")).status).toBe(204);
     else if (cause === "ocultoAutor") expect((await h.request(`/feedback/${feedback.id}/ocultar`, owner.cookie, "POST", { versionEsperada: 3 })).status).toBe(200);
     else expect((await moderate(feedback.id, "OCULTAMIENTO_ADMIN")).status).toBe(200);
-    expect((await report(feedback.id, reporters[2]!)).status).toBe(404);
-    expect(await h.prisma.feedbackReporte.count()).toBe(3);
+    expect((await report(feedback.id, reporters[1]!)).status).toBe(404);
+    expect(await h.prisma.feedbackReporte.count()).toBe(2);
   });
 
   it("autor y ADMIN conservan contenido e historia sin revelar denunciantes al autor/comunidad", async () => {
@@ -362,8 +387,8 @@ describe.skipIf(!databaseUrl)("T5: umbral preventivo HTTP y PostgreSQL reales", 
     const stored = await h.prisma.feedbackReporte.findMany({ where: { feedbackId: feedback.id }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
     expect((await resolve(stored[0]!.id)).status).toBe(200);
     const response = await h.request("/admin/feedback-reportes?ocultoReportes=true", admin.cookie); expect(response.status).toBe(200);
-    const body = await response.json(); expect(body).toMatchObject({ total: 3, page: 1, pageSize: 9 });
-    for (const item of body.items) expect(item).toMatchObject({ feedbackId: feedback.id, denunciantesAbiertos: 2, cantidadReportesActivos: 2,
+    const body = await response.json(); expect(body).toMatchObject({ total: 2, page: 1, pageSize: 9 });
+    for (const item of body.items) expect(item).toMatchObject({ feedbackId: feedback.id, denunciantesAbiertos: 1, cantidadReportesActivos: 1,
       ultimoReporteAt: stored[0]!.createdAt.toISOString(), experiencia: { ocultoReportes: true, estadoModeracion: "APROBADO", ocultoAutor: false, ocultoAdministracion: false } });
     expect(new Set(body.items.map((item: { versionReportada: number }) => item.versionReportada))).toEqual(new Set([2]));
     const visible = await (await h.request("/admin/feedback-reportes?ocultoReportes=false", admin.cookie)).json();
@@ -375,38 +400,38 @@ describe.skipIf(!databaseUrl)("T5: umbral preventivo HTTP y PostgreSQL reales", 
 
   it("rollback durante sync revierte reporte, causa, versión, snapshot, ledger y voto", async () => {
     const { feedback, context } = await published();
-    expect((await report(feedback.id, reporters[0]!)).status).toBe(201); expect((await report(feedback.id, reporters[1]!)).status).toBe(201);
+    expect((await report(feedback.id, reporters[0]!)).status).toBe(201);
     const before = await current(feedback.id); const beforeVote = await vote(context.materia.id);
     const beforeHistory = await h.prisma.feedbackHistorial.findMany({ where: { feedbackId: feedback.id } });
     const beforeLedger = await h.prisma.administracionHistorial.count();
     await h.sql.query('CREATE FUNCTION fail_t5_sync() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION \'T5 sync rollback probe\'; END $$');
     await h.sql.query('CREATE TRIGGER fail_t5_sync BEFORE UPDATE ON "ValoracionMateria" FOR EACH ROW EXECUTE FUNCTION fail_t5_sync()');
     try {
-      expect((await report(feedback.id, reporters[2]!)).status).toBe(500);
+      expect((await report(feedback.id, reporters[1]!)).status).toBe(500);
       expect(await current(feedback.id)).toEqual(before); expect(await vote(context.materia.id)).toEqual(beforeVote);
       expect(await h.prisma.feedbackHistorial.findMany({ where: { feedbackId: feedback.id } })).toEqual(beforeHistory);
-      expect(await h.prisma.administracionHistorial.count()).toBe(beforeLedger); expect(await h.prisma.feedbackReporte.count()).toBe(2);
+      expect(await h.prisma.administracionHistorial.count()).toBe(beforeLedger); expect(await h.prisma.feedbackReporte.count()).toBe(1);
     } finally {
       await h.sql.query('DROP TRIGGER fail_t5_sync ON "ValoracionMateria"'); await h.sql.query('DROP FUNCTION fail_t5_sync()');
     }
-    expect((await report(feedback.id, reporters[2]!)).status).toBe(201);
+    expect((await report(feedback.id, reporters[1]!)).status).toBe(201);
     expect(await current(feedback.id)).toMatchObject({ ocultoReportes: true, versionModeracion: 3 });
   });
 
   it("rollback del ledger preventivo revierte también el reporte y sincronización", async () => {
     const { feedback, context } = await published();
-    expect((await report(feedback.id, reporters[0]!)).status).toBe(201); expect((await report(feedback.id, reporters[1]!)).status).toBe(201);
+    expect((await report(feedback.id, reporters[0]!)).status).toBe(201);
     const before = await current(feedback.id); const beforeVote = await vote(context.materia.id);
     await h.sql.query('CREATE FUNCTION fail_t5_event() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."accion" = \'OCULTAMIENTO_REPORTES\' THEN RAISE EXCEPTION \'T5 ledger rollback probe\'; END IF; RETURN NEW; END $$');
     await h.sql.query('CREATE TRIGGER fail_t5_event BEFORE INSERT ON "AdministracionHistorial" FOR EACH ROW EXECUTE FUNCTION fail_t5_event()');
     try {
-      expect((await report(feedback.id, reporters[2]!)).status).toBe(500); expect(await h.prisma.feedbackReporte.count()).toBe(2);
+      expect((await report(feedback.id, reporters[1]!)).status).toBe(500); expect(await h.prisma.feedbackReporte.count()).toBe(1);
       expect(await current(feedback.id)).toEqual(before); expect(await vote(context.materia.id)).toEqual(beforeVote);
       expect(await h.prisma.feedbackHistorial.count({ where: { accion: "OCULTAMIENTO_REPORTES" } })).toBe(0);
     } finally {
       await h.sql.query('DROP TRIGGER fail_t5_event ON "AdministracionHistorial"'); await h.sql.query('DROP FUNCTION fail_t5_event()');
     }
-    expect((await report(feedback.id, reporters[2]!)).status).toBe(201);
+    expect((await report(feedback.id, reporters[1]!)).status).toBe(201);
   });
 
   it("rollback de restitución conserva ocultamiento y voto retirado para reintentar", async () => {

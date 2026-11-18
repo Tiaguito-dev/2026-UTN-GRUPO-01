@@ -19,7 +19,7 @@ function fixture() {
   const row = { id: randomUUID(), autorId: usuarioId, comisionId, materiaId, texto: "Bien", anonimo: true, puntuacion: 4,
     autor: { displayName: "Nombre privado" }, comision: { carrera: "S" }, profesorId: null, profesorNombre: null, profesorCargo: null,
     comisionNombre: "S-31", materiaNombre: "Análisis", cursadaId: context.cursadaId, anio: 2026, modalidad: "PRIMERO", cuatrimestre: "PRIMERO",
-    createdAt: new Date(), updatedAt: new Date(), deletedAt: null, estadoModeracion: "PENDIENTE", versionModeracion: 1,
+    createdAt: new Date(), updatedAt: new Date(), deletedAt: null, estadoModeracion: "APROBADO", versionModeracion: 1,
     requiereRevisionHumana: false, motivoRechazo: null, ocultoAutor: false, ocultoAdministracion: false, ocultoReportes: false };
   const tx = { $queryRaw: vi.fn().mockResolvedValueOnce([{ id: comisionId }]).mockResolvedValueOnce([context]),
     feedback: { findFirst: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue(row) },
@@ -29,7 +29,7 @@ function fixture() {
   return { repository: new PrismaFeedbackRepository({ ...tx, $transaction: transaction } as unknown as PrismaService), tx, transaction,
     usuarioId, materiaId, comisionId, row, context, input: { texto: "Bien", anonimo: true, puntuacion: 4 } };
 }
-describe("T2 Feedback: alta pendiente sin efecto público inmediato", () => {
+describe("T2 Feedback: alta con publicación inmediata", () => {
   it.each([null, 0, 6, 1.5, "4"])("rechaza puntuación inválida %s antes de persistir", puntuacion => {
     const create = vi.fn(); const service = new FeedbackService({ create } as unknown as FeedbackRepository);
     expect(() => service.create(randomUUID(), "usuario", { texto: "Bien", anonimo: true, puntuacion })).toThrow(); expect(create).not.toHaveBeenCalled();
@@ -41,15 +41,15 @@ describe("T2 Feedback: alta pendiente sin efecto público inmediato", () => {
     expect(() => service.create(id, "usuario", { texto: "Bien", anonimo: true })).toThrow();
     expect(() => service.create(id, "usuario", { texto: "Bien", anonimo: true, puntuacion: 5, autorId: randomUUID() })).toThrow();
   });
-  it("guarda comentario y snapshot pendientes sin consentimientos y sincroniza antes del ledger", async () => {
+  it("guarda comentario y snapshot publicados sin consentimientos y sincroniza antes del ledger", async () => {
     const f = fixture(); await f.repository.create(f.comisionId, f.usuarioId, { ...f.input });
     expect(f.transaction).toHaveBeenCalledExactlyOnceWith(expect.any(Function), { isolationLevel: "ReadCommitted" });
     expect(f.tx.aceptacionNormas.findUnique).not.toHaveBeenCalled();
     expect(f.tx.aceptacionNormas.createMany).not.toHaveBeenCalled();
     expect(f.tx.feedback.create.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(syncMateriaVote).mock.invocationCallOrder[0]!);
     expect(vi.mocked(syncMateriaVote).mock.invocationCallOrder[0]).toBeLessThan(f.tx.administracionHistorial.create.mock.invocationCallOrder[0]!);
-    expect(f.tx.feedback.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ estadoModeracion: "PENDIENTE", versionModeracion: 1,
-      historial: { create: expect.objectContaining({ accion: "CREACION", texto: "Bien", anonimo: true, puntuacion: 4, estadoModeracion: "PENDIENTE", versionModeracion: 1 }) },
+    expect(f.tx.feedback.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ estadoModeracion: "APROBADO", versionModeracion: 1,
+      historial: { create: expect.objectContaining({ accion: "CREACION", texto: "Bien", anonimo: true, puntuacion: 4, estadoModeracion: "APROBADO", versionModeracion: 1 }) },
     }) }));
     expect(syncMateriaVote).toHaveBeenCalledExactlyOnceWith(f.tx, f.usuarioId, f.materiaId, expect.any(Date));
     expect(f.tx.administracionHistorial.create.mock.calls[0]![0].data.cambios).not.toEqual(expect.arrayContaining([expect.objectContaining({ campo: "valoracionMateria.puntuacion" })]));
@@ -76,12 +76,12 @@ describe("T2 Feedback: alta pendiente sin efecto público inmediato", () => {
     const snapshot = f.tx.feedback.create.mock.calls[0]![0].data.historial.create;
     expect(f.tx.administracionHistorial.create).toHaveBeenCalledWith({ data: expect.objectContaining({ id: snapshot.id, actorId: f.usuarioId, accion: "CREACION", cambios: expect.arrayContaining(changes) }) });
   });
-  it("T2 conserva revisión humana de un rechazo anterior aunque se haya retirado", async () => {
+  it("publica una nueva experiencia sin heredar la revisión de registros retirados", async () => {
     const f = fixture(); f.tx.feedback.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: randomUUID() });
     await f.repository.create(f.comisionId, f.usuarioId, f.input);
-    expect(f.tx.feedback.findFirst).toHaveBeenNthCalledWith(2, { where: { comisionId: f.comisionId, autorId: f.usuarioId, requiereRevisionHumana: true }, select: { id: true } });
-    expect(f.tx.feedback.create.mock.calls[0]![0].data).toMatchObject({ estadoModeracion: "PENDIENTE", requiereRevisionHumana: true });
-    expect(f.tx.feedback.create.mock.calls[0]![0].data.historial.create).toMatchObject({ requiereRevisionHumana: true });
+    expect(f.tx.feedback.findFirst).toHaveBeenCalledTimes(1);
+    expect(f.tx.feedback.create.mock.calls[0]![0].data).toMatchObject({ estadoModeracion: "APROBADO", requiereRevisionHumana: false });
+    expect(f.tx.feedback.create.mock.calls[0]![0].data.historial.create).toMatchObject({ requiereRevisionHumana: false });
   });
   it("duplicado y comisión inactiva no escriben ni sincronizan", async () => {
     const duplicate = fixture(); duplicate.tx.feedback.findFirst.mockResolvedValue({ id: randomUUID() });

@@ -30,11 +30,17 @@ describe("T5: límites de la decisión preventiva", () => {
   it.each([undefined, -1, 1.5, Number.NaN])("no decide usando conteo inválido %j", count => {
     expect(() => transitionFeedbackModeration(row, actor, { accion: "OCULTAMIENTO_REPORTES", versionEsperada: 1, motivo: "Umbral" }, false, count)).toThrow();
   });
-  it.each([0, 1, 2])("no oculta con %i denunciantes abiertos", count => {
+  it.each([0, 1])("no oculta con %i denunciantes abiertos", count => {
     expect(() => transitionFeedbackModeration(row, actor, { accion: "OCULTAMIENTO_REPORTES", versionEsperada: 1, motivo: "Umbral" }, false, count)).toThrow();
   });
   it("rechaza autor como disparador aunque indique el conteo correcto", () => {
     expect(() => transitionFeedbackModeration(row, { id: row.autorId, role: "USER" }, { accion: "OCULTAMIENTO_REPORTES", versionEsperada: 1, motivo: "Umbral" }, false, 3)).toThrow();
+  });
+  it("dos denunciantes activan ocultamiento y bloquean restitución hasta reducir el conteo", () => {
+    const hidden = transitionFeedbackModeration(row, actor, { accion: "OCULTAMIENTO_REPORTES", versionEsperada: 1, motivo: "Umbral" }, false, 2).state;
+    expect(hidden).toMatchObject({ ocultoReportes: true, estadoModeracion: "APROBADO", versionModeracion: 2 });
+    expect(() => transitionFeedbackModeration({ ...row, ...hidden }, admin, { accion: "RESTITUCION_REPORTES", versionEsperada: 2, motivo: "Revisado" }, false, 2)).toThrow();
+    expect(transitionFeedbackModeration({ ...row, ...hidden }, admin, { accion: "RESTITUCION_REPORTES", versionEsperada: 2, motivo: "Revisado" }, false, 1).state.ocultoReportes).toBe(false);
   });
   it("restitución interna sigue requiriendo ADMIN", () => {
     expect(() => transitionFeedbackModeration({ ...row, ocultoReportes: true }, actor, { accion: "RESTITUCION_REPORTES", versionEsperada: 1, motivo: "Revisado" }, false, 2)).toThrow();
@@ -44,7 +50,7 @@ describe("T5: límites de la decisión preventiva", () => {
   });
   it("restitución de causa nunca aprueba un rechazo ni borra antecedente u otras causas", () => {
     const rejected: FeedbackModerationRecord = { ...row, estadoModeracion: "RECHAZADO", requiereRevisionHumana: true, motivoRechazo: "Formal", ocultoReportes: true, ocultoAutor: true, ocultoAdministracion: true };
-    expect(transitionFeedbackModeration(rejected, admin, { accion: "RESTITUCION_REPORTES", versionEsperada: 1, motivo: "Revisado" }, false, 2).state)
+    expect(transitionFeedbackModeration(rejected, admin, { accion: "RESTITUCION_REPORTES", versionEsperada: 1, motivo: "Revisado" }, false, 1).state)
       .toMatchObject({ estadoModeracion: "RECHAZADO", requiereRevisionHumana: true, motivoRechazo: "Formal", ocultoAutor: true, ocultoAdministracion: true, ocultoReportes: false, versionModeracion: 2 });
   });
 });

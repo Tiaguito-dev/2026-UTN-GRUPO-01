@@ -2,6 +2,7 @@ import { DomainError } from "../../shared/domain/domain-error.js";
 import type { UserRole } from "../../users/domain/user.js";
 
 export type FeedbackModerationStatus = "PENDIENTE" | "APROBADO" | "RECHAZADO";
+export const FEEDBACK_REPORTES_UMBRAL = 2;
 export interface FeedbackModerationState {
   estadoModeracion: FeedbackModerationStatus;
   versionModeracion: number;
@@ -93,10 +94,10 @@ export function transitionFeedbackModeration(
         conflict("No pudimos verificar los reportes abiertos. Intente nuevamente.");
       }
       if (automatic) {
-        if (state.estadoModeracion !== "APROBADO" || denunciantesAbiertos < 3) {
-          conflict("El ocultamiento preventivo requiere tres denunciantes distintos y una experiencia aprobada.");
+        if (state.estadoModeracion !== "APROBADO" || denunciantesAbiertos < FEEDBACK_REPORTES_UMBRAL) {
+          conflict("El ocultamiento preventivo requiere dos denunciantes distintos y una experiencia aprobada.");
         }
-      } else if (denunciantesAbiertos >= 3) {
+      } else if (denunciantesAbiertos >= FEEDBACK_REPORTES_UMBRAL) {
         conflict("Resuelva los reportes abiertos antes de restituir la visibilidad preventiva.");
       }
       state.ocultoReportes = automatic;

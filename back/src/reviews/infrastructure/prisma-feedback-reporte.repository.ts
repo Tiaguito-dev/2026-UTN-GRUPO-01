@@ -7,7 +7,7 @@ import { FeedbackReporteError } from "../application/feedback-reporte.service.js
 import { FeedbackNotFoundError } from "../application/errors.js";
 import { isFeedbackVisible } from "../domain/feedback-visibility.js";
 import type { FeedbackReporteReceipt, FeedbackReporteAdmin, ReporteExperience, ReporteCounts } from "../domain/feedback-reporte.js";
-import { transitionFeedbackModeration } from "../domain/feedback-moderation.js";
+import { FEEDBACK_REPORTES_UMBRAL, transitionFeedbackModeration } from "../domain/feedback-moderation.js";
 import { persistFeedbackModeration } from "./prisma-feedback-moderation.js";
 
 type Transaction = Prisma.TransactionClient;
@@ -104,9 +104,9 @@ export class PrismaFeedbackReporteRepository implements FeedbackReporteRepositor
           { campo: "estado", anterior: null, nuevo: "ABIERTO" },
         ] } });
       const counts = await countFeedbackReportesAbiertos(tx, id);
-      if (counts.denunciantesAbiertos >= 3) {
+      if (counts.denunciantesAbiertos >= FEEDBACK_REPORTES_UMBRAL) {
         const command = { accion: "OCULTAMIENTO_REPORTES" as const, versionEsperada: row.versionModeracion,
-          motivo: "Ocultamiento preventivo por tres denunciantes distintos con reportes abiertos." };
+          motivo: "Ocultamiento preventivo por dos denunciantes distintos con reportes abiertos." };
         // Automatic origin is internal: never exposed as a user-selectable HTTP action.
         const decision = transitionFeedbackModeration(row, { id: viewer, role: "USER" }, command, false, counts.denunciantesAbiertos);
         await persistFeedbackModeration(tx, row, viewer, command.accion, decision);

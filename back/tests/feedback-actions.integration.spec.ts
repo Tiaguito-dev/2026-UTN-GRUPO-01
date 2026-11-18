@@ -177,26 +177,26 @@ describe.skipIf(!databaseUrl)("T3: acciones HTTP con sesión y PostgreSQL reales
     expect((await h.request(`/feedback/${feedback.id}`, owner.cookie, "PATCH", { texto: "No permitido", versionEsperada: 1 })).status).toBe(409);
   });
 
-  it("editar aprobado vuelve pendiente; no-op no escribe; versión obsoleta falla aun sin diferencias", async () => {
+  it("editar aprobado conserva publicación; no-op no escribe; versión obsoleta falla aun sin diferencias", async () => {
     const { feedback } = await row("APROBADO");
     const noOp = await h.request(`/feedback/${feedback.id}`, owner.cookie, "PATCH", { texto: feedback.texto, versionEsperada: 1 });
     expect(noOp.status).toBe(200); expect(await h.prisma.feedbackHistorial.count({ where: { feedbackId: feedback.id } })).toBe(1);
     expect((await h.request(`/feedback/${feedback.id}`, owner.cookie, "PATCH", { texto: "Modificación real", versionEsperada: 1 })).status).toBe(200);
-    expect(await h.prisma.feedback.findUniqueOrThrow({ where: { id: feedback.id } })).toMatchObject({ estadoModeracion: "PENDIENTE", versionModeracion: 2 });
+    expect(await h.prisma.feedback.findUniqueOrThrow({ where: { id: feedback.id } })).toMatchObject({ estadoModeracion: "APROBADO", versionModeracion: 2 });
     expect((await h.request(`/feedback/${feedback.id}`, owner.cookie, "PATCH", { texto: "Modificación real", versionEsperada: 1 })).status).toBe(409);
     expect(await h.prisma.feedbackHistorial.count({ where: { feedbackId: feedback.id } })).toBe(2);
   });
 
-  it("retiro y recreación no borran rechazo ni la obligación humana", async () => {
+  it("nueva publicación conserva el historial de un rechazo retirado", async () => {
     const { feedback, context } = await row();
     expect((await decision(feedback.id, "RECHAZO")).status).toBe(200);
     expect((await h.request(`/feedback/${feedback.id}`, owner.cookie, "DELETE")).status).toBe(204);
     const created = await h.request(`/comisiones/${context.comision.id}/feedback`, owner.cookie, "POST", { texto: "Nuevo intento", anonimo: true, puntuacion: 4 });
     expect(created.status).toBe(201); const replacement = await created.json();
     expect(replacement.id).not.toBe(feedback.id);
-    expect(await h.prisma.feedback.findUniqueOrThrow({ where: { id: replacement.id } })).toMatchObject({ estadoModeracion: "PENDIENTE", requiereRevisionHumana: true });
+    expect(await h.prisma.feedback.findUniqueOrThrow({ where: { id: replacement.id } })).toMatchObject({ estadoModeracion: "APROBADO", requiereRevisionHumana: false });
     expect(await h.prisma.feedbackHistorial.count({ where: { feedbackId: feedback.id, accion: "RECHAZO" } })).toBe(1);
-    expect((await (await h.request("/feedback", other.cookie)).json()).total).toBe(0);
+    expect((await (await h.request("/feedback", other.cookie)).json()).total).toBe(1);
   });
 
   it.each(["ocultar", "restaurar", "revision"])("baja lógica bloquea acción de autor %s", async action => {

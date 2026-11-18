@@ -57,7 +57,7 @@ export async function moderationHarness(databaseUrl: string) {
       const texto = overrides.texto ?? "Experiencia pública revisada";
       const puntuacion = overrides.puntuacion === undefined ? 4 : overrides.puntuacion;
       const createdAt = overrides.createdAt ?? new Date();
-      // Tests explicitly establish an already-reviewed publication; production POST remains pending.
+      // Tests establish a publication directly; production POST also publishes immediately.
       return prisma.feedback.create({ data: { autorId, comisionId: context.comision.id, texto, puntuacion, anonimo: true,
         estadoModeracion: "APROBADO", comisionNombre: "S-31", materiaId: context.materia.id, materiaNombre: context.materia.nombre,
         cursadaId: context.cursada.id, anio: 2026, modalidad: "PRIMERO", createdAt,

@@ -23,18 +23,18 @@ function fixture(puntuacion: number | null = 2, estadoModeracion: "APROBADO" | "
   const transaction = vi.fn(async (work: (client: typeof tx) => Promise<unknown>) => work(tx));
   return { repository: new PrismaFeedbackRepository({ ...tx, $transaction: transaction } as unknown as PrismaService), tx, transaction, row, context, usuarioId, materiaId };
 }
-describe("T2 Feedback: edición vuelve a revisión y sincroniza el voto visible", () => {
-  it.each([1, 5])("guarda puntuación %i pendiente, incrementa versión y conserva causas", async puntuacion => {
+describe("T2 Feedback: edición conserva aprobación y sincroniza el voto visible", () => {
+  it.each([1, 5])("guarda puntuación %i aprobada, incrementa versión y conserva causas", async puntuacion => {
     const f = fixture(); const result = await f.repository.update(f.row.id, f.usuarioId, { puntuacion });
     expect(result).toMatchObject({ puntuacion, autor: null, propio: true }); expect(result).not.toHaveProperty("autorId"); expect(JSON.stringify(result)).not.toContain("Identidad privada");
-    expect(f.tx.feedback.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ puntuacion, estadoModeracion: "PENDIENTE", versionModeracion: 4,
-      historial: { create: expect.objectContaining({ accion: "EDICION", puntuacion, estadoModeracion: "PENDIENTE", versionModeracion: 4, ocultoAutor: true }) },
+    expect(f.tx.feedback.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ puntuacion, estadoModeracion: "APROBADO", versionModeracion: 4,
+      historial: { create: expect.objectContaining({ accion: "EDICION", puntuacion, estadoModeracion: "APROBADO", versionModeracion: 4, ocultoAutor: true }) },
     }) }));
     expect(syncMateriaVote).toHaveBeenCalledExactlyOnceWith(f.tx, f.usuarioId, f.materiaId, expect.any(Date));
   });
   it.each([null, 2])("texto/anonimato también reevalúa contribución con puntuación %j", async puntuacion => {
     const f = fixture(puntuacion); await f.repository.update(f.row.id, f.usuarioId, { texto: "Ampliado", anonimo: false });
-    expect(f.tx.feedback.update.mock.calls[0]![0].data).toMatchObject({ texto: "Ampliado", anonimo: false, puntuacion, estadoModeracion: "PENDIENTE" }); expect(syncMateriaVote).toHaveBeenCalledTimes(1);
+    expect(f.tx.feedback.update.mock.calls[0]![0].data).toMatchObject({ texto: "Ampliado", anonimo: false, puntuacion, estadoModeracion: "APROBADO" }); expect(syncMateriaVote).toHaveBeenCalledTimes(1);
   });
   it.each(["PENDIENTE", "RECHAZADO"] as const)("editar %s no concede aprobación ni borra rechazo", async estado => {
     const f = fixture(2, estado); await f.repository.update(f.row.id, f.usuarioId, { texto: "Contenido corregido" });
@@ -42,7 +42,7 @@ describe("T2 Feedback: edición vuelve a revisión y sincroniza el voto visible"
   });
   it("T2 agregar estrellas a un legado conserva NULL previo en auditoría y requiere revisión", async () => {
     const f = fixture(null); await f.repository.update(f.row.id, f.usuarioId, { puntuacion: 5 });
-    expect(f.tx.feedback.update.mock.calls[0]![0].data.historial.create).toMatchObject({ puntuacion: 5, estadoModeracion: "PENDIENTE" });
+    expect(f.tx.feedback.update.mock.calls[0]![0].data.historial.create).toMatchObject({ puntuacion: 5, estadoModeracion: "APROBADO" });
     expect(f.tx.administracionHistorial.create.mock.calls[0]![0].data.cambios).toEqual(expect.arrayContaining([{ campo: "puntuacion", anterior: null, nuevo: "5" }]));
     expect(syncMateriaVote).toHaveBeenCalledTimes(1);
   });

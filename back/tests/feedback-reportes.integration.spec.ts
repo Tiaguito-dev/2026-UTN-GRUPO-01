@@ -123,15 +123,14 @@ describe.skipIf(!databaseUrl)("T4: reportes HTTP con sesiones y PostgreSQL reale
     expect(await h.prisma.administracionHistorial.count({ where: { entidad: "feedbackReporte" } })).toBe(1);
   });
 
-  it("reporte concurrente con edición conserva evidencia original o rechaza el contenido pendiente", async () => {
+  it("reporte concurrente con edición conserva exactamente la versión denunciada", async () => {
     const { feedback } = await row();
     const [reported, edited] = await Promise.all([report(feedback.id), h.request(`/feedback/${feedback.id}`, owner.cookie, "PATCH", { texto: "Edición concurrente", versionEsperada: 1 })]);
-    expect(edited.status).toBe(200); expect([201, 404]).toContain(reported.status);
-    expect((await h.prisma.feedback.findUniqueOrThrow({ where: { id: feedback.id } })).estadoModeracion).toBe("PENDIENTE");
-    if (reported.status === 201) {
-      const body = await reported.json(); const detail = await (await h.request(`/admin/feedback-reportes/${body.id}`, admin.cookie)).json();
-      expect(detail.reporte.versionReportada).toBe(1); expect(detail.evidencia.texto).toBe(feedback.texto);
-    } else expect(await h.prisma.feedbackReporte.count()).toBe(0);
+    expect(edited.status).toBe(200); expect(reported.status).toBe(201);
+    expect((await h.prisma.feedback.findUniqueOrThrow({ where: { id: feedback.id } })).estadoModeracion).toBe("APROBADO");
+    const body = await reported.json(); const detail = await (await h.request(`/admin/feedback-reportes/${body.id}`, admin.cookie)).json();
+    expect([1, 2]).toContain(detail.reporte.versionReportada);
+    expect(detail.evidencia.texto).toBe(detail.reporte.versionReportada === 1 ? feedback.texto : "Edición concurrente");
   });
 
   it("rechaza evidencia ausente sin inventar snapshots ni consumir cuota", async () => {
@@ -154,14 +153,14 @@ describe.skipIf(!databaseUrl)("T4: reportes HTTP con sesiones y PostgreSQL reale
     expect(await h.prisma.feedbackHistorial.findMany({ where: { feedbackId: feedback.id } })).toEqual(previous);
   });
 
-  it("usuarios concurrentes activan umbral T5 y bloquean el cuarto reporte nuevo", async () => {
+  it("usuarios concurrentes activan el umbral de dos y bloquean nuevos reportes", async () => {
     const { feedback } = await row();
     const reporters = await Promise.all(Array.from({ length: 4 }, () => h.account()));
     const responses = await Promise.all(reporters.map(account => report(feedback.id, account)));
-    expect(responses.map(response => response.status).sort()).toEqual([201, 201, 201, 404]);
+    expect(responses.map(response => response.status).sort()).toEqual([201, 201, 404, 404]);
     const body = await responses.find(response => response.status === 201)!.json();
     const detail = await (await h.request(`/admin/feedback-reportes/${body.id}`, admin.cookie)).json();
-    expect(detail).toMatchObject({ cantidadReportesActivos: 3, denunciantesAbiertos: 3 });
+    expect(detail).toMatchObject({ cantidadReportesActivos: 2, denunciantesAbiertos: 2 });
     expect(await h.prisma.feedback.findUniqueOrThrow({ where: { id: feedback.id } })).toMatchObject({
       estadoModeracion: "APROBADO", ocultoReportes: true, versionModeracion: feedback.versionModeracion + 1,
     });
@@ -212,16 +211,14 @@ describe.skipIf(!databaseUrl)("T4: reportes HTTP con sesiones y PostgreSQL reale
     expect(await h.prisma.feedbackReporte.count()).toBe(6);
   });
 
-  it("edición y nueva aprobación conservan versión denunciada y deduplican usuarios entre versiones", async () => {
+  it("edición conserva publicación, versión denunciada y deduplica usuarios entre versiones", async () => {
     const { feedback, reporte } = await newReport();
     expect((await h.request(`/feedback/${feedback.id}`, owner.cookie, "PATCH", { texto: "Texto corregido posteriormente", versionEsperada: 1 })).status).toBe(200);
-    expect((await report(feedback.id)).status).toBe(404);
-    expect((await h.request(`/admin/feedback/${feedback.id}/moderacion`, admin.cookie, "POST", { accion: "APROBACION", versionEsperada: 2, motivo: "Corrección revisada" })).status).toBe(200);
     const second = await report(feedback.id); expect(second.status).toBe(201);
-    const secondBody = await second.json(); expect(secondBody.versionReportada).toBe(3); expect(secondBody.id).not.toBe(reporte.id);
+    const secondBody = await second.json(); expect(secondBody.versionReportada).toBe(2); expect(secondBody.id).not.toBe(reporte.id);
     const detail = await (await h.request(`/admin/feedback-reportes/${reporte.id}`, admin.cookie)).json();
     expect(detail.evidencia.texto).toBe(feedback.texto);
-    expect(detail.experiencia.versionModeracion).toBe(3);
+    expect(detail.experiencia.versionModeracion).toBe(2);
     expect(detail).toMatchObject({ cantidadReportesActivos: 2, denunciantesAbiertos: 1 });
     const secondDetail = await (await h.request(`/admin/feedback-reportes/${secondBody.id}`, admin.cookie)).json();
     expect(secondDetail.evidencia.texto).toBe("Texto corregido posteriormente");
@@ -262,11 +259,12 @@ describe.skipIf(!databaseUrl)("T4: reportes HTTP con sesiones y PostgreSQL reale
   it.each(["RESUELTO", "DESESTIMADO"])("cierra %s con actor, fecha, motivo y evidencia conservada sin moderar", async estado => {
     const { feedback, reporte } = await newReport();
     const otherReporter = await h.account(); expect((await report(feedback.id, otherReporter)).status).toBe(201);
+    const beforeResolution = await h.prisma.feedback.findUniqueOrThrow({ where: { id: feedback.id } });
     const response = await resolve(reporte.id, estado, admin, "  Justificación administrativa  ");
     expect(response.status).toBe(200);
     const stored = await h.prisma.feedbackReporte.findUniqueOrThrow({ where: { id: reporte.id } });
     expect(stored).toMatchObject({ estado, administradorId: admin.id, justificacion: "Justificación administrativa" }); expect(stored.resolvedAt).toBeInstanceOf(Date);
-    expect(await h.prisma.feedback.findUniqueOrThrow({ where: { id: feedback.id } })).toEqual(feedback);
+    expect(await h.prisma.feedback.findUniqueOrThrow({ where: { id: feedback.id } })).toEqual(beforeResolution);
     const detail = await (await h.request(`/admin/feedback-reportes/${reporte.id}`, admin.cookie)).json();
     expect(detail).toMatchObject({ cantidadReportesActivos: 1, denunciantesAbiertos: 1 }); expect(detail.evidencia.texto).toBe(feedback.texto);
     expect((await resolve(reporte.id, estado === "RESUELTO" ? "DESESTIMADO" : "RESUELTO")).status).toBe(409);
@@ -292,6 +290,10 @@ describe.skipIf(!databaseUrl)("T4: reportes HTTP con sesiones y PostgreSQL reale
     for (let index = 0; index < 4; index++) {
       const another = await h.account(); const body = await (await report(feedback.id, another)).json();
       expect((await resolve(body.id, index % 2 === 0 ? "RESUELTO" : "DESESTIMADO")).status).toBe(200); closed.push(body.id);
+      const current = await h.prisma.feedback.findUniqueOrThrow({ where: { id: feedback.id } });
+      expect((await h.request(`/admin/feedback/${feedback.id}/moderacion`, admin.cookie, "POST", {
+        accion: "RESTITUCION_REPORTES", versionEsperada: current.versionModeracion, motivo: "Reporte cerrado y evidencia revisada",
+      })).status).toBe(200);
     }
     const first = await (await h.request(`/admin/feedback-reportes/${reporte.id}`, admin.cookie)).json();
     const second = await (await h.request(`/admin/feedback-reportes/${reporte.id}?page=2`, admin.cookie)).json();

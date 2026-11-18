@@ -30,19 +30,18 @@ describe.skipIf(!databaseUrl)("T2: estadísticas visibles y proyección única P
     return { ...context, comision };
   }
 
-  it("POST pendiente no crea voto ni afecta promedios; aprobación interna sí contribuye", async () => {
+  it("POST publica y contribuye inmediatamente al promedio", async () => {
     const context = await h.context();
     const response = await h.request(`/comisiones/${context.comision.id}/feedback`, owner.cookie, "POST", {
       texto: "Nueva experiencia para revisión", anonimo: true, puntuacion: 5,
     });
     expect(response.status).toBe(201);
     const created = await response.json();
-    expect(await h.prisma.feedback.findUniqueOrThrow({ where: { id: created.id } })).toMatchObject({ estadoModeracion: "PENDIENTE", versionModeracion: 1 });
-    expect(await rating(context.materia.id)).toBeNull();
-    expect(await summary(context.materia.id)).toEqual({ promedio: null, cantidad: 0 });
+    expect(await h.prisma.feedback.findUniqueOrThrow({ where: { id: created.id } })).toMatchObject({ estadoModeracion: "APROBADO", versionModeracion: 1 });
+    expect(await rating(context.materia.id)).toMatchObject({ puntuacion: 5, deletedAt: null });
+    expect(await summary(context.materia.id)).toEqual({ promedio: 5, cantidad: 1 });
     const snapshot = await h.prisma.feedbackHistorial.findFirstOrThrow({ where: { feedbackId: created.id } });
-    expect(snapshot).toMatchObject({ estadoModeracion: "PENDIENTE", versionModeracion: 1, puntuacion: 5 });
-    await repo.transitionModeration(created.id, moderator(), { accion: "APROBACION", versionEsperada: 1, motivo: "Publicable" });
+    expect(snapshot).toMatchObject({ estadoModeracion: "APROBADO", versionModeracion: 1, puntuacion: 5 });
     expect(await rating(context.materia.id)).toMatchObject({ puntuacion: 5, deletedAt: null });
     expect(await summary(context.materia.id)).toEqual({ promedio: 5, cantidad: 1 });
   });
@@ -93,10 +92,8 @@ describe.skipIf(!databaseUrl)("T2: estadísticas visibles y proyección única P
     await repo.transitionModeration(recent.id, moderator(), { accion: "OCULTAMIENTO_ADMIN", versionEsperada: 2, motivo: "Revisión de texto reciente" });
     expect(await rating(context.materia.id)).toMatchObject({ puntuacion: 1, deletedAt: null });
     await repo.update(old.id, owner.id, { puntuacion: 2 });
-    expect(await h.prisma.feedback.findUniqueOrThrow({ where: { id: old.id } })).toMatchObject({ estadoModeracion: "PENDIENTE", puntuacion: 2, versionModeracion: 3 });
-    expect(await summary(context.materia.id)).toEqual({ promedio: null, cantidad: 0 });
-    expect((await rating(context.materia.id))?.deletedAt).toBeInstanceOf(Date);
-    await repo.transitionModeration(old.id, moderator(), { accion: "APROBACION", versionEsperada: 3, motivo: "Nueva puntuación revisada" });
+    expect(await h.prisma.feedback.findUniqueOrThrow({ where: { id: old.id } })).toMatchObject({ estadoModeracion: "APROBADO", puntuacion: 2, versionModeracion: 3 });
+    expect(await summary(context.materia.id)).toEqual({ promedio: 2, cantidad: 1 });
     expect(await rating(context.materia.id)).toMatchObject({ puntuacion: 2, deletedAt: null });
   });
 
@@ -116,8 +113,8 @@ describe.skipIf(!databaseUrl)("T2: estadísticas visibles y proyección única P
     expect((await rating(context.materia.id))?.deletedAt).toBeInstanceOf(Date);
     expect(await summary(context.materia.id)).toEqual({ promedio: null, cantidad: 0 });
     const recreated = await repo.create(context.comision.id, owner.id, { texto: "Otro intento", anonimo: true, puntuacion: 5 });
-    expect(await h.prisma.feedback.findUniqueOrThrow({ where: { id: recreated.id } })).toMatchObject({ estadoModeracion: "PENDIENTE", requiereRevisionHumana: true });
-    expect(await summary(context.materia.id)).toEqual({ promedio: null, cantidad: 0 });
+    expect(await h.prisma.feedback.findUniqueOrThrow({ where: { id: recreated.id } })).toMatchObject({ estadoModeracion: "APROBADO", requiereRevisionHumana: false });
+    expect(await summary(context.materia.id)).toEqual({ promedio: 5, cantidad: 1 });
   });
 
   it("conserva un voto bajo aprobaciones concurrentes de dos comisiones y rollback de auditoría", async () => {

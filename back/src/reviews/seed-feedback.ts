@@ -13,7 +13,7 @@ config({
 /**
  * Experiencias de demostración para TODAS las comisiones activas o no: estudiantes demo (no
  * pueden iniciar sesión), comentarios con estrellas, su historial de creación y la valoración de
- * cada materia (solo experiencias visibles; las nuevas quedan pendientes de moderación).
+ * cada materia (solo experiencias visibles; las nuevas se publican directamente).
  *
  * Seed ADITIVO e IDEMPOTENTE para experiencias: ids deterministas + skipDuplicates.
  * No elimina ni sobrescribe experiencias; sincroniza solamente su proyección de valoraciones.
@@ -62,7 +62,7 @@ async function seed(): Promise<void> {
       const creados = await prisma.feedback.createMany({
         data: lote.map((e) => ({
           id: e.id, autorId: e.autorId, comisionId: e.comision.id, profesorId: e.profesor?.id ?? null, texto: e.texto, puntuacion: e.puntuacion,
-          estadoModeracion: "PENDIENTE", versionModeracion: 1,
+          estadoModeracion: "APROBADO", versionModeracion: 1,
           anonimo: e.anonimo, comisionNombre: e.comision.nombre, materiaId: e.comision.materiaId, materiaNombre: e.comision.materiaNombre,
           cursadaId: e.comision.cursadaId, anio: e.comision.anio, cuatrimestre: e.comision.cuatrimestre,
           profesorNombre: e.profesor?.nombreCompleto ?? null, profesorCargo: e.profesor?.cargo ?? null, createdAt: e.createdAt, updatedAt: e.createdAt,
@@ -84,7 +84,7 @@ async function seed(): Promise<void> {
       });
     }
 
-    // Use persisted visibility, not the intended demo scores; never publish or approve by seeding.
+    // Use persisted visibility, not intended scores; never change existing moderation by seeding.
     let valoraciones = 0;
     for (const pair of pares.values()) await prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT "id" FROM "Comision" WHERE "id" = ${pair.comisionId}::uuid FOR UPDATE`;
@@ -93,8 +93,8 @@ async function seed(): Promise<void> {
       if (changes.length) valoraciones++;
     });
 
-    console.log(`Experiencias de demostración listas. Nuevos: ${usuarios.count} estudiantes, ${comentarios} comentarios pendientes; ${valoraciones} valoraciones de materias sincronizadas.`);
-    console.log("No se eliminaron experiencias ni se aprobaron comentarios automáticamente.");
+    console.log(`Experiencias de demostración listas. Nuevos: ${usuarios.count} estudiantes, ${comentarios} comentarios publicados; ${valoraciones} valoraciones de materias sincronizadas.`);
+    console.log("No se eliminaron experiencias ni se modificó la moderación de comentarios existentes.");
   } catch {
     console.error("No se pudieron cargar las experiencias de demostración. Revise DATABASE_URL, que las migraciones estén aplicadas y que haya corrido academic:seed.");
     process.exitCode = 1;

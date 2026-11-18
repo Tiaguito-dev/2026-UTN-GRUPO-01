@@ -180,11 +180,8 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
         // Comisión primero, luego el par: coordina también primeras valoraciones entre comisiones.
         // Namespace distinto del bloqueo de administración de usuarios. Colisiones solo serializan.
         await lockMateriaVote(tx, viewer, context.materiaId);
-        const rejectedBefore = await tx.feedback.findFirst({ where: {
-          comisionId: id, autorId: viewer, requiereRevisionHumana: true,
-        }, select: { id: true } });
-        const moderation: FeedbackModerationState = { estadoModeracion: "PENDIENTE", versionModeracion: 1,
-          requiereRevisionHumana: rejectedBefore !== null, motivoRechazo: null,
+        const moderation: FeedbackModerationState = { estadoModeracion: "APROBADO", versionModeracion: 1,
+          requiereRevisionHumana: false, motivoRechazo: null,
           ocultoAutor: false, ocultoAdministracion: false, ocultoReportes: false };
         const eventId = randomUUID();
         const now = new Date();
@@ -201,7 +198,7 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
         }, include: includeAutor });
         const cambios: { campo: string; anterior: string | null; nuevo: string | null }[] = [
           { campo: "puntuacion", anterior: null, nuevo: String(input.puntuacion) },
-          { campo: "estadoModeracion", anterior: null, nuevo: "PENDIENTE" },
+          { campo: "estadoModeracion", anterior: null, nuevo: moderation.estadoModeracion },
         ];
         cambios.push(...await syncMateriaVote(tx, viewer, context.materiaId, now));
         await tx.administracionHistorial.create({ data: { id: eventId, entidad: "feedback", entidadId: row.id, actorId: viewer, accion: "CREACION", cambios, createdAt: now } });
@@ -250,9 +247,7 @@ export class PrismaFeedbackRepository implements FeedbackRepository {
         { campo: "puntuacion", anterior: row.puntuacion === null ? null : String(row.puntuacion), nuevo: puntuacion === null ? null : String(puntuacion) },
       ].filter(change => change.anterior !== change.nuevo);
       await lockMateriaVote(tx, row.autorId, row.materiaId);
-      const moderation = { ...moderationSnapshot(row), versionModeracion: nextVersion(row),
-        estadoModeracion: row.estadoModeracion === "APROBADO" ? "PENDIENTE" as const : row.estadoModeracion };
-      if (moderation.estadoModeracion !== row.estadoModeracion) cambios.push({ campo: "estadoModeracion", anterior: row.estadoModeracion, nuevo: moderation.estadoModeracion });
+      const moderation = { ...moderationSnapshot(row), versionModeracion: nextVersion(row) };
       cambios.push({ campo: "versionModeracion", anterior: String(row.versionModeracion), nuevo: String(moderation.versionModeracion) });
       const eventId = randomUUID();
       const now = new Date();

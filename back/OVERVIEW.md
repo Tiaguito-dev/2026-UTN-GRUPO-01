@@ -1,9 +1,32 @@
 # Backend
 
+## Política vigente: publicación directa y revisión por reportes
+
+Después de T6, las altas de experiencias nacen `APROBADO`, versión 1 y sin revisión
+humana previa. Una edición conserva el estado y todas las causas de ocultamiento; solo
+incrementa la versión cuando hay diferencias. Los rechazos existentes requieren corregir
+el texto y solicitar explícitamente revisión; no se aprueban al editar ni se convierten
+retrospectivamente los registros pendientes o rechazados.
+
+Dos usuarios distintos con reportes `ABIERTO` activan el ocultamiento preventivo y la
+revisión administrativa. Se cuentan todas las versiones sin duplicar denunciantes, bajo
+los mismos locks transaccionales. `FEEDBACK_REPORTES_UMBRAL` centraliza el límite en el
+dominio y el repositorio lo reutiliza. La restitución exige menos de dos denunciantes
+abiertos, versión vigente y justificación administrativa; cerrar reportes no restituye
+automáticamente ni levanta otras causas. ADMIN conserva consultas de reportes individuales
+para trazabilidad; alcanzar el umbral determina el ocultamiento y la revisión requerida.
+
+La API, las proyecciones de privacidad y la sincronización del voto por autor/materia
+conservan sus contratos. El seed crea solamente sus nuevas filas como aprobadas y conserva
+el estado de las existentes; este ajuste no ejecuta seeds ni cambia datos de desarrollo.
+Sin migración, clasificador, dependencias ni cambios de permisos. Esta política reemplaza
+las reglas iniciales de alta pendiente y edición a pendiente documentadas históricamente
+en T1/T2/T3 y reduce el umbral original de T5 de tres a dos.
+
 ## Ocultamiento preventivo por reportes (T5)
 
 T5 extiende ReviewsModule y los contratos T3/T4. Al crear un reporte nuevo, cuenta
-usuarios distintos con ABIERTO en todas las versiones. Con tres activa exclusivamente
+usuarios distintos con ABIERTO en todas las versiones. Con dos activa exclusivamente
 ocultoReportes y mantiene APROBADO. La política pública T2 lo excluye de comunidad,
 feed, rankings, valoraciones y nuevas interacciones; conserva likes, respuestas,
 contenido e historial para el autor y ADMIN.
@@ -12,19 +35,19 @@ Advisory del denunciante -> comisión -> Feedback -> par autor/materia. Reporte,
 conteo, transición, snapshot, ledger y syncMateriaVote comparten la transacción
 ReadCommitted. La función interna persistFeedbackModeration reutiliza la persistencia
 T1/T2 sin transacciones anidadas. Todas las decisiones concurrentes releen bajo lock.
-Un fallo de estadísticas o auditoría revierte también la creación del tercer reporte.
+Un fallo de estadísticas o auditoría revierte también la creación del segundo reporte.
 
 La migración aditiva 20261117030000_feedback_ocultamiento_reportes agrega las acciones
 OCULTAMIENTO_REPORTES y RESTITUCION_REPORTES, sin reescribir datos ni migraciones previas.
 Cada cambio incrementa versionModeracion y correlaciona snapshot/ledger con el mismo UUID.
-El ledger del ocultamiento registra origen=AUTOMATICO y actorId del tercer denunciante;
+El ledger del ocultamiento registra origen=AUTOMATICO y actorId del segundo denunciante;
 el de restitución origen=ADMINISTRATIVO y actorId del ADMIN. Solo ADMIN ve identidades.
 El autor recibe su historial seguro y nunca identidades de denunciantes.
 
 POST `/admin/feedback/:id/moderacion` admite
 `{accion:"RESTITUCION_REPORTES",versionEsperada,motivo}`: ADMIN activo, motivo obligatorio
 normalizado 1–1000 sin controles, versión vigente. Recuenta ABIERTO distintos bajo lock;
-con tres o más devuelve 409. Levanta solo ocultoReportes; otras causas, rechazo, pendiente
+con dos o más devuelve 409. Levanta solo ocultoReportes; otras causas, rechazo, pendiente
 u otra condición privada siguen excluyendo la contribución pública. No-op con versión
 vigente no duplica eventos; versión obsoleta devuelve 409. Rechazo formal usa RECHAZO T3.
 Los cierres individuales T4 nunca restituyen automáticamente, ni reabren reportes.
@@ -38,7 +61,7 @@ con estado y causas. Consultas RepeatableRead, conteos/fechas agrupados por pág
 resoluciones anteriores de tres. No se crea una cola física ni otro endpoint.
 
 POST de reporte mantiene el payload T4. Con cuatro nuevos denunciantes concurrentes,
-se serializan tres creaciones y el restante recibe 404 tras ocultarse. Para tolerar
+se serializan dos creaciones y los restantes reciben 404 tras ocultarse. Para tolerar
 reintentos del reporte que disparó el umbral, una experiencia aprobada oculta solo por
 reportes permite devolver exclusivamente un recibo propio existente con evidencia igual
 al contenido actual. Devuelve 200 incluso cerrado, sin reabrir, consumir cuota ni contar
@@ -165,10 +188,10 @@ PATCH `/feedback/:id` conserva campos de contenido y admite `versionEsperada` op
 captura la versión inicial y la revalida bajo el bloqueo existente; DELETE conserva su contrato
 y hace la misma revalidación interna. Los clientes nuevos deben enviar versión en PATCH para
 detectar además formularios desactualizados antes de iniciar la petición. Una edición real
-incrementa versión: APROBADO -> PENDIENTE; PENDIENTE y RECHAZADO conservan estado. Sin diferencias
+incrementa versión y conserva estado: APROBADO, PENDIENTE y RECHAZADO. Sin diferencias
 no hay evento. Corregir RECHAZADO usa los snapshots históricos aunque sus padres estén inactivos
 o dados de baja; las demás ediciones y las altas mantienen sus restricciones académicas.
-El destino académico no puede modificarse. Retirar/recrear conserva el antecedente humano.
+El destino académico no puede modificarse. Las nuevas altas usan la política de publicación directa.
 
 La aprobación exige pendiente ajeno; un ADMIN autor no puede autoaprobarse. Rechazar conserva
 contenido y motivo para el autor, sin publicar. Ocultar administrativamente exige aprobado;
@@ -205,9 +228,9 @@ Detalle e historial del autor, consulta propia por comisión y detalle administr
 sus permisos separados. El rol ADMIN no habilita contenidos privados en consultas comunitarias.
 El DTO comunitario conserva anonimato y omite motivos/causas/identificadores internos del autor.
 
-Altas nuevas se guardan pendientes sin aportar votos públicos. Una edición real de aprobado
-pasa a pendiente, mientras un rechazado permanece rechazado; no se abre ningún endpoint de
-revisión de T3. Creación/edición/baja guardan metadatos históricos y versión; el no-op no escribe.
+La política inicial T2 de alta y edición pendiente fue reemplazada por la publicación directa:
+las nuevas altas son aprobadas y las ediciones conservan estado, incluyendo los rechazos.
+Creación/edición/baja guardan metadatos históricos y versión; el no-op no escribe.
 
 `ValoracionMateria` mantiene un voto por autor/materia: la última experiencia visible puntuada,
 ordenada por su último snapshot CREACION/EDICION (fallback a createdAt), luego identificadores
@@ -221,7 +244,7 @@ La lectura pública de promedios de materia reutiliza esa selección autoritativ
 de la página; no confía en una proyección antigua para decidir elegibilidad. Rankings conservan
 su agrupación existente por comisión/docente, usando únicamente experiencias visibles.
 T2 reconcilia datos anteriores mediante una migración adicional; la migración T1 queda intacta.
-El seed de demostración también respeta pendiente y no genera votos a partir de intenciones de alta.
+El seed de demostración sincroniza votos desde la visibilidad persistida; no altera estados existentes.
 
 Plan y evidencia: [ficha T2](../docs/tasks/finished/TASK-moderacion-T2-visibilidad.md).
 Validación: 107 pruebas nuevas y global final 1412/1412 en 64 archivos con PostgreSQL real;
@@ -239,7 +262,8 @@ Plan y decisiones: [tarea incremental](../docs/tasks/in-progress/TASK-moderacion
 El estado `PENDIENTE`, `APROBADO` o `RECHAZADO` es independiente de `deletedAt` y de las causas
 `ocultoAutor`, `ocultoAdministracion` y `ocultoReportes`. Levantar una causa no levanta las demás.
 La migración conserva las experiencias anteriores como aprobadas, sin inventar decisiones humanas;
-las filas nuevas usan pendiente. Los snapshots anteriores conservan metadatos de moderación nulos.
+el default SQL histórico es pendiente, pero la aplicación crea explícitamente las nuevas altas
+aprobadas con la política vigente. Los snapshots anteriores conservan metadatos de moderación nulos.
 
 Las decisiones internas requieren versión esperada. El repositorio conserva el orden de bloqueo
 comisión y comentario, revalida permisos/versión y escribe el snapshot de `FeedbackHistorial` y
@@ -254,7 +278,7 @@ normalizada de hasta 1000 caracteres. Se rechazan bajas, versiones obsoletas y a
 Un rechazado conserva revisión humana obligatoria y solo solicita revisión después de corregir
 el texto respecto del último rechazo; no se consulta la vigencia del contexto académico histórico.
 
-Los reportes, su umbral de tres denunciantes y la restitución preventiva quedan para T4/T5.
+Los reportes y la restitución preventiva se implementaron en T4/T5; el umbral vigente es dos denunciantes.
 El indicador `ocultoReportes` se prepara en persistencia, sin automatismos en esta etapa. No hay
 clasificador productivo ni dependencia del experimento M1.3.
 
