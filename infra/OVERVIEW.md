@@ -22,6 +22,9 @@ El stack local ejecuta PostgreSQL, migraciones Prisma, backend NestJS, frontend 
 Nginx y, con el perfil `mail`, Mailpit. Frontend y API comparten
 `http://localhost:8080`: Nginx enruta `/auth/` y los healthchecks al backend
 y comprime recursos públicos. La autenticación y la pantalla de recuperación no usan gzip.
+La consulta autenticada `/comunidad/normas` también se envía al backend mediante un location
+exacto en ambas configuraciones; las páginas `/home/comunidad` y `/home/admin/comunidad`
+permanecen en el frontend.
 Los logs de acceso y errores de peticiones del proxy están desactivados para evitar registrar
 enlaces de recuperación. La disponibilidad se observa mediante healthchecks; una integración
 futura de logs deberá sanitizar URLs antes de registrarlas.

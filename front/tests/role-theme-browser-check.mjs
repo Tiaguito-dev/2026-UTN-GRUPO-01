@@ -62,6 +62,7 @@ try {
       if (url.pathname === "/auth/me") { if (holdInitial) await initial; return reply(account); }
       if (url.pathname === "/auth/refresh") return reply(account);
       if (url.pathname.startsWith("/auth/session")) return reply(status());
+      if (url.pathname === "/comunidad/normas") return reply({ id: "vigentes", titulo: "Construyamos una comunidad que sume", introduccion: "Mensaje de prueba del equipo.", normas: ["Compartí experiencias reales.", "Respetá la privacidad."], cierre: "De estudiantes, para estudiantes.", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" });
       if (url.pathname === "/feedback/feed") return reply({ items: [], hasMore: false, nextCursor: null });
       if (["/users", "/materias", "/profesores", "/cursadas", "/comisiones", "/feedback"].includes(url.pathname) || url.pathname.startsWith("/rankings/")) {
         return reply({ items: [], total: 0, page: Number(url.searchParams.get("page") ?? 1), pageSize: Number(url.searchParams.get("pageSize") ?? 9) });
@@ -82,7 +83,8 @@ try {
     if (role === "ADMIN") {
       await expect(header.getByText("Administración", { exact: true })).toBeVisible();
       await expect(sidebar.getByRole("link", { name: "Usuarios", exact: true })).toBeVisible();
-      await expect(sidebar.getByRole("link", { name: "Comunidad", exact: true })).toHaveCount(0);
+      // HU-C01 habilita consulta de las mismas normas también para ADMIN.
+      await expect(sidebar.getByRole("link", { name: "Comunidad", exact: true })).toBeVisible();
     } else {
       await expect(header.getByText("Administración", { exact: true })).toHaveCount(0);
       await expect(sidebar.getByRole("link", { name: "Usuarios", exact: true })).toHaveCount(0);
@@ -97,7 +99,7 @@ try {
     await screenshot(page, role, width, "inicio");
 
     const routes = role === "ADMIN"
-      ? ["/home/admin/materias", "/home/admin/profesores", "/home/admin/cursadas", "/home/admin/comisiones", "/home/admin/usuarios", "/home/admin/experiencias", "/home/admin/ranking", "/home/admin/materias/nueva", "/home/admin/profesores/nuevo", "/account", "/account/change-password"]
+      ? ["/home/admin/materias", "/home/admin/profesores", "/home/admin/cursadas", "/home/admin/comisiones", "/home/admin/usuarios", "/home/admin/experiencias", "/home/admin/ranking", "/home/admin/comunidad", "/home/admin/materias/nueva", "/home/admin/profesores/nuevo", "/account", "/account/change-password"]
       : ["/home/materias", "/home/profesores", "/home/experiencias", "/home/comunidad", "/account", "/account/change-password"];
     for (const path of routes) {
       await page.goto(`${front}${path}`);
