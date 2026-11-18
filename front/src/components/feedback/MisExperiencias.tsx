@@ -15,9 +15,10 @@ export function MisExperiencias() {
     fetchPage={(next) => listarFeedbackPropios({ page: next, pageSize: 9 })}
     loadingMessage="Cargando tus experiencias…" empty={<p>Todavía no compartiste experiencias.</p>}>
     {(result) => <ul className={styles.experienceList}>{result.items.map((feedback) => <li key={feedback.id}>
-      <ExperienceCard feedback={feedback} showContext origin={origin} readOnly />
-      <FeedbackModerationStatus feedback={feedback} />
-      <Link className="button button-secondary" href={feedbackDetalleHref(feedback.id, origin)}>Ver mi experiencia</Link>
+      <ExperienceCard feedback={feedback} showContext origin={origin} readOnly footer={<>
+        <FeedbackModerationStatus feedback={feedback} variant="compact" />
+        <Link className="button button-secondary" href={feedbackDetalleHref(feedback.id, origin)}>Ver mi experiencia</Link>
+      </>} />
     </li>)}</ul>}
   </PaginatedListView>;
 }

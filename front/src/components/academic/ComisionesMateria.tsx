@@ -58,6 +58,7 @@ export function ComisionesMateria({ materiaId, materiaNombre, carreras, materias
   }
   if (career) context.set("carrera", career);
   else context.delete("carrera");
+  if (!isAdmin && (context.get("origen") === "inicio" || context.get("origen") === "experiencias")) context.set("feedbackPaso", "materia");
   const contextQuery = context.toString();
 
   useEffect(() => {
@@ -114,6 +115,7 @@ function ComisionesPeriodo({ materiaId, carrera, cursada, page, contextQuery, on
   const query = new URLSearchParams(contextQuery);
   query.set("cursadaId", cursada.id);
   if (page > 1) query.set("comisionesPage", String(page));
+  if (query.get("origen") === "inicio" || query.get("origen") === "experiencias") query.set("feedbackPaso", "materia-comision");
   if (state.status === "loading") return <p role="status">Cargando comisiones…</p>;
   if (state.status === "error") return <Notice tone="error">Lo sentimos. No pudimos recuperar las comisiones. Intentá nuevamente. <button className="button" type="button" onClick={retry}>Reintentar comisiones</button></Notice>;
   return <>

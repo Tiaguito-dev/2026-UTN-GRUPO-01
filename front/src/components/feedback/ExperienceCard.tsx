@@ -20,8 +20,12 @@ import feedStyles from "./FeedPrincipal.module.css";
 export function ExperienceCard({ feedback, onManage, onReported, showContext = false, origin, administrative = false, returnTo, readOnly = false, showTime = false, variant, footer, secondaryActions }: { feedback: Feedback; onManage?: () => void; onReported?: () => void; readOnly?: boolean; showTime?: boolean; showContext?: boolean; origin?: URLSearchParams; administrative?: boolean; returnTo?: string; variant?: "inicio"; footer?: ReactNode; secondaryActions?: ReactNode }) {
   const isAdmin = useIsAdmin();
   const author = feedback.anonimo ? "Anónimo" : feedback.autor?.displayName ?? "Usuario";
-  const query = origin?.size ? `?${origin}` : "";
+  const commissionQuery = new URLSearchParams(origin);
+  const tracked = origin?.get("origen") === "inicio" || origin?.get("origen") === "experiencias";
+  if (tracked) commissionQuery.set("feedbackPaso", origin?.get("feedbackPaso") === "materia" || origin?.get("feedbackPaso") === "materia-comision" ? "materia-comision" : "comision");
+  const query = commissionQuery.size ? `?${commissionQuery}` : "";
   const subjectQuery = new URLSearchParams(origin);
+  if (tracked) subjectQuery.set("feedbackPaso", "materia");
   if (feedback.contexto.carrera) subjectQuery.set("carrera", feedback.contexto.carrera);
   const subjectHref = administrative ? materiaDetailHref(feedback.contexto.materiaId) : `/home/materias/${encodeURIComponent(feedback.contexto.materiaId)}${subjectQuery.size ? `?${subjectQuery}` : ""}`;
   const commissionHref = administrative ? comisionDetailHref(feedback.contexto.comisionId, returnTo ?? "/home/admin/experiencias") : `${feedbackComisionHref(feedback.contexto)}${query}`;

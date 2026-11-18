@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { useId, useRef, useState, type ReactNode } from "react";
+import { ChevronDown, Users, MessageSquare } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Notice } from "@/components/ui/Notice";
@@ -21,21 +21,20 @@ import { ExperienciasMateriaSelector } from "./ExperienciasMateriaSelector";
 import { MisExperiencias } from "./MisExperiencias";
 import { feedbackSuccessMessage } from "@/validations/feedback";
 import styles from "./feedback.module.css";
+import presentation from "./ExperienciasPresentation.module.css";
 
 export function ExperienciasList({ administrative = false }: { administrative?: boolean }) {
   const params = useSearchParams();
   const ownHeadingId = useId();
   const own = !administrative && params.get("seccion") === "propias";
-  return <>
-    {!administrative ? <nav className={styles.experienceFooter} aria-label="Secciones de experiencias">
-      <Link className="button button-secondary" aria-current={!own ? "page" : undefined} href="/home/experiencias">Comunidad</Link>
-      <Link className="button button-secondary" aria-current={own ? "page" : undefined} href="/home/experiencias?seccion=propias">Mis experiencias</Link>
-    </nav> : null}
-    {own ? <section className={styles.feedPage} aria-labelledby={ownHeadingId}><PageHeader id={ownHeadingId} title="Mis experiencias" description="Consultá tus comentarios, su revisión y las causas de ocultamiento." /><MisExperiencias /></section> : <ExperienciasComunidad administrative={administrative} />}
-  </>;
+  const selector = !administrative ? <nav className={presentation.segmented} aria-label="Secciones de experiencias">
+    <Link aria-current={!own ? "page" : undefined} href="/home/experiencias"><Users size={17} aria-hidden="true" />Comunidad</Link>
+    <Link aria-current={own ? "page" : undefined} href="/home/experiencias?seccion=propias"><MessageSquare size={17} aria-hidden="true" />Mis experiencias</Link>
+  </nav> : null;
+  return own ? <section className={styles.feedPage} aria-labelledby={ownHeadingId}><div className={styles.feedHeader}><PageHeader id={ownHeadingId} title="Mis experiencias" description="Consultá tus comentarios, su revisión y las causas de ocultamiento." breadcrumb={[{ label: "Inicio", href: "/home" }, { label: "Experiencias", href: "/home/experiencias" }, { label: "Mis experiencias" }]} /></div>{selector}<MisExperiencias /></section> : <ExperienciasComunidad administrative={administrative} selector={selector} />;
 }
 
-function ExperienciasComunidad({ administrative }: { administrative: boolean }) {
+function ExperienciasComunidad({ administrative, selector }: { administrative: boolean; selector: ReactNode }) {
   const headingId = useId();
   const careerId = useId();
   const router = useRouter();
@@ -67,11 +66,12 @@ function ExperienciasComunidad({ administrative }: { administrative: boolean }) 
   const clear = () => { setFilterError(""); navigate(); };
   return <section className={styles.feedPage} aria-labelledby={headingId}>
     <div className={styles.feedHeader}>
-      <PageHeader id={headingId} title="Experiencias" description="Comentarios de la comunidad sobre materias, comisiones y docentes, del más reciente al más antiguo." breadcrumb={administrative ? [{ label: "Administración", href: "/home/admin" }, { label: "Experiencias" }] : undefined} back={administrative ? { href: "/home/admin", label: "Administración" } : undefined} />
+      <PageHeader id={headingId} title="Experiencias" description="Comentarios de la comunidad sobre materias, comisiones y docentes, del más reciente al más antiguo." breadcrumb={administrative ? [{ label: "Administración", href: "/home/admin" }, { label: "Experiencias" }] : [{ label: "Inicio", href: "/home" }, { label: "Experiencias" }]} back={administrative ? { href: "/home/admin", label: "Administración" } : undefined} />
       {!administrative ? <p className={styles.meta}>Para compartir tu experiencia, elegí una comisión desde <Link href="/home/materias">Materias</Link>.</p> : null}
     </div>
+    {selector}
     {feedbackSuccessMessage(params.get("successMessage")) ? <Notice tone="success">{feedbackSuccessMessage(params.get("successMessage"))}</Notice> : null}
-    <div className={styles.feedFilters}>
+    <div className={`${styles.feedFilters}${!administrative ? ` ${presentation.filters}` : ""}`} role="group" aria-label="Filtrar experiencias por carrera y materia">
       <div className={styles.feedCareer}><label htmlFor={careerId}>Carrera</label><div className={styles.feedSelect}><select id={careerId} value={carrera ?? ""} disabled={changing} onChange={(event) => void changeCareer(isCarrera(event.target.value) ? event.target.value : undefined)}><option value="">Todas las carreras</option>{CARRERAS.map((value) => <option key={value} value={value}>{carreraLabel(value)}</option>)}</select><ChevronDown size={18} aria-hidden="true" /></div></div>
       <ExperienciasMateriaSelector carrera={carrera} materiaId={materiaId} nombre={selected.data?.nombre} disabled={changing} onSelect={(id) => navigate(carrera, id)} />
       {active ? <button className={`button button-secondary ${styles.feedClear}`} type="button" disabled={changing} onClick={clear}>Limpiar filtros</button> : null}

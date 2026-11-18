@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ExperienciasList } from "@/components/feedback/ExperienciasList";
-import { listarFeedback } from "@/services/feedback";
+import { listarFeedback, listarFeedbackPropios } from "@/services/feedback";
 import type { Feedback } from "@/types/feedback";
 import { listarMaterias, obtenerMateria } from "@/services/materias";
 import { experienciasOriginHref } from "@/validations/admin";
@@ -11,13 +11,50 @@ const { replace, push, route } = vi.hoisted(() => ({ replace: vi.fn(), push: vi.
 vi.mock("@/hooks/useIsAdmin", () => ({ useIsAdmin: () => route.pathname.startsWith("/home/admin") }));
 vi.mock("next/link", () => import("./support/next-link"));
 vi.mock("next/navigation", () => ({ usePathname: () => route.pathname, useSearchParams: () => new URLSearchParams(route.query), useRouter: () => ({ replace, push }) }));
-vi.mock("@/services/feedback", () => ({ listarFeedback: vi.fn() }));
+vi.mock("@/services/feedback", () => ({ listarFeedback: vi.fn(), listarFeedbackPropios: vi.fn() }));
 vi.mock("@/services/materias", () => ({ listarMaterias: vi.fn(), obtenerMateria: vi.fn() }));
 const materia = { valoracion: { promedio: null, cantidad: 0 }, id: "mat1", nombre: "Álgebra", modalidad: null, carreras: [{ carrera: "S" as const, anioCarrera: "1" as const, nivelElectiva: null }], createdAt: "2026-01-01", deletedAt: null };
 const item: Feedback = { id: "f1", texto: "Buena experiencia\ncon ejemplos", puntuacion: null, anonimo: true, autor: null, propio: false, profesor: null, contexto: { comisionId: "com1", nombre: "S-21", materiaId: "mat1", materiaNombre: "Álgebra", cursadaId: "cur1", anio: 2026, cuatrimestre: "SEGUNDO" }, createdAt: "2026-01-01", updatedAt: "2026-01-01" };
 beforeEach(() => { vi.clearAllMocks(); route.query = ""; route.pathname = "/home/experiencias"; vi.mocked(obtenerMateria).mockResolvedValue(materia); vi.mocked(listarMaterias).mockResolvedValue({ items: [materia], total: 1, page: 1, pageSize: 9 }); vi.mocked(listarFeedback).mockResolvedValue({ items: [item], total: 10, page: 1, pageSize: 9 }); });
 afterEach(cleanup);
 describe("Experiencias generales", () => {
+  it.each([false, true])("breadcrumb estudiantil refleja la sección actual (propias: %s)", async own => {
+    route.query = own ? "seccion=propias&page=2" : "carrera=S&materiaId=mat1&page=2";
+    vi.mocked(listarFeedbackPropios).mockResolvedValue({ items: [], total: 0, page: 2, pageSize: 9 });
+    render(<ExperienciasList />);
+    const breadcrumb = screen.getByRole("navigation", { name: "Ubicación actual" });
+    expect(breadcrumb.textContent).toMatch(own ? /Inicio.*Experiencias.*Mis experiencias/ : /Inicio.*Experiencias/);
+    expect(breadcrumb.querySelector('a[href="/home"]')).toBeTruthy();
+    if (own) expect(breadcrumb.querySelector('a[href="/home/experiencias"]')).toBeTruthy();
+    if (own) await screen.findByText("Todavía no compartiste experiencias.");
+    else await screen.findByText(/Buena experiencia/);
+  });
+  it.each([false, true])("selector de navegación conserva URLs y una sola opción activa (propias: %s)", async own => {
+    route.query = own ? "seccion=propias" : "";
+    vi.mocked(listarFeedbackPropios).mockResolvedValue({ items: [], page: 1, pageSize: 9, total: 0 });
+    render(<ExperienciasList />);
+    const nav = screen.getByRole("navigation", { name: "Secciones de experiencias" });
+    const community = screen.getByRole("link", { name: "Comunidad" });
+    const mine = screen.getByRole("link", { name: "Mis experiencias" });
+    expect(nav.contains(community) && nav.contains(mine)).toBe(true);
+    expect(community.getAttribute("href")).toBe("/home/experiencias");
+    expect(mine.getAttribute("href")).toBe("/home/experiencias?seccion=propias");
+    expect((own ? mine : community).getAttribute("aria-current")).toBe("page");
+    expect((own ? community : mine).getAttribute("aria-current")).toBeNull();
+    community.focus();
+    await userEvent.tab();
+    expect(document.activeElement).toBe(mine);
+    if (own) {
+      await screen.findByText("Todavía no compartiste experiencias.");
+      expect(listarFeedbackPropios).toHaveBeenCalledWith({ page: 1, pageSize: 9 });
+      expect(listarFeedback).not.toHaveBeenCalled();
+    } else await screen.findByText(/Buena experiencia/);
+  });
+  it("administración no presenta el selector personal", async () => {
+    render(<ExperienciasList administrative />);
+    await screen.findByText(/Buena experiencia/);
+    expect(screen.queryByRole("navigation", { name: "Secciones de experiencias" })).toBeNull();
+  });
   it.each([false, true])("muestra el éxito de la eliminación al regresar al listado (administrativo: %s)", async (administrative) => {
     route.pathname = administrative ? "/home/admin/experiencias" : "/home/experiencias";
     route.query = new URLSearchParams({ successMessage: "El comentario se eliminó correctamente." }).toString();
@@ -168,7 +205,7 @@ describe("Experiencias generales", () => {
     expect(screen.getAllByText(/S-21/).length).toBeGreaterThan(0);
     const commission = screen.getByRole("link", { name: /Ver comisión/ });
     // TASK-065: la comisión conserva el regreso al listado general.
-    expect(commission.getAttribute("href")).toBe("/home/materias/mat1/cursadas/cur1/comisiones/com1?origen=experiencias");
+    expect(commission.getAttribute("href")).toBe("/home/materias/mat1/cursadas/cur1/comisiones/com1?origen=experiencias&feedbackPaso=comision");
     expect(document.querySelector('a[href="/home/feedback/f1"]')).toBeNull();
     expect(screen.queryByRole("button", { name: "Administrar mi comentario" })).toBeNull();
     expect(listarFeedback).toHaveBeenCalledWith(expect.objectContaining({ page: 1, pageSize: 9 }));

@@ -23,7 +23,11 @@ export function ComisionFeedback({ comision, administrative = false }: { comisio
   const [reportNotice, setReportNotice] = useState(false);
   const router = useRouter();
   const params = useSearchParams();
-  const publishQuery = feedbackOriginParams(params);
+  const feedbackParams = feedbackOriginParams(params);
+  if (!administrative && (feedbackParams.get("origen") === "inicio" || feedbackParams.get("origen") === "experiencias")) {
+    feedbackParams.set("feedbackPaso", feedbackParams.get("feedbackPaso") === "materia" || feedbackParams.get("feedbackPaso") === "materia-comision" ? "materia-comision" : "comision");
+  }
+  const publishQuery = new URLSearchParams(feedbackParams);
   publishQuery.set("comisionId", comision.id);
   const { page, setPage } = useUrlPagination();
   const navigation = comisionNavigation(params, comision);
@@ -49,11 +53,11 @@ export function ComisionFeedback({ comision, administrative = false }: { comisio
       </details> : null}
       {!comision.activa ? <Notice tone="warning">{administrative ? "Esta comisión está inactiva. Las publicaciones y ediciones están cerradas." : "Esta comisión está inactiva. Podés consultar sus experiencias y retirar tu comentario; las publicaciones y ediciones están cerradas."}</Notice> : null}
       {!administrative && (own.loading ? <p role="status">Comprobando tu comentario…</p> : own.error ? <Notice tone="error">{own.error} <button className="button" type="button" onClick={own.retry}>Reintentar comprobar mi comentario</button></Notice> : null)}
-      {!administrative && own.data ? <div className={styles.stack}><FeedbackModerationStatus feedback={own.data} /><Link className="button button-secondary" href={feedbackDetalleHref(own.data.id, params)}>Administrar mi comentario</Link></div> : null}
+      {!administrative && own.data ? <div className={styles.stack}><FeedbackModerationStatus feedback={own.data} /><Link className="button button-secondary" href={feedbackDetalleHref(own.data.id, feedbackParams)}>Administrar mi comentario</Link></div> : null}
       {comments.state.status === "loading" ? <p role="status">Cargando comentarios…</p> : null}
       {comments.state.status === "error" ? <Notice tone="error">{comments.state.error} <button className="button" type="button" onClick={comments.retry}>Reintentar cargar comentarios</button></Notice> : null}
       {result ? <>
-        {result.items.length ? <ul className={styles.experienceList}>{result.items.map((feedback) => <li key={feedback.id}><ExperienceCard feedback={feedback} onReported={() => { setReportNotice(true); comments.retry(); }} administrative={administrative} returnTo={returnTo} onManage={() => router.push(feedbackDetalleHref(feedback.id, params))} /></li>)}</ul> : <p className={styles.experienceEmpty}>Todavía no hay comentarios en esta comisión.</p>}
+        {result.items.length ? <ul className={styles.experienceList}>{result.items.map((feedback) => <li key={feedback.id}><ExperienceCard feedback={feedback} onReported={() => { setReportNotice(true); comments.retry(); }} administrative={administrative} returnTo={returnTo} onManage={() => router.push(feedbackDetalleHref(feedback.id, feedbackParams))} /></li>)}</ul> : <p className={styles.experienceEmpty}>Todavía no hay comentarios en esta comisión.</p>}
         <Pagination page={result.page} pageSize={result.pageSize} total={result.total} onChange={setPage} />
       </> : null}
     </div>

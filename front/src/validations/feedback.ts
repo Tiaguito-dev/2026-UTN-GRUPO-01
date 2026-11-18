@@ -38,6 +38,19 @@ export function experienciasBack(params: NavigationParams) {
   return { href: experienciasHref(filters.carrera, filters.materiaId, parseMateriaPage(params.get("experienciasPage"))), label: "Experiencias" };
 }
 
+/** Explicit entry points, never a fabricated academic hierarchy or an arbitrary return URL. */
+export function feedbackEntryBreadcrumb(params: NavigationParams) {
+  const items: { label: string; href: string }[] = [];
+  if (params.get("origen") !== "inicio" && params.get("origen") !== "experiencias") return items;
+  items.push({ label: "Inicio", href: "/home" });
+  if (params.get("origen") === "experiencias") {
+    const back = experienciasBack(params)!;
+    items.push({ label: "Experiencias", href: "/home/experiencias" });
+    if (back.label === "Mis experiencias") items.push(back);
+  }
+  return items;
+}
+
 /** Only academic navigation context is carried through the publication form. */
 export function feedbackOriginParams(params: { get(name: string): string | null }): URLSearchParams {
   const query = new URLSearchParams();
@@ -56,6 +69,8 @@ export function feedbackOriginParams(params: { get(name: string): string | null 
     const page = parseMateriaPage(params.get("experienciasPage"));
     if (page > 1) query.set("experienciasPage", String(page));
   }
+  const step = params.get("feedbackPaso");
+  if (query.has("origen") && (step === "materia" || step === "comision" || step === "materia-comision")) query.set("feedbackPaso", step);
   return query;
 }
 
@@ -109,7 +124,9 @@ export function feedbackNavigation(contexto: FeedbackContexto | null | undefined
   const year = isAnioCarrera(rawYear) ? rawYear : undefined;
   const listPage = parseMateriaPage(params.get("listadoPage"));
   const materiasHref = materiaListHref(context.carrera, year, listPage, context);
-  const items = [{ label: "Materias", href: materiasHref }];
+  const entry = feedbackEntryBreadcrumb(params);
+  const items = entry.length ? [...entry] : [{ label: "Materias", href: materiasHref }];
+  const step = params.get("feedbackPaso");
   let commissionHref = materiasHref;
   let materiaHref: string | undefined;
   if (contexto) {
@@ -118,15 +135,17 @@ export function feedbackNavigation(contexto: FeedbackContexto | null | undefined
     for (const [key, value] of feedbackOriginParams(params)) {
       if (key === "origen" || key.startsWith("experiencias")) query.set(key, value);
     }
+    if (entry.length) query.set("feedbackPaso", "materia");
     query.set("cursadaId", contexto.cursadaId);
     const commissionsPage = parseMateriaPage(params.get("comisionesPage"));
     if (commissionsPage > 1) query.set("comisionesPage", String(commissionsPage));
     materiaHref = `${base.split("?")[0]}?${query}`;
-    items.push({ label: contexto.materiaNombre, href: materiaHref });
+    if (!entry.length || step === "materia" || step === "materia-comision") items.push({ label: contexto.materiaNombre, href: materiaHref });
     commissionHref = withOrigin(feedbackComisionHref(contexto), params);
-    items.push({ label: `Comisión ${contexto.nombre}`, href: commissionHref });
+    if (!entry.length || step === "comision" || step === "materia-comision") items.push({ label: `Comisión ${contexto.nombre}`, href: commissionHref });
   }
-  const back = params.get("origen") === "inicio" ? { href: "/home", label: "Inicio" } : experienciasBack(params) ?? { href: commissionHref, label: contexto ? "Comisión" : "Materias" };
+  const parent = items.at(-1)!;
+  const back = entry.length ? { href: parent.href, label: parent.label } : { href: commissionHref, label: contexto ? "Comisión" : "Materias" };
   return { items, commissionHref, materiaHref, back };
 }
 

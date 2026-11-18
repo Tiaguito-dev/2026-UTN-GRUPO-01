@@ -17,6 +17,7 @@ import { FeedbackModerationStatus } from "./FeedbackModerationStatus";
 import { FeedbackHistorial } from "./ComisionFeedback";
 import { feedbackSuccessMessage } from "@/validations/feedback";
 import styles from "./feedback.module.css";
+import presentation from "./ExperienciasPresentation.module.css";
 
 export function FeedbackDetail({ feedbackId }: { feedbackId: string }) {
   const headingId = useId();
@@ -33,6 +34,9 @@ export function FeedbackDetail({ feedbackId }: { feedbackId: string }) {
   const pending = useRef(false);
   const navigation = feedbackNavigation(feedback?.contexto, params);
   const backHref = navigation.back.href;
+  const restricted = feedback?.ocultoReportes || feedback?.ocultoAdministracion;
+  const visibilityLabel = feedback?.ocultoAutor ? restricted ? "Quitar mi ocultamiento voluntario" : "Mostrar experiencia" : "Ocultar comentario";
+  const visibilityHelpId = useId();
   async function moderate() {
     if (!feedback || !action || pending.current || feedback.versionModeracion === undefined) return;
     pending.current = true; setBusy(true); setError(""); setMessage("");
@@ -74,12 +78,12 @@ export function FeedbackDetail({ feedbackId }: { feedbackId: string }) {
       </>} />
         {state.data && !state.data.activa && feedback.estadoModeracion !== "RECHAZADO" ? <Notice tone="warning">La comisión está inactiva. Podés retirar tu comentario, pero no editarlo.</Notice> : null}
         {state.error ? <Notice tone="warning">No pudimos comprobar si la comisión admite ediciones. <button className="button" type="button" onClick={state.retry}>Reintentar</button></Notice> : null}
-        {feedback.estadoModeracion === "APROBADO" ? <button className="button button-secondary" type="button" disabled={busy} onClick={() => setAction(feedback.ocultoAutor ? "restaurar" : "ocultar")}>
-          {feedback.ocultoAutor ? <Eye size={17} aria-hidden="true" /> : <EyeOff size={17} aria-hidden="true" />}{feedback.ocultoAutor ? "Mostrar experiencia" : "Ocultar experiencia"}
-        </button> : null}
+        {feedback.estadoModeracion === "APROBADO" ? <div className={presentation.visibility}><button className="button button-secondary" type="button" disabled={busy} aria-describedby={restricted ? visibilityHelpId : undefined} onClick={() => setAction(feedback.ocultoAutor ? "restaurar" : "ocultar")}>
+          {feedback.ocultoAutor ? <Eye size={17} aria-hidden="true" /> : <EyeOff size={17} aria-hidden="true" />}{visibilityLabel}
+        </button>{restricted ? <p id={visibilityHelpId}>Esta acción solo modifica tu decisión de ocultamiento. La experiencia seguirá oculta por {feedback.ocultoReportes && feedback.ocultoAdministracion ? "reportes y por administración" : feedback.ocultoReportes ? "reportes" : "administración"}.</p> : null}</div> : null}
         {feedback.estadoModeracion === "RECHAZADO" ? <button className="button" type="button" disabled={busy} onClick={() => setAction("revision")}>Solicitar nueva revisión</button> : null}
         <FeedbackHistoryDisclosure key={`${feedback.id}:${feedback.versionModeracion}`} feedbackId={feedback.id} />
-        <Dialog open={action !== null} onClose={() => setAction(null)} title={action === "revision" ? "Solicitar nueva revisión" : action === "restaurar" ? "Mostrar experiencia" : "Ocultar experiencia"} description={action === "revision" ? "Primero guardá una corrección real del texto. La solicitud quedará pendiente y no publica automáticamente." : action === "restaurar" ? "Solo se levantará tu ocultamiento. Las restricciones administrativas y preventivas seguirán vigentes." : "La experiencia dejará de verse en la comunidad. Podrás levantar tu ocultamiento después."} busy={busy}>
+        <Dialog open={action !== null} onClose={() => setAction(null)} title={action === "revision" ? "Solicitar nueva revisión" : visibilityLabel} description={action === "revision" ? "Primero guardá una corrección real del texto. La solicitud quedará pendiente y no publica automáticamente." : action === "restaurar" ? "Solo se levantará tu ocultamiento. Las restricciones administrativas y preventivas seguirán vigentes." : restricted ? "Agregarás tu ocultamiento voluntario. Quitar esa decisión después no levantará las restricciones administrativas ni preventivas." : "La experiencia dejará de verse en la comunidad. Podrás levantar tu ocultamiento después."} busy={busy}>
           {error ? <Notice tone="error">{error}</Notice> : null}
           <div className="dialog-actions"><button className="button button-secondary" type="button" disabled={busy} onClick={() => setAction(null)}>Cancelar</button><button className="button" type="button" disabled={busy} onClick={() => void moderate()}>{busy ? "Procesando…" : "Confirmar"}</button></div>
         </Dialog>

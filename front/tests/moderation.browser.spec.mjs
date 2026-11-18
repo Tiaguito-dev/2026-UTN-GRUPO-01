@@ -76,9 +76,10 @@ test("T6 recorrido real principal: autor, dos denunciantes y restitución ADMIN"
     if (reporter.id === users[3].id) await expect(article).toHaveCount(0);
     await context.close();
   }
-  await assertPublic(author, feedbackId, false); await author.goto(`/home/feedback/${feedbackId}`); await expect(author.getByText(/Oculta preventivamente por reportes/)).toBeVisible(); await expect(author.getByText(`${tag} contenido aprobado`, { exact: true })).toBeVisible();
-  await author.getByRole("button", { name: "Ocultar experiencia", exact: true }).click(); await author.getByRole("dialog").getByRole("button", { name: "Confirmar", exact: true }).click(); await expect(author.getByRole("button", { name: "Mostrar experiencia", exact: true })).toBeVisible();
-  await author.getByRole("button", { name: "Mostrar experiencia", exact: true }).click(); await author.getByRole("dialog").getByRole("button", { name: "Confirmar", exact: true }).click(); await expect(author.getByText(/permanece oculta por las otras restricciones/)).toBeVisible();
+  await assertPublic(author, feedbackId, false); await author.goto(`/home/feedback/${feedbackId}`); // Cambio visual: badge del autor; las causas administrativas conservan su propia presentacion.
+  await expect(author.getByText("Oculta por reportes", { exact: true })).toBeVisible(); await expect(author.getByText(`${tag} contenido aprobado`, { exact: true })).toBeVisible();
+  await author.getByRole("button", { name: "Ocultar tambi\u00e9n por decisi\u00f3n propia", exact: true }).click(); await author.getByRole("dialog").getByRole("button", { name: "Confirmar", exact: true }).click(); await expect(author.getByRole("button", { name: "Quitar mi ocultamiento voluntario", exact: true })).toBeVisible();
+  await author.getByRole("button", { name: "Quitar mi ocultamiento voluntario", exact: true }).click(); await author.getByRole("dialog").getByRole("button", { name: "Confirmar", exact: true }).click(); await expect(author.getByText(/permanece oculta por las otras restricciones/)).toBeVisible();
   await decision(admin, feedbackId, "Ocultar por administración", "Restricción administrativa independiente para verificar restitución parcial");
   const reports = await prisma.feedbackReporte.findMany({ where: { feedbackId }, orderBy: { createdAt: "asc" } }); expect(reports).toHaveLength(2);
   await admin.goto("/home/admin/experiencias?seccion=reportes"); await expect(admin.getByRole("link", { name: "Ver reporte" }).first()).toBeVisible(); await responsive(admin);

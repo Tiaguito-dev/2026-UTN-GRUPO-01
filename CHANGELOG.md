@@ -8,6 +8,20 @@
 - Anonimato alineado con área accesible y botón bordó con envío: ancho natural a la derecha en escritorio y completo hasta 600 px. Se conserva la lógica y el contrato existentes.
 - 163 pruebas focalizadas, typecheck, lint y build aprobados. Vacío/listado revisados en Chromium a 360, 600 y 1280 px sin desbordamiento ni incidencias axe graves/críticas, con servicio simulado. Tres fallos de navegación/textos ajenos al ajuste registrados en `TASK-respuestas-ajuste-visual`.
 
+### Corrección de navegación y avisos de Experiencias
+
+- Detalle propio ahora dice “Ocultar comentario”. Breadcrumbs estudiantiles reflejan la entrada real desde Inicio, Experiencias, Mis experiencias o materias/comisiones y conservan filtros y páginas en detalle y edición.
+- Logout explícito vuelve al ingreso sin reutilizar una ruta ADMIN. Si USER recibe un destino administrativo, vuelve a su Inicio y conserva los guards de rol.
+- Tras desestimar o resolver un reporte, el panel explica la restitución preventiva explícita existente y su umbral. Sin cambios de backend ni transiciones automáticas.
+- Pruebas focalizadas 134/134, typecheck, lint y build aprobados. Pruebas manuales/de navegador reservadas al usuario. Evidencia: `TASK-experiencias-navigation-followup`.
+
+### Experiencias: selector y presentación de moderación propia
+
+- Selector segmentado Comunidad/Mis experiencias y filtros agrupados con estilos locales.
+- Estados integrados en cada tarjeta propia, causas simultáneas diferenciadas y motivo de rechazo seguro. Ocultamiento por reportes con aviso de revisión temporal en listado y antes del contenido del detalle.
+- Acción voluntaria con textos y ayuda que explican que no levanta restricciones por reportes ni administración. Sin cambios de endpoints, permisos, transiciones, historial, backend ni archivos de Inicio.
+- Pruebas automáticas de selector, estados, ocho combinaciones de causas, navegación, acciones y regresión de Inicio; comprobaciones y limitaciones registradas en `TASK-experiencias-ui`. Revisión manual y navegador a cargo del usuario.
+
 ### Publicación directa y revisión con dos denunciantes
 
 - Las altas se publican inmediatamente y editar una aprobada conserva su estado y causas de ocultamiento. Los rechazos existentes mantienen corrección y solicitud explícita de revisión.

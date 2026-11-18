@@ -1162,6 +1162,40 @@ FeedbackForm consulta GET /feedback/normas al abrir una nueva publicación. Cuan
   "Ranking" en el menú de administración. `roleDestination` manda `/home/materias/ranking` al ranking
   administrativo (antes lo confundía con un `materiaId`).
 
+## Presentación de Experiencias y moderación propia
+
+`ExperienciasList` conserva las URLs de Comunidad y Mis experiencias mediante enlaces
+segmentados con `aria-current`, íconos decorativos y foco visible. Carrera y Materia comparten
+un grupo visual local; consultas, selección y paginación de nueve permanecen iguales.
+
+`MisExperiencias` compone el estado y Ver mi experiencia dentro del pie existente de
+`ExperienceCard`; no cambia la tarjeta compartida ni su variante de Inicio.
+`FeedbackModerationStatus` tiene variantes `compact` (listado) y `detail` (por defecto).
+Presenta badges independientes de moderación y de cada causa de ocultamiento, sin inferir
+publicación de una aprobación si hay restricciones. El motivo de rechazo utiliza la
+explicación segura existente. Reportes agrega un aviso de revisión administrativa temporal,
+conserva acceso del autor y no revela cantidades ni identidades de denunciantes. Si además
+hay rechazo, mantiene su motivo y no afirma que el comentario no fue rechazado.
+
+`FeedbackDetail` coloca ese aviso antes del contenido. Bajo reportes o administración, la
+acción voluntaria dice Quitar mi ocultamiento voluntario u Ocultar también por decisión
+propia, con explicación accesible por `aria-describedby`. Mantiene los endpoints existentes,
+confirmación, versión, condiciones de permisos, Editar, Eliminar e historial. Los estilos
+viven en `ExperienciasPresentation.module.css`, con tokens existentes y adaptación a 600 px.
+Sin hooks, validaciones de negocio, contratos ni dependencias nuevas. La validación manual
+y de navegador queda a cargo del usuario. Evidencia en `TASK-experiencias-ui`.
+
+### Ajuste posterior de navegación y mensajes
+
+`feedbackPaso` identifica el camino que se siguió al llegar a una experiencia: comisión directa,
+materia seguida de comisión o entrada desde Inicio/Experiencias. Breadcrumb, botón Volver,
+detalle y edición conservan esa pista junto con los filtros y páginas validados en URL.
+Las pantallas listadas de Experiencias siempre enlazan Inicio. Logout explícito entra sin
+`returnTo`; rutas ADMIN recibidas por USER se sustituyen por su inicio. El guard por rol sigue
+activo. Desestimar un reporte deja intacto `ocultoReportes`; el detalle administrativo ahora
+explica cuándo usar la restitución preventiva versionada y cuándo aún deben cerrarse reportes.
+Ver `TASK-experiencias-navigation-followup`.
+
 ### Presentación de respuestas a experiencias
 
 `FeedbackRespuestas` organiza encabezado, total confirmado, listado o vacío compacto y formulario.

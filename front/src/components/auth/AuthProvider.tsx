@@ -159,7 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
   const logout = async () => {
-    try { await getAuthService().logout(clear); }
+    try { await getAuthService().logout(() => { clear(); setSessionEndReason("logout"); }); }
     catch (caught) {
       // Keeping the account avoids asserting that a failed request revoked the server session.
       setError(LOGOUT_UNCONFIRMED);

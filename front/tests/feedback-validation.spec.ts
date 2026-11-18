@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { feedbackOriginParams, feedbackNavigation, feedbackSuccessHref, feedbackSuccessMessage, inicioFeedWindowKey, MAX_TEXTO_FEEDBACK, validarTextoFeedback, validarPuntuacionFeedback, diferenciasFeedback } from "../src/validations/feedback";
+import { feedbackOriginParams, feedbackNavigation, feedbackDetalleHref, feedbackEdicionHref, feedbackSuccessHref, feedbackSuccessMessage, inicioFeedWindowKey, MAX_TEXTO_FEEDBACK, validarTextoFeedback, validarPuntuacionFeedback, diferenciasFeedback } from "../src/validations/feedback";
 import { validateCreateFeedback } from "../../back/src/reviews/application/feedback-input.js";
 
 describe("Feedback: validación y edición de diferencias", () => {
@@ -62,6 +62,28 @@ describe("Feedback: validación y edición de diferencias", () => {
 
 
 describe("Inicio publication navigation", () => {
+  const contexto = { comisionId: "co1", cursadaId: "cu1", materiaId: "m1", materiaNombre: "Álgebra", nombre: "S-21", anio: 2026, cuatrimestre: null };
+  it("el origen Inicio utiliza su raíz real en vez de inventar un recorrido académico", () => {
+    const navigation = feedbackNavigation(contexto, new URLSearchParams("origen=inicio"));
+    expect(navigation.items).toEqual([{ label: "Inicio", href: "/home" }]);
+    expect(navigation.back).toEqual({ label: "Inicio", href: "/home" });
+    expect(feedbackEdicionHref("f1", new URLSearchParams("origen=inicio"))).toBe("/home/feedback/f1/editar?origen=inicio");
+  });
+  it("Mis experiencias conserva jerarquía propia, página y origen al editar", () => {
+    const params = new URLSearchParams("origen=experiencias&experienciasSeccion=propias&experienciasPage=3");
+    const navigation = feedbackNavigation(contexto, params);
+    expect(navigation.items).toEqual([{ label: "Inicio", href: "/home" }, { label: "Experiencias", href: "/home/experiencias" }, { label: "Mis experiencias", href: "/home/experiencias?seccion=propias&page=3" }]);
+    expect(navigation.back).toEqual({ label: "Mis experiencias", href: "/home/experiencias?seccion=propias&page=3" });
+    expect(feedbackEdicionHref("f1", params)).toBe("/home/feedback/f1/editar?origen=experiencias&experienciasSeccion=propias&experienciasPage=3");
+    expect(feedbackDetalleHref("f1", params)).toBe("/home/feedback/f1?origen=experiencias&experienciasSeccion=propias&experienciasPage=3");
+  });
+  it("el ingreso directo académico conserva materias, contexto y comisión reales", () => {
+    const navigation = feedbackNavigation(contexto, new URLSearchParams("carrera=S&listadoPage=2&comisionesPage=3"));
+    expect(navigation.items.map(item => item.label)).toEqual(["Materias", "Álgebra", "Comisión S-21"]);
+    expect(navigation.items[0].href).toContain("page=2");
+    expect(navigation.materiaHref).toContain("comisionesPage=3");
+    expect(navigation.back.label).toBe("Comisión");
+  });
   it("preserves only a recognized Inicio origin, never an arbitrary return URL", () => {
     const params = new URLSearchParams("origen=inicio&returnTo=https://evil.test");
     expect(feedbackOriginParams(params).get("origen")).toBe("inicio"); expect(feedbackOriginParams(params).has("returnTo")).toBe(false);

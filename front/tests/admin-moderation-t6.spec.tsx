@@ -147,6 +147,8 @@ describe("T6 detalle administrativo de reportes", () => {
     vi.mocked(obtenerReporteFeedback).mockResolvedValue({ ...data, denunciantesAbiertos: 1, reporte: { ...data.reporte, estado: "DESESTIMADO", justificacion: "No corresponde a la evidencia", resolvedAt: date } });
     await userEvent.click(within(dialog).getByRole("button", { name: "Confirmar decisión" }));
     await screen.findByText(/El reporte se cerró correctamente/);
+    expect(screen.getByText(/La experiencia sigue oculta por reportes/)).toBeTruthy();
+    expect(screen.getByText(/usá Restituir ocultamiento preventivo/)).toBeTruthy();
     expect(resolverReporteFeedback).toHaveBeenCalledExactlyOnceWith("r1", { estado: "DESESTIMADO", motivo: "No corresponde a la evidencia" });
     expect(moderarFeedback).not.toHaveBeenCalled();
     await screen.findByRole("button", { name: "Restituir ocultamiento preventivo" });
