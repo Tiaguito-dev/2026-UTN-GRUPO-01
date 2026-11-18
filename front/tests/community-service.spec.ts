@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { obtenerNormas, actualizarNormas, registrarSugerencia } from "@/services/comunidad";
-import { normasConvivenciaSchema, sugerenciaRegistradaSchema } from "@/services/schemas";
+import { obtenerNormas, actualizarNormas, registrarSugerencia, listarSugerencias, asignarMeGustaSugerencia, eliminarSugerencia } from "@/services/comunidad";
+import { normasConvivenciaSchema, sugerenciaRegistradaSchema, sugerenciaAdministrativaSchema, sugerenciasAdministrativasSchema } from "@/services/schemas";
 
 const { protectedGet, protectedPost, me, requestJson } = vi.hoisted(() => ({ protectedGet: vi.fn(), protectedPost: vi.fn(), me: vi.fn(), requestJson: vi.fn() }));
 vi.mock("@/services/auth", () => ({ getAuthService: () => ({ protectedGet, protectedPost, me }) }));
@@ -9,6 +9,46 @@ const document = { id: "vigentes", titulo: "Construyamos una comunidad que sume"
   normas: ["Primera norma.", "Segunda norma."], cierre: "De estudiantes, para estudiantes.",
   createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z" };
 beforeEach(() => { vi.resetAllMocks(); });
+
+describe("HU-C03 contrato de administración privada", () => {
+  const item = { id: "be6a4090-7221-4340-aacc-27715417dd1c", categoria: "OTROS", contenido: "Idea privada", meGusta: true, autor: { displayName: "María" }, createdAt: "2026-11-18T10:00:00.000Z" };
+  it("consulta página y filtro explícitos mediante GET protegido", async () => {
+    protectedGet.mockResolvedValue({ items: [item], total: 1, page: 2, pageSize: 7 });
+    await listarSugerencias({ page: 2, pageSize: 7, soloMeGusta: true });
+    expect(protectedGet).toHaveBeenCalledExactlyOnceWith("/comunidad/sugerencias?page=2&pageSize=7&soloMeGusta=true", sugerenciasAdministrativasSchema);
+  });
+  it("consulta todas y veinte elementos por defecto", async () => {
+    await listarSugerencias({ page: 1 });
+    expect(protectedGet).toHaveBeenCalledWith("/comunidad/sugerencias?page=1&pageSize=20&soloMeGusta=false", sugerenciasAdministrativasSchema);
+  });
+  it.each([true, false])("PUT asigna %s y valida el DTO sin repetir escritura", async meGusta => {
+    me.mockResolvedValue({ role: "ADMIN" }); requestJson.mockResolvedValue({ ...item, meGusta });
+    await expect(asignarMeGustaSugerencia(item.id, meGusta)).resolves.toEqual({ ...item, meGusta });
+    expect(requestJson).toHaveBeenCalledExactlyOnceWith(`/comunidad/sugerencias/${item.id}/me-gusta`, { method: "PUT", body: { meGusta } });
+  });
+  it("DELETE verifica sesión y admite 204 sin respuesta", async () => {
+    me.mockResolvedValue({ role: "ADMIN" }); requestJson.mockResolvedValue(undefined);
+    await expect(eliminarSugerencia(item.id)).resolves.toBeUndefined();
+    expect(requestJson).toHaveBeenCalledExactlyOnceWith(`/comunidad/sugerencias/${item.id}`, { method: "DELETE" });
+  });
+  it("no escribe si falla verificar sesión", async () => {
+    me.mockRejectedValue(new Error("session"));
+    await expect(eliminarSugerencia(item.id)).rejects.toThrow("session");
+    await expect(asignarMeGustaSugerencia(item.id, true)).rejects.toThrow("session");
+    expect(requestJson).not.toHaveBeenCalled();
+  });
+  it("propaga fallo de DELETE sin reintento automático", async () => {
+    me.mockResolvedValue({ role: "ADMIN" }); requestJson.mockRejectedValue(new Error("write"));
+    await expect(eliminarSugerencia(item.id)).rejects.toThrow("write"); expect(requestJson).toHaveBeenCalledTimes(1);
+  });
+  it.each([{ meGusta: "true" }, { autor: { email: "private" } }, { categoria: "INVALIDA" }, { createdAt: "invalid" }, { id: "invalid" }])("rechaza DTO incompleto o inválido: %j", invalid => {
+    expect(sugerenciaAdministrativaSchema.safeParse({ ...item, ...invalid }).success).toBe(false);
+  });
+  it("una respuesta corrupta de PUT no confirma éxito", async () => {
+    me.mockResolvedValue({ role: "ADMIN" }); requestJson.mockResolvedValue({ ...item, meGusta: 1 });
+    await expect(asignarMeGustaSugerencia(item.id, true)).rejects.toThrow();
+  });
+});
 
 describe("HU-C01 contrato de consulta de Comunidad", () => {
   it("delega lectura autenticada al endpoint vigente con el esquema de respuesta", async () => {

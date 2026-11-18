@@ -125,22 +125,24 @@ test("HU-C02 ADMIN conserva normas y no recibe formulario de sugerencias", async
 });
 
 test("HU-C02 reintentar normas conserva el borrador privado sin enviar nada", async ({ page }) => {
-  const id = await login(page); let reads = 0;
+  const id = await login(page); let reads = 0; let allowReads = false;
   await page.route(`${API}/comunidad/normas`, async route => {
     if (route.request().method() !== "GET") return route.continue();
     reads++;
-    if (reads === 1) return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ message: "temporary" }), headers: { "access-control-allow-origin": "http://localhost:3300", "access-control-allow-credentials": "true" } });
+    // También determinista bajo StrictMode: el fallo termina solo al reintentar explícitamente.
+    if (!allowReads) return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ message: "temporary" }), headers: { "access-control-allow-origin": "http://localhost:3300", "access-control-allow-credentials": "true" } });
     return route.continue();
   });
   await openForm(page);
   await expect(page.getByText("No pudimos cargar las normas de convivencia.", { exact: true })).toBeVisible();
   const draft = "Borrador privado mientras se recuperan las normas."; await fill(page, draft, "REPORTAR_ERROR");
+  const initialReads = reads; allowReads = true;
   await page.getByRole("button", { name: "Reintentar", exact: true }).click();
   const stored = await prisma.normasConvivencia.findUniqueOrThrow({ where: { id: "vigentes" } });
   await expect(page.getByRole("heading", { name: stored.titulo, exact: true })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Sugerencia", exact: true })).toHaveValue(draft);
   await expect(page.getByRole("combobox", { name: "Categoría", exact: true })).toHaveValue("REPORTAR_ERROR");
-  expect(reads).toBe(2); expect(await prisma.sugerencia.count({ where: { usuarioId: id } })).toBe(0);
+  expect(reads).toBe(initialReads + 1); expect(await prisma.sugerencia.count({ where: { usuarioId: id } })).toBe(0);
 });
 
 test("HU-C02 proxy conserva sesión, rol, CSRF e idempotencia y no publica sugerencias", async ({ browser, request }) => {
@@ -156,7 +158,8 @@ test("HU-C02 proxy conserva sesión, rol, CSRF e idempotencia y no publica suger
       if (role === "USER") {
         const receipt = await response.json(); const retry = await context.request.post(`${proxy}/comunidad/sugerencias`, { headers, data }); expect(await retry.json()).toEqual(receipt);
         expect(await prisma.sugerencia.count({ where: { usuarioId: id } })).toBe(1);
-        for (const path of ["/comunidad/sugerencias", `/comunidad/sugerencias/${receipt.id}`]) expect((await context.request.get(`${proxy}${path}`)).status()).toBe(404);
+        // HU-C03 agrega listado privado ADMIN; USER sigue sin poder leer ni sus propias sugerencias.
+        for (const path of ["/comunidad/sugerencias", `/comunidad/sugerencias/${receipt.id}`]) expect((await context.request.get(`${proxy}${path}`)).status()).toBe(path === "/comunidad/sugerencias" ? 403 : 404);
       }
     } finally { await context.close(); }
   }

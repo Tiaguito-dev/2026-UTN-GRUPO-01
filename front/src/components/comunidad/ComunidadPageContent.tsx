@@ -11,6 +11,7 @@ import { obtenerNormas } from "@/services/comunidad";
 import { HttpError } from "@/services/http";
 import type { NormasConvivencia } from "@/types/comunidad";
 import { SugerenciaForm } from "./SugerenciaForm";
+import { SugerenciasAdmin } from "./SugerenciasAdmin";
 import styles from "./ComunidadPageContent.module.css";
 
 /** Un documento de consulta para ambos roles. Las capacidades futuras se compondrán aquí. */
@@ -60,7 +61,7 @@ export function ComunidadPageContent({ administrative = false, updated = false }
     <PageHeader id={headingId} title="Comunidad" description="Un espacio para compartir experiencias y ayudarnos desde el respeto." />
     {administrative ? <p><Link className="button button-secondary" href="/home/admin/comunidad/editar">Administrar normas de convivencia</Link></p> : null}
     {administrative && updated ? <Notice tone="success">Las normas de convivencia se actualizaron correctamente.</Notice> : null}
-    {administrative ? <>{status}{state.status === "ready" ? <div className={styles.content}>{message}{rules}</div> : null}</>
+    {administrative ? <div className={styles.adminColumns}><div className={styles.content}>{status}{message}{rules}</div><SugerenciasAdmin /></div>
       : <div className={styles.studentContent}>
         {message}
         <div className={styles.columns}>

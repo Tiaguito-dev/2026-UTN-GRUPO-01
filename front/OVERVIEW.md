@@ -5,7 +5,8 @@
 La vista USER de Comunidad incorpora `SugerenciaForm` junto a las normas en escritorio y debajo
 de ellas bajo 800 px. El mensaje del equipo permanece encima. El formulario se mantiene montado
 durante la carga, el error y el reintento de las normas: su borrador no depende de esa consulta.
-La variante ADMIN conserva la consulta y el editor de HU-C04, sin formulario ni bandeja de sugerencias.
+La variante ADMIN conserva la consulta y el editor de HU-C04, sin formulario de envío;
+HU-C03 incorpora la bandeja privada descrita a continuación.
 
 El selector comienza vacío y exige una de las cinco categorías; el contenido es texto plano,
 obligatorio y limitado a 5000 caracteres UTF-16 como el backend. La interfaz usa tarjetas,
@@ -22,6 +23,17 @@ registro previo. Un éxito muestra el agradecimiento, limpia los campos y deja l
 solicitud. No se guardan UUID ni borradores privados en storage del navegador.
 
 ## Comunidad: consulta y administración de normas (HU-C01/HU-C04)
+
+HU-C03 compone `SugerenciasAdmin` junto a las normas en escritorio y debajo en móvil.
+La bandeja usa datos reales, categorías en español, autor y fecha, corazón con aria-pressed
+y eliminación confirmada mediante Dialog (Cancelar, Escape y retorno del foco).
+Reutiliza FilterChips, useUrlPagination y PaginatedListView: Todas/Me gusta viven en la URL,
+el filtro reinicia page y una página vacía fuera de rango vuelve a la última disponible.
+Un PUT explícito comparte el corazón entre administradores; un DELETE solo se envía al
+confirmar. Ambas operaciones bloquean dobles clics, informan errores y refrescan únicamente
+el listado, manteniendo las normas. Un fallo de eliminación conserva el diálogo para reintentar.
+Los servicios comprueban sesión y validan respuestas con Zod; no repiten escrituras automáticamente.
+No se modifican los guards, temas, layout global ni componentes compartidos.
 
 `/home/comunidad` y `/home/admin/comunidad` renderizan el mismo
 `components/comunidad/ComunidadPageContent`, que consulta `GET /comunidad/normas` mediante
@@ -42,7 +54,7 @@ conservan. El CSS Module de la pantalla compone las tarjetas con los tokens actu
 sobrescribir primitivas ni estilos globales. USER conserva la vista de consulta; no hay feed,
 términos ni controles sin funcionalidad; las sugerencias privadas USER se describen arriba.
 
-La ruta administrativa compone `ComunidadAdminPageContent` bajo `Suspense`: lee únicamente la
+La ruta administrativa compone `ComunidadAdminPageContent` bajo `Suspense`: lee la
 señal `actualizada=1`, muestra el aviso de éxito y habilita el enlace “Administrar normas de
 convivencia”. La variante estudiantil no lee parámetros ni incorpora controles administrativos.
 El acceso a `/home/admin/comunidad/editar` permanece bajo `RequireRole` del segmento existente.

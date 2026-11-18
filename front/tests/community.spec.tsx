@@ -6,7 +6,8 @@ import { RoleTheme } from "@/components/auth/RoleTheme";
 import { obtenerNormas } from "@/services/comunidad";
 import { HttpError } from "@/services/http";
 
-vi.mock("@/services/comunidad", () => ({ obtenerNormas: vi.fn(), registrarSugerencia: vi.fn() }));
+vi.mock("@/services/comunidad", () => ({ obtenerNormas: vi.fn(), registrarSugerencia: vi.fn(), listarSugerencias: vi.fn(async () => ({ items: [], total: 0, page: 1, pageSize: 20 })) }));
+vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(), useRouter: () => ({ replace: vi.fn() }), usePathname: () => "/home/admin/comunidad" }));
 vi.mock("next/link", () => import("./support/next-link"));
 const document = {
   id: "vigentes", titulo: "Construyamos una comunidad que sume", introduccion: "Primer párrafo del equipo.\n\nSegundo párrafo constructivo.",

@@ -25,3 +25,11 @@ export interface SugerenciaRegistrada {
   id: string;
   createdAt: string;
 }
+
+/** Exclusiva de ADMIN; el alta USER mantiene su recibo mínimo. */
+export interface SugerenciaAdministrativa extends SugerenciaRegistrada {
+  categoria: CategoriaSugerencia;
+  contenido: string;
+  meGusta: boolean;
+  autor: { displayName: string };
+}

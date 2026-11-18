@@ -1,4 +1,6 @@
 .content { display: grid; gap: var(--space-6); max-width: 50rem; }
+.adminColumns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-6); align-items: start; }
+.adminColumns > * { min-width: 0; }
 .studentContent { display: grid; gap: var(--space-6); max-width: 50rem; }
 .columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-6); align-items: start; }
 .normasColumn { min-width: 0; }
@@ -13,6 +15,7 @@
 .closing { border-top: 1px solid var(--border); padding-top: var(--space-6); }
 .closing p:last-child { color: var(--muted); }
 @media (max-width: 800px) {
+  .adminColumns { grid-template-columns: minmax(0, 1fr); }
   .columns { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 600px) {
