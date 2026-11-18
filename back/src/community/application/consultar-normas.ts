@@ -3,7 +3,7 @@ import type { NormasRepository } from "./ports/normas.repository.js";
 import { NormasNoDisponiblesError } from "./errors.js";
 
 export class ConsultarNormas {
-  constructor(private readonly normas: NormasRepository) {}
+  constructor(private readonly normas: Pick<NormasRepository, "obtenerVigentes">) {}
 
   async execute(): Promise<NormasConvivencia> {
     const documento = await this.normas.obtenerVigentes();

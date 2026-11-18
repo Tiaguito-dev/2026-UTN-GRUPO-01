@@ -12,13 +12,31 @@ global y no revelan detalles internos.
 `community` separa el caso `ConsultarNormas`, su puerto de lectura y el repositorio Prisma.
 `NormasConvivencia` contiene el único documento `vigentes` (restricción SQL), con introducción,
 lista ordenada y cierre. Es independiente de `AceptacionNormas`, que conserva consentimientos
-históricos y no se modifica. No existen endpoints de edición, borrado ni sugerencias en esta HU.
+históricos y no se modifica. HU-C01 no incorpora escrituras; HU-C04 añade exclusivamente la
+actualización administrativa descrita a continuación. No existen endpoints de borrado ni sugerencias.
 
 Aplicar `20261117000000_normas_convivencia` antes del backend: crea la tabla y carga el contenido
 inicial. El INSERT usa `ON CONFLICT DO NOTHING`, por lo que repetir la carga inicial no pisa
 modificaciones posteriores. No se ejecuta seed durante las lecturas o el arranque. Sin nuevas
-dependencias ni variables de entorno; el administrador responsable se definirá al implementar
-HU-C04.
+dependencias ni variables de entorno.
+
+### Edición administrativa de normas (HU-C04)
+
+`PUT /comunidad/normas` exige una sesión ADMIN mediante `AuthenticationGuard`, `RolesGuard` y
+`@Roles("ADMIN")`, además de Origin/CSRF del transporte existente. USER recibe 403 y sin sesión
+válida se recibe 401. El cuerpo es estricto: `{titulo,introduccion,normas,cierre}`, los cuatro
+campos obligatorios. El título admite hasta 160 caracteres; todo texto se recorta en sus bordes
+y debe ser no vacío. Las normas exigen al menos un elemento, también recortado y no vacío;
+se conserva su orden y los saltos internos. Campos ajenos, como fechas o responsable, se rechazan
+con 400. El actor se toma de la sesión, nunca del cuerpo.
+
+Aplicar la nueva migración aditiva `20261118000000_normas_responsable`: agrega `actualizadoPorId`
+nullable, su índice y relación a User con `ON DELETE RESTRICT`. No rellena responsables ficticios
+ni cambia el contenido o las fechas existentes. Una única actualización Prisma guarda los cuatro
+campos, el actor y `@updatedAt`, conservando `createdAt`; si falta el documento devuelve 404 y no
+lo crea. Guardados simultáneos siguen la regla de último guardado completo, sin mezclar campos.
+El GET y la respuesta 200 del PUT mantienen el DTO público de HU-C01 y no exponen el UUID del
+responsable. La consulta posterior lee el contenido actualizado de PostgreSQL.
 
 ## Sesiones e inactividad
 

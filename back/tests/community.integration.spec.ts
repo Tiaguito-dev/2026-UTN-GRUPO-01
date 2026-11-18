@@ -75,12 +75,16 @@ describe.skipIf(!databaseUrl)("HU-C01 consulta HTTP con persistencia y sesiones 
     }
   });
 
-  it.each(["USER", "ADMIN"] as const)("%s no dispone de endpoints de escritura en HU-C01", async role => {
+  it.each(["USER", "ADMIN"] as const)("%s no dispone de escrituras ajenas al PUT administrativo de HU-C04", async role => {
     const session = await fixture(role);
     const before = await prisma.normasConvivencia.findUniqueOrThrow({ where: { id: "vigentes" } });
-    for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+    // HU-C04 habilita solo PUT para ADMIN; las demás escrituras continúan ausentes.
+    for (const method of ["POST", "PATCH", "DELETE"]) {
       const response = await fetch(`${baseUrl}/comunidad/normas`, { method, headers: { ...csrfHeaders, Cookie: session.cookie }, body: JSON.stringify({ titulo: "No autorizado" }) });
       expect(response.status).toBe(404);
+    }
+    if (role === "USER") {
+      expect((await fetch(`${baseUrl}/comunidad/normas`, { method: "PUT", headers: { ...csrfHeaders, Cookie: session.cookie }, body: JSON.stringify({ titulo: "No autorizado" }) })).status).toBe(403);
     }
     expect(await prisma.normasConvivencia.findUniqueOrThrow({ where: { id: "vigentes" } })).toEqual(before);
   });

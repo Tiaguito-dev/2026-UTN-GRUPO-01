@@ -9,19 +9,22 @@ const document = {
 
 describe("HU-C01 consulta de normas vigentes", () => {
   it("devuelve el documento persistido con su orden y fechas, sin guardar una copia ni resembrar", async () => {
-    const repository = { obtenerVigentes: vi.fn().mockResolvedValue(document) };
+    const repository = { obtenerVigentes: vi.fn().mockResolvedValue(document), actualizarVigentes: vi.fn() };
     await expect(new ConsultarNormas(repository).execute()).resolves.toEqual(document);
     expect(repository.obtenerVigentes).toHaveBeenCalledExactlyOnceWith();
+    expect(repository.actualizarVigentes).not.toHaveBeenCalled();
   });
 
   it("informa que las normas no están disponibles cuando todavía no existe el documento", async () => {
-    const repository = { obtenerVigentes: vi.fn().mockResolvedValue(null) };
+    const repository = { obtenerVigentes: vi.fn().mockResolvedValue(null), actualizarVigentes: vi.fn() };
     await expect(new ConsultarNormas(repository).execute()).rejects.toMatchObject({ httpStatus: 404 });
+    expect(repository.actualizarVigentes).not.toHaveBeenCalled();
   });
 
   it("no disfraza una falla de persistencia como documento vacío ni responde con un texto hardcodeado", async () => {
     const unavailable = new Error("database unavailable");
-    const repository = { obtenerVigentes: vi.fn().mockRejectedValue(unavailable) };
+    const repository = { obtenerVigentes: vi.fn().mockRejectedValue(unavailable), actualizarVigentes: vi.fn() };
     await expect(new ConsultarNormas(repository).execute()).rejects.toBe(unavailable);
+    expect(repository.actualizarVigentes).not.toHaveBeenCalled();
   });
 });

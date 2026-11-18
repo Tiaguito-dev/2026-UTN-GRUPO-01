@@ -7,3 +7,11 @@ export class NormasNoDisponiblesError extends DomainError {
     this.name = "NormasNoDisponiblesError";
   }
 }
+
+export class NormasInvalidasError extends DomainError {
+  readonly httpStatus = 400;
+  constructor(message: string) {
+    super(message);
+    this.name = "NormasInvalidasError";
+  }
+}
