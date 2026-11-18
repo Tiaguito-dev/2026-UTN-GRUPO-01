@@ -1161,3 +1161,19 @@ FeedbackForm consulta GET /feedback/normas al abrir una nueva publicación. Cuan
   y `/home/admin/ranking/comisiones`, con la prop `admin` y los destinos de `ranking/rutas.ts`. Ítem
   "Ranking" en el menú de administración. `roleDestination` manda `/home/materias/ranking` al ranking
   administrativo (antes lo confundía con un `materiaId`).
+
+### Presentación de respuestas a experiencias
+
+`FeedbackRespuestas` organiza encabezado, total confirmado, listado o vacío compacto y formulario.
+`FeedbackRespuestaForm` incorpora título accesible, placeholder, textarea con foco visible y
+anonimato nativo alineado con área de interacción de 44 px. El botón primario incluye un ícono
+de envío decorativo, conserva sus estados y se alinea a la derecha en escritorio; hasta 600 px
+ocupa el ancho disponible. Los estilos están limitados a las clases de respuestas existentes
+en `FeedPrincipal.module.css`, dentro de la capa components y con tokens del proyecto.
+
+Se conservan servicios, contratos, validación de 3000 caracteres, anonimato inicial, edición
+por diferencias, solicitudes idempotentes, errores, permisos y paginación actuales. Pruebas
+focalizadas 163/163, typecheck, lint y build aprobados; Chromium y axe a 360, 600 y 1280 px
+con componentes reales y servicio simulado. No se verificó persistencia real por falta de
+NEXT_PUBLIC_API_URL. Evidencia y fallos ajenos al ajuste en
+`docs/tasks/finished/TASK-respuestas-ajuste-visual.md`.

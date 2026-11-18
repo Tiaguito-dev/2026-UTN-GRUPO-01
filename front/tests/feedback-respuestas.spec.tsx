@@ -6,6 +6,7 @@ import { FeedbackRespuestas } from "@/components/feedback/FeedbackRespuestas";
 import { FeedbackRespuestaForm } from "@/components/feedback/FeedbackRespuestaForm";
 import { listarRespuestasFeedback, crearRespuestaFeedback, editarRespuestaFeedback, eliminarRespuestaFeedback } from "@/services/feedback-feed";
 import { HttpError } from "@/services/http";
+import { MAX_TEXTO_FEEDBACK } from "@/validations/feedback";
 import type { FeedbackRespuesta } from "@/types/feedback-feed";
 vi.mock("@/services/feedback-feed", () => ({ listarRespuestasFeedback: vi.fn(), crearRespuestaFeedback: vi.fn(), editarRespuestaFeedback: vi.fn(), eliminarRespuestaFeedback: vi.fn() }));
 const reply: FeedbackRespuesta = { id: "r1", feedbackId: "f1", texto: "Reply", anonimo: true, autor: null, propio: true, createdAt: "2026-11-01T15:00:00Z", updatedAt: "2026-11-01T15:00:00Z" };
@@ -14,6 +15,66 @@ const onCount = vi.fn(); const onUnavailable = vi.fn();
 beforeEach(() => { vi.resetAllMocks(); vi.mocked(listarRespuestasFeedback).mockResolvedValue(page([])); vi.mocked(crearRespuestaFeedback).mockResolvedValue(reply); vi.mocked(editarRespuestaFeedback).mockResolvedValue({ ...reply, texto: "Changed" }); vi.mocked(eliminarRespuestaFeedback).mockResolvedValue(undefined); HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); }; HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); }; });
 afterEach(cleanup);
 describe("Replies", () => {
+ // La tarea visual solicita el título vacío sin punto y agrega su descripción; el flujo no cambia.
+ it("presents the empty conversation and labelled composer without changing anonymity defaults", async () => {
+   render(<FeedbackRespuestas feedbackId="f1" onCount={onCount} onUnavailable={onUnavailable} />);
+   await screen.findByText("Todavía no hay respuestas");
+   expect(screen.getByRole("heading", { name: "Respuestas", level: 3 })).toBeTruthy();
+   expect(screen.getByText("0 respuestas")).toBeTruthy();
+   expect(screen.getByText("Sé el primero en participar de esta conversación")).toBeTruthy();
+   expect(screen.getByRole("heading", { name: "Escribí una respuesta", level: 4 })).toBeTruthy();
+   const text = screen.getByRole("textbox", { name: "Tu respuesta" });
+   expect(text.getAttribute("placeholder")).toBe("Compartí tu opinión o sumá información a esta conversación…");
+   expect((screen.getByRole("checkbox", { name: "Publicar de forma anónima" }) as HTMLInputElement).checked).toBe(false);
+ });
+ it("shows the confirmed server total with singular and plural labels", async () => {
+   vi.mocked(listarRespuestasFeedback).mockResolvedValueOnce(page([reply], 1)).mockResolvedValueOnce(page([reply], 21));
+   const { rerender } = render(<FeedbackRespuestas feedbackId="f1" onCount={onCount} onUnavailable={onUnavailable} />);
+   await screen.findByText("1 respuesta");
+   rerender(<FeedbackRespuestas feedbackId="f2" onCount={onCount} onUnavailable={onUnavailable} />);
+   await screen.findByText("21 respuestas");
+ });
+ it("supports keyboard navigation and anonymous publication through the native checkbox", async () => {
+   const user = userEvent.setup(); const saved = vi.fn();
+   render(<FeedbackRespuestaForm feedbackId="f1" onSaved={saved} onUnavailable={onUnavailable} />);
+   const text = screen.getByRole("textbox", { name: "Tu respuesta" });
+   const checkbox = screen.getByRole("checkbox", { name: "Publicar de forma anónima" });
+   const submit = screen.getByRole("button", { name: "Publicar respuesta" });
+   await user.tab(); expect(document.activeElement).toBe(text); await user.keyboard("Respuesta por teclado");
+   await user.tab(); expect(document.activeElement).toBe(checkbox); await user.keyboard(" ");
+   expect((checkbox as HTMLInputElement).checked).toBe(true);
+   await user.tab(); expect(document.activeElement).toBe(submit); await user.keyboard("{Enter}");
+   await waitFor(() => expect(saved).toHaveBeenCalledOnce());
+   expect(crearRespuestaFeedback).toHaveBeenCalledWith("f1", { texto: "Respuesta por teclado", anonimo: true, solicitudId: expect.any(String) });
+ });
+ it("keeps all publication controls disabled and announces busy state while saving", async () => {
+   let resolve!: (value: FeedbackRespuesta) => void;
+   vi.mocked(crearRespuestaFeedback).mockReturnValueOnce(new Promise(yes => { resolve = yes; }));
+   render(<FeedbackRespuestaForm feedbackId="f1" onSaved={vi.fn()} onUnavailable={onUnavailable} />);
+   const text = screen.getByRole("textbox", { name: "Tu respuesta" }) as HTMLTextAreaElement;
+   await userEvent.type(text, "Enviando"); await userEvent.click(screen.getByRole("button", { name: "Publicar respuesta" }));
+   expect(text.closest("form")!.getAttribute("aria-busy")).toBe("true");
+   expect(text.disabled).toBe(true);
+   expect((screen.getByRole("checkbox", { name: "Publicar de forma anónima" }) as HTMLInputElement).disabled).toBe(true);
+   expect((screen.getByRole("button", { name: "Guardando…" }) as HTMLButtonElement).disabled).toBe(true);
+   await act(async () => resolve(reply));
+   expect(text.closest("form")!.getAttribute("aria-busy")).toBe("false");
+   expect((screen.getByRole("button", { name: "Publicar respuesta" }) as HTMLButtonElement).disabled).toBe(false);
+ });
+ it("preserves text validation, error association and focus for blank and oversized drafts", async () => {
+   render(<FeedbackRespuestaForm feedbackId="f1" onSaved={vi.fn()} onUnavailable={onUnavailable} />);
+   const text = screen.getByRole("textbox", { name: "Tu respuesta" });
+   fireEvent.submit(text.closest("form")!);
+   expect(screen.getByRole("alert").textContent).toBe("Escribí tu experiencia antes de publicar.");
+   expect(text.getAttribute("aria-invalid")).toBe("true");
+   expect(text.getAttribute("aria-describedby")).toBe(screen.getByRole("alert").id);
+   expect(document.activeElement).toBe(text);
+   fireEvent.change(text, { target: { value: "a".repeat(MAX_TEXTO_FEEDBACK + 1) } });
+   expect(text.getAttribute("aria-invalid")).toBe("false");
+   fireEvent.submit(text.closest("form")!);
+   expect(screen.getByRole("alert").textContent).toBe(`El comentario admite hasta ${MAX_TEXTO_FEEDBACK} caracteres.`);
+   expect(crearRespuestaFeedback).not.toHaveBeenCalled();
+ });
  it("loads bounded pages, preserves anonymous identity and reconciles the total", async () => {
    vi.mocked(listarRespuestasFeedback).mockResolvedValueOnce(page([{ ...reply, propio: false, autor: { displayName: "PRIVATE" } }], 21)).mockResolvedValueOnce(page([{ ...reply, id: "r2", texto: "Page two", anonimo: false, autor: { displayName: "Ada" }, propio: false }], 21, 2));
    render(<FeedbackRespuestas feedbackId="f1" onCount={onCount} onUnavailable={onUnavailable} />);
@@ -24,18 +85,18 @@ describe("Replies", () => {
  });
  it("retries read errors and handles empty replies", async () => {
    vi.mocked(listarRespuestasFeedback).mockRejectedValueOnce(new Error("Read failed")); render(<FeedbackRespuestas feedbackId="f1" onCount={onCount} onUnavailable={onUnavailable} />);
-   await screen.findByText(/No pudimos recuperar las respuestas/); expect(screen.queryByText("Read failed")).toBeNull(); await userEvent.click(screen.getByRole("button", { name: "Reintentar respuestas" })); await screen.findByText("Todavía no hay respuestas."); await waitFor(() => expect(onCount).toHaveBeenCalledWith(0));
+   await screen.findByText(/No pudimos recuperar las respuestas/); expect(screen.queryByText("Read failed")).toBeNull(); await userEvent.click(screen.getByRole("button", { name: "Reintentar respuestas" })); await screen.findByText("Todavía no hay respuestas"); await waitFor(() => expect(onCount).toHaveBeenCalledWith(0));
  });
  it("creates, revalidates the list and uses the server total rather than adding blindly", async () => {
    vi.mocked(listarRespuestasFeedback).mockResolvedValueOnce(page([])).mockResolvedValueOnce(page([reply], 1));
-   render(<FeedbackRespuestas feedbackId="f1" onCount={onCount} onUnavailable={onUnavailable} />); await screen.findByText("Todavía no hay respuestas.");
+   render(<FeedbackRespuestas feedbackId="f1" onCount={onCount} onUnavailable={onUnavailable} />); await screen.findByText("Todavía no hay respuestas");
    await userEvent.type(screen.getByRole("textbox", { name: "Tu respuesta" }), " Reply "); await userEvent.click(screen.getByRole("checkbox", { name: "Publicar de forma anónima" }));
    await userEvent.click(screen.getByRole("button", { name: "Publicar respuesta" })); await screen.findByText("Reply"); await waitFor(() => expect(onCount).toHaveBeenLastCalledWith(1));
    expect(crearRespuestaFeedback).toHaveBeenCalledWith("f1", { texto: "Reply", anonimo: true, solicitudId: expect.any(String) });
  });
  it("does not retry a confirmed POST when subsequent list revalidation fails", async () => {
    vi.mocked(listarRespuestasFeedback).mockResolvedValueOnce(page([])).mockRejectedValueOnce(new Error("Revalidation failed")).mockResolvedValueOnce(page([reply]));
-   render(<FeedbackRespuestas feedbackId="f1" onCount={onCount} onUnavailable={onUnavailable} />); await screen.findByText("Todavía no hay respuestas.");
+   render(<FeedbackRespuestas feedbackId="f1" onCount={onCount} onUnavailable={onUnavailable} />); await screen.findByText("Todavía no hay respuestas");
    const text = screen.getByRole("textbox", { name: "Tu respuesta" }); await userEvent.type(text, "Saved reply"); await userEvent.click(screen.getByRole("button", { name: "Publicar respuesta" })); await screen.findByText(/No pudimos recuperar las respuestas/);
    expect((text as HTMLTextAreaElement).value).toBe(""); expect(crearRespuestaFeedback).toHaveBeenCalledTimes(1);
    await userEvent.click(screen.getByRole("button", { name: "Reintentar respuestas" })); await screen.findByText("Reply"); await waitFor(() => expect(onCount).toHaveBeenLastCalledWith(1)); expect(crearRespuestaFeedback).toHaveBeenCalledTimes(1);
@@ -85,7 +146,7 @@ describe("Replies", () => {
    vi.mocked(listarRespuestasFeedback).mockResolvedValueOnce(page([reply])).mockResolvedValueOnce(page([])); let resolve!: () => void; vi.mocked(eliminarRespuestaFeedback).mockReturnValueOnce(new Promise<void>(yes => { resolve = yes; }));
    render(<FeedbackRespuestas feedbackId="f1" onCount={onCount} onUnavailable={onUnavailable} />); await userEvent.click(await screen.findByRole("button", { name: "Eliminar respuesta" }));
    const dialog = screen.getByRole("dialog", { name: "Eliminar respuesta" }); expect(eliminarRespuestaFeedback).not.toHaveBeenCalled(); const button = within(dialog).getByRole("button", { name: "Confirmar eliminación" }); fireEvent.click(button); fireEvent.click(button); expect(eliminarRespuestaFeedback).toHaveBeenCalledExactlyOnceWith("r1");
-   await act(async () => resolve()); await screen.findByText("Todavía no hay respuestas."); await waitFor(() => expect(onCount).toHaveBeenLastCalledWith(0));
+   await act(async () => resolve()); await screen.findByText("Todavía no hay respuestas"); await waitFor(() => expect(onCount).toHaveBeenLastCalledWith(0));
  });
  it("rejects an unowned edit form without guessing identity", () => {
    render(<FeedbackRespuestaForm feedbackId="f1" original={{ ...reply, propio: false }} onSaved={vi.fn()} onUnavailable={onUnavailable} />); expect(screen.queryByRole("textbox")).toBeNull();

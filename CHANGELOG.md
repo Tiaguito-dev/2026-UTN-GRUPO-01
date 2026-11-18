@@ -2,6 +2,12 @@
 
 ## [Sin publicar]
 
+### Ajuste visual de respuestas a experiencias
+
+- Encabezado y contador, vacío compacto con ícono de comentario y formulario delimitado con título, placeholder y foco visible.
+- Anonimato alineado con área accesible y botón bordó con envío: ancho natural a la derecha en escritorio y completo hasta 600 px. Se conserva la lógica y el contrato existentes.
+- 163 pruebas focalizadas, typecheck, lint y build aprobados. Vacío/listado revisados en Chromium a 360, 600 y 1280 px sin desbordamiento ni incidencias axe graves/críticas, con servicio simulado. Tres fallos de navegación/textos ajenos al ajuste registrados en `TASK-respuestas-ajuste-visual`.
+
 ### Publicación directa y revisión con dos denunciantes
 
 - Las altas se publican inmediatamente y editar una aprobada conserva su estado y causas de ocultamiento. Los rechazos existentes mantienen corrección y solicitud explícita de revisión.

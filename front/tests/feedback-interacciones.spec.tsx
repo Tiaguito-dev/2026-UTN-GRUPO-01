@@ -44,6 +44,6 @@ describe("Feed interactions", () => {
  });
  it("provides a keyboard-operable response disclosure", async () => {
    render(<FeedbackInteracciones feedback={item} />); const button = screen.getByRole("button", { name: /Ver respuestas/ });
-   button.focus(); await userEvent.keyboard("{Enter}"); expect(button.getAttribute("aria-expanded")).toBe("true"); await screen.findByText("Todavía no hay respuestas.");
+   button.focus(); await userEvent.keyboard("{Enter}"); expect(button.getAttribute("aria-expanded")).toBe("true"); await screen.findByText("Todavía no hay respuestas");
  });
 });
