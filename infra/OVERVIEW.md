@@ -22,6 +22,14 @@ El stack local ejecuta PostgreSQL, migraciones Prisma, backend NestJS, frontend 
 Nginx y, con el perfil `mail`, Mailpit. Frontend y API comparten
 `http://localhost:8080`: Nginx enruta `/auth/` y los healthchecks al backend
 y comprime recursos públicos. La autenticación y la pantalla de recuperación no usan gzip.
+La consulta autenticada `/comunidad/normas` también se envía al backend mediante un location
+exacto en ambas configuraciones; las páginas `/home/comunidad` y `/home/admin/comunidad`
+permanecen en el frontend.
+El alta privada `/comunidad/sugerencias` usa otro location exacto hacia el backend; los
+permisos USER y CSRF se validan allí. No existe una lectura pública de sugerencias en HU-C02.
+HU-C03 reutiliza esa ruta exacta para el listado ADMIN y agrega el prefijo
+`/comunidad/sugerencias/` en desarrollo y TLS para corazón y eliminación. La autorización
+ADMIN y CSRF siguen a cargo del backend; no se publica la bandeja para USER.
 Los logs de acceso y errores de peticiones del proxy están desactivados para evitar registrar
 enlaces de recuperación. La disponibilidad se observa mediante healthchecks; una integración
 futura de logs deberá sanitizar URLs antes de registrarlas.

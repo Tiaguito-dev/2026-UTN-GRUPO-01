@@ -14,6 +14,14 @@ enum UserRole {
   USER
 }
 
+enum CategoriaSugerencia {
+  MEJORA_PLATAFORMA
+  NUEVA_FUNCIONALIDAD
+  REPORTAR_ERROR
+  CORRECCION_ACADEMICA
+  OTROS
+}
+
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   email        String   @unique @db.VarChar(254)
@@ -33,6 +41,8 @@ model User {
   valoracionesMaterias ValoracionMateria[]
   feedbackLikes FeedbackLike[]
   feedbackRespuestas FeedbackRespuesta[]
+  normasConvivenciaActualizadas NormasConvivencia[]
+  sugerencias Sugerencia[]
 
   @@index([role, disabledAt, createdAt, id])
 }
@@ -44,6 +54,37 @@ model AceptacionNormas {
   usuario User @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@id([usuarioId, version])
+}
+
+// Documento vigente de Comunidad; no representa consentimientos ni términos.
+// La migración restringe el ID a "vigentes" para mantener un único documento.
+model NormasConvivencia {
+  id           String   @id @default("vigentes") @db.VarChar(16)
+  titulo       String   @db.VarChar(160)
+  introduccion String
+  normas       String[]
+  cierre       String
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+  actualizadoPorId String? @db.Uuid
+  actualizadoPor User? @relation(fields: [actualizadoPorId], references: [id], onDelete: Restrict)
+
+  @@index([actualizadoPorId])
+}
+
+model Sugerencia {
+  id          String @id @default(uuid()) @db.Uuid
+  usuarioId   String @db.Uuid
+  categoria   CategoriaSugerencia
+  contenido   String @db.VarChar(5000)
+  solicitudId String @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  meGusta     Boolean @default(false)
+  deletedAt   DateTime? @db.Timestamptz(3)
+  usuario     User @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@unique([usuarioId, solicitudId])
+  @@index([createdAt, id])
 }
 
 model AdministracionHistorial {

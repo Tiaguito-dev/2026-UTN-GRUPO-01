@@ -40,7 +40,8 @@ export function roleDestination(role: Role | undefined, raw?: string | null): st
     : professor ? `/home/admin/profesores/${professor[1]}`
     : path === "/home/materias" ? "/home/admin/materias"
     : path === "/home/profesores" ? "/home/admin/profesores"
-    : path === "/home/experiencias" ? "/home/admin/experiencias" : undefined;
+    : path === "/home/experiencias" ? "/home/admin/experiencias"
+    : path === "/home/comunidad" ? "/home/admin/comunidad" : undefined;
   if (!target) {
     const commissionId = url.searchParams.get("comisionId");
     if (path === "/home/feedback/nuevo" && commissionId && /^[a-zA-Z0-9_-]+$/.test(commissionId)) return `/home/admin/comisiones/${encodeURIComponent(commissionId)}`;

@@ -1,5 +1,83 @@
 # Backend
 
+## Consulta de normas de Comunidad (HU-C01)
+
+`GET /comunidad/normas` requiere una sesión autenticada, tanto USER como ADMIN. Devuelve
+`{id,titulo,introduccion,normas,cierre,createdAt,updatedAt}`: texto plano, normas en su orden
+editorial y fechas ISO 8601. Conserva `Cache-Control: no-store`; no modifica el documento ni
+registra aceptaciones al consultarlo. Sin sesión responde 401; sin documento, 404 con el mensaje
+“Las normas de convivencia no están disponibles.”. Los fallos inesperados conservan el filtro
+global y no revelan detalles internos.
+
+`community` separa el caso `ConsultarNormas`, su puerto de lectura y el repositorio Prisma.
+`NormasConvivencia` contiene el único documento `vigentes` (restricción SQL), con introducción,
+lista ordenada y cierre. Es independiente de `AceptacionNormas`, que conserva consentimientos
+históricos y no se modifica. HU-C01 no incorpora escrituras; HU-C04 añade exclusivamente la
+actualización administrativa descrita a continuación. No existe un endpoint de borrado de normas.
+
+Aplicar `20261117000000_normas_convivencia` antes del backend: crea la tabla y carga el contenido
+inicial. El INSERT usa `ON CONFLICT DO NOTHING`, por lo que repetir la carga inicial no pisa
+modificaciones posteriores. No se ejecuta seed durante las lecturas o el arranque. Sin nuevas
+dependencias ni variables de entorno.
+
+### Edición administrativa de normas (HU-C04)
+
+`PUT /comunidad/normas` exige una sesión ADMIN mediante `AuthenticationGuard`, `RolesGuard` y
+`@Roles("ADMIN")`, además de Origin/CSRF del transporte existente. USER recibe 403 y sin sesión
+válida se recibe 401. El cuerpo es estricto: `{titulo,introduccion,normas,cierre}`, los cuatro
+campos obligatorios. El título admite hasta 160 caracteres; todo texto se recorta en sus bordes
+y debe ser no vacío. Las normas exigen al menos un elemento, también recortado y no vacío;
+se conserva su orden y los saltos internos. Campos ajenos, como fechas o responsable, se rechazan
+con 400. El actor se toma de la sesión, nunca del cuerpo.
+
+Aplicar la nueva migración aditiva `20261118000000_normas_responsable`: agrega `actualizadoPorId`
+nullable, su índice y relación a User con `ON DELETE RESTRICT`. No rellena responsables ficticios
+ni cambia el contenido o las fechas existentes. Una única actualización Prisma guarda los cuatro
+campos, el actor y `@updatedAt`, conservando `createdAt`; si falta el documento devuelve 404 y no
+lo crea. Guardados simultáneos siguen la regla de último guardado completo, sin mezclar campos.
+El GET y la respuesta 200 del PUT mantienen el DTO público de HU-C01 y no exponen el UUID del
+responsable. La consulta posterior lee el contenido actualizado de PostgreSQL.
+
+### Envío privado de sugerencias (HU-C02)
+
+`POST /comunidad/sugerencias` exige sesión USER y las comprobaciones Origin/CSRF existentes.
+ADMIN recibe 403 y sin sesión válida se recibe 401. El cuerpo estricto es
+`{solicitudId,categoria,contenido}`: UUID de solicitud, categoría válida y contenido recortado
+en sus bordes de 1 a 5000 caracteres. Las categorías admitidas son `MEJORA_PLATAFORMA`,
+`NUEVA_FUNCIONALIDAD`, `REPORTAR_ERROR`, `CORRECCION_ACADEMICA` y `OTROS`. Se conservan
+los saltos internos. Autor, ID y fecha no se reciben del cliente; campos ajenos se rechazan
+con 400. El autor proviene de la sesión y `createdAt` lo fija PostgreSQL.
+
+La respuesta 201 contiene únicamente `{id,createdAt}` y `Cache-Control: no-store`, también
+al reintentar una solicitud ya confirmada. La clave única `(usuarioId,solicitudId)` y una
+transacción `ReadCommitted` con inserción `skipDuplicates` y consulta por esa clave evitan
+duplicados concurrentes. Si coincide categoría y contenido normalizado se conserva el mismo
+ID y fecha; reutilizar la clave con otro payload devuelve 409 sin reemplazar la sugerencia.
+Una nueva operación legítima debe emplear otra clave. No se interpretan mensajes de errores
+de unicidad ni se convierten fallos inesperados en confirmaciones falsas.
+
+Aplicar `20261118010000_sugerencias` antes del backend: agrega enum y tabla `Sugerencia`,
+autor con FK User `ON DELETE RESTRICT`, contenido `VARCHAR(5000)`, unicidad por usuario/clave
+e índice por creación/ID. No hay seed ni estado administrativo. Esta HU no incorpora GET de
+sugerencias, bandeja, búsqueda por ID, edición, likes ni borrado, y ningún envío se publica en
+Comunidad. HU-C03 añade la administración siguiente; HU-C01 y HU-C04 conservan sus contratos.
+
+### Bandeja administrativa de sugerencias (HU-C03)
+
+Solo ADMIN puede usar GET `/comunidad/sugerencias`, PUT
+`/comunidad/sugerencias/:id/me-gusta` y DELETE `/comunidad/sugerencias/:id`.
+El GET acepta page/pageSize (defaults 1/20, máximo 100) y soloMeGusta=true|false; devuelve
+PaginatedResult ordenado por creación/ID descendentes con autor {displayName}, categoría,
+contenido, fecha y meGusta. No expone email ni usuarioId/solicitudId. Página y total usan un
+snapshot RepeatableRead. Las respuestas son no-store y las escrituras conservan Origin/CSRF.
+El PUT exige exactamente {meGusta:boolean}: es una asignación compartida e idempotente, no un
+toggle por administrador. DELETE devuelve 204 y realiza baja lógica; una sugerencia ausente
+o eliminada responde 404 en las escrituras. No hay lectura individual ni respuestas/estados.
+
+Aplicar `20261118020000_administrar_sugerencias` antes del backend: agrega meGusta=false
+y deletedAt nullable sin modificar datos previos. La baja se excluye de listado y total,
+pero conserva la clave y el recibo de HU-C02: repetir un envío anterior no la recrea.
+
 ## Sesiones e inactividad
 
 `AUTH_ACCESS_TTL_SECONDS` configura el acceso (900 segundos por defecto) y

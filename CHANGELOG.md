@@ -2,6 +2,40 @@
 
 ## [Sin publicar]
 
+### HU-C05 — Consulta de términos desde Comunidad
+
+- USER y ADMIN pueden consultar los términos debajo de los bloques de Comunidad, con documento completo y versión vigente en un modal compartido con el registro. Incluye carga, error, reintento, cierre por Cerrar/X/Escape y retorno del foco.
+- Se reutiliza GET `/auth/terms` y se extraen el visor y sus estilos; el registro conserva su aceptación obligatoria y sus validaciones. Consultar no crea aceptaciones ni altera las históricas. Sin nuevos endpoints, modelos, migraciones o cambios al documento.
+- Validación focal: 39 pruebas frontend, typecheck y lint aprobados, más 6 E2E únicos verificados con repeticiones focales. Sin validación integral, builds ni capturas nuevas. Evidencia en [la tarea](docs/tasks/finished/TASK-HU-C05-consultar-terminos.md).
+
+### HU-C03 — Administración privada de sugerencias
+
+- Bandeja exclusiva ADMIN junto a las normas, con autor, categoría, fecha, contenido, orden reciente, paginación, filtro Todas/Me gusta, corazón compartido y eliminación confirmada. Actualiza el listado sin recargar la página y permite reintentar errores.
+- GET, PUT de Me gusta y DELETE restringidos a ADMIN, con Origin/CSRF y rutas Nginx dev/TLS. Baja lógica que conserva el recibo y la clave idempotente de HU-C02; un reintento no recrea una sugerencia eliminada.
+- Migración aditiva `20261118020000_administrar_sugerencias`: meGusta=false y deletedAt nullable, sin alterar contenido ni fechas previas.
+- Validación focal: 110 pruebas backend, 92 frontend, tipos/lint de ambos y 9 E2E únicos aprobados con repeticiones focales; Nginx y axe. E2E con Next dev, sin suites completas ni capturas nuevas. Evidencia en [la tarea](docs/tasks/finished/TASK-HU-C03-administrar-sugerencias.md).
+
+### HU-C02 — Sugerencias privadas de estudiantes
+
+- Comunidad incorpora un formulario USER con cinco categorías, texto de hasta 5000 caracteres, privacidad, confirmación y limpieza al enviar; se ubica junto a las normas en escritorio y debajo en móvil. Conserva datos y clave de operación ante errores.
+- POST `/comunidad/sugerencias` exclusivo USER, con sesión/CSRF y autor de sesión. La unicidad por usuario/solicitud y una transacción evitan duplicados concurrentes; reintentos conservan ID/fecha y claves con otro contenido devuelven409. Sin lecturas públicas ni bandeja administrativa.
+- Migración `20261118010000_sugerencias`, aditiva y sin seed/estados. No altera normas ni aceptaciones históricas.
+- Validación: 1383 pruebas backend y 1100 frontend, tipos/lint/build aprobados, 31 E2E únicos verificados con repeticiones focalizadas, axe y comparación de 28 referencias sin regenerar. Incidencias de preparación y evidencia en [la tarea](docs/tasks/finished/TASK-HU-C02-enviar-sugerencias.md).
+
+### HU-C04 — Administración de normas de convivencia
+
+- ADMIN puede editar el mensaje y agregar, modificar, eliminar y ordenar normas. El formulario precarga el documento vigente, valida campos, conserva el borrador ante errores y confirma su descarte al abandonar; USER conserva su vista de consulta.
+- PUT `/comunidad/normas` exige sesión ADMIN y CSRF, valida el cuerpo estricto y actualiza contenido, fecha y responsable atómicamente. Conserva createdAt y aceptaciones históricas; no expone el UUID del responsable en el documento público.
+- Nueva migración `20261118000000_normas_responsable`, aditiva y sin seed/backfill. No modifica el contenido previo ni la migración de HU-C01.
+- Validación: 1332 pruebas backend y 1080 frontend, tipos/lint/build de ambos y 24 E2E aprobados, con Nginx, axe y 28 referencias visuales sin regenerar. Evidencia y capturas en [la tarea](docs/tasks/finished/TASK-HU-C04-administrar-normas.md).
+
+### HU-C01 — Consulta de normas en Comunidad
+
+- Comunidad reemplaza Próximamente por el mensaje del equipo y las normas vigentes persistidas, disponibles para USER y ADMIN con sus temas y navegación. Incluye carga, ausencia y error con reintento, sin feed ni edición.
+- Nuevo GET autenticado `/comunidad/normas`, sin caché ni escrituras; integrado a los proxies de desarrollo/TLS. No altera términos ni aceptaciones históricas.
+- Migración `20261117000000_normas_convivencia`: documento único con normas ordenadas y fechas, carga inicial idempotente que preserva futuras ediciones.
+- Validación: 1294 pruebas backend y 1061 frontend, tipos/lint/build de ambos aprobados; 15 E2E únicos, axe y comparación final de 28 referencias. Cuatro capturas de Comunidad a 375/1280. Evidencia en [la tarea](docs/tasks/finished/TASK-HU-C01-consultar-normas.md).
+
 ### HU-C06 — Identidad visual administrativa
 
 - ADMIN recibe encabezado y menú bordó oscuro, identificación “Administración” y tokens compartidos para páginas, perfil, formularios y diálogos. USER conserva su identidad actual; la sesión sin confirmar utiliza un estado neutral y el logout restaura el tema público.

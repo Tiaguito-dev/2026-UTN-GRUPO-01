@@ -2,6 +2,7 @@ import { z } from "zod";
 import { HttpError } from "./http";
 import type { Materia, MateriaConValoracion, MateriaCarrera, MateriaHistorial } from "@/types/materias";
 import type { PublicAccount } from "@/types/auth";
+import { CATEGORIAS_SUGERENCIA, type NormasConvivencia, type SugerenciaRegistrada, type SugerenciaAdministrativa } from "@/types/comunidad";
 import type {
   CargoDocente,
   Comision,
@@ -154,3 +155,25 @@ export const publicAccountSchema: z.ZodType<PublicAccount> = z.object({
 });
 
 export const messageSchema = z.object({ message: z.string() });
+
+export const normasConvivenciaSchema: z.ZodType<NormasConvivencia> = z.object({
+  id: z.literal("vigentes"),
+  titulo: z.string().trim().min(1),
+  introduccion: z.string().trim().min(1),
+  normas: z.array(z.string().trim().min(1)).min(1),
+  cierre: z.string().trim().min(1),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
+export const sugerenciaRegistradaSchema: z.ZodType<SugerenciaRegistrada> = z.object({
+  id: z.uuid(),
+  createdAt: z.iso.datetime(),
+});
+
+export const sugerenciaAdministrativaSchema: z.ZodType<SugerenciaAdministrativa> = z.object({
+  id: z.uuid(), createdAt: z.iso.datetime(), categoria: z.enum(CATEGORIAS_SUGERENCIA),
+  contenido: z.string().min(1).max(5000), meGusta: z.boolean(),
+  autor: z.object({ displayName: z.string().min(1) }),
+});
+export const sugerenciasAdministrativasSchema = paginatedSchema(sugerenciaAdministrativaSchema);
