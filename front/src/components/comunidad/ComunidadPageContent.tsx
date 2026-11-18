@@ -12,6 +12,7 @@ import { HttpError } from "@/services/http";
 import type { NormasConvivencia } from "@/types/comunidad";
 import { SugerenciaForm } from "./SugerenciaForm";
 import { SugerenciasAdmin } from "./SugerenciasAdmin";
+import { ComunidadTerminos } from "./ComunidadTerminos";
 import styles from "./ComunidadPageContent.module.css";
 
 /** Un documento de consulta para ambos roles. Las capacidades futuras se compondrán aquí. */
@@ -69,6 +70,7 @@ export function ComunidadPageContent({ administrative = false, updated = false }
           <SugerenciaForm />
         </div>
       </div>}
+    <ComunidadTerminos />
   </section>;
 }
 

@@ -1,5 +1,26 @@
 # Frontend
 
+## Comunidad: consulta de términos (HU-C05)
+
+`ComunidadTerminos` aparece debajo de los bloques de USER y ADMIN, también ante fallos de las
+normas. El botón “Ver términos y condiciones” abre un visor en la misma pantalla y consulta
+por demanda `GET /auth/terms` mediante el servicio existente. Cada apertura recupera la versión
+vigente; cerrar, reintentar o desmontar descarta respuestas anteriores. Un fallo permite
+reintentar y cerrar sin mostrar contenido inventado ni errores técnicos.
+
+`components/terminos/TerminosDialog` es el visor de dominio compartido con el registro: recibe
+el documento, carga/error y callbacks del consumidor, presenta versión y secciones completas
+como texto y reutiliza `Dialog` para Cerrar, X, Escape y devolución del foco al disparador.
+La región desplazable permite lectura con teclado; al retirar un botón de reintento, el foco
+solo se recupera si quedó fuera del modal, sin desplazar a quien ya permanece dentro.
+Los estilos del documento se trasladaron desde `TerminosRegistro.module.css` sin alterar
+primitivas, tema ni estilos globales.
+
+`AccountForm` conserva su carga, checkbox, versión enviada, validaciones y manejo de versiones
+obsoletas; únicamente delega la visualización. Consultar desde Comunidad no registra aceptación,
+no agrega casillas ni modifica los borradores de sugerencias o la edición de normas. No se
+crearon endpoints, documentos, versiones, modelos ni migraciones para esta consulta.
+
 ## Comunidad: sugerencias privadas (HU-C02)
 
 La vista USER de Comunidad incorpora `SugerenciaForm` junto a las normas en escritorio y debajo
@@ -51,8 +72,8 @@ usuario y las respuestas de una consulta desmontada o reemplazada se descartan.
 Comunidad aparece en ambos menús; un acceso ADMIN a la ruta estudiantil se traduce a su
 equivalente administrativo. Los guards de sesión/rol y la identidad visual de HU-C06 se
 conservan. El CSS Module de la pantalla compone las tarjetas con los tokens actuales, sin
-sobrescribir primitivas ni estilos globales. USER conserva la vista de consulta; no hay feed,
-términos ni controles sin funcionalidad; las sugerencias privadas USER se describen arriba.
+sobrescribir primitivas ni estilos globales. USER conserva la vista de consulta; no hay feed
+ni controles sin funcionalidad. Las sugerencias privadas y la consulta de términos se describen arriba.
 
 La ruta administrativa compone `ComunidadAdminPageContent` bajo `Suspense`: lee la
 señal `actualizada=1`, muestra el aviso de éxito y habilita el enlace “Administrar normas de
@@ -115,7 +136,7 @@ es obligatoria; `AuthService.register` envía `aceptaTerminos` booleano y `versi
 Si no se acepta, el formulario muestra “Debés aceptar los términos y condiciones para crear
 tu cuenta”. No permite aceptar un documento que todavía no se pudo cargar y ofrece reintento.
 
-El enlace de los términos abre `Dialog` en la misma pantalla sin enviar el formulario ni
+El enlace de los términos abre `TerminosDialog`, compuesto sobre `Dialog`, en la misma pantalla sin enviar el formulario ni
 cambiar la casilla. El contenido tiene desplazamiento propio y secciones con encabezados;
 se cierra mediante Cerrar, X o Escape, devolviendo el foco al enlace. Los datos del registro
 permanecen en el formulario. Si el servidor indica una versión obsoleta, se recarga el documento
