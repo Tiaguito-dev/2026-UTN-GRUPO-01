@@ -2,6 +2,13 @@
 
 ## [Sin publicar]
 
+### HU-C03 — Administración privada de sugerencias
+
+- Bandeja exclusiva ADMIN junto a las normas, con autor, categoría, fecha, contenido, orden reciente, paginación, filtro Todas/Me gusta, corazón compartido y eliminación confirmada. Actualiza el listado sin recargar la página y permite reintentar errores.
+- GET, PUT de Me gusta y DELETE restringidos a ADMIN, con Origin/CSRF y rutas Nginx dev/TLS. Baja lógica que conserva el recibo y la clave idempotente de HU-C02; un reintento no recrea una sugerencia eliminada.
+- Migración aditiva `20261118020000_administrar_sugerencias`: meGusta=false y deletedAt nullable, sin alterar contenido ni fechas previas.
+- Validación focal: 110 pruebas backend, 92 frontend, tipos/lint de ambos y 9 E2E únicos aprobados con repeticiones focales; Nginx y axe. E2E con Next dev, sin suites completas ni capturas nuevas. Evidencia en [la tarea](docs/tasks/finished/TASK-HU-C03-administrar-sugerencias.md).
+
 ### HU-C02 — Sugerencias privadas de estudiantes
 
 - Comunidad incorpora un formulario USER con cinco categorías, texto de hasta 5000 caracteres, privacidad, confirmación y limpieza al enviar; se ubica junto a las normas en escritorio y debajo en móvil. Conserva datos y clave de operación ante errores.
