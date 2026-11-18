@@ -23,7 +23,12 @@ export function adminListHref(context: AdminContext): string {
   if (Number.isSafeInteger(context.page) && context.page > 1) query.set("page", String(context.page));
   return `/home/admin/${context.seccion}${query.size ? `?${query}` : ""}`;
 }
-const EXPERIENCIAS_ORIGIN = [["carrera", "experienciasCarrera"], ["materiaId", "experienciasMateriaId"], ["page", "experienciasPage"]] as const;
+const EXPERIENCIAS_ORIGIN = [
+  ["carrera", "experienciasCarrera"], ["materiaId", "experienciasMateriaId"], ["page", "experienciasPage"],
+  ["estadoModeracion", "experienciasEstadoModeracion"], ["seccion", "experienciasSeccion"],
+  ["estadoReporte", "experienciasEstadoReporte"], ["motivo", "experienciasMotivo"],
+  ["ocultoReportes", "experienciasOcultoReportes"], ["reporteId", "experienciasReporteId"],
+] as const;
 type Params = { get(key: string): string | null };
 
 /** On a commission, Experiencias travels as flat params (origen=experiencias), never as a nested URL. */
@@ -90,11 +95,19 @@ export function safeAdminReturnTo(raw: string | null | undefined): string | unde
       return `${url.pathname}${query.size ? `?${query}` : ""}`;
     }
     if (url.pathname === "/home/admin/experiencias" && url.origin === "https://local.invalid" && !url.hash) {
-      for (const key of url.searchParams.keys()) if (!["page", "carrera", "materiaId"].includes(key) || url.searchParams.getAll(key).length !== 1) return undefined;
+      for (const key of url.searchParams.keys()) if (!["page", "carrera", "materiaId", "estadoModeracion", "seccion", "estadoReporte", "motivo", "ocultoReportes", "reporteId"].includes(key) || url.searchParams.getAll(key).length !== 1) return undefined;
       const page = Number(url.searchParams.get("page") ?? 1);
       const carrera = url.searchParams.get("carrera");
       const materiaId = url.searchParams.get("materiaId");
       if (!Number.isSafeInteger(page) || page < 1 || (carrera !== null && !["S", "C", "Q", "I", "M"].includes(carrera)) || (materiaId !== null && !/^[a-zA-Z0-9_-]+$/.test(materiaId))) return undefined;
+      const enums: Record<string, readonly string[]> = {
+        estadoModeracion: ["PENDIENTE", "APROBADO", "RECHAZADO"], seccion: ["reportes"],
+        estadoReporte: ["ABIERTO", "RESUELTO", "DESESTIMADO"], ocultoReportes: ["true", "false"],
+        motivo: ["INSULTOS_ACOSO", "AMENAZAS_INTIMIDACION", "DISCRIMINACION", "DATOS_PERSONALES", "SPAM", "OTRO"],
+      };
+      for (const [key, values] of Object.entries(enums)) { const value = url.searchParams.get(key); if (value !== null && !values.includes(value)) return undefined; }
+      const reporteId = url.searchParams.get("reporteId");
+      if (reporteId !== null && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reporteId)) return undefined;
       return `${url.pathname}${url.search}`;
     }
     const seccion = ADMIN_SECTIONS.find((section) => url.pathname === `/home/admin/${section}`);

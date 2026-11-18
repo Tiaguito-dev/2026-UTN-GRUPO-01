@@ -220,6 +220,28 @@ describe("contexto compartido de comisión y Experiencias", () => {
     expect(adminNavigationSection("/home/admin/comisiones/co-1", query(commission))).toBe("materias");
   });
 
+  it.each([
+    "/home/admin/experiencias?estadoModeracion=RECHAZADO&page=2",
+    "/home/admin/experiencias?seccion=reportes&estadoReporte=ABIERTO&motivo=SPAM&ocultoReportes=true&page=3&reporteId=123e4567-e89b-42d3-a456-426614174000",
+  ])("T6 conserva filtros y reporte al pasar por comisión: %s", (origin) => {
+    const detail = comisionDetailHref("co-1", origin);
+    expect(safeAdminReturnTo(detail)).toBe(detail);
+    const navigation = comisionNavigation(query(detail), record);
+    expect(Object.fromEntries(query(navigation.back))).toEqual(Object.fromEntries(query(origin)));
+    expect(query(navigation.detailHref).get("returnTo")).toBeNull();
+    const professor = administrativeDetailHref("profesores", "p-1", detail);
+    expect(profesorDetailBack(joinedReturnTo(query(professor)))).toBe(detail);
+    expect(adminNavigationSection("/home/admin/profesores/p-1", query(professor))).toBe("experiencias");
+  });
+
+  it.each([
+    "experienciasEstadoModeracion=PUBLICADO", "experienciasSeccion=otra", "experienciasEstadoReporte=CERRADO",
+    "experienciasMotivo=INVALIDO", "experienciasOcultoReportes=1", "experienciasReporteId=ajeno",
+    "experienciasEstadoReporte=ABIERTO&experienciasEstadoReporte=RESUELTO",
+  ])("T6 rechaza contexto plano inválido al volver: %s", (filters) => {
+    expect(safeAdminReturnTo(`/home/admin/comisiones/co-1?origen=experiencias&${filters}`)).toBeUndefined();
+  });
+
   it.each(["https://externo.test", "/home/admin/usuarios?page=3", "/home/admin/profesores/p-2", "/home/admin/experiencias?page=3"])("profesor no adopta un contexto incompatible %s", (origin) => {
     expect(profesorDetailBack(origin)).toBe("/home/admin/profesores");
     expect(adminNavigationSection("/home/admin/profesores/p-1", context(origin))).toBe("profesores");
