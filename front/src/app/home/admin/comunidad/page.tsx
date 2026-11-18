@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { ComunidadPageContent } from "@/components/comunidad/ComunidadPageContent";
+import { Suspense } from "react";
+import { ComunidadAdminPageContent } from "@/components/comunidad/ComunidadAdminPageContent";
 
 export const metadata: Metadata = { title: "Comunidad | Professors' butchery" };
 
 export default function ComunidadAdminPage() {
-  return <ComunidadPageContent />;
+  return <Suspense fallback={<p role="status">Cargando normas de convivencia…</p>}><ComunidadAdminPageContent /></Suspense>;
 }

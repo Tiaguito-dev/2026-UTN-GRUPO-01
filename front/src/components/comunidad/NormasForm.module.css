@@ -1,0 +1,15 @@
+.fields { min-width: 0; padding: 0; margin: 0; border: 0; display: grid; gap: var(--space-6); }
+.field { min-width: 0; }
+.textarea { display: block; box-sizing: border-box; width: 100%; min-height: 6rem; resize: vertical; font: inherit; padding: var(--space-3) var(--space-4); color: var(--text); background: var(--surface); border: 1px solid var(--input-border); border-radius: var(--radius-md); }
+.textarea[aria-invalid="true"] { border: 2px solid var(--error); }
+.textarea:disabled { opacity: .7; }
+.subtitle { margin: 0 0 var(--space-2); }
+.normasHeader p { margin: 0; }
+.rows { display: grid; gap: var(--space-5); margin: 0; padding: 0; list-style: none; }
+.row { min-width: 0; padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--background); }
+.rowActions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+@media (max-width: 600px) {
+  .actions > button { width: 100%; }
+  .rowActions > button { flex: 1 1 auto; }
+}

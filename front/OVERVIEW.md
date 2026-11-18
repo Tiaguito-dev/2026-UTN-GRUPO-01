@@ -1,6 +1,6 @@
 # Frontend
 
-## Comunidad: consulta de normas (HU-C01)
+## Comunidad: consulta y administración de normas (HU-C01/HU-C04)
 
 `/home/comunidad` y `/home/admin/comunidad` renderizan el mismo
 `components/comunidad/ComunidadPageContent`, que consulta `GET /comunidad/normas` mediante
@@ -18,8 +18,35 @@ usuario y las respuestas de una consulta desmontada o reemplazada se descartan.
 Comunidad aparece en ambos menús; un acceso ADMIN a la ruta estudiantil se traduce a su
 equivalente administrativo. Los guards de sesión/rol y la identidad visual de HU-C06 se
 conservan. El CSS Module de la pantalla compone las tarjetas con los tokens actuales, sin
-sobrescribir primitivas ni estilos globales. No hay feed, edición, sugerencias, términos ni
-controles sin funcionalidad; esas capacidades se incorporarán en sus propias historias.
+sobrescribir primitivas ni estilos globales. USER conserva la vista de consulta; no hay feed,
+sugerencias, términos ni controles sin funcionalidad.
+
+La ruta administrativa compone `ComunidadAdminPageContent` bajo `Suspense`: lee únicamente la
+señal `actualizada=1`, muestra el aviso de éxito y habilita el enlace “Administrar normas de
+convivencia”. La variante estudiantil no lee parámetros ni incorpora controles administrativos.
+El acceso a `/home/admin/comunidad/editar` permanece bajo `RequireRole` del segmento existente.
+
+`NormasForm` precarga el documento vigente y `NormasEditor` mantiene un borrador local con filas
+identificadas de forma estable. Permite agregar, eliminar y mover normas con botones accesibles;
+siempre conserva al menos una fila. Los campos obligatorios y el límite de 160 caracteres del
+título se validan antes de enviar, con foco en el primer error. `useFormSubmission` impide envíos
+duplicados con su ref y deshabilita el editor durante la escritura. Un fallo conserva texto y
+orden y permite reintentar. El servicio comprueba sesión y envía un único PUT con título,
+introducción, normas y cierre; no manda responsable, fechas ni identificadores, y no repite
+escrituras automáticamente. El servidor conserva la autoridad de autorización y trazabilidad.
+
+Tras guardar, vuelve a Comunidad con aviso y una consulta nueva del contenido. Cancelar sin
+cambios regresa directamente. `useNormasLeaveGuard`, local al editor, confirma cancelar,
+enlaces que abandonan la pantalla y Atrás si existe un borrador. Agrega una entrada protectora
+del mismo URL conservando el estado de Next; la restaura al intentar Atrás y la colapsa antes de
+una salida confirmada o guardada. Seguir editando conserva el borrador y devuelve el foco al
+control que abrió el diálogo.
+Recarga/cierre utilizan `beforeunload`: el navegador decide el texto nativo y puede omitir el
+aviso sin activación previa del usuario. El botón de cierre de sesión deliberado solicita una
+confirmación nativa síncrona: aceptar deja pasar su click original y cancelar lo detiene, sin
+mover foco, desmontar el menú ni duplicar la lógica de logout. Si falla el cierre, el guard sigue
+protegiendo el borrador. Los listeners se retiran al desmontar; la navegación programática de
+vencimiento o seguridad no se intercepta. No se parchean router, autenticación ni hooks compartidos.
 
 ## Identidad visual según el rol (HU-C06)
 
@@ -224,7 +251,8 @@ ADMIN: sin ese rol muestra "Acceso no permitido" dentro del shell.
 - `/resend-verification`: solicita un enlace para una cuenta pendiente, incluso anterior al cambio.
 - `/home`: inicio protegido con saludo, estado vacío informativo y acceso al perfil.
 - `/home/comunidad`: mensaje del equipo y normas de convivencia vigentes, con consulta autenticada.
-- `/home/admin/comunidad`: el mismo documento de consulta bajo el entorno administrativo, sin edición.
+- `/home/admin/comunidad`: el mismo documento de consulta bajo el entorno administrativo, con acceso al editor de normas.
+- `/home/admin/comunidad/editar`: formulario ADMIN para actualizar el documento vigente, con protección de cambios sin guardar.
 - `/home/experiencias`: comentarios públicos para cuentas autenticadas, ordenados por publicación, con materia, comisión y período (TASK-061).
 - `/home/materias`: catálogo paginado de materias únicas, con carrera, año y búsqueda independientes; agrupación por años y niveles de electivas en los metadatos (TASK-060).
 - `/home/materias/[materiaId]`: detalle de materia y comisiones del período seleccionado, sin paso intermedio; historial y gestión de períodos solo ADMIN (TASK-061).

@@ -7,6 +7,7 @@ import { obtenerNormas } from "@/services/comunidad";
 import { HttpError } from "@/services/http";
 
 vi.mock("@/services/comunidad", () => ({ obtenerNormas: vi.fn() }));
+vi.mock("next/link", () => import("./support/next-link"));
 const document = {
   id: "vigentes", titulo: "Construyamos una comunidad que sume", introduccion: "Primer párrafo del equipo.\n\nSegundo párrafo constructivo.",
   normas: ["Compartí experiencias reales.", "Respetá la privacidad de los demás."],
@@ -17,6 +18,15 @@ beforeEach(() => { vi.clearAllMocks(); vi.mocked(obtenerNormas).mockResolvedValu
 afterEach(cleanup);
 
 describe("HU-C01 Comunidad de consulta", () => {
+  it("HU-C04 ofrece la administración solo en la variante administrativa y muestra el éxito solicitado", async () => {
+    const view = render(<ComunidadPageContent administrative updated />);
+    expect(await screen.findByRole("link", { name: "Administrar normas de convivencia" })).toHaveProperty("href", expect.stringContaining("/home/admin/comunidad/editar"));
+    expect(screen.getByText(/normas.*actualiz/i)).toBeTruthy();
+    view.unmount(); render(<ComunidadPageContent />);
+    await screen.findByRole("heading", { name: document.titulo });
+    expect(screen.queryByRole("link", { name: "Administrar normas de convivencia" })).toBeNull();
+    expect(screen.queryByText(/normas.*actualiz/i)).toBeNull();
+  });
   it.each(["USER", "ADMIN"] as const)("muestra el mismo contenido vigente bajo el tema de %s, sin controles de edición ni feed", async role => {
     render(<RoleTheme status="authenticated" role={role}><ComunidadPageContent /></RoleTheme>);
     expect(await screen.findByRole("heading", { name: document.titulo })).toBeTruthy();

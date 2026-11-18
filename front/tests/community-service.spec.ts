@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { obtenerNormas } from "@/services/comunidad";
+import { obtenerNormas, actualizarNormas } from "@/services/comunidad";
 import { normasConvivenciaSchema } from "@/services/schemas";
 
-const { protectedGet } = vi.hoisted(() => ({ protectedGet: vi.fn() }));
-vi.mock("@/services/auth", () => ({ getAuthService: () => ({ protectedGet }) }));
+const { protectedGet, me, requestJson } = vi.hoisted(() => ({ protectedGet: vi.fn(), me: vi.fn(), requestJson: vi.fn() }));
+vi.mock("@/services/auth", () => ({ getAuthService: () => ({ protectedGet, me }) }));
+vi.mock("@/services/http", async () => ({ ...await vi.importActual<typeof import("@/services/http")>("@/services/http"), requestJson }));
 const document = { id: "vigentes", titulo: "Construyamos una comunidad que sume", introduccion: "Mensaje introductorio.",
   normas: ["Primera norma.", "Segunda norma."], cierre: "De estudiantes, para estudiantes.",
   createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z" };
@@ -27,5 +28,30 @@ describe("HU-C01 contrato de consulta de Comunidad", () => {
   it("no oculta errores de transporte con contenido de ejemplo", async () => {
     const error = new Error("unavailable"); protectedGet.mockRejectedValue(error);
     await expect(obtenerNormas()).rejects.toBe(error);
+  });
+});
+
+describe("HU-C04 transporte de actualización administrativa", () => {
+  const input = { titulo: document.titulo, introduccion: document.introduccion, normas: document.normas, cierre: document.cierre };
+  it("comprueba sesión antes del único PUT y valida el documento público devuelto", async () => {
+    me.mockResolvedValue({ role: "ADMIN" }); requestJson.mockResolvedValue(document);
+    await expect(actualizarNormas(input)).resolves.toEqual(document);
+    expect(me).toHaveBeenCalledTimes(1);
+    expect(requestJson).toHaveBeenCalledExactlyOnceWith("/comunidad/normas", { method: "PUT", body: input });
+    expect(me.mock.invocationCallOrder[0]).toBeLessThan(requestJson.mock.invocationCallOrder[0]!);
+  });
+  it("no envía la mutación si no puede comprobar la sesión", async () => {
+    me.mockRejectedValue(new Error("session unavailable"));
+    await expect(actualizarNormas(input)).rejects.toThrow("session unavailable");
+    expect(requestJson).not.toHaveBeenCalled();
+  });
+  it("conserva un fallo de escritura sin reintentar automáticamente", async () => {
+    me.mockResolvedValue({ role: "ADMIN" }); requestJson.mockRejectedValue(new Error("write unavailable"));
+    await expect(actualizarNormas(input)).rejects.toThrow("write unavailable");
+    expect(requestJson).toHaveBeenCalledTimes(1);
+  });
+  it("rechaza una respuesta de actualización que no cumple el contrato", async () => {
+    me.mockResolvedValue({ role: "ADMIN" }); requestJson.mockResolvedValue({ ...document, normas: [] });
+    await expect(actualizarNormas(input)).rejects.toThrow();
   });
 });

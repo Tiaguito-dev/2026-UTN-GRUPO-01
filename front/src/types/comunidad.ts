@@ -8,3 +8,5 @@ export interface NormasConvivencia {
   createdAt: string;
   updatedAt: string;
 }
+
+export type NormasInput = Pick<NormasConvivencia, "titulo" | "introduccion" | "normas" | "cierre">;

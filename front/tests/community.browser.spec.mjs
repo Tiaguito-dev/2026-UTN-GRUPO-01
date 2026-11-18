@@ -53,7 +53,7 @@ test("HU-C01 el proxy sirve la consulta protegida para ambos roles", async ({ br
       const response = await context.request.get(`${proxy}/comunidad/normas`);
       expect(response.status()).toBe(200);
       expect(response.headers()["cache-control"]).toBe("no-store");
-      expect(await response.json()).toEqual({ ...stored, createdAt: stored.createdAt.toISOString(), updatedAt: stored.updatedAt.toISOString() });
+      expect(await response.json()).toEqual({ id: stored.id, titulo: stored.titulo, introduccion: stored.introduccion, normas: stored.normas, cierre: stored.cierre, createdAt: stored.createdAt.toISOString(), updatedAt: stored.updatedAt.toISOString() });
     } finally { await context.close(); }
   }
 });
@@ -78,6 +78,8 @@ for (const width of [375, 1280]) for (const role of ["USER", "ADMIN"]) {
     await expect(link).toHaveAttribute("aria-current", "page");
     await expect(content.getByRole("textbox")).toHaveCount(0);
     await expect(content.getByRole("button", { name: /editar|guardar|publicar|enviar/i })).toHaveCount(0);
+    // HU-C04 añade un enlace administrativo; USER conserva una consulta sin edición.
+    await expect(content.getByRole("link", { name: "Administrar normas de convivencia", exact: true })).toHaveCount(role === "ADMIN" ? 1 : 0);
     await page.reload();
     await expect(content.getByRole("heading", { name: stored.titulo, exact: true })).toBeVisible();
     await expect(page.locator("[data-role-theme]")).toHaveAttribute("data-role-theme", role === "ADMIN" ? "admin" : "student");

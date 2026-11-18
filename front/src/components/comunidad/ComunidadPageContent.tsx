@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import Link from "next/link";
 import { UsersRound } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Notice } from "@/components/ui/Notice";
@@ -12,7 +13,7 @@ import type { NormasConvivencia } from "@/types/comunidad";
 import styles from "./ComunidadPageContent.module.css";
 
 /** Un documento de consulta para ambos roles. Las capacidades futuras se compondrán aquí. */
-export function ComunidadPageContent() {
+export function ComunidadPageContent({ administrative = false, updated = false }: { administrative?: boolean; updated?: boolean } = {}) {
   const headingId = useId();
   const messageId = useId();
   const rulesId = useId();
@@ -38,6 +39,8 @@ export function ComunidadPageContent() {
 
   return <section aria-labelledby={headingId}>
     <PageHeader id={headingId} title="Comunidad" description="Un espacio para compartir experiencias y ayudarnos desde el respeto." />
+    {administrative ? <p><Link className="button button-secondary" href="/home/admin/comunidad/editar">Administrar normas de convivencia</Link></p> : null}
+    {administrative && updated ? <Notice tone="success">Las normas de convivencia se actualizaron correctamente.</Notice> : null}
     {state.status === "loading" ? <p role="status">Cargando normas de convivencia…</p> : null}
     {state.status === "error" ? <Notice tone={state.notFound ? "warning" : "error"}>
       <p>{state.error}</p>
