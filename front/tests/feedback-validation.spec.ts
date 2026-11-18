@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { feedbackOriginParams, feedbackNavigation, feedbackSuccessHref, inicioFeedWindowKey, MAX_TEXTO_FEEDBACK, validarTextoFeedback, validarPuntuacionFeedback, diferenciasFeedback } from "../src/validations/feedback";
+import { feedbackOriginParams, feedbackNavigation, feedbackSuccessHref, feedbackSuccessMessage, inicioFeedWindowKey, MAX_TEXTO_FEEDBACK, validarTextoFeedback, validarPuntuacionFeedback, diferenciasFeedback } from "../src/validations/feedback";
 import { validateCreateFeedback } from "../../back/src/reviews/application/feedback-input.js";
 
 describe("Feedback: validación y edición de diferencias", () => {
+  it("solo presenta mensajes de navegación de la aplicación, sin payloads o errores técnicos", () => {
+    const message = "La experiencia se guardó correctamente. Tu comentario está pendiente de revisión por el equipo administrativo.";
+    expect(feedbackSuccessMessage(message)).toBe(message);
+    for (const value of [JSON.stringify({ token: "secret" }), [message], "Error: PrismaClient at src/repository.ts:12", "Mensaje inventado", null]) expect(feedbackSuccessMessage(value)).toBeUndefined();
+  });
   it("permite texto español con saltos de línea y tabulaciones", () => {
     expect(validarTextoFeedback("  Buena comisión.\n\tExplica bien.  ")).toBe("");
   });

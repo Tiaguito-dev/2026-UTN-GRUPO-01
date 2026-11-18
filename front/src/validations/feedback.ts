@@ -28,6 +28,12 @@ export function experienciasOrigin(params: NavigationParams) {
 }
 export function experienciasBack(params: NavigationParams) {
   if (params.get("origen") !== "experiencias") return undefined;
+  if (params.get("experienciasSeccion") === "propias") {
+    const query = new URLSearchParams({ seccion: "propias" });
+    const page = parseMateriaPage(params.get("experienciasPage"));
+    if (page > 1) query.set("page", String(page));
+    return { href: `/home/experiencias?${query}`, label: "Mis experiencias" };
+  }
   const filters = experienciasFilters(new URLSearchParams({ carrera: params.get("experienciasCarrera") ?? "", materiaId: params.get("experienciasMateriaId") ?? "" }));
   return { href: experienciasHref(filters.carrera, filters.materiaId, parseMateriaPage(params.get("experienciasPage"))), label: "Experiencias" };
 }
@@ -42,6 +48,7 @@ export function feedbackOriginParams(params: { get(name: string): string | null 
   if (params.get("origen") === "inicio") query.set("origen", "inicio");
   if (params.get("origen") === "experiencias") {
     query.set("origen", "experiencias");
+    if (params.get("experienciasSeccion") === "propias") query.set("experienciasSeccion", "propias");
     const career = params.get("experienciasCarrera");
     const subject = params.get("experienciasMateriaId");
     if (isCarrera(career)) query.set("experienciasCarrera", career);
@@ -127,6 +134,18 @@ export function feedbackSuccessHref(href: string, message: string): string {
   const query = new URLSearchParams({ successMessage: message });
   if (href === "/home") query.set("feedRefresh", crypto.randomUUID());
   return `${href}${href.includes("?") ? "&" : "?"}${query}`;
+}
+
+/** Navigation notices accept only application copy, never serialized payloads from a URL. */
+export function feedbackSuccessMessage(value: unknown): string | undefined {
+  const messages = [
+    "El comentario se eliminó correctamente.",
+    "El comentario se actualizó correctamente.",
+    "El comentario se actualizó correctamente. Está pendiente de revisión por el equipo administrativo.",
+    "Los cambios se guardaron. La experiencia continúa rechazada hasta que solicites una nueva revisión.",
+    "La experiencia se guardó correctamente. Tu comentario está pendiente de revisión por el equipo administrativo.",
+  ];
+  return typeof value === "string" && messages.includes(value) ? value : undefined;
 }
 
 /** A new accepted token remounts Inicio; arbitrary query values never become navigation targets. */

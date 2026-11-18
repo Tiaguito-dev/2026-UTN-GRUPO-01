@@ -10,6 +10,7 @@ const item = {
   contexto: { comisionId: "c1", nombre: "S-1", materiaId: "m1", materiaNombre: "Álgebra", cursadaId: "cu1", anio: 2025, cuatrimestre: "PRIMERO" },
   createdAt: "2026-10-26T12:00:00.000Z", updatedAt: "2026-10-26T12:00:00.000Z",
 };
+const own = { ...item, estadoModeracion: "APROBADO", versionModeracion: 1, requiereRevisionHumana: false, motivoRechazo: null, ocultoAutor: false, ocultoAdministracion: false, ocultoReportes: false };
 const reply = (body: unknown, status = 200) => new Response(status === 204 ? null : JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 let fetchMock: ReturnType<typeof vi.fn>;
 beforeEach(() => {
@@ -31,15 +32,15 @@ function respond(body: unknown, status = 200) {
 
 describe("Cliente de feedback", () => {
   it.each([null, 1, 2, 3, 4, 5])("conserva la puntuación individual %s de la respuesta", async (puntuacion) => {
-    respond({ ...item, puntuacion });
-    await expect(obtenerFeedback("f1")).resolves.toEqual({ ...item, puntuacion });
+    respond({ ...own, puntuacion });
+    await expect(obtenerFeedback("f1")).resolves.toEqual({ ...own, puntuacion });
   });
   it.each([undefined, 0, 6, 2.5, "3", true])("rechaza la puntuación inválida %s del servidor", async (puntuacion) => {
-    respond({ ...item, puntuacion });
+    respond({ ...own, puntuacion });
     await expect(obtenerFeedback("f1")).rejects.toMatchObject({ status: 502 });
   });
   it("transporta únicamente la puntuación cambiada en PATCH", async () => {
-    respond({ ...item, puntuacion: 5 });
+    respond({ ...own, puntuacion: 5 });
     await actualizarFeedback("f1", { puntuacion: 5 });
     expect(businessCalls()[0][1]).toMatchObject({ method: "PATCH", body: JSON.stringify({ puntuacion: 5 }) });
   });
@@ -80,7 +81,7 @@ describe("Cliente de feedback", () => {
     expect(JSON.parse(options.body)).toEqual({ texto: "Buena experiencia", anonimo: true, profesorId: "p1", puntuacion: 3 });
   });
   it("edita únicamente los campos recibidos y elimina con DELETE", async () => {
-    respond(item);
+    respond(own);
     await actualizarFeedback("f/1", { anonimo: false });
     expect(businessCalls()[0][1]).toMatchObject({ method: "PATCH", body: JSON.stringify({ anonimo: false }) });
     respond(undefined, 204);
@@ -88,8 +89,8 @@ describe("Cliente de feedback", () => {
     expect(businessCalls().at(-1)?.[1]).toMatchObject({ method: "DELETE" });
   });
   it("valida el detalle y rechaza respuestas con tipos inesperados", async () => {
-    respond(item);
-    await expect(obtenerFeedback("f1")).resolves.toEqual(item);
+    respond(own);
+    await expect(obtenerFeedback("f1")).resolves.toEqual(own);
     respond({ ...item, anonimo: "sí" });
     await expect(obtenerFeedback("f1")).rejects.toMatchObject({ status: 502 });
   });

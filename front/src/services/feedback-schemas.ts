@@ -1,5 +1,6 @@
 import { z } from "zod";
-import type { Feedback, FeedbackHistorial, NormasConvivencia } from "@/types/feedback";
+import type { Feedback, FeedbackOwn, FeedbackHistorial, NormasConvivencia } from "@/types/feedback";
+import { estadoModeracionSchema, moderationFields } from "./feedback-moderation-schemas";
 
 export const normasConvivenciaSchema: z.ZodType<NormasConvivencia> = z.object({
   version: z.string().min(1), aceptada: z.boolean(), reglas: z.array(z.string().min(1)).min(1),
@@ -7,7 +8,7 @@ export const normasConvivenciaSchema: z.ZodType<NormasConvivencia> = z.object({
 
 const puntuacion = z.number().int().min(1).max(5).nullable();
 
-export const feedbackSchema: z.ZodType<Feedback> = z.object({
+const feedbackBaseSchema = z.object({
   id: z.string(), texto: z.string(), anonimo: z.boolean(), propio: z.boolean(),
   puntuacion,
   autor: z.object({ displayName: z.string() }).nullable(),
@@ -19,7 +20,10 @@ export const feedbackSchema: z.ZodType<Feedback> = z.object({
     modalidad: z.enum(["ANUAL", "PRIMERO", "SEGUNDO"]).nullable().optional(),
   }),
   createdAt: z.string(), updatedAt: z.string(),
-}).refine((value) => !value.anonimo || value.autor === null);
+});
+export const feedbackSchema: z.ZodType<Feedback> = feedbackBaseSchema.refine((value) => !value.anonimo || value.autor === null);
+export const feedbackOwnSchema: z.ZodType<FeedbackOwn> = feedbackBaseSchema.extend(moderationFields).refine((value) => !value.anonimo || value.autor === null);
 export const feedbackHistorialSchema: z.ZodType<FeedbackHistorial> = z.object({
-  id: z.string(), accion: z.enum(["CREACION", "EDICION", "ELIMINACION"]), texto: z.string(), puntuacion, anonimo: z.boolean(), createdAt: z.string(),
+  id: z.string(), accion: z.enum(["CREACION", "EDICION", "ELIMINACION", "APROBACION", "RECHAZO", "OCULTAMIENTO_AUTOR", "RESTITUCION_AUTOR", "OCULTAMIENTO_ADMIN", "RESTITUCION_ADMIN", "SOLICITUD_REVISION", "OCULTAMIENTO_REPORTES", "RESTITUCION_REPORTES"]), texto: z.string(), puntuacion, anonimo: z.boolean(), createdAt: z.string(),
+  estadoModeracion: estadoModeracionSchema.nullable().optional(), versionModeracion: z.number().int().nullable().optional(), motivoRechazo: z.string().nullable().optional(),
 });
