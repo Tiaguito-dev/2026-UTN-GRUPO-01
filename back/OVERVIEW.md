@@ -13,7 +13,7 @@ global y no revelan detalles internos.
 `NormasConvivencia` contiene el único documento `vigentes` (restricción SQL), con introducción,
 lista ordenada y cierre. Es independiente de `AceptacionNormas`, que conserva consentimientos
 históricos y no se modifica. HU-C01 no incorpora escrituras; HU-C04 añade exclusivamente la
-actualización administrativa descrita a continuación. No existen endpoints de borrado ni sugerencias.
+actualización administrativa descrita a continuación. No existe un endpoint de borrado de normas.
 
 Aplicar `20261117000000_normas_convivencia` antes del backend: crea la tabla y carga el contenido
 inicial. El INSERT usa `ON CONFLICT DO NOTHING`, por lo que repetir la carga inicial no pisa
@@ -37,6 +37,30 @@ campos, el actor y `@updatedAt`, conservando `createdAt`; si falta el documento 
 lo crea. Guardados simultáneos siguen la regla de último guardado completo, sin mezclar campos.
 El GET y la respuesta 200 del PUT mantienen el DTO público de HU-C01 y no exponen el UUID del
 responsable. La consulta posterior lee el contenido actualizado de PostgreSQL.
+
+### Envío privado de sugerencias (HU-C02)
+
+`POST /comunidad/sugerencias` exige sesión USER y las comprobaciones Origin/CSRF existentes.
+ADMIN recibe 403 y sin sesión válida se recibe 401. El cuerpo estricto es
+`{solicitudId,categoria,contenido}`: UUID de solicitud, categoría válida y contenido recortado
+en sus bordes de 1 a 5000 caracteres. Las categorías admitidas son `MEJORA_PLATAFORMA`,
+`NUEVA_FUNCIONALIDAD`, `REPORTAR_ERROR`, `CORRECCION_ACADEMICA` y `OTROS`. Se conservan
+los saltos internos. Autor, ID y fecha no se reciben del cliente; campos ajenos se rechazan
+con 400. El autor proviene de la sesión y `createdAt` lo fija PostgreSQL.
+
+La respuesta 201 contiene únicamente `{id,createdAt}` y `Cache-Control: no-store`, también
+al reintentar una solicitud ya confirmada. La clave única `(usuarioId,solicitudId)` y una
+transacción `ReadCommitted` con inserción `skipDuplicates` y consulta por esa clave evitan
+duplicados concurrentes. Si coincide categoría y contenido normalizado se conserva el mismo
+ID y fecha; reutilizar la clave con otro payload devuelve 409 sin reemplazar la sugerencia.
+Una nueva operación legítima debe emplear otra clave. No se interpretan mensajes de errores
+de unicidad ni se convierten fallos inesperados en confirmaciones falsas.
+
+Aplicar `20261118010000_sugerencias` antes del backend: agrega enum y tabla `Sugerencia`,
+autor con FK User `ON DELETE RESTRICT`, contenido `VARCHAR(5000)`, unicidad por usuario/clave
+e índice por creación/ID. No hay seed ni estado administrativo. Esta HU no incorpora GET de
+sugerencias, bandeja, búsqueda por ID, edición, likes ni borrado, y ningún envío se publica en
+Comunidad. HU-C03 definirá su administración; HU-C01 y HU-C04 conservan sus contratos.
 
 ## Sesiones e inactividad
 

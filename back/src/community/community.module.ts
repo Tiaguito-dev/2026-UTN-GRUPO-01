@@ -5,9 +5,12 @@ import { PrismaService } from "../infrastructure/prisma/prisma.service.js";
 import { SharedModule } from "../shared/shared.module.js";
 import { ConsultarNormas } from "./application/consultar-normas.js";
 import { ActualizarNormas } from "./application/actualizar-normas.js";
+import { RegistrarSugerencia } from "./application/registrar-sugerencia.js";
 import { NORMAS_REPOSITORY, type NormasRepository } from "./application/ports/normas.repository.js";
 import { PrismaNormasRepository } from "./infrastructure/prisma-normas.repository.js";
 import { ComunidadController } from "./community.controller.js";
+import { SUGERENCIAS_REPOSITORY, type SugerenciasRepository } from "./application/ports/sugerencias.repository.js";
+import { PrismaSugerenciasRepository } from "./infrastructure/prisma-sugerencias.repository.js";
 
 @Module({
   imports: [AuthModule, PrismaModule, SharedModule],
@@ -16,6 +19,8 @@ import { ComunidadController } from "./community.controller.js";
     { provide: NORMAS_REPOSITORY, useFactory: (prisma: PrismaService) => new PrismaNormasRepository(prisma), inject: [PrismaService] },
     { provide: ConsultarNormas, useFactory: (repository: NormasRepository) => new ConsultarNormas(repository), inject: [NORMAS_REPOSITORY] },
     { provide: ActualizarNormas, useFactory: (repository: NormasRepository) => new ActualizarNormas(repository), inject: [NORMAS_REPOSITORY] },
+    { provide: SUGERENCIAS_REPOSITORY, useFactory: (prisma: PrismaService) => new PrismaSugerenciasRepository(prisma), inject: [PrismaService] },
+    { provide: RegistrarSugerencia, useFactory: (repository: SugerenciasRepository) => new RegistrarSugerencia(repository), inject: [SUGERENCIAS_REPOSITORY] },
   ],
 })
 export class ComunidadModule {}

@@ -25,6 +25,8 @@ y comprime recursos públicos. La autenticación y la pantalla de recuperación 
 La consulta autenticada `/comunidad/normas` también se envía al backend mediante un location
 exacto en ambas configuraciones; las páginas `/home/comunidad` y `/home/admin/comunidad`
 permanecen en el frontend.
+El alta privada `/comunidad/sugerencias` usa otro location exacto hacia el backend; los
+permisos USER y CSRF se validan allí. No existe una lectura pública de sugerencias en HU-C02.
 Los logs de acceso y errores de peticiones del proxy están desactivados para evitar registrar
 enlaces de recuperación. La disponibilidad se observa mediante healthchecks; una integración
 futura de logs deberá sanitizar URLs antes de registrarlas.
