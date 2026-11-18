@@ -8,6 +8,10 @@ import { PrismaModule } from "../infrastructure/prisma/prisma.module.js";
 import { PrismaService } from "../infrastructure/prisma/prisma.service.js";
 import { SharedModule } from "../shared/shared.module.js";
 import { AcademicController } from "./academic.controller.js";
+import { PublicSubjectController } from "./public-subject.controller.js";
+import { ExplorarMaterias } from "./application/explorar-materias.js";
+import { PUBLIC_SUBJECT_REPOSITORY, type PublicSubjectRepository } from "./application/ports/public-subject.repository.js";
+import { PrismaPublicSubjectRepository } from "./infrastructure/prisma-public-subject.repository.js";
 import { MATERIA_REPOSITORY, type MateriaRepository } from "./application/ports/materia.repository.js";
 import { PROFESOR_REPOSITORY, type ProfesorRepository } from "./application/ports/profesor.repository.js";
 import { CURSADA_REPOSITORY, type CursadaRepository } from "./application/ports/cursada.repository.js";
@@ -39,8 +43,10 @@ import { ListarHistorialAcademico } from "./application/listar-historial-academi
 
 @Module({
   imports: [PrismaModule, AuthModule, SharedModule],
-  controllers: [AcademicController, AcademicAdministrationController],
+  controllers: [PublicSubjectController, AcademicController, AcademicAdministrationController],
   providers: [
+    { provide: PUBLIC_SUBJECT_REPOSITORY, useFactory: (prisma: PrismaService) => new PrismaPublicSubjectRepository(prisma), inject: [PrismaService] },
+    { provide: ExplorarMaterias, useFactory: (subjects: PublicSubjectRepository) => new ExplorarMaterias(subjects), inject: [PUBLIC_SUBJECT_REPOSITORY] },
     { provide: ACADEMIC_ADMINISTRATION_REPOSITORY, useFactory: (prisma: PrismaService) => new PrismaAcademicAdministrationRepository(prisma), inject: [PrismaService] },
     ...[EliminarAcademico, ListarHistorialAcademico].map((provide) => ({ provide, useFactory: (repository: AcademicAdministrationRepository) => new provide(repository), inject: [ACADEMIC_ADMINISTRATION_REPOSITORY] })),
     { provide: ObtenerProfesor, useFactory: (profesores: ProfesorRepository) => new ObtenerProfesor(profesores), inject: [PROFESOR_REPOSITORY] },

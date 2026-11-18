@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import Link from "next/link";
 import { CalendarDays, ChevronDown, ChevronRight } from "lucide-react";
 import { useEffect, useId, useState } from "react";
@@ -100,7 +101,7 @@ export function ComisionesMateria({ materiaId, materiaNombre, carreras, materias
         </select><ChevronDown size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" /></div>
       </div>
     </div>
-    {!periods ? <p role="status">Cargando cursadas…</p> : periods.error ? <Notice tone="error">{periods.error} <button className="button" type="button" onClick={() => setRevision((value) => value + 1)}>Reintentar cursadas</button></Notice>
+    {!periods ? <BrandLoading message="Cargando cursadas…" /> : periods.error ? <Notice tone="error">{periods.error} <button className="button" type="button" onClick={() => setRevision((value) => value + 1)}>Reintentar cursadas</button></Notice>
       : selectedId && !requested ? <p>La cursada solicitada no está disponible. Elegí otro año de cursada.</p>
         : !periods.items.length ? <p>Esta materia todavía no tiene cursadas cargadas.</p>
           : !career ? <p>{careerOptions.length ? "Seleccioná una carrera para ver sus comisiones" : "Esta materia no tiene carreras asociadas."}</p>
@@ -116,7 +117,7 @@ function ComisionesPeriodo({ materiaId, carrera, cursada, page, contextQuery, on
   query.set("cursadaId", cursada.id);
   if (page > 1) query.set("comisionesPage", String(page));
   if (query.get("origen") === "inicio" || query.get("origen") === "experiencias") query.set("feedbackPaso", "materia-comision");
-  if (state.status === "loading") return <p role="status">Cargando comisiones…</p>;
+  if (state.status === "loading") return <BrandLoading message="Cargando comisiones…" />;
   if (state.status === "error") return <Notice tone="error">Lo sentimos. No pudimos recuperar las comisiones. Intentá nuevamente. <button className="button" type="button" onClick={retry}>Reintentar comisiones</button></Notice>;
   return <>
     <p className={styles.summary}>{state.data.total === 1 ? "1 comisión" : `${state.data.total} comisiones`} · {periodoLabel(cursada.anio, cursada.cuatrimestre)}</p>

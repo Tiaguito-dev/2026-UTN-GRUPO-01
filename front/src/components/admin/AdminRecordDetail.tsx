@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { useId, useState } from "react";
@@ -58,7 +59,7 @@ export function AdminRecordDetail({ kind, id }: { kind: "users" | "feedback"; id
     </header>}
     {message ? <Notice tone="success">{message}</Notice> : null}
     {moderationError ? <Notice tone="error">{moderationError}</Notice> : null}
-    {error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la información. Intentá nuevamente. <button className="button button-secondary" type="button" onClick={retry}>Reintentar</button></Notice> : !data ? <p role="status">Cargando registro…</p> : <>
+    {error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la información. Intentá nuevamente. <button className="button button-secondary" type="button" onClick={retry}>Reintentar</button></Notice> : !data ? <BrandLoading message="Cargando registro…" /> : <>
       {kind === "users" ? <UserAccountCard record={data.registro} ownAccount={account?.role === "ADMIN" && account.id === id} canManage={account?.role === "ADMIN" && account.id !== id} onManage={() => setConfirm(true)} /> : <AdminExperienceCard record={data.registro} />}
       {kind === "feedback" && account?.role === "ADMIN" ? <AdminModerationActions id={id} record={data.registro} own={data.registro.autorId === account.id} onRefresh={conflict => { setModerationError(conflict ? "La experiencia cambió. Actualizamos la información; revisá su estado antes de decidir nuevamente." : ""); if (!conflict) setMessage("La decisión de moderación se registró correctamente."); setPage(1); retry(); }} /> : null}
       <UserAudit kind={kind} data={data} page={page} onPageChange={setPage} />

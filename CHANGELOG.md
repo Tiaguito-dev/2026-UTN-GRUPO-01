@@ -2,6 +2,8 @@
 
 ## [Sin publicar]
 
+- La bienvenida pública se integra con el sprint actual y aplica las mismas reglas de moderación y ocultamiento que el resto del sitio (TASK-078).
+
 ### Presentación de reportes administrativos
 
 - Bandeja compacta adaptable con filtros agrupados, estados y ocultamiento preventivo con badges; conserva consultas, orden, navegación y paginación.
@@ -251,6 +253,9 @@
 - Backend: `GET /rankings/comisiones` (filtros `materiaId`, `cursadaId`, `minValoraciones`), `GET /rankings/profesores` (búsqueda `q`) y `GET /rankings/profesores/:id`, para cualquier cuenta con sesión; `GET /feedback` acepta `profesorId`. Usan las puntuaciones vigentes; el total de un profesor junta sus comisiones con promedio ponderado por votos. Sin esquema ni migraciones.
 - Frontend: sección Profesores con ranking y buscador, perfil de profesor con desglose por comisión y comentarios, ranking global de comisiones en Materias, y estrellas con distintivo "Mejor valorada" en las tarjetas de comisión del detalle de materia y de cursada. Nuevos `ui/SearchForm` (extraído de Materias) y `ranking/RankingList`.
 - Validación local: backend 1070 pruebas con PostgreSQL aislado y frontend 850; builds del backend, typecheck y lint de ambos; revisión en navegador a 1280 y 375 px. Evidencia en [la tarea](docs/tasks/finished/TASK-ranking-profesores-comisiones.md).
+- La marca actual se usa como favicon y en las pantallas de carga. Las acciones para iniciar sesión desde la bienvenida tienen estilo de botón (TASK-077).
+- La bienvenida guiada usa la marca actual, permite buscar materias sin cuenta y muestra hasta cinco experiencias de la materia elegida. Leer el resto o publicar requiere iniciar sesión (TASK-075 y TASK-076).
+
 
 ### Aviso y renovación por inactividad
 

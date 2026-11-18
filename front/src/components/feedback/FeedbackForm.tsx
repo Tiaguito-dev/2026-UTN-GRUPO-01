@@ -1,4 +1,5 @@
 "use client";
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import Link from "next/link";
 import { useId, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -63,7 +64,7 @@ export function FeedbackForm({ feedbackId, comisionId }: { feedbackId?: string; 
         breadcrumb={[...navigation.items, ...(feedbackId ? [{ label: "Tu comentario", href: backHref }] : []), { label: feedbackId ? "Editar comentario" : "Compartir experiencia" }]} />
     </header>
     {resource.error ? <Notice tone="error">{resource.error} {!resource.notFound ? <button className="button" type="button" onClick={resource.retry}>Reintentar</button> : null}</Notice> : null}
-    {resource.loading ? <p role="status">Cargando formulario…</p> : null}
+    {resource.loading ? <BrandLoading message="Cargando formulario…" /> : null}
     {resource.data && comision ? <>
       <div className={styles.editorContext}>
         <BookOpen size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" />

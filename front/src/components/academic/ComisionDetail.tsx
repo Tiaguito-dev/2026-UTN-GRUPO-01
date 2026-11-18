@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import Link from "next/link";
 import { CalendarDays, ChevronDown } from "lucide-react";
 import { useEffect, useId, useState } from "react";
@@ -148,7 +149,7 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
           <span>{modalidadLabel(comision.cursada.cuatrimestre !== undefined ? comision.cursada.cuatrimestre : materia?.data?.modalidad ?? comision.cursada.materia.modalidad)}</span>
           {isAdmin ? <span className={styles.secondary}>{comision.activa ? "Activa" : "Inactiva"}</span> : null}
         </div>
-        {!options ? <p className={styles.secondary} role="status">Cargando comisiones…</p>
+        {!options ? <BrandLoading className={styles.secondary} message="Cargando comisiones…" />
           : options.error ? <p className={styles.secondary}>{options.error} <button className={styles.retry} type="button" onClick={() => setOptionsRetry((value) => value + 1)}>Reintentar comisiones</button></p>
           : (options.data?.length ?? 0) > 1 ? <div className={styles.selector}>
             <label htmlFor={selectorId}>Comisión del período</label>
@@ -163,7 +164,7 @@ export function ComisionDetail({ materiaId = "", cursadaId = "", comisionId, adm
     {deleteMessage ? <Notice tone="success">{deleteMessage}</Notice> : null}
     {params.get("successMessage") ? <Notice tone="success">{params.get("successMessage")}</Notice> : null}
     {error ? <Notice tone="error">Lo sentimos. No pudimos recuperar la comisión. {error} {current?.notFound ? back : <button className="button" type="button" onClick={() => setRetryToken((value) => value + 1)}>Reintentar</button>}</Notice> : null}
-    {!comision && !error ? <p role="status">Cargando comisión…</p> : null}
+    {!comision && !error ? <BrandLoading message="Cargando comisión…" /> : null}
     {comision ? <div className={styles.content}>
       <div className={styles.main}><ComisionFeedback comision={comision} administrative={administrative} /></div>
         <section className={styles.team} aria-labelledby={`${headingId}-equipo`}>

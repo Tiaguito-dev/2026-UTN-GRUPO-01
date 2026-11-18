@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandLoading } from "@/components/ui/BrandLoading";
 import { useState } from "react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Notice } from "@/components/ui/Notice";
@@ -17,5 +18,5 @@ function AuditContent({ kind, id }: { kind: AdminRecordKind; id: string }) {
   const [page, setPage] = useState(1);
   const { data, error, retry } = useAdminDetail(kind, id, page);
   if (error) return <Notice tone="error">Lo sentimos. No pudimos recuperar la auditoría. Intentá nuevamente. <button className="button button-secondary" type="button" onClick={retry}>Reintentar auditoría</button></Notice>;
-  return data ? <UserAudit kind={kind} data={data} page={page} onPageChange={setPage} /> : <p role="status">Cargando auditoría…</p>;
+  return data ? <UserAudit kind={kind} data={data} page={page} onPageChange={setPage} /> : <BrandLoading message="Cargando auditoría…" />;
 }
