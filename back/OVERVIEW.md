@@ -1602,16 +1602,23 @@ guards que `ReviewsController`). Query: `page` (1), `pageSize` (1 a 50, por defe
 - Fuente: `Feedback` vigente con `puntuacion`; se excluyen comisiones, cursadas y materias con baja
   lógica. Las comisiones inactivas cuentan. Profesores con baja lógica no aparecen, pero sus votos
   siguen contando para la comisión.
-- Comisión: `{ posicion, comision, materia, cursada, valoracion: { promedio, cantidad } }`.
+- Comisión (histórica): `{ posicion, comision: { nombre, carrera }, materia, cursadas[], anios:
+  { desde, hasta }, valoracion }`. Junta todas las cursadas de la misma materia + carrera + número;
+  `cursadas` trae las que tienen votos, la más reciente primero (la fila enlaza a esa).
+- `GET /rankings/cursadas/:id/comisiones`: arreglo por comisión de una cursada
+  (`{ posicion, comision, materia, cursada, valoracion }`), base del distintivo "Mejor valorada".
 - Profesor: `{ posicion, profesor, valoracion, comisiones[] }`, donde cada comisión del desglose
   trae `cargo` actual (o `null`) y su propia `valoracion`. El total es ponderado por votos.
-- Orden: promedio exacto desc, cantidad desc, nombre, id. `promedio` redondeado a un decimal.
-- Filtros: comisiones acepta `materiaId` y `cursadaId`; profesores acepta `q` (sin tildes ni
+- Orden: promedio bayesiano `(suma + 5·C) / (cantidad + 5)`, con C la media de los votos que
+  entran en ese ranking (antes del mínimo); después cantidad desc, nombre e id. `promedio` es el
+  promedio real redondeado a un decimal: el bayesiano solo ordena.
+- Filtros: comisiones acepta `materiaId` (`cursadaId` da 400: usar el endpoint por cursada); profesores acepta `q` (sin tildes ni
   mayúsculas), y con búsqueda incluye al final, con `posicion: null`, a los que no llegan al mínimo
   o no tienen votos. `GET /rankings/profesores/:id` devuelve la fila de un profesor (404 si no
   existe). `GET /feedback` acepta `profesorId`.
 - Cálculo: una consulta agregada (`PrismaRankingRepository`) y funciones puras en
-  `reviews/domain/ranking.ts`. Decisiones en `docs/tasks/finished/TASK-ranking-profesores-comisiones.md`.
+  `reviews/domain/ranking.ts`. Decisiones en `docs/tasks/finished/TASK-ranking-profesores-comisiones.md` y
+  `docs/tasks/finished/TASK-ranking-historico-comisiones.md`.
 
 ## Términos y condiciones al registrar una cuenta
 
