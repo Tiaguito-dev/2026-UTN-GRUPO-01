@@ -114,6 +114,10 @@ export class ReviewsController {
   @Header("Cache-Control", "no-store")
   rankingComisiones(@Query() query: unknown) { return this.ranking.comisiones(query); }
 
+  @Get("rankings/cursadas/:id/comisiones")
+  @Header("Cache-Control", "no-store")
+  rankingComisionesDeCursada(@Param("id") id: string) { return this.ranking.comisionesDeCursada(id); }
+
   @Get("rankings/profesores")
   @Header("Cache-Control", "no-store")
   rankingProfesores(@Query() query: unknown) { return this.ranking.profesores(query); }

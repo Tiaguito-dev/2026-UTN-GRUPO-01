@@ -41,25 +41,41 @@ export interface RankingProfesor {
 
 interface Acumulado { suma: number; cantidad: number; nombre: string; id: string }
 
+/** Imaginary votes at the overall mean that every group starts with (Bayesian average). */
+export const VOTOS_PREVIOS = 5;
+
+/**
+ * Bayesian average: few votes stay close to the overall mean, many votes weigh their own mean.
+ * A new group with three 5s does not beat one with forty votes averaging 4.6.
+ */
+export function puntajeBayesiano({ suma, cantidad }: { suma: number; cantidad: number }, media: number, previos = VOTOS_PREVIOS): number {
+  return (suma + previos * media) / (cantidad + previos);
+}
+
+const mediaGeneral = (grupos: Acumulado[]): number => {
+  const total = grupos.reduce((acc, grupo) => ({ suma: acc.suma + grupo.suma, cantidad: acc.cantidad + grupo.cantidad }), { suma: 0, cantidad: 0 });
+  return total.cantidad ? total.suma / total.cantidad : 0;
+};
+
 const contexto = (fila: FilaValoracion): ContextoComision => ({
   comision: { id: fila.comisionId, nombre: fila.comisionNombre, carrera: fila.carrera, activa: fila.activa },
   materia: { id: fila.materiaId, nombre: fila.materiaNombre },
   cursada: { id: fila.cursadaId, anio: fila.anio, cuatrimestre: fila.cuatrimestre },
 });
 
-// Exact mean first, so 4.17 beats 4.0 even if both would round alike; then votes, name and id
-// keep the order stable across pages.
-function mejorPrimero(a: Acumulado, b: Acumulado): number {
-  return b.suma / b.cantidad - a.suma / a.cantidad || b.cantidad - a.cantidad
-    || a.nombre.localeCompare(b.nombre, "es") || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-}
-
 const valoracion = ({ suma, cantidad }: Acumulado): Valoracion => ({ promedio: cantidad ? Math.round((suma / cantidad) * 10) / 10 : null, cantidad });
 
+// Bayesian score first, then votes, name and id, so the order is stable across pages. The mean is
+// taken over the groups being ranked, before the vote minimum, so filtering never shifts it.
 function rankear<T extends Acumulado>(grupos: Iterable<T>, minimo: number): T[] {
-  return [...grupos].filter(grupo => grupo.cantidad >= minimo).sort(mejorPrimero);
+  const todos = [...grupos];
+  const media = mediaGeneral(todos);
+  const puntaje = new Map(todos.map(grupo => [grupo, puntajeBayesiano(grupo, media)]));
+  return todos.filter(grupo => grupo.cantidad >= minimo).sort((a, b) => puntaje.get(b)! - puntaje.get(a)! || b.cantidad - a.cantidad
+    || a.nombre.localeCompare(b.nombre, "es") || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
+/** One row per commission of one cursada: the per-cursada view behind "Mejor valorada". */
 export function rankingComisiones(filas: FilaValoracion[], minimo: number): RankingComision[] {
   const grupos = new Map<string, Acumulado & { fila: FilaValoracion }>();
   for (const fila of filas) {
@@ -69,6 +85,46 @@ export function rankingComisiones(filas: FilaValoracion[], minimo: number): Rank
     grupos.set(fila.comisionId, grupo);
   }
   return rankear(grupos.values(), minimo).map((grupo, index) => ({ posicion: index + 1, ...contexto(grupo.fila), valoracion: valoracion(grupo) }));
+}
+
+export interface CursadaDeComision { id: string; anio: number; cuatrimestre: Cuatrimestre | null; comisionId: string; activa: boolean }
+export interface RankingComisionHistorica {
+  posicion: number;
+  comision: { nombre: string; carrera: Carrera };
+  materia: { id: string; nombre: string };
+  /** Cursadas with votes, most recent first; the first one is where the row links. */
+  cursadas: CursadaDeComision[];
+  anios: { desde: number; hasta: number };
+  valoracion: Valoracion;
+}
+
+const ORDEN_PERIODO: Record<Cuatrimestre, number> = { PRIMERO: 1, SEGUNDO: 2, ANUAL: 3 };
+const masReciente = (a: CursadaDeComision, b: CursadaDeComision) =>
+  b.anio - a.anio || (b.cuatrimestre ? ORDEN_PERIODO[b.cuatrimestre] : 0) - (a.cuatrimestre ? ORDEN_PERIODO[a.cuatrimestre] : 0);
+
+/** The same commission (subject + career + number) across every year, as one row. */
+export function rankingComisionesHistorico(filas: FilaValoracion[], minimo: number): RankingComisionHistorica[] {
+  const grupos = new Map<string, Acumulado & { fila: FilaValoracion; cursadas: Map<string, CursadaDeComision> }>();
+  for (const fila of filas) {
+    const clave = `${fila.materiaId}|${fila.comisionNombre}`;
+    const grupo = grupos.get(clave) ?? { suma: 0, cantidad: 0, nombre: `${fila.comisionNombre} ${fila.materiaNombre}`, id: clave, fila, cursadas: new Map() };
+    grupo.suma += fila.suma;
+    grupo.cantidad += fila.cantidad;
+    grupo.cursadas.set(fila.cursadaId, { id: fila.cursadaId, anio: fila.anio, cuatrimestre: fila.cuatrimestre, comisionId: fila.comisionId, activa: fila.activa });
+    grupos.set(clave, grupo);
+  }
+  return rankear(grupos.values(), minimo).map((grupo, index) => {
+    const cursadas = [...grupo.cursadas.values()].sort(masReciente);
+    const anios = cursadas.map(cursada => cursada.anio);
+    return {
+      posicion: index + 1,
+      comision: { nombre: grupo.fila.comisionNombre, carrera: grupo.fila.carrera },
+      materia: { id: grupo.fila.materiaId, nombre: grupo.fila.materiaNombre },
+      cursadas,
+      anios: { desde: Math.min(...anios), hasta: Math.max(...anios) },
+      valoracion: valoracion(grupo),
+    };
+  });
 }
 
 export function rankingProfesores(filas: FilaValoracion[], minimo: number): RankingProfesor[] {

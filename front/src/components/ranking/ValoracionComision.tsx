@@ -4,7 +4,7 @@ import { Trophy } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { ValoracionMateria } from "@/components/academic/ValoracionMateria";
-import { listarRankingComisiones } from "@/services/ranking";
+import { listarRankingComisionesDeCursada } from "@/services/ranking";
 import type { ResumenValoracionMateria } from "@/types/materias";
 import styles from "./ValoracionComision.module.css";
 
@@ -20,12 +20,11 @@ export function useValoracionesCursada(cursadaId: string): ValoracionesCursada {
   const [result, setResult] = useState<{ cursadaId: string; data: ValoracionesCursada } | null>(null);
   useEffect(() => {
     let active = true;
-    // 50 is the API maximum; no cursada has that many commissions.
-    Promise.resolve().then(() => listarRankingComisiones({ cursadaId, pageSize: 50 })).then((page) => {
+    Promise.resolve().then(() => listarRankingComisionesDeCursada(cursadaId)).then((items) => {
       if (!active) return;
-      const porComision = new Map(page.items.map((item) => [item.comision.id, item.valoracion]));
+      const porComision = new Map(items.map((item) => [item.comision.id, item.valoracion]));
       // "Best" only means something when there is someone to compare with.
-      setResult({ cursadaId, data: { porComision, mejor: page.items.length > 1 ? page.items[0]!.comision.id : null } });
+      setResult({ cursadaId, data: { porComision, mejor: items.length > 1 ? items[0]!.comision.id : null } });
     }).catch(() => { if (active) setResult({ cursadaId, data: VACIO }); });
     return () => { active = false; };
   }, [cursadaId]);

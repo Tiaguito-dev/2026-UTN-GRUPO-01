@@ -5,7 +5,7 @@ import { ProfesoresRanking } from "@/components/ranking/ProfesoresRanking";
 import { PerfilProfesor } from "@/components/ranking/PerfilProfesor";
 import { ComisionesRanking } from "@/components/ranking/ComisionesRanking";
 import { ValoracionComision, useValoracionesCursada } from "@/components/ranking/ValoracionComision";
-import { listarRankingComisiones, listarRankingProfesores, obtenerRankingProfesor, type RankingComision, type RankingProfesor } from "@/services/ranking";
+import { listarRankingComisiones, listarRankingComisionesDeCursada, listarRankingProfesores, obtenerRankingProfesor, type RankingComisionHistorica, type RankingProfesor } from "@/services/ranking";
 import { listarFeedback } from "@/services/feedback";
 import { HttpError } from "@/services/http";
 
@@ -17,7 +17,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: navigation.replace, push: navigation.push }),
 }));
 vi.mock("@/hooks/useIsAdmin", () => ({ useIsAdmin: () => false }));
-vi.mock("@/services/ranking", () => ({ listarRankingComisiones: vi.fn(), listarRankingProfesores: vi.fn(), obtenerRankingProfesor: vi.fn() }));
+vi.mock("@/services/ranking", () => ({ listarRankingComisiones: vi.fn(), listarRankingComisionesDeCursada: vi.fn(), listarRankingProfesores: vi.fn(), obtenerRankingProfesor: vi.fn() }));
 vi.mock("@/services/feedback", () => ({ listarFeedback: vi.fn() }));
 
 const contexto = {
@@ -92,10 +92,10 @@ describe("Ranking en el espacio de administración", () => {
     const ranking = await screen.findByRole("list", { name: "Ranking de profesores" });
     expect(within(ranking).getByRole("link").getAttribute("href")).toBe("/home/admin/ranking/profesores/p1");
     cleanup();
-    vi.mocked(listarRankingComisiones).mockResolvedValue(page([{ ...contexto, posicion: 1, valoracion: { promedio: 4, cantidad: 3 } }]));
+    vi.mocked(listarRankingComisiones).mockResolvedValue(page([historica(1)]));
     render(<ComisionesRanking admin />);
     const row = (await screen.findByRole("list", { name: "Ranking de comisiones" })).querySelector("a")!;
-    expect(row.getAttribute("href")).toMatch(/^\/home\/admin\/comisiones\/c1/);
+    expect(row.getAttribute("href")).toMatch(/^\/home\/admin\/comisiones\/c3/);
   });
 });
 
@@ -130,21 +130,35 @@ describe("Perfil del profesor", () => {
   });
 });
 
-describe("Ranking de comisiones", () => {
-  const item = (posicion: number, id: string): RankingComision => ({ ...contexto, comision: { ...contexto.comision, id }, posicion, valoracion: { promedio: 4, cantidad: 3 } });
-
-  it("enlaza cada comisión a su detalle y filtra por mínimo de valoraciones desde la URL", async () => {
+describe("Ranking histórico de comisiones", () => {
+  it("muestra cada comisión con sus años y cursadas, enlaza a la más reciente y filtra por mínimo desde la URL", async () => {
     navigation.query = "min=3";
-    vi.mocked(listarRankingComisiones).mockResolvedValue(page([item(1, "c1")]));
+    vi.mocked(listarRankingComisiones).mockResolvedValue(page([historica(1), { ...historica(2), cursadas: [{ id: "cu9", anio: 2026, cuatrimestre: "PRIMERO", comisionId: "c9", activa: true }], anios: { desde: 2026, hasta: 2026 } }]));
     render(<ComisionesRanking />);
-    const row = (await screen.findByRole("list", { name: "Ranking de comisiones" })).querySelector("a")!;
-    expect(row.getAttribute("href")).toBe("/home/materias/m1/cursadas/cu1/comisiones/c1");
+    const list = await screen.findByRole("list", { name: "Ranking de comisiones" });
+    const [row, otra] = within(list).getAllByRole("link");
+    expect(row!.getAttribute("href")).toBe("/home/materias/m1/cursadas/cu3/comisiones/c3");
+    expect(within(row!).getByText("Comisión S-41 · Paradigmas")).toBeTruthy();
+    expect(within(row!).getByText("Ingeniería en Sistemas de Información · 2024–2026 · 3 cursadas")).toBeTruthy();
+    expect(within(otra!).getByText(/· 2026 · 1 cursada$/)).toBeTruthy();
     expect(listarRankingComisiones).toHaveBeenCalledWith({ page: 1, pageSize: 10, minValoraciones: 3 });
     expect(screen.getByRole("button", { name: "Con 3 o más" }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Todas" }));
     expect(navigation.replace).toHaveBeenCalledWith("/home/profesores", { scroll: false });
   });
 });
+
+function historica(posicion: number): RankingComisionHistorica {
+  return {
+    posicion, comision: { nombre: "S-41", carrera: "S" }, materia: { id: "m1", nombre: "Paradigmas" },
+    cursadas: [
+      { id: "cu3", anio: 2026, cuatrimestre: "SEGUNDO", comisionId: "c3", activa: true },
+      { id: "cu2", anio: 2025, cuatrimestre: "SEGUNDO", comisionId: "c2", activa: false },
+      { id: "cu1", anio: 2024, cuatrimestre: "SEGUNDO", comisionId: "c1", activa: false },
+    ],
+    anios: { desde: 2024, hasta: 2026 }, valoracion: { promedio: 4.6, cantidad: 40 },
+  };
+}
 
 function Tarjetas({ ids }: { ids: string[] }) {
   const valoraciones = useValoracionesCursada("cu1");
@@ -153,27 +167,27 @@ function Tarjetas({ ids }: { ids: string[] }) {
 
 describe("Valoración en las tarjetas de comisión", () => {
   it("marca como mejor valorada solo a la primera cuando hay con quién comparar", async () => {
-    vi.mocked(listarRankingComisiones).mockResolvedValue(page([
+    vi.mocked(listarRankingComisionesDeCursada).mockResolvedValue([
       { ...contexto, comision: { ...contexto.comision, id: "c2" }, posicion: 1, valoracion: { promedio: 4.7, cantidad: 3 } },
       { ...contexto, posicion: 2, valoracion: { promedio: 4, cantidad: 1 } },
-    ]));
+    ]);
     render(<Tarjetas ids={["c1", "c2", "c3"]} />);
     expect(await within(screen.getByTestId("c2")).findByText("Mejor valorada")).toBeTruthy();
     expect(within(screen.getByTestId("c1")).getByText("4,0 de 5 estrellas")).toBeTruthy();
     expect(within(screen.getByTestId("c3")).getByText("Sin valoraciones")).toBeTruthy();
     expect(screen.getAllByText("Mejor valorada")).toHaveLength(1);
-    expect(listarRankingComisiones).toHaveBeenCalledWith({ cursadaId: "cu1", pageSize: 50 });
+    expect(listarRankingComisionesDeCursada).toHaveBeenCalledWith("cu1");
   });
 
   it("con una sola comisión valorada no muestra el distintivo, y si el ranking falla las tarjetas siguen", async () => {
-    vi.mocked(listarRankingComisiones).mockResolvedValueOnce(page([{ ...contexto, posicion: 1, valoracion: { promedio: 5, cantidad: 1 } }]));
+    vi.mocked(listarRankingComisionesDeCursada).mockResolvedValueOnce([{ ...contexto, posicion: 1, valoracion: { promedio: 5, cantidad: 1 } }]);
     const view = render(<Tarjetas ids={["c1"]} />);
     expect(await screen.findByText("5,0 de 5 estrellas")).toBeTruthy();
     expect(screen.queryByText("Mejor valorada")).toBeNull();
     view.unmount();
-    vi.mocked(listarRankingComisiones).mockRejectedValueOnce(new Error("sin red"));
+    vi.mocked(listarRankingComisionesDeCursada).mockRejectedValueOnce(new Error("sin red"));
     render(<Tarjetas ids={["c1"]} />);
-    await waitFor(() => expect(listarRankingComisiones).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(listarRankingComisionesDeCursada).toHaveBeenCalledTimes(2));
     expect(screen.getByText("Sin valoraciones")).toBeTruthy();
   });
 });

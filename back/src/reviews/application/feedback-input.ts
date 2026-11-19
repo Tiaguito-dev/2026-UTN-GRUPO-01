@@ -20,7 +20,7 @@ const minValoraciones = z.union([z.string().regex(/^\d+$/), z.number()]).transfo
 const busqueda = z.string().refine((value) => !forbiddenControl(value)).transform((value) => value.trim()).pipe(z.string().max(150))
   .transform((value) => value || undefined).optional();
 const rankingBase = z.strictObject({ page, pageSize: pageSize(50).default(10), minValoraciones });
-const rankingComisionesQuery = rankingBase.extend({ materiaId: z.string().uuid().optional(), cursadaId: z.string().uuid().optional() });
+const rankingComisionesQuery = rankingBase.extend({ materiaId: z.string().uuid().optional() });
 const rankingProfesoresQuery = rankingBase.extend({ q: busqueda });
 const generalQuery = pagination(false).extend({ carrera: carreraSchema.optional(), materiaId: z.string().uuid().optional(), profesorId: z.string().uuid().optional() });
 const moderationQuery = pagination(false).extend({ estado: z.enum(["PENDIENTE", "APROBADO", "RECHAZADO"]).default("PENDIENTE") });
