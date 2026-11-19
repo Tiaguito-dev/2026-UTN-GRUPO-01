@@ -2,6 +2,12 @@
 
 ## [Sin publicar]
 
+### Ranking histórico de comisiones
+
+- `GET /rankings/comisiones` junta todas las cursadas de una misma comisión (materia + carrera + número) y ordena por promedio bayesiano (5 votos imaginarios en la media general): una comisión con muchas reseñas buenas le gana a una nueva con pocas perfectas. Los profesores usan el mismo orden. Las estrellas siguen mostrando el promedio real.
+- Cambio de contrato: la fila de comisión trae `cursadas[]` y `anios`; el filtro `cursadaId` pasa a `GET /rankings/cursadas/:id/comisiones`, que usa el distintivo "Mejor valorada". El front muestra "2024–2026 · 3 cursadas" y enlaza a la cursada más reciente.
+- Sin migraciones. Validación: back 1213 unitarias y 4 de integración de ranking con PostgreSQL, front 1341; lint, typecheck y builds; revisión en navegador con base local. Evidencia en [la tarea](docs/tasks/finished/TASK-ranking-historico-comisiones.md).
+
 - La bienvenida pública se integra con el sprint actual y aplica las mismas reglas de moderación y ocultamiento que el resto del sitio (TASK-078).
 
 ### Presentación de reportes administrativos

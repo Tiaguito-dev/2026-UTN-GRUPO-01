@@ -2,7 +2,7 @@ import "reflect-metadata";
 import { describe, expect, it, vi } from "vitest";
 import type { Prisma } from "../src/generated/prisma/client.js";
 import type { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
-import { coincideNombre, rankingComisiones, rankingProfesores, type FilaValoracion } from "../src/reviews/domain/ranking.js";
+import { coincideNombre, puntajeBayesiano, rankingComisiones, rankingComisionesHistorico, rankingProfesores, type FilaValoracion } from "../src/reviews/domain/ranking.js";
 import { RankingService } from "../src/reviews/application/ranking.service.js";
 import { validateGeneralFeedbackQuery, validateRankingComisionesQuery, validateRankingProfesoresQuery } from "../src/reviews/application/feedback-input.js";
 import { FeedbackInputError, RankingProfesorNotFoundError } from "../src/reviews/application/errors.js";
@@ -31,15 +31,28 @@ describe("Ranking de comisiones", () => {
     });
   });
 
-  it("ordena por promedio exacto, desempata por cantidad, nombre e id", () => {
+  it("ordena por promedio bayesiano: una histórica le gana a una nueva con pocos votos perfectos", () => {
+    const ranking = rankingComisiones([
+      fila({ comisionId: "nueva3", suma: 15, cantidad: 3 }),
+      fila({ comisionId: "historica", suma: 184, cantidad: 40 }),
+      fila({ comisionId: "nueva15", suma: 75, cantidad: 15 }),
+      fila({ comisionId: "resto", suma: 600, cantidad: 200 }),
+    ], 1);
+    // Media general 874/258 ≈ 3,39: 3 votos de 5 ≈ 3,99; 40 votos de 4,6 ≈ 4,47; 15 votos de 5 ≈ 4,6.
+    expect(ranking.map(item => item.comision.id)).toEqual(["nueva15", "historica", "nueva3", "resto"]);
+    // Las estrellas que se muestran siguen siendo el promedio real.
+    expect(ranking.find(item => item.comision.id === "nueva3")!.valoracion).toEqual({ promedio: 5, cantidad: 3 });
+  });
+
+  it("un par de votos bajos casi no mueven a una histórica y desempata por cantidad, nombre e id", () => {
+    const media = 3.4;
+    expect(puntajeBayesiano({ suma: 184 + 2, cantidad: 42 }, media) - puntajeBayesiano({ suma: 184, cantidad: 40 }, media)).toBeGreaterThan(-0.2);
     const ranking = rankingComisiones([
       fila({ comisionId: "d", comisionNombre: "S-2", suma: 8, cantidad: 2 }),
       fila({ comisionId: "c", comisionNombre: "S-2", suma: 8, cantidad: 2 }),
-      fila({ comisionId: "b", comisionNombre: "S-1", suma: 12, cantidad: 3 }),
-      fila({ comisionId: "a", comisionNombre: "S-9", suma: 25, cantidad: 6 }),
+      fila({ comisionId: "b", comisionNombre: "S-1", suma: 8, cantidad: 2 }),
     ], 1);
-    // 25/6 = 4.17 supera a 4.0 aunque ambos redondeen distinto; los empates en 4 siguen la regla.
-    expect(ranking.map(item => [item.posicion, item.comision.id])).toEqual([[1, "a"], [2, "b"], [3, "c"], [4, "d"]]);
+    expect(ranking.map(item => [item.posicion, item.comision.id])).toEqual([[1, "b"], [2, "c"], [3, "d"]]);
   });
 
   it("descarta las comisiones por debajo del mínimo de votos", () => {
@@ -48,6 +61,36 @@ describe("Ranking de comisiones", () => {
       fila({ comisionId: "b", suma: 12, cantidad: 3 }),
     ], 2);
     expect(ranking.map(item => item.comision.id)).toEqual(["b"]);
+  });
+});
+
+describe("Ranking histórico de comisiones", () => {
+  const filas = [
+    fila({ comisionId: "s41-2024", comisionNombre: "S-41", materiaId: "agiles", materiaNombre: "Ágiles", cursadaId: "c2024", anio: 2024, cuatrimestre: "SEGUNDO", activa: false, suma: 9, cantidad: 2 }),
+    fila({ comisionId: "s41-2026", comisionNombre: "S-41", materiaId: "agiles", materiaNombre: "Ágiles", cursadaId: "c2026", anio: 2026, cuatrimestre: "SEGUNDO", suma: 10, cantidad: 2, profesorId: "p1", profesorNombre: "Sitnyk" }),
+    fila({ comisionId: "s41-2026", comisionNombre: "S-41", materiaId: "agiles", materiaNombre: "Ágiles", cursadaId: "c2026", anio: 2026, cuatrimestre: "SEGUNDO", suma: 4, cantidad: 1 }),
+    fila({ comisionId: "s41-otra", comisionNombre: "S-41", materiaId: "otra", materiaNombre: "Otra", cursadaId: "c9", anio: 2026, suma: 3, cantidad: 1 }),
+  ];
+
+  it("junta todas las cursadas de la misma materia y comisión, con la más reciente primero", () => {
+    const [agiles, otra] = rankingComisionesHistorico(filas, 1);
+    expect(agiles).toEqual({
+      posicion: 1,
+      comision: { nombre: "S-41", carrera: "S" },
+      materia: { id: "agiles", nombre: "Ágiles" },
+      cursadas: [
+        { id: "c2026", anio: 2026, cuatrimestre: "SEGUNDO", comisionId: "s41-2026", activa: true },
+        { id: "c2024", anio: 2024, cuatrimestre: "SEGUNDO", comisionId: "s41-2024", activa: false },
+      ],
+      anios: { desde: 2024, hasta: 2026 },
+      valoracion: { promedio: 4.6, cantidad: 5 },
+    });
+    // Mismo número de comisión en otra materia: es otra comisión histórica.
+    expect(otra).toMatchObject({ posicion: 2, materia: { id: "otra" }, valoracion: { cantidad: 1 } });
+  });
+
+  it("aplica el mínimo de votos a la comisión histórica completa", () => {
+    expect(rankingComisionesHistorico(filas, 3).map(item => item.materia.id)).toEqual(["agiles"]);
   });
 });
 
@@ -91,17 +134,18 @@ describe("Ranking: servicio y validación de query", () => {
   const service = new RankingService(repository);
   const id = "00000000-0000-4000-8000-000000000001";
 
-  it("pagina conservando la posición global y el total", async () => {
+  it("pagina el ranking histórico conservando la posición global y el total", async () => {
     const result = await service.comisiones({ page: "2", pageSize: "2" });
     expect(result).toMatchObject({ total: 3, page: 2, pageSize: 2 });
-    expect(result.items.map(item => [item.posicion, item.comision.id])).toEqual([[3, "c"]]);
+    expect(result.items.map(item => [item.posicion, item.cursadas[0]!.comisionId])).toEqual([[3, "c"]]);
   });
 
-  it("filtra comisiones por materia y cursada, con la posición dentro del filtro", async () => {
+  it("filtra el histórico por materia y da la vista por comisión de una cursada", async () => {
     repository.filasValoracion.mockResolvedValueOnce(filas.map(item => ({ ...item, materiaId: item.materiaId === "m2" ? "m2" : id })));
-    expect((await service.comisiones({ materiaId: id })).items.map(item => [item.posicion, item.comision.id])).toEqual([[1, "a"], [2, "b"]]);
+    expect((await service.comisiones({ materiaId: id })).items.map(item => [item.posicion, item.cursadas[0]!.comisionId])).toEqual([[1, "a"], [2, "b"]]);
     repository.filasValoracion.mockResolvedValueOnce(filas.map(item => ({ ...item, cursadaId: item.cursadaId === "c2" ? id : item.cursadaId })));
-    expect((await service.comisiones({ cursadaId: id })).items.map(item => [item.posicion, item.comision.id])).toEqual([[1, "b"]]);
+    expect((await service.comisionesDeCursada(id)).map(item => [item.posicion, item.comision.id])).toEqual([[1, "b"]]);
+    await expect(service.comisionesDeCursada("no-uuid")).rejects.toThrow(FeedbackInputError);
   });
 
   it("busca profesores sin tildes ni mayúsculas e incluye a los que no tienen votos al final", async () => {
@@ -129,7 +173,7 @@ describe("Ranking: servicio y validación de query", () => {
     expect(validateRankingComisionesQuery(undefined)).toEqual({ page: 1, pageSize: 10, minValoraciones: 1 });
     expect(validateRankingProfesoresQuery({ q: "   " })).toEqual({ page: 1, pageSize: 10, minValoraciones: 1, q: undefined });
     expect(validateGeneralFeedbackQuery({ profesorId: id })).toMatchObject({ profesorId: id });
-    for (const query of [{ pageSize: "51" }, { minValoraciones: "0" }, { minValoraciones: "101" }, { page: "x" }, { orden: "asc" }, { materiaId: "x" }]) {
+    for (const query of [{ pageSize: "51" }, { minValoraciones: "0" }, { minValoraciones: "101" }, { page: "x" }, { orden: "asc" }, { materiaId: "x" }, { cursadaId: id }]) {
       expect(() => validateRankingComisionesQuery(query)).toThrow(FeedbackInputError);
     }
     for (const query of [{ q: "a".repeat(151) }, { q: "a" }, { materiaId: id }]) {

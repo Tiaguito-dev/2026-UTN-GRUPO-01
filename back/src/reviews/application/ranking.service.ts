@@ -1,5 +1,5 @@
 import type { PaginatedResult } from "../../shared/domain/pagination.js";
-import { coincideNombre, rankingComisiones, rankingProfesores, todosLosProfesores, type RankingComision, type RankingProfesor } from "../domain/ranking.js";
+import { coincideNombre, rankingComisiones, rankingComisionesHistorico, rankingProfesores, todosLosProfesores, type RankingComision, type RankingComisionHistorica, type RankingProfesor } from "../domain/ranking.js";
 import { RankingProfesorNotFoundError } from "./errors.js";
 import { validateFeedbackId, validateRankingComisionesQuery, validateRankingProfesoresQuery } from "./feedback-input.js";
 import type { RankingRepository } from "./ports/ranking.repository.js";
@@ -12,11 +12,17 @@ const paginar = <T>(items: T[], page: number, pageSize: number): PaginatedResult
 export class RankingService {
   constructor(private readonly repository: RankingRepository) {}
 
-  async comisiones(query: unknown): Promise<PaginatedResult<RankingComision>> {
-    const { page, pageSize, minValoraciones, materiaId, cursadaId } = validateRankingComisionesQuery(query);
-    const filas = (await this.repository.filasValoracion())
-      .filter(fila => (!materiaId || fila.materiaId === materiaId) && (!cursadaId || fila.cursadaId === cursadaId));
-    return paginar(rankingComisiones(filas, minValoraciones), page, pageSize);
+  /** Each commission across all its years, ordered by Bayesian average; see TASK-ranking-historico-comisiones. */
+  async comisiones(query: unknown): Promise<PaginatedResult<RankingComisionHistorica>> {
+    const { page, pageSize, minValoraciones, materiaId } = validateRankingComisionesQuery(query);
+    const filas = (await this.repository.filasValoracion()).filter(fila => !materiaId || fila.materiaId === materiaId);
+    return paginar(rankingComisionesHistorico(filas, minValoraciones), page, pageSize);
+  }
+
+  /** Commissions of one cursada, best first: the source of the "Mejor valorada" badge. */
+  async comisionesDeCursada(id: unknown): Promise<RankingComision[]> {
+    const cursadaId = validateFeedbackId(id);
+    return rankingComisiones((await this.repository.filasValoracion()).filter(fila => fila.cursadaId === cursadaId), 1);
   }
 
   async profesores(query: unknown): Promise<PaginatedResult<RankingProfesor>> {

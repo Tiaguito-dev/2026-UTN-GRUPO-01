@@ -1254,10 +1254,11 @@ FeedbackForm consulta GET /feedback/normas al abrir una nueva publicación. Cuan
   `?q=`, ranking paginado con `RankingList` (puesto, cargos, estrellas) y enlace al perfil.
 - `/home/profesores/[profesorId]` (`ranking/PerfilProfesor`): resumen, "Por comisión" (filas sin
   puesto) y comentarios con `ExperienceCard`, vía `listarFeedback({ profesorId })`.
-- `/home/materias/ranking` (`ranking/ComisionesRanking`): ranking global con mínimo de valoraciones
-  en `?min=1|3|5` (`FilterChips`). Botón "Ranking de comisiones" en el encabezado de Materias.
+- `/home/materias/ranking` (`ranking/ComisionesRanking`): ranking histórico (cada comisión junta
+  todos sus años; fila "2024–2026 · 3 cursadas", enlace a la cursada más reciente) con mínimo de
+  valoraciones en `?min=1|3|5` (`FilterChips`). Botón "Ranking de comisiones" en el encabezado de Materias.
 - Tarjetas de comisión de `ComisionesMateria` y `ComisionesList`: `useValoracionesCursada` +
-  `ValoracionComision` muestran estrellas y "Mejor valorada" (solo con dos o más comisiones
+  `ValoracionComision` (vía `listarRankingComisionesDeCursada`) muestran estrellas y "Mejor valorada" (solo con dos o más comisiones
   valoradas). Un fallo del ranking no rompe las tarjetas.
 - `ui/SearchForm` es el buscador por nombre compartido (antes vivía dentro de `MateriasList`).
 - Servicios en `services/ranking.ts`; contrato en `back/OVERVIEW.md`.

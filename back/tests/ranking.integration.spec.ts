@@ -116,12 +116,14 @@ describe.skipIf(!databaseUrl)("Rankings de comisiones y profesores HTTP/PostgreS
     if (prisma) await prisma.$disconnect();
   });
 
-  it("ordena comisiones por promedio sin contar comentarios retirados ni exponer autores", async () => {
-    const { items, raw } = await todos("/rankings/comisiones");
-    const nuestras = items.filter(item => comisiones.includes(item.comision!.id));
-    expect(nuestras).toMatchObject([
-      { comision: { id: comisiones[0], nombre: "S-91" }, valoracion: { promedio: 5, cantidad: 2 } },
-      { comision: { id: comisiones[1], nombre: "S-92" }, valoracion: { promedio: 2.5, cantidad: 4 } },
+  it("ordena el histórico de comisiones sin contar comentarios retirados ni exponer autores", async () => {
+    const response = await get(`/rankings/comisiones?materiaId=${materiaId}&pageSize=50`);
+    expect(response.status).toBe(200);
+    const raw = await response.text();
+    const { items } = JSON.parse(raw) as { items: { cursadas: { comisionId: string }[] }[] };
+    expect(items).toMatchObject([
+      { comision: { nombre: "S-91" }, cursadas: [{ comisionId: comisiones[0], anio: 2026 }], anios: { desde: 2026, hasta: 2026 }, valoracion: { promedio: 5, cantidad: 2 } },
+      { comision: { nombre: "S-92" }, cursadas: [{ comisionId: comisiones[1] }], valoracion: { promedio: 2.5, cantidad: 4 } },
     ]);
     for (const id of voters) expect(raw).not.toContain(id);
     expect(raw).not.toContain("Votante privado");
@@ -130,8 +132,10 @@ describe.skipIf(!databaseUrl)("Rankings de comisiones y profesores HTTP/PostgreS
   it("junta las valoraciones de cada profesor por comisión con promedio ponderado", async () => {
     const { items } = await todos("/rankings/profesores");
     const nuestros = items.filter(item => profesores.includes(item.profesor!.id));
-    expect(nuestros).toMatchObject([
-      { profesor: { id: profesores[1], nombreCompleto: "Beto Ranking" }, valoracion: { promedio: 4, cantidad: 1 } },
+    // El orden entre ellos depende de la media de toda la base (bayesiano); se comprueban los valores.
+    expect(nuestros).toHaveLength(2);
+    expect(nuestros.find(item => item.profesor!.id === profesores[1])).toMatchObject({ profesor: { nombreCompleto: "Beto Ranking" }, valoracion: { promedio: 4, cantidad: 1 } });
+    expect(nuestros.filter(item => item.profesor!.id === profesores[0])).toMatchObject([
       // (5 + 5 + 2 + 2 + 2) / 5 = 3.2; un promedio de promedios daría 3.5.
       { profesor: { id: profesores[0], nombreCompleto: "Ana Ranking" }, valoracion: { promedio: 3.2, cantidad: 5 }, comisiones: [
         { comision: { id: comisiones[0] }, cargo: "TITULAR", valoracion: { promedio: 5, cantidad: 2 } },
@@ -141,8 +145,8 @@ describe.skipIf(!databaseUrl)("Rankings de comisiones y profesores HTTP/PostgreS
   });
 
   it("filtra por cursada, busca profesores sin votos, devuelve el perfil y sus comentarios", async () => {
-    const porCursada = await (await get(`/rankings/comisiones?cursadaId=${cursadaId}`)).json() as { items: { posicion: number; comision: { id: string } }[] };
-    expect(porCursada.items.map(item => [item.posicion, item.comision.id])).toEqual([[1, comisiones[0]], [2, comisiones[1]]]);
+    const porCursada = await (await get(`/rankings/cursadas/${cursadaId}/comisiones`)).json() as { posicion: number; comision: { id: string } }[];
+    expect(porCursada.map(item => [item.posicion, item.comision.id])).toEqual([[1, comisiones[0]], [2, comisiones[1]]]);
     const sinVotos = (await prisma.profesor.create({ data: { nombreCompleto: "Carla Ránking Sinvotos" } })).id;
     profesores.push(sinVotos);
     const busqueda = await (await get("/rankings/profesores?q=ranking%20sinvotos")).json() as { items: { posicion: number | null; profesor: { id: string } }[] };
@@ -160,5 +164,7 @@ describe.skipIf(!databaseUrl)("Rankings de comisiones y profesores HTTP/PostgreS
     expect(ids).not.toContain(profesores[1]);
     expect((await get("/rankings/comisiones", false)).status).toBe(401);
     expect((await get("/rankings/comisiones?pageSize=500")).status).toBe(400);
+    expect((await get(`/rankings/comisiones?cursadaId=${cursadaId}`)).status).toBe(400);
+    expect((await get("/rankings/cursadas/no-uuid/comisiones")).status).toBe(400);
   });
 });
